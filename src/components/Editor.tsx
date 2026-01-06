@@ -6,7 +6,7 @@ interface EditorProps {
   placeholder?: string;
 }
 
-export default function Editor({ value, onChange, placeholder }: EditorProps) {
+export default function Editor({ value, onChange }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
