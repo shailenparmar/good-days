@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: black;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Custom editor with thick caret - color is set dynamically via inline styles */
+.custom-editor {
+  /* caret-color set via inline style */
+}
+
+/* Make caret thicker and block-like */
+.custom-editor:focus {
+  /* caret-color set via inline style */
+}
+
+/* Try to make it blocky in supporting browsers */
+@supports (caret-shape: block) {
+  .custom-editor {
+    caret-shape: block;
+  }
+}
+
+/* Placeholder text */
+.custom-editor:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(45, 212, 191, 0.3);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+/* Timestamp separator styling */
+.timestamp-separator {
+  margin: 1rem 0;
+  user-select: none;
+}
+
+.timestamp-line {
+  width: 100%;
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    rgba(45, 212, 191, 0.5) 0px,
+    rgba(45, 212, 191, 0.5) 8px,
+    transparent 8px,
+    transparent 12px
+  );
+  margin-bottom: 0.25rem;
+}
+
+.timestamp-text {
+  font-size: 0.75rem;
+  color: rgba(45, 212, 191, 0.65);
+  text-align: center;
+  font-family: monospace;
+}
