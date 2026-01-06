@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Terminal, Calendar, Lock, Download, Copy, Palette } from 'lucide-react';
+import { Terminal, Calendar, Download, Copy, Palette } from 'lucide-react';
 
 interface JournalEntry {
   date: string; // YYYY-MM-DD format
@@ -285,7 +285,6 @@ function App() {
     hasInsertedTimestamp.current = false;
 
     // Check if content was deleted after a timestamp
-    const html = editorRef.current.innerHTML;
     const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
 
     // Remove timestamps that have no content after them
@@ -720,7 +719,7 @@ function App() {
                 <div>
                   <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>presets</div>
                   <div className="grid grid-cols-5 gap-1">
-                    {presets.map((preset, index) => {
+                    {presets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
                       const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
                       const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
 
@@ -867,7 +866,6 @@ function App() {
             <div className="text-xs font-mono" style={{ color: getColor() }}>
               <span>&gt;</span> {(() => {
                 if (entries.length === 0) return '0 day streak';
-                const today = getTodayDate();
                 let streak = 0;
                 let currentDate = new Date();
 

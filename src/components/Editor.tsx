@@ -25,35 +25,6 @@ export default function Editor({ value, onChange, placeholder }: EditorProps) {
     }
   };
 
-  // Render content with styled timestamps
-  const renderContent = () => {
-    if (!value && !isFocused) {
-      return (
-        <div className="text-green-900/50 pointer-events-none">
-          {placeholder?.split('\n').map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </div>
-      );
-    }
-
-    // Split content by timestamp pattern
-    const timestampRegex = /(· · · \d{1,2}:\d{2} [ap]m · · ·)/g;
-    const parts = value.split(timestampRegex);
-
-    return parts.map((part, index) => {
-      // Check if this part is a timestamp
-      if (timestampRegex.test(part)) {
-        return (
-          <span key={index} className="text-green-700/40 text-sm">
-            {part}
-          </span>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
   return (
     <div className="relative w-full h-full">
       {/* Hidden contenteditable for actual editing */}
