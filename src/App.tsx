@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Terminal, Calendar, Download, Copy, Palette } from 'lucide-react';
+import { Settings, Calendar, Download, Copy } from 'lucide-react';
 
 interface JournalEntry {
   date: string; // YYYY-MM-DD format
   content: string;
   startedAt?: number; // Timestamp when entry was first created
-  keystrokes?: number; // Total keystrokes for this entry
 }
 
 function App() {
@@ -14,8 +13,14 @@ function App() {
   const [currentContent, setCurrentContent] = useState<string>('');
   const [isLocked, setIsLocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showDebugMenu, setShowDebugMenu] = useState(false);
   const [isScrambled, setIsScrambled] = useState(false);
+  const [timestampThreshold, setTimestampThreshold] = useState(() => {
+    const saved = localStorage.getItem('timestampThreshold');
+    return saved ? Number(saved) : 10; // Default 10 minutes
+  });
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
   const [hue, setHue] = useState(() => {
     const saved = localStorage.getItem('colorHue');
     return saved ? Number(saved) : 174;
@@ -63,12 +68,24 @@ function App() {
     return defaultPresets;
   });
   const [randomPreview, setRandomPreview] = useState({ hue: 0, sat: 50, light: 50, bgHue: 0, bgSat: 0, bgLight: 10 });
+  const [totalKeystrokes, setTotalKeystrokes] = useState(() => {
+    const saved = localStorage.getItem('totalKeystrokes');
+    return saved ? Number(saved) : 0;
+  });
+  const [password, setPassword] = useState(() => {
+    const saved = localStorage.getItem('journalPassword');
+    return saved || 'shai';
+  });
+  const [passwordChangeStep, setPasswordChangeStep] = useState<'current' | 'new'>('current');
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
   const lastTypedTime = useRef<number>(Date.now());
   const lastContentLength = useRef<number>(0);
   const hasInsertedTimestamp = useRef<boolean>(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const bgPickerRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const unscrambledContent = useRef<string>('');
 
   // Load entries from localStorage on mount
@@ -78,6 +95,38 @@ function App() {
       setEntries(JSON.parse(saved));
     }
   }, []);
+
+  // Ensure today's entry always exists
+  useEffect(() => {
+    const today = getTodayDate();
+    const todayEntry = entries.find(e => e.date === today);
+
+    if (!todayEntry) {
+      const newEntries = [...entries, {
+        date: today,
+        content: '',
+        startedAt: Date.now(),
+      }].sort((a, b) => b.date.localeCompare(a.date));
+
+      setEntries(newEntries);
+      localStorage.setItem('journalEntries', JSON.stringify(newEntries));
+    }
+  }, [entries]);
+
+  // Populate editor when selectedDate changes
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const entry = entries.find(e => e.date === selectedDate);
+    const content = entry?.content || '';
+
+    // Only update if not currently typing
+    if (document.activeElement !== editorRef.current) {
+      editorRef.current.innerHTML = content;
+      setCurrentContent(content);
+      lastContentLength.current = editorRef.current.textContent?.length || 0;
+    }
+  }, [entries, selectedDate]);
 
   // Save color settings to localStorage when they change
   useEffect(() => {
@@ -94,12 +143,64 @@ function App() {
     localStorage.setItem('colorPresets', JSON.stringify(presets));
   }, [presets]);
 
-  // Clear selected preset when color picker is closed
+  // Save timestamp threshold to localStorage
   useEffect(() => {
-    if (!showColorPicker) {
+    localStorage.setItem('timestampThreshold', String(timestampThreshold));
+  }, [timestampThreshold]);
+
+  // Save total keystrokes to localStorage
+  useEffect(() => {
+    localStorage.setItem('totalKeystrokes', String(totalKeystrokes));
+  }, [totalKeystrokes]);
+
+  // Update current time and time until midnight every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now);
+
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      const hours = Math.floor(msUntilMidnight / (1000 * 60 * 60));
+      const minutes = Math.floor((msUntilMidnight % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((msUntilMidnight % (1000 * 60)) / 1000);
+
+      setTimeUntilMidnight(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateTime(); // Initial update
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Clear selected preset when settings menu is closed
+  useEffect(() => {
+    if (!showDebugMenu) {
       setSelectedPreset(null);
+      setPasswordChangeStep('current');
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
     }
-  }, [showColorPicker]);
+  }, [showDebugMenu]);
+
+  // Close settings menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showDebugMenu && settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        // Check if click was on the settings button itself
+        const target = event.target as HTMLElement;
+        if (!target.closest('button[data-settings-toggle]')) {
+          setShowDebugMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDebugMenu]);
 
   // Handle scrambling
   useEffect(() => {
@@ -119,36 +220,57 @@ function App() {
     }
   }, [isScrambled]);
 
-  // Automatic midnight detection - trigger exactly at 12:00am
-  useEffect(() => {
-    const handleMidnight = () => {
-      const oldDate = selectedDate;
-      const newDate = getTodayDate();
+  // Handle day change (midnight or manual)
+  const handleDayChange = () => {
+    const oldDate = selectedDate;
+    const newDate = getTodayDate();
 
-      console.log('Midnight hit! Was viewing:', oldDate, 'New day:', newDate);
+    console.log('Day change! Was viewing:', oldDate, 'New day:', newDate);
 
-      // Save whatever entry they were editing (if any)
-      if (editorRef.current && editorRef.current.textContent?.trim()) {
-        const currentEntry = entries.find(e => e.date === oldDate);
-        const currentKeystrokes = currentEntry?.keystrokes || 0;
-        const content = editorRef.current.innerHTML || '';
-        saveEntry(content, Date.now(), currentKeystrokes);
+    // Force save the current entry if viewing today and there's content
+    if (oldDate === getTodayDate() && editorRef.current) {
+      const content = editorRef.current.innerHTML || '';
+      const textContent = editorRef.current.textContent || '';
+
+      if (textContent.trim()) {
+        // Update the entry for the old date before switching
+        const existingIndex = entries.findIndex(e => e.date === oldDate);
+        let newEntries: JournalEntry[];
+
+        if (existingIndex >= 0) {
+          newEntries = [...entries];
+          newEntries[existingIndex] = {
+            date: oldDate,
+            content,
+            startedAt: entries[existingIndex].startedAt || Date.now(),
+          };
+        } else {
+          newEntries = [...entries, {
+            date: oldDate,
+            content,
+            startedAt: Date.now(),
+          }];
+        }
+
+        newEntries.sort((a, b) => b.date.localeCompare(a.date));
+        setEntries(newEntries);
+        localStorage.setItem('journalEntries', JSON.stringify(newEntries));
         console.log('Saved entry for', oldDate);
       }
+    }
 
-      // Reset tracking for new day
-      lastTypedTime.current = Date.now();
-      hasInsertedTimestamp.current = false;
-      lastContentLength.current = 0;
+    // Reset tracking for new day
+    lastTypedTime.current = Date.now();
+    hasInsertedTimestamp.current = false;
+    lastContentLength.current = 0;
 
-      // Always switch to the new day at midnight, no matter what they were viewing
-      setSelectedDate(newDate);
-      console.log('Switched to new day:', newDate);
+    // Switch to the new day
+    setSelectedDate(newDate);
+    console.log('Switched to new day:', newDate);
+  };
 
-      // Schedule next midnight check
-      scheduleNextMidnight();
-    };
-
+  // Automatic midnight detection - trigger exactly at 12:00am
+  useEffect(() => {
     const scheduleNextMidnight = () => {
       const now = new Date();
       const tomorrow = new Date(now);
@@ -159,14 +281,17 @@ function App() {
 
       console.log('Scheduling midnight check in', Math.round(msUntilMidnight / 1000 / 60), 'minutes');
 
-      return setTimeout(handleMidnight, msUntilMidnight);
+      return setTimeout(() => {
+        handleDayChange();
+        scheduleNextMidnight();
+      }, msUntilMidnight);
     };
 
     // Schedule the first midnight check
     const timeoutId = scheduleNextMidnight();
 
     return () => clearTimeout(timeoutId);
-  }, [selectedDate, entries]);
+  }, []);
 
 
   // ESC key to lock (only lock, not unlock)
@@ -175,9 +300,7 @@ function App() {
       if (e.key === 'Escape' && !isLocked) {
         // Force save before locking
         if (editorRef.current) {
-          const currentEntry = entries.find(e => e.date === selectedDate);
-          const currentKeystrokes = currentEntry?.keystrokes || 0;
-          saveEntry(editorRef.current.innerHTML || '', Date.now(), currentKeystrokes);
+          saveEntry(editorRef.current.innerHTML || '', Date.now());
         }
         setIsLocked(true);
       }
@@ -186,27 +309,13 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLocked, entries, selectedDate]);
 
-  // Load content for selected date
+  // Handle date changes
   useEffect(() => {
-    console.log('Loading content for date:', selectedDate);
-
     // Clear unscrambled backup when changing dates
     unscrambledContent.current = '';
 
     // Turn off scramble mode when switching dates
     setIsScrambled(false);
-
-    const entry = entries.find(e => e.date === selectedDate);
-    const content = entry?.content || '';
-    console.log('Found entry:', entry ? 'yes' : 'no', 'Content length:', content.length);
-    setCurrentContent(content);
-
-    // Update editor content only if user is not actively typing
-    if (editorRef.current && document.activeElement !== editorRef.current) {
-      console.log('Updating editor with content');
-      editorRef.current.innerHTML = content;
-      lastContentLength.current = editorRef.current.textContent?.length || 0;
-    }
 
     // Reset the timer when switching dates
     lastTypedTime.current = Date.now();
@@ -219,12 +328,12 @@ function App() {
 
       const now = Date.now();
       const timeSinceLastType = now - lastTypedTime.current;
-      const TEN_MINUTES = 10 * 60 * 1000;
+      const thresholdMs = timestampThreshold * 60 * 1000;
 
       const currentText = editorRef.current.textContent || '';
 
-      // Only insert if: 10 minutes passed, has content, hasn't already inserted a timestamp for this pause
-      if (timeSinceLastType >= TEN_MINUTES && currentText.trim() !== '' && lastContentLength.current > 0 && !hasInsertedTimestamp.current) {
+      // Only insert if threshold time passed, has content, hasn't already inserted a timestamp for this pause
+      if (timeSinceLastType >= thresholdMs && currentText.trim() !== '' && lastContentLength.current > 0 && !hasInsertedTimestamp.current) {
         const timestamp = formatTimestamp(now);
 
         // Create timestamp element
@@ -268,7 +377,7 @@ function App() {
 
     const interval = setInterval(checkAndInsertTimestamp, 1000); // Check every second
     return () => clearInterval(interval);
-  }, [currentContent]);
+  }, [currentContent, timestampThreshold]);
 
   // Handle typing
   const handleInput = () => {
@@ -277,9 +386,49 @@ function App() {
     const newContent = editorRef.current.textContent || '';
     const now = Date.now();
 
-    // Increment keystroke counter
-    const currentEntry = entries.find(e => e.date === selectedDate);
-    const currentKeystrokes = currentEntry?.keystrokes || 0;
+    // Increment total keystroke counter
+    setTotalKeystrokes(prev => prev + 1);
+
+    // Check if we should insert a timestamp BEFORE resetting the timer
+    const timeSinceLastType = now - lastTypedTime.current;
+    const thresholdMs = timestampThreshold * 60 * 1000;
+
+    if (timeSinceLastType >= thresholdMs && newContent.trim() !== '' && lastContentLength.current > 0 && !hasInsertedTimestamp.current) {
+      const timestamp = formatTimestamp(now);
+
+      // Create timestamp element
+      const timestampDiv = document.createElement('div');
+      timestampDiv.className = 'timestamp-separator';
+      timestampDiv.contentEditable = 'false';
+
+      const line = document.createElement('div');
+      line.className = 'timestamp-line';
+
+      const text = document.createElement('div');
+      text.className = 'timestamp-text';
+      text.textContent = timestamp;
+
+      timestampDiv.appendChild(line);
+      timestampDiv.appendChild(text);
+
+      // Get current HTML and add timestamp at the end
+      const currentHTML = editorRef.current.innerHTML;
+      editorRef.current.innerHTML = currentHTML + '<br><br>' + timestampDiv.outerHTML + '<br>';
+
+      // Move cursor to end
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      // Mark that we've inserted a timestamp for this pause
+      hasInsertedTimestamp.current = true;
+      lastContentLength.current = editorRef.current.textContent?.length || 0;
+    }
 
     // Reset the timestamp insertion flag when user types
     hasInsertedTimestamp.current = false;
@@ -337,11 +486,11 @@ function App() {
     lastTypedTime.current = now;
     lastContentLength.current = newContent.length;
     setCurrentContent(newContent);
-    saveEntry(editorRef.current.innerHTML || '', now, currentKeystrokes + 1);
+    saveEntry(editorRef.current.innerHTML || '', now);
   };
 
   // Save content
-  const saveEntry = (content: string, timestamp?: number, keystrokes?: number) => {
+  const saveEntry = (content: string, timestamp?: number) => {
     const existingIndex = entries.findIndex(e => e.date === selectedDate);
     let newEntries: JournalEntry[];
 
@@ -356,25 +505,45 @@ function App() {
       textContent = tempDiv.textContent || '';
     }
 
+    const isToday = selectedDate === getTodayDate();
+
     if (textContent.trim() === '') {
-      // Remove entry if empty
-      newEntries = entries.filter(e => e.date !== selectedDate);
+      // Don't remove today's entry even if empty - keep it in the list
+      if (isToday) {
+        if (existingIndex >= 0) {
+          // Update existing today entry with empty content
+          newEntries = [...entries];
+          newEntries[existingIndex] = {
+            date: selectedDate,
+            content,
+            startedAt: entries[existingIndex].startedAt || timestamp || Date.now(),
+          };
+        } else {
+          // Create new today entry with empty content
+          newEntries = [...entries, {
+            date: selectedDate,
+            content,
+            startedAt: timestamp || Date.now(),
+          }];
+        }
+      } else {
+        // Remove entry if empty and not today
+        newEntries = entries.filter(e => e.date !== selectedDate);
+      }
     } else if (existingIndex >= 0) {
-      // Update existing (preserve startedAt, update keystrokes)
+      // Update existing (preserve startedAt)
       newEntries = [...entries];
       newEntries[existingIndex] = {
         date: selectedDate,
         content,
         startedAt: entries[existingIndex].startedAt || timestamp || Date.now(),
-        keystrokes: keystrokes !== undefined ? keystrokes : entries[existingIndex].keystrokes
       };
     } else {
-      // Add new with startedAt timestamp and keystrokes
+      // Add new with startedAt timestamp
       newEntries = [...entries, {
         date: selectedDate,
         content,
         startedAt: timestamp || Date.now(),
-        keystrokes: keystrokes || 0
       }];
     }
 
@@ -388,18 +557,47 @@ function App() {
   // Handle password unlock
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'shai') {
+    if (passwordInput === password) {
       setIsLocked(false);
       setPasswordInput('');
       // Reload from localStorage when unlocking
-      setTimeout(() => {
-        const saved = localStorage.getItem('journalEntries');
-        if (saved) {
-          setEntries(JSON.parse(saved));
+      const saved = localStorage.getItem('journalEntries');
+      if (saved) {
+        const loadedEntries = JSON.parse(saved);
+        setEntries(loadedEntries);
+
+        // Reload current entry into editor
+        const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
+        const content = entry?.content || '';
+        setCurrentContent(content);
+        if (editorRef.current) {
+          editorRef.current.innerHTML = content;
         }
-      }, 0);
+      }
     } else {
       setPasswordInput('');
+    }
+  };
+
+  // Handle password change
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordChangeStep === 'current') {
+      if (currentPasswordInput === password) {
+        setPasswordChangeStep('new');
+        setCurrentPasswordInput('');
+      } else {
+        setCurrentPasswordInput('');
+      }
+    } else if (passwordChangeStep === 'new') {
+      if (newPasswordInput.trim() !== '') {
+        setPassword(newPasswordInput);
+        localStorage.setItem('journalPassword', newPasswordInput);
+        setPasswordChangeStep('current');
+        setCurrentPasswordInput('');
+        setNewPasswordInput('');
+      }
     }
   };
 
@@ -694,6 +892,69 @@ function App() {
           .preset-pulse {
             animation: preset-pulse 1s ease-in-out infinite;
           }
+          .sidebar-button:hover:not(:disabled) {
+            background-color: hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15) !important;
+          }
+          input::placeholder {
+            color: ${getColor().replace('hsl', 'hsla').replace(')', ', 0.4)')};
+            opacity: 1;
+          }
+
+          /* Threshold Slider */
+          .threshold-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+          }
+          .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 2px solid ${getColor()};
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+          }
+          .threshold-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 2px solid ${getColor()};
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+          }
+
+          /* Hue Sliders */
+          .hue-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+          }
+          .hue-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 2px solid ${getColor()};
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+          }
+          .hue-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 2px solid ${getColor()};
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+          }
         `}
       </style>
 
@@ -711,9 +972,149 @@ function App() {
             <h1 className="text-2xl font-bold font-mono tracking-tight" style={{ color: getColor() }}>good days with shai</h1>
           </div>
 
+          {/* Stats */}
+          <div className="px-6 pb-4 pt-4 space-y-1 border-t" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {entries.length} {entries.length === 1 ? 'day' : 'days'} logged
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {totalKeystrokes.toLocaleString()} keystrokes
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {entries.reduce((sum, e) => sum + (e.content?.length || 0), 0).toLocaleString()} chars written
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {entries.reduce((sum, e) => {
+                const words = (e.content || '').split(/\s+/).filter(Boolean).length;
+                return sum + words;
+              }, 0).toLocaleString()} words total
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {(() => {
+                if (entries.length === 0) return '0 day streak';
+                let streak = 0;
+                let currentDate = new Date();
+
+                while (true) {
+                  const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+                  if (entries.find(e => e.date === dateStr)) {
+                    streak++;
+                    currentDate.setDate(currentDate.getDate() - 1);
+                  } else {
+                    break;
+                  }
+                }
+                return `${streak} day ${streak === 1 ? 'streak' : 'streak'}`;
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* Entries list */}
+        <div className="flex-1 overflow-y-auto" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)` }}>
+          {entries.length > 0 && (
+            <div className="p-3 space-y-1">
+              {entries.map(entry => {
+                const isSelected = selectedDate === entry.date;
+                return (
+                  <button
+                    key={entry.date}
+                    onClick={() => {
+                      setSelectedDate(entry.date);
+                      setShowDebugMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded font-mono text-sm cursor-pointer"
+                    style={{
+                      border: isSelected ? `2px solid ${getColor()}` : '2px solid transparent',
+                      color: getColor(),
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.border = `2px solid ${getColor()}`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.border = '2px solid transparent';
+                      }
+                    }}
+                  >
+                    {formatDate(entry.date)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Buttons at bottom */}
+        <div className="p-4 space-y-2" style={{
+          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
+          borderTop: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
+        }}>
+          <button
+            onClick={() => setIsScrambled(!isScrambled)}
+            className={`sidebar-button w-full px-3 py-2 text-xs font-mono rounded flex items-center justify-center gap-2 ${isScrambled ? 'active' : ''}`}
+            style={{
+              color: getColor(),
+              backgroundColor: isScrambled ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15)` : 'transparent',
+              border: `1px solid ${getColor()}`,
+            }}
+          >
+            <span>~~</span>
+            <span>{isScrambled ? 'unscramble' : 'scramble'}</span>
+          </button>
+          <button
+            onClick={handleCopyToClipboard}
+            disabled={entries.length === 0}
+            className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{
+              color: getColor(),
+              backgroundColor: 'transparent',
+              border: `1px solid ${getColor()}`,
+            }}
+          >
+            <Copy className="w-3 h-3" />
+            <span>copy to clipboard</span>
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={entries.length === 0}
+            className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{
+              color: getColor(),
+              backgroundColor: 'transparent',
+              border: `1px solid ${getColor()}`,
+            }}
+          >
+            <Download className="w-3 h-3" />
+            <span>export to txt file</span>
+          </button>
+          <button
+            onClick={() => setShowDebugMenu(!showDebugMenu)}
+            data-settings-toggle
+            className={`sidebar-button w-full px-3 py-2 text-xs font-mono rounded flex items-center justify-center gap-2 ${showDebugMenu ? 'active' : ''}`}
+            style={{
+              color: getColor(),
+              backgroundColor: showDebugMenu ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15)` : 'transparent',
+              border: `1px solid ${getColor()}`,
+            }}
+          >
+            <Settings className="w-3 h-3" />
+            <span>settings</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Middle Column - Settings Panel */}
+      {showDebugMenu && (
+        <div ref={settingsRef} className="w-80 flex flex-col min-h-screen" style={{
+          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
+          borderRight: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
+        }}>
           {/* Color Picker */}
-          {showColorPicker && (
-            <div className="px-6 pb-4 pt-4 border-t border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+          {showDebugMenu && (
+            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
               <div className="space-y-3">
                 {/* PRESETS */}
                 <div>
@@ -769,7 +1170,7 @@ function App() {
                       max="360"
                       value={hue}
                       onChange={(e) => setHue(Number(e.target.value))}
-                      className="w-full h-2 rounded appearance-none cursor-pointer"
+                      className="w-full h-2 rounded appearance-none cursor-pointer hue-slider"
                       style={{
                         background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'
                       }}
@@ -812,7 +1213,7 @@ function App() {
                       max="360"
                       value={bgHue}
                       onChange={(e) => setBgHue(Number(e.target.value))}
-                      className="w-full h-2 rounded appearance-none cursor-pointer"
+                      className="w-full h-2 rounded appearance-none cursor-pointer hue-slider"
                       style={{
                         background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'
                       }}
@@ -846,152 +1247,98 @@ function App() {
             </div>
           )}
 
-          {/* Stats */}
-          <div className="px-6 pb-4 pt-4 space-y-1 border-t" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              <span>&gt;</span> {entries.length} {entries.length === 1 ? 'day' : 'days'} logged
+          {/* Timestamp Threshold Section */}
+          {showDebugMenu && (
+            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+              <label className="block text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>
+                threshold: {timestampThreshold >= 1 ? `${timestampThreshold} min` : `${Math.round(timestampThreshold * 60)} sec`}
+              </label>
+              <input
+                type="range"
+                min="0.0833"
+                max="60"
+                step="0.0833"
+                value={timestampThreshold}
+                onChange={(e) => setTimestampThreshold(Number(e.target.value))}
+                className="w-full threshold-slider"
+                style={{
+                  background: `linear-gradient(to right, ${getColor()} 0%, ${getColor()} ${((timestampThreshold - 0.0833) / (60 - 0.0833)) * 100}%, ${getColor().replace('hsl', 'hsla').replace(')', ', 0.2)')} ${((timestampThreshold - 0.0833) / (60 - 0.0833)) * 100}%, ${getColor().replace('hsl', 'hsla').replace(')', ', 0.2)')} 100%)`
+                }}
+              />
             </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              <span>&gt;</span> {entries.reduce((sum, e) => sum + (e.keystrokes || 0), 0).toLocaleString()} keystrokes
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              <span>&gt;</span> {entries.reduce((sum, e) => sum + (e.content?.length || 0), 0).toLocaleString()} chars written
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              <span>&gt;</span> {entries.reduce((sum, e) => {
-                const words = (e.content || '').split(/\s+/).filter(Boolean).length;
-                return sum + words;
-              }, 0).toLocaleString()} words total
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              <span>&gt;</span> {(() => {
-                if (entries.length === 0) return '0 day streak';
-                let streak = 0;
-                let currentDate = new Date();
+          )}
 
-                while (true) {
-                  const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-                  if (entries.find(e => e.date === dateStr)) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                  } else {
-                    break;
-                  }
-                }
-                return `${streak} day ${streak === 1 ? 'streak' : 'streak'}`;
-              })()}
+          {/* Time Display Section */}
+          {showDebugMenu && (
+            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+              <div className="text-xs font-mono font-bold space-y-1" style={{ color: getColor() }}>
+                <div>time: {currentTime.toLocaleTimeString()}</div>
+                <div>date: {currentTime.toLocaleDateString()}</div>
+                <div>midnight in: {timeUntilMidnight}</div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Entries list */}
-        <div className="flex-1 overflow-y-auto" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)` }}>
-          {entries.length === 0 ? (
-            <div className="p-6 text-center" style={{ color: getColor() }}>
-              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-mono">&gt; no entries found</p>
-              <p className="text-sm font-mono mt-1">&gt; begin logging...</p>
-            </div>
-          ) : (
-            <div className="p-3 space-y-1">
-              {entries.map(entry => {
-                const isSelected = selectedDate === entry.date;
-                return (
-                  <button
-                    key={entry.date}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('=== BUTTON CLICKED ===');
-                      console.log('Clicking entry:', entry.date);
-                      console.log('Current selectedDate:', selectedDate);
-                      console.log('Are they equal?', entry.date === selectedDate);
-
-                      if (entry.date !== selectedDate) {
-                        console.log('Setting new date...');
-                        setSelectedDate(entry.date);
-                      } else {
-                        console.log('Already on this date');
-                      }
-                    }}
-                    className="w-full text-left px-3 py-2 rounded transition-colors font-mono text-sm cursor-pointer"
+          {/* Password Change Section */}
+          {showDebugMenu && (
+            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+              <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>change password</div>
+              <form onSubmit={handlePasswordChange} className="space-y-2">
+                {passwordChangeStep === 'current' ? (
+                  <input
+                    type="password"
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    placeholder="current password"
+                    className="w-full px-3 py-2 text-xs font-mono rounded focus:outline-none"
                     style={{
-                      backgroundColor: isSelected ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` : 'transparent',
+                      backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
+                      borderColor: getColor(),
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
                       color: getColor(),
                     }}
-                    onMouseEnter={(e) => !isSelected ? e.currentTarget.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15)` : null}
-                    onMouseLeave={(e) => !isSelected ? e.currentTarget.style.backgroundColor = 'transparent' : null}
-                  >
-                    &gt; {formatDate(entry.date)}
-                  </button>
-                );
-              })}
+                  />
+                ) : (
+                  <input
+                    type="password"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    placeholder="new password"
+                    className="w-full px-3 py-2 text-xs font-mono rounded focus:outline-none"
+                    style={{
+                      backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
+                      borderColor: getColor(),
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      color: getColor(),
+                    }}
+                    autoFocus
+                  />
+                )}
+              </form>
+            </div>
+          )}
+
+          {/* Testing Section */}
+          {showDebugMenu && (
+            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+              <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>testing</div>
+              <button
+                onClick={handleDayChange}
+                className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
+                style={{
+                  color: getColor(),
+                  backgroundColor: 'transparent',
+                  border: `1px solid ${getColor()}`,
+                }}
+              >
+                new day
+              </button>
             </div>
           )}
         </div>
-
-        {/* Export buttons at bottom */}
-        <div className="p-4 space-y-2" style={{
-          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-          borderTop: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
-        }}>
-          <button
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className="w-full px-3 py-2 text-xs font-mono border rounded transition-colors flex items-center justify-center gap-2"
-            style={{
-              color: getColor(),
-              borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.2)`}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <Palette className="w-3 h-3" />
-            <span>colors</span>
-          </button>
-          <button
-            onClick={() => setIsScrambled(!isScrambled)}
-            className="w-full px-3 py-2 text-xs font-mono border rounded transition-colors flex items-center justify-center gap-2"
-            style={{
-              color: getColor(),
-              borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
-              backgroundColor: isScrambled ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.2)` : 'transparent',
-            }}
-            onMouseEnter={(e) => !isScrambled ? e.currentTarget.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.2)` : null}
-            onMouseLeave={(e) => !isScrambled ? e.currentTarget.style.backgroundColor = 'transparent' : null}
-          >
-            <Terminal className="w-3 h-3" />
-            <span>{isScrambled ? 'unscramble' : 'scramble'}</span>
-          </button>
-          <button
-            onClick={handleCopyToClipboard}
-            disabled={entries.length === 0}
-            className="w-full px-3 py-2 text-xs font-mono border rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{
-              color: getColor(),
-              borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
-            }}
-            onMouseEnter={(e) => !entries.length ? null : e.currentTarget.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.2)`}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <Copy className="w-3 h-3" />
-            <span>copy to clipboard</span>
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={entries.length === 0}
-            className="w-full px-3 py-2 text-xs font-mono border rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{
-              color: getColor(),
-              borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
-            }}
-            onMouseEnter={(e) => !entries.length ? null : e.currentTarget.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.2)`}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <Download className="w-3 h-3" />
-            <span>export to txt file</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Editor */}
       <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
@@ -1001,7 +1348,7 @@ function App() {
           borderBottom: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
         }}>
           <h2 className="text-lg font-semibold font-mono" style={{ color: getColor() }}>
-            &gt; {formatDate(selectedDate)}
+            {formatDate(selectedDate)}
           </h2>
           <p className="text-sm mt-1 font-mono" style={{ color: getColor() }}>
             [{(() => {
@@ -1042,7 +1389,7 @@ function App() {
             onInput={handleInput}
             className="w-full h-full focus:outline-none text-base leading-relaxed font-mono whitespace-pre-wrap custom-editor dynamic-editor"
             spellCheck="false"
-            data-placeholder="welcome to a new day, shai"
+            data-placeholder="type here"
             suppressContentEditableWarning
           />
         </div>
@@ -1054,9 +1401,9 @@ function App() {
           color: getColor()
         }}>
           {currentContent.length > 0 ? (
-            <span>&gt; {currentContent.split(/\s+/).filter(Boolean).length} words | {currentContent.length} chars | auto-saved</span>
+            <span>{currentContent.split(/\s+/).filter(Boolean).length} words | {currentContent.length} chars | auto-saved</span>
           ) : (
-            <span>&gt; waiting for input...</span>
+            <span>waiting for input...</span>
           )}
         </div>
       </div>
