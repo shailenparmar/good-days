@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+const hue = localStorage.getItem('colorHue') || '174';
+const sat = localStorage.getItem('colorSaturation') || '72';
+const light = localStorage.getItem('colorLightness') || '56';
+const bgHue = localStorage.getItem('bgHue') || '0';
+const bgSat = localStorage.getItem('bgSaturation') || '0';
+const bgLight = localStorage.getItem('bgLightness') || '0';
+const presets = localStorage.getItem('colorPresets');
+
+console.log('Current colors:', { hue, sat, light, bgHue, bgSat, bgLight });
+console.log('Current presets:', presets);
+document.body.innerHTML = `
+<h2>Current Colors:</h2>
+<pre>hue: ${hue}, sat: ${sat}, light: ${light}</pre>
+<pre>bgHue: ${bgHue}, bgSat: ${bgSat}, bgLight: ${bgLight}</pre>
+<h2>Current Presets:</h2>
+<pre>${presets || 'None saved'}</pre>
+`;
+</script>
+</body>
+</html>
