@@ -222,31 +222,30 @@ function App() {
 
   // Handle day change (midnight or manual)
   const handleDayChange = () => {
-    const oldDate = selectedDate;
-    const newDate = getTodayDate();
+    const currentViewingDate = selectedDate;
 
-    console.log('Day change! Was viewing:', oldDate, 'New day:', newDate);
+    console.log('Day change triggered! Currently viewing:', currentViewingDate);
 
-    // Force save the current entry if viewing today and there's content
-    if (oldDate === getTodayDate() && editorRef.current) {
+    // ALWAYS save the current editor content to the date we're viewing
+    if (editorRef.current) {
       const content = editorRef.current.innerHTML || '';
       const textContent = editorRef.current.textContent || '';
 
       if (textContent.trim()) {
-        // Update the entry for the old date before switching
-        const existingIndex = entries.findIndex(e => e.date === oldDate);
+        // Save to the date we're currently viewing (not today's date)
+        const existingIndex = entries.findIndex(e => e.date === currentViewingDate);
         let newEntries: JournalEntry[];
 
         if (existingIndex >= 0) {
           newEntries = [...entries];
           newEntries[existingIndex] = {
-            date: oldDate,
+            date: currentViewingDate,
             content,
             startedAt: entries[existingIndex].startedAt || Date.now(),
           };
         } else {
           newEntries = [...entries, {
-            date: oldDate,
+            date: currentViewingDate,
             content,
             startedAt: Date.now(),
           }];
@@ -255,18 +254,19 @@ function App() {
         newEntries.sort((a, b) => b.date.localeCompare(a.date));
         setEntries(newEntries);
         localStorage.setItem('journalEntries', JSON.stringify(newEntries));
-        console.log('Saved entry for', oldDate);
+        console.log('Saved entry for date:', currentViewingDate);
       }
     }
+
+    // Switch to today's date
+    const newDate = getTodayDate();
+    setSelectedDate(newDate);
+    console.log('Switched to new day:', newDate);
 
     // Reset tracking for new day
     lastTypedTime.current = Date.now();
     hasInsertedTimestamp.current = false;
     lastContentLength.current = 0;
-
-    // Switch to the new day
-    setSelectedDate(newDate);
-    console.log('Switched to new day:', newDate);
   };
 
   // Automatic midnight detection - trigger exactly at 12:00am
@@ -1324,17 +1324,33 @@ function App() {
           {showDebugMenu && (
             <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
               <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>testing</div>
-              <button
-                onClick={handleDayChange}
-                className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
-                style={{
-                  color: getColor(),
-                  backgroundColor: 'transparent',
-                  border: `1px solid ${getColor()}`,
-                }}
-              >
-                new day
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={handleDayChange}
+                  className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
+                  style={{
+                    color: getColor(),
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${getColor()}`,
+                  }}
+                >
+                  new day
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Current Presets:', JSON.stringify(presets, null, 2));
+                    console.log('Copy this to update defaultPresets in code');
+                  }}
+                  className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
+                  style={{
+                    color: getColor(),
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${getColor()}`,
+                  }}
+                >
+                  log presets
+                </button>
+              </div>
             </div>
           )}
         </div>
