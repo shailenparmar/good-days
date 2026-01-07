@@ -50,10 +50,10 @@ function App() {
     // Load presets from localStorage on initialization
     const savedPresets = localStorage.getItem('colorPresets');
     const defaultPresets = [
-      { hue: 174, sat: 72, light: 56, bgHue: 0, bgSat: 0, bgLight: 0 },
-      { hue: 220, sat: 70, light: 60, bgHue: 220, bgSat: 15, bgLight: 8 },
-      { hue: 35, sat: 60, light: 65, bgHue: 30, bgSat: 30, bgLight: 12 },
-      { hue: 340, sat: 65, light: 58, bgHue: 340, bgSat: 20, bgLight: 6 },
+      { hue: 19, sat: 50, light: 10, bgHue: 145, bgSat: 48, bgLight: 74 },
+      { hue: 0, sat: 100, light: 59, bgHue: 268, bgSat: 45, bgLight: 11 },
+      { hue: 35, sat: 86, light: 68, bgHue: 30, bgSat: 100, bgLight: 15 },
+      { hue: 241, sat: 100, light: 46, bgHue: 59, bgSat: 100, bgLight: 48 },
     ];
 
     if (savedPresets) {
@@ -222,51 +222,64 @@ function App() {
 
   // Handle day change (midnight or manual)
   const handleDayChange = () => {
-    const currentViewingDate = selectedDate;
+    console.log('=== DAY CHANGE STARTED ===');
+    console.log('Currently viewing date:', selectedDate);
+    console.log('Today\'s actual date:', getTodayDate());
+    console.log('Total entries before:', entries.length);
 
-    console.log('Day change triggered! Currently viewing:', currentViewingDate);
-
-    // ALWAYS save the current editor content to the date we're viewing
+    // Save current content before switching
     if (editorRef.current) {
       const content = editorRef.current.innerHTML || '';
       const textContent = editorRef.current.textContent || '';
 
+      console.log('Editor has content:', textContent.length, 'chars');
+      console.log('Content preview:', textContent.substring(0, 50));
+
       if (textContent.trim()) {
-        // Save to the date we're currently viewing (not today's date)
-        const existingIndex = entries.findIndex(e => e.date === currentViewingDate);
-        let newEntries: JournalEntry[];
+        // Find or create entry for current viewing date
+        const currentEntries = [...entries];
+        const existingIndex = currentEntries.findIndex(e => e.date === selectedDate);
 
         if (existingIndex >= 0) {
-          newEntries = [...entries];
-          newEntries[existingIndex] = {
-            date: currentViewingDate,
+          console.log('Updating existing entry for', selectedDate);
+          currentEntries[existingIndex] = {
+            date: selectedDate,
             content,
-            startedAt: entries[existingIndex].startedAt || Date.now(),
+            startedAt: currentEntries[existingIndex].startedAt || Date.now(),
           };
         } else {
-          newEntries = [...entries, {
-            date: currentViewingDate,
+          console.log('Creating new entry for', selectedDate);
+          currentEntries.push({
+            date: selectedDate,
             content,
             startedAt: Date.now(),
-          }];
+          });
         }
 
-        newEntries.sort((a, b) => b.date.localeCompare(a.date));
-        setEntries(newEntries);
-        localStorage.setItem('journalEntries', JSON.stringify(newEntries));
-        console.log('Saved entry for date:', currentViewingDate);
+        currentEntries.sort((a, b) => b.date.localeCompare(a.date));
+
+        console.log('Saving entries. New count:', currentEntries.length);
+        setEntries(currentEntries);
+        localStorage.setItem('journalEntries', JSON.stringify(currentEntries));
+        console.log('✓ Saved successfully');
+      } else {
+        console.log('No content to save (empty)');
       }
+    } else {
+      console.log('Editor ref not available');
     }
 
     // Switch to today's date
-    const newDate = getTodayDate();
-    setSelectedDate(newDate);
-    console.log('Switched to new day:', newDate);
+    const todayDate = getTodayDate();
+    console.log('Switching to:', todayDate);
+    setSelectedDate(todayDate);
 
-    // Reset tracking for new day
+    // Reset tracking
     lastTypedTime.current = Date.now();
     hasInsertedTimestamp.current = false;
     lastContentLength.current = 0;
+
+    console.log('=== DAY CHANGE COMPLETE ===');
   };
 
   // Automatic midnight detection - trigger exactly at 12:00am
