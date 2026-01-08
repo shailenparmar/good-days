@@ -27,29 +27,30 @@ function App() {
   const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
   const [hue, setHue] = useState(() => {
     const saved = localStorage.getItem('colorHue');
-    return saved ? Number(saved) : 174;
+    return saved ? Number(saved) : 19; // First preset
   });
   const [saturation, setSaturation] = useState(() => {
     const saved = localStorage.getItem('colorSaturation');
-    return saved ? Number(saved) : 72;
+    return saved ? Number(saved) : 50; // First preset
   });
   const [lightness, setLightness] = useState(() => {
     const saved = localStorage.getItem('colorLightness');
-    return saved ? Number(saved) : 56;
+    return saved ? Number(saved) : 10; // First preset
   });
   const [bgHue, setBgHue] = useState(() => {
     const saved = localStorage.getItem('bgHue');
-    return saved ? Number(saved) : 0;
+    return saved ? Number(saved) : 145; // First preset
   });
   const [bgSaturation, setBgSaturation] = useState(() => {
     const saved = localStorage.getItem('bgSaturation');
-    return saved ? Number(saved) : 0;
+    return saved ? Number(saved) : 48; // First preset
   });
   const [bgLightness, setBgLightness] = useState(() => {
     const saved = localStorage.getItem('bgLightness');
-    return saved ? Number(saved) : 0;
+    return saved ? Number(saved) : 74; // First preset
   });
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [selectedCustomPreset, setSelectedCustomPreset] = useState<number | null>(null);
   const [presets, setPresets] = useState(() => {
     // Load presets from localStorage on initialization
     const savedPresets = localStorage.getItem('colorPresets');
@@ -58,18 +59,20 @@ function App() {
       { hue: 0, sat: 100, light: 59, bgHue: 268, bgSat: 45, bgLight: 11 },
       { hue: 35, sat: 86, light: 68, bgHue: 30, bgSat: 100, bgLight: 15 },
       { hue: 241, sat: 100, light: 46, bgHue: 59, bgSat: 100, bgLight: 48 },
+      { hue: 174, sat: 72, light: 56, bgHue: 0, bgSat: 0, bgLight: 0 },
     ];
 
     if (savedPresets) {
       const parsed = JSON.parse(savedPresets);
-      // If old format with 5 presets, only use first 4
-      if (parsed.length > 4) {
-        return parsed.slice(0, 4);
-      }
       return parsed;
     }
-    // Default presets if nothing saved (4 presets, 5th is rand button)
+    // Default presets if nothing saved (5 presets)
     return defaultPresets;
+  });
+  const [customPresets, setCustomPresets] = useState(() => {
+    // Load custom presets from localStorage
+    const savedCustom = localStorage.getItem('customColorPresets');
+    return savedCustom ? JSON.parse(savedCustom) : [];
   });
   const [randomPreview, setRandomPreview] = useState({ hue: 0, sat: 50, light: 50, bgHue: 0, bgSat: 0, bgLight: 10 });
   const [totalKeystrokes, setTotalKeystrokes] = useState(() => {
@@ -189,6 +192,11 @@ function App() {
     localStorage.setItem('colorPresets', JSON.stringify(presets));
   }, [presets]);
 
+  // Save custom presets to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('customColorPresets', JSON.stringify(customPresets));
+  }, [customPresets]);
+
   // Save timestamp threshold to localStorage
   useEffect(() => {
     localStorage.setItem('timestampThreshold', String(timestampThreshold));
@@ -261,11 +269,30 @@ function App() {
   useEffect(() => {
     if (!showDebugMenu) {
       setSelectedPreset(null);
+      setSelectedCustomPreset(null);
       setPasswordChangeStep('current');
       setCurrentPasswordInput('');
       setNewPasswordInput('');
     }
   }, [showDebugMenu]);
+
+  // Handle delete key for custom presets
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedCustomPreset !== null && showDebugMenu) {
+          // Delete the selected custom preset
+          const newCustomPresets = customPresets.filter((_, index) => index !== selectedCustomPreset);
+          setCustomPresets(newCustomPresets);
+          setSelectedCustomPreset(null);
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCustomPreset, customPresets, showDebugMenu]);
 
   // Close settings menu when clicking outside
   useEffect(() => {
@@ -950,6 +977,9 @@ function App() {
 
   // Handle preset button clicks
   const handlePresetClick = (index: number) => {
+    // Clear custom preset selection when clicking default preset
+    setSelectedCustomPreset(null);
+
     if (selectedPreset === index) {
       // Second click - check if colors have changed
       const preset = presets[index];
@@ -1016,6 +1046,7 @@ function App() {
     });
 
     setSelectedPreset(null);
+    setSelectedCustomPreset(null);
   };
 
   // Typing game handler
@@ -1029,6 +1060,21 @@ function App() {
 
   const handleCloseTypingGame = () => {
     setIsTypingGameActive(false);
+  };
+
+  // Save current colors as a new custom preset
+  const handleSavePreset = () => {
+    const newPreset = {
+      hue,
+      sat: saturation,
+      light: lightness,
+      bgHue,
+      bgSat: bgSaturation,
+      bgLight: bgLightness,
+    };
+    setCustomPresets([...customPresets, newPreset]);
+    setSelectedPreset(null);
+    setSelectedCustomPreset(null);
   };
 
   // Scramble text in DOM while preserving structure
@@ -1403,42 +1449,104 @@ function App() {
                 {/* PRESETS */}
                 <div>
                   <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>presets</div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {presets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
-                      const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
-                      const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
+                  <div className="space-y-1">
+                    {/* Default presets - 5 buttons */}
+                    <div className="grid grid-cols-5 gap-1">
+                      {presets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
+                        const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
+                        const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
 
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => handlePresetClick(index)}
-                          className={`h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center ${selectedPreset === index ? 'preset-pulse' : ''}`}
-                          style={{
-                            backgroundColor: bgColor,
-                            borderColor: textColor,
-                            borderWidth: '2px',
-                            borderStyle: 'solid',
-                            color: textColor,
-                          }}
-                        >
-                          {index + 1}
-                        </button>
-                      );
-                    })}
-                    {/* Random button */}
-                    <button
-                      onClick={handleRandomTheme}
-                      className="h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center"
-                      style={{
-                        backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
-                        borderColor: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
-                        borderWidth: '2px',
-                        borderStyle: 'solid',
-                        color: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
-                      }}
-                    >
-                      rand
-                    </button>
+                        return (
+                          <button
+                            key={`default-${index}`}
+                            onClick={() => handlePresetClick(index)}
+                            className={`h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center ${selectedPreset === index ? 'preset-pulse' : ''}`}
+                            style={{
+                              backgroundColor: bgColor,
+                              borderColor: textColor,
+                              borderWidth: '2px',
+                              borderStyle: 'solid',
+                              color: textColor,
+                            }}
+                          >
+                            {index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom presets - dynamically added rows */}
+                    {customPresets.length > 0 && (
+                      <>
+                        {Array.from({ length: Math.ceil(customPresets.length / 5) }).map((_, rowIndex) => (
+                          <div key={`custom-row-${rowIndex}`} className="grid grid-cols-5 gap-1">
+                            {customPresets.slice(rowIndex * 5, (rowIndex + 1) * 5).map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, colIndex: number) => {
+                              const actualIndex = rowIndex * 5 + colIndex;
+                              const presetNumber = actualIndex + 6; // Start numbering from 6
+                              const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
+                              const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
+                              const isSelected = selectedCustomPreset === actualIndex;
+
+                              return (
+                                <button
+                                  key={`custom-${actualIndex}`}
+                                  onClick={() => {
+                                    setHue(preset.hue);
+                                    setSaturation(preset.sat);
+                                    setLightness(preset.light);
+                                    setBgHue(preset.bgHue);
+                                    setBgSaturation(preset.bgSat);
+                                    setBgLightness(preset.bgLight);
+                                    setSelectedPreset(null);
+                                    setSelectedCustomPreset(actualIndex);
+                                  }}
+                                  className={`h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center ${isSelected ? 'preset-pulse' : ''}`}
+                                  style={{
+                                    backgroundColor: bgColor,
+                                    borderColor: textColor,
+                                    borderWidth: '2px',
+                                    borderStyle: 'solid',
+                                    color: textColor,
+                                  }}
+                                >
+                                  {presetNumber}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Rand and Save buttons */}
+                    <div className="grid grid-cols-5 gap-1">
+                      <button
+                        onClick={handleRandomTheme}
+                        className="h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center"
+                        style={{
+                          backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
+                          borderColor: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
+                          borderWidth: '2px',
+                          borderStyle: 'solid',
+                          color: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
+                        }}
+                      >
+                        rand
+                      </button>
+                      <button
+                        onClick={handleSavePreset}
+                        className="h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center"
+                        style={{
+                          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
+                          borderColor: getColor(),
+                          borderWidth: '2px',
+                          borderStyle: 'solid',
+                          color: getColor(),
+                        }}
+                      >
+                        save
+                      </button>
+                    </div>
                   </div>
                 </div>
 
