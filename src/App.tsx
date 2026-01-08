@@ -100,6 +100,7 @@ function App() {
   });
   const lastTypingSessionStart = useRef<number | null>(null);
   const appSessionStart = useRef<number>(Date.now());
+  // @ts-ignore - password state kept in sync with localStorage, read from localStorage directly
   const [password, setPassword] = useState(() => {
     const saved = localStorage.getItem('journalPassword');
     return saved || 'shai';
@@ -119,10 +120,12 @@ function App() {
     const hasVisited = localStorage.getItem('hasVisited');
     return hasVisited === null;
   });
-  const lastTypedTime = useRef<number>(() => {
-    const saved = localStorage.getItem('lastTypedTime');
-    return saved ? Number(saved) : Date.now();
-  }());
+  const lastTypedTime = useRef<number>(
+    (() => {
+      const saved = localStorage.getItem('lastTypedTime');
+      return saved ? Number(saved) : Date.now();
+    })()
+  );
   const lastContentLength = useRef<number>(0);
   const hasInsertedTimestamp = useRef<boolean>(false);
   const hasLoadedInitialContent = useRef<boolean>(false);
@@ -456,7 +459,7 @@ function App() {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedCustomPreset !== null && showDebugMenu) {
           // Delete the selected custom preset
-          const newCustomPresets = customPresets.filter((_, index) => index !== selectedCustomPreset);
+          const newCustomPresets = customPresets.filter((_: any, index: number) => index !== selectedCustomPreset);
           setCustomPresets(newCustomPresets);
           setSelectedCustomPreset(null);
           e.preventDefault();
@@ -1175,49 +1178,6 @@ function App() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  // Handle preset button clicks
-  const handlePresetClick = (index: number) => {
-    // Clear custom preset selection when clicking default preset
-    setSelectedCustomPreset(null);
-
-    if (selectedPreset === index) {
-      // Clicking same preset - check if colors have changed
-      const preset = presets[index];
-      const hasChanged =
-        hue !== preset.hue ||
-        saturation !== preset.sat ||
-        lightness !== preset.light ||
-        bgHue !== preset.bgHue ||
-        bgSaturation !== preset.bgSat ||
-        bgLightness !== preset.bgLight;
-
-      if (hasChanged) {
-        // Save current colors to this preset if changed
-        const newPresets = [...presets];
-        newPresets[index] = {
-          hue,
-          sat: saturation,
-          light: lightness,
-          bgHue,
-          bgSat: bgSaturation,
-          bgLight: bgLightness,
-        };
-        setPresets(newPresets);
-      }
-      // Keep preset selected (stay pulsing)
-    } else {
-      // First click - apply preset colors AND select it for editing
-      const preset = presets[index];
-      setHue(preset.hue);
-      setSaturation(preset.sat);
-      setLightness(preset.light);
-      setBgHue(preset.bgHue);
-      setBgSaturation(preset.bgSat);
-      setBgLightness(preset.bgLight);
-      setSelectedPreset(index);
-    }
   };
 
   // Generate random theme - truly random, no constraints
