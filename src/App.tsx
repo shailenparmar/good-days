@@ -76,20 +76,41 @@ function App() {
     const saved = localStorage.getItem('totalKeystrokes');
     return saved ? Number(saved) : 0;
   });
+  const [totalActiveTypingMs, setTotalActiveTypingMs] = useState(() => {
+    const saved = localStorage.getItem('totalActiveTypingMs');
+    return saved ? Number(saved) : 0;
+  });
+  const [totalSecondsOnApp, setTotalSecondsOnApp] = useState(() => {
+    const saved = localStorage.getItem('totalSecondsOnApp');
+    return saved ? Number(saved) : 0;
+  });
+  const lastTypingSessionStart = useRef<number | null>(null);
+  const appSessionStart = useRef<number>(Date.now());
   const [password, setPassword] = useState(() => {
     const saved = localStorage.getItem('journalPassword');
     return saved || 'shai';
   });
+  const [hasPassword, setHasPassword] = useState(() => {
+    // Check if user has explicitly set a password
+    return localStorage.getItem('journalPassword') !== null;
+  });
   const [passwordChangeStep, setPasswordChangeStep] = useState<'current' | 'new'>('current');
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [userName, setUserName] = useState(() => {
+    const saved = localStorage.getItem('userName');
+    return saved || 'shai';
+  });
   const lastTypedTime = useRef<number>(Date.now());
   const lastContentLength = useRef<number>(0);
   const hasInsertedTimestamp = useRef<boolean>(false);
+  const hasLoadedInitialContent = useRef<boolean>(false);
+  const isCurrentlyTyping = useRef<boolean>(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const bgPickerRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLSpanElement>(null);
   const unscrambledContent = useRef<string>('');
 
   // Typing game state
@@ -97,9 +118,15 @@ function App() {
 
   // Load entries from localStorage on mount
   useEffect(() => {
+    console.log('=== INITIAL LOAD ===');
     const saved = localStorage.getItem('journalEntries');
     if (saved) {
-      setEntries(JSON.parse(saved));
+      const loadedEntries = JSON.parse(saved);
+      console.log('✓ Loaded', loadedEntries.length, 'entries from localStorage');
+      console.log('Entries:', loadedEntries.map((e: JournalEntry) => ({ date: e.date, contentLength: e.content?.length || 0 })));
+      setEntries(loadedEntries);
+    } else {
+      console.log('No entries in localStorage');
     }
   }, []);
 
@@ -108,7 +135,8 @@ function App() {
     const today = getTodayDate();
     const todayEntry = entries.find(e => e.date === today);
 
-    if (!todayEntry) {
+    if (!todayEntry && entries.length > 0) {
+      console.log('Creating new empty entry for today:', today);
       const newEntries = [...entries, {
         date: today,
         content: '',
@@ -120,18 +148,29 @@ function App() {
     }
   }, [entries]);
 
-  // Populate editor when selectedDate changes
+  // Populate editor when selectedDate changes or on initial load
   useEffect(() => {
     if (!editorRef.current) return;
 
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
 
-    // Only update if not currently typing
-    if (document.activeElement !== editorRef.current) {
+    // NEVER update if currently in the middle of typing (prevents cursor jump)
+    if (isCurrentlyTyping.current) {
+      console.log('Skipping editor update - user is typing');
+      return;
+    }
+
+    // Only update if not focused on editor OR if this is the first load
+    const isTyping = document.activeElement === editorRef.current;
+    const shouldUpdate = !isTyping || !hasLoadedInitialContent.current;
+
+    if (shouldUpdate) {
       editorRef.current.innerHTML = content;
       setCurrentContent(content);
       lastContentLength.current = editorRef.current.textContent?.length || 0;
+      hasLoadedInitialContent.current = true;
+      console.log('✓ Editor populated with', content.length, 'chars for', selectedDate);
     }
   }, [entries, selectedDate]);
 
@@ -160,10 +199,40 @@ function App() {
     localStorage.setItem('totalKeystrokes', String(totalKeystrokes));
   }, [totalKeystrokes]);
 
+  // Save total active typing time to localStorage
+  useEffect(() => {
+    localStorage.setItem('totalActiveTypingMs', String(totalActiveTypingMs));
+  }, [totalActiveTypingMs]);
+
+  // Track time spent on app (update every second)
+  useEffect(() => {
+    // Load the base time from localStorage on mount
+    const savedSeconds = localStorage.getItem('totalSecondsOnApp');
+    const baseSeconds = savedSeconds ? Number(savedSeconds) : 0;
+    appSessionStart.current = Date.now();
+
+    const interval = setInterval(() => {
+      const currentSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
+      setTotalSecondsOnApp(baseSeconds + currentSessionSeconds);
+    }, 1000);
+
+    // Save the final time when component unmounts
+    return () => {
+      clearInterval(interval);
+      const finalSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
+      localStorage.setItem('totalSecondsOnApp', String(baseSeconds + finalSessionSeconds));
+    };
+  }, []);
+
   // Save lock state to localStorage
   useEffect(() => {
     localStorage.setItem('isLocked', String(isLocked));
   }, [isLocked]);
+
+  // Save userName to localStorage
+  useEffect(() => {
+    localStorage.setItem('userName', userName);
+  }, [userName]);
 
   // Update current time and time until midnight every second
   useEffect(() => {
@@ -236,10 +305,14 @@ function App() {
   const handleDayChange = () => {
     console.log('=== DAY CHANGE STARTED ===');
     const currentDate = selectedDate;
-    const todayDate = getTodayDate();
+
+    // Calculate tomorrow's date (simulate moving to next day)
+    const currentDateObj = new Date(currentDate + 'T00:00:00');
+    currentDateObj.setDate(currentDateObj.getDate() + 1);
+    const tomorrowDate = `${currentDateObj.getFullYear()}-${String(currentDateObj.getMonth() + 1).padStart(2, '0')}-${String(currentDateObj.getDate()).padStart(2, '0')}`;
 
     console.log('Currently viewing date:', currentDate);
-    console.log('Today\'s actual date:', todayDate);
+    console.log('Moving to tomorrow:', tomorrowDate);
 
     // Save current content before switching
     if (editorRef.current) {
@@ -287,9 +360,15 @@ function App() {
       console.log('Editor ref not available');
     }
 
-    // Switch to today's date
-    console.log('Switching to:', todayDate);
-    setSelectedDate(todayDate);
+    // Switch to tomorrow's date (creating a new day)
+    console.log('Switching to:', tomorrowDate);
+
+    // Clear the editor immediately
+    if (editorRef.current) {
+      editorRef.current.innerHTML = '';
+    }
+
+    setSelectedDate(tomorrowDate);
 
     // Reset tracking
     lastTypedTime.current = Date.now();
@@ -324,10 +403,10 @@ function App() {
   }, []);
 
 
-  // ESC key to lock (only lock, not unlock)
+  // ESC key to lock (only lock, not unlock) - only if password has been set
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isLocked && !isTypingGameActive) {
+      if (e.key === 'Escape' && !isLocked && hasPassword) {
         // Force save before locking
         if (editorRef.current) {
           saveEntry(editorRef.current.innerHTML || '', Date.now());
@@ -337,7 +416,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLocked, entries, selectedDate, isTypingGameActive]);
+  }, [isLocked, hasPassword, entries, selectedDate]);
 
   // Handle date changes
   useEffect(() => {
@@ -349,9 +428,12 @@ function App() {
 
     // Reset the timer when switching dates
     lastTypedTime.current = Date.now();
+
+    // Allow editor to be populated when switching dates
+    hasLoadedInitialContent.current = false;
   }, [selectedDate]);
 
-  // Auto-insert timestamp after 5 seconds of inactivity
+  // Auto-insert timestamp after inactivity AND track typing sessions
   useEffect(() => {
     const checkAndInsertTimestamp = () => {
       if (!editorRef.current || document.activeElement !== editorRef.current) return;
@@ -361,6 +443,14 @@ function App() {
       const thresholdMs = timestampThreshold * 60 * 1000;
 
       const currentText = editorRef.current.textContent || '';
+
+      // End typing session if threshold time has passed
+      if (timeSinceLastType >= thresholdMs && lastTypingSessionStart.current !== null) {
+        const sessionDuration = lastTypedTime.current - lastTypingSessionStart.current;
+        setTotalActiveTypingMs(prev => prev + sessionDuration);
+        lastTypingSessionStart.current = null;
+        console.log('Typing session ended. Duration:', Math.round(sessionDuration / 1000), 'seconds');
+      }
 
       // Only insert if threshold time passed, has content, hasn't already inserted a timestamp for this pause
       if (timeSinceLastType >= thresholdMs && currentText.trim() !== '' && lastContentLength.current > 0 && !hasInsertedTimestamp.current) {
@@ -413,11 +503,19 @@ function App() {
   const handleInput = () => {
     if (!editorRef.current) return;
 
+    // Mark that we're currently typing (prevents cursor jump)
+    isCurrentlyTyping.current = true;
+
     const newContent = editorRef.current.textContent || '';
     const now = Date.now();
 
     // Increment total keystroke counter
     setTotalKeystrokes(prev => prev + 1);
+
+    // Track active typing time (start session if not already started)
+    if (lastTypingSessionStart.current === null) {
+      lastTypingSessionStart.current = now;
+    }
 
     // Check if we should insert a timestamp BEFORE resetting the timer
     const timeSinceLastType = now - lastTypedTime.current;
@@ -517,6 +615,11 @@ function App() {
     lastContentLength.current = newContent.length;
     setCurrentContent(newContent);
     saveEntry(editorRef.current.innerHTML || '', now);
+
+    // Clear the "currently typing" flag after a short delay
+    setTimeout(() => {
+      isCurrentlyTyping.current = false;
+    }, 100);
   };
 
   // Save content
@@ -613,6 +716,18 @@ function App() {
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // First-time password setup (no password set yet)
+    if (!hasPassword) {
+      if (newPasswordInput.trim() !== '') {
+        setPassword(newPasswordInput);
+        localStorage.setItem('journalPassword', newPasswordInput);
+        setHasPassword(true);
+        setNewPasswordInput('');
+      }
+      return;
+    }
+
+    // Regular password change flow (password already set)
     if (passwordChangeStep === 'current') {
       if (currentPasswordInput === password) {
         setPasswordChangeStep('new');
@@ -631,6 +746,48 @@ function App() {
     }
   };
 
+  // Handle name click - make it editable
+  const handleNameClick = () => {
+    if (nameRef.current) {
+      nameRef.current.focus();
+      // Select all text when clicked
+      const range = document.createRange();
+      range.selectNodeContents(nameRef.current);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  };
+
+  // Handle name blur - ensure it's not empty
+  const handleNameBlur = () => {
+    if (nameRef.current) {
+      const newName = (nameRef.current.textContent || '').trim();
+      if (newName === '') {
+        nameRef.current.textContent = 'shai';
+        setUserName('shai');
+      } else {
+        // Only update state on blur, not on input
+        setUserName(newName);
+      }
+    }
+  };
+
+  // Handle name keydown - prevent enter, allow escape to blur
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameRef.current?.blur();
+    } else if (e.key === 'Escape') {
+      if (nameRef.current) {
+        nameRef.current.textContent = userName;
+        nameRef.current.blur();
+      }
+    }
+  };
+
   // Format entries as text
   const formatEntriesAsText = () => {
     if (entries.length === 0) return '';
@@ -638,10 +795,21 @@ function App() {
     // Sort entries by date ascending (oldest first)
     const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date));
 
+    // Calculate stats
+    const totalWords = entries.reduce((sum, e) => {
+      const words = (e.content || '').split(/\s+/).filter(Boolean).length;
+      return sum + words;
+    }, 0);
+    const activeTypingMinutes = totalActiveTypingMs / 60000;
+    const avgWPM = activeTypingMinutes > 0 ? Math.round(totalWords / activeTypingMinutes) : 0;
+
     // Format entries as text
-    let textContent = '=== GOOD DAYS WITH SHAI ===\n';
+    let textContent = `=== GOOD DAYS WITH ${userName.toUpperCase()} ===\n`;
     textContent += `Exported: ${new Date().toLocaleString()}\n`;
     textContent += `Total Entries: ${entries.length}\n`;
+    textContent += `Total Words: ${totalWords.toLocaleString()}\n`;
+    textContent += `Average WPM: ${avgWPM}\n`;
+    textContent += `Total Keystrokes: ${totalKeystrokes.toLocaleString()}\n`;
     textContent += '='.repeat(50) + '\n\n';
 
     sortedEntries.forEach(entry => {
@@ -1022,26 +1190,28 @@ function App() {
           borderBottom: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
         }}>
           <div className="p-6 pb-4">
-            <h1 className="text-2xl font-bold font-mono tracking-tight" style={{ color: getColor() }}>good days with shai</h1>
+            <h1 className="text-2xl font-bold font-mono tracking-tight" style={{ color: getColor() }}>
+              good days with <span
+                ref={nameRef}
+                contentEditable
+                suppressContentEditableWarning
+                onClick={handleNameClick}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                spellCheck={false}
+                className="outline-none cursor-text"
+                style={{
+                  display: 'inline-block',
+                  minWidth: '50px',
+                  whiteSpace: 'nowrap'
+                }}
+              >{userName}</span>
+            </h1>
           </div>
 
           {/* Stats */}
-          <div className="px-6 pb-4 pt-4 space-y-1 border-t" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              {entries.length} {entries.length === 1 ? 'day' : 'days'} logged
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              {totalKeystrokes.toLocaleString()} keystrokes
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              {entries.reduce((sum, e) => sum + (e.content?.length || 0), 0).toLocaleString()} chars written
-            </div>
-            <div className="text-xs font-mono" style={{ color: getColor() }}>
-              {entries.reduce((sum, e) => {
-                const words = (e.content || '').split(/\s+/).filter(Boolean).length;
-                return sum + words;
-              }, 0).toLocaleString()} words total
-            </div>
+          <div className="px-6 pb-4 pt-4 border-t grid grid-cols-2 gap-x-4 gap-y-1" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
+            {/* Left column */}
             <div className="text-xs font-mono" style={{ color: getColor() }}>
               {(() => {
                 if (entries.length === 0) return '0 day streak';
@@ -1058,6 +1228,52 @@ function App() {
                   }
                 }
                 return `${streak} day ${streak === 1 ? 'streak' : 'streak'}`;
+              })()}
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {entries.length} {entries.length === 1 ? 'day' : 'days'} logged
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {totalKeystrokes.toLocaleString()} keystrokes
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {(() => {
+                const totalWords = entries.reduce((sum, e) => {
+                  const words = (e.content || '').split(/\s+/).filter(Boolean).length;
+                  return sum + words;
+                }, 0);
+
+                // Include current active session if typing
+                let totalTypingMs = totalActiveTypingMs;
+                if (lastTypingSessionStart.current !== null) {
+                  const currentSessionDuration = Date.now() - lastTypingSessionStart.current;
+                  totalTypingMs += currentSessionDuration;
+                }
+
+                const activeTypingMinutes = totalTypingMs / 60000;
+                const avgWPM = activeTypingMinutes > 0 ? Math.round(totalWords / activeTypingMinutes) : 0;
+                return `${avgWPM} avg wpm`;
+              })()}
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {entries.reduce((sum, e) => {
+                const words = (e.content || '').split(/\s+/).filter(Boolean).length;
+                return sum + words;
+              }, 0).toLocaleString()} words total
+            </div>
+            <div className="text-xs font-mono" style={{ color: getColor() }}>
+              {(() => {
+                const hours = Math.floor(totalSecondsOnApp / 3600);
+                const minutes = Math.floor((totalSecondsOnApp % 3600) / 60);
+                const seconds = totalSecondsOnApp % 60;
+
+                if (hours > 0) {
+                  return `${hours}h ${minutes}m on app`;
+                } else if (minutes > 0) {
+                  return `${minutes}m ${seconds}s on app`;
+                } else {
+                  return `${seconds}s on app`;
+                }
               })()}
             </div>
           </div>
@@ -1350,9 +1566,26 @@ function App() {
           {/* Password Change Section */}
           {showDebugMenu && (
             <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
-              <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>change password</div>
+              <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>
+                {!hasPassword ? 'set password' : 'change password'}
+              </div>
               <form onSubmit={handlePasswordChange} className="space-y-2">
-                {passwordChangeStep === 'current' ? (
+                {!hasPassword ? (
+                  <input
+                    type="password"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    placeholder="type here"
+                    className="w-full px-3 py-2 text-xs font-mono rounded focus:outline-none"
+                    style={{
+                      backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
+                      borderColor: getColor(),
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      color: getColor(),
+                    }}
+                  />
+                ) : passwordChangeStep === 'current' ? (
                   <input
                     type="password"
                     value={currentPasswordInput}
@@ -1388,49 +1621,6 @@ function App() {
             </div>
           )}
 
-          {/* Testing Section */}
-          {showDebugMenu && (
-            <div className="px-6 pb-4 pt-4 border-b" style={{ borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)` }}>
-              <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>testing</div>
-              <div className="space-y-2">
-                <button
-                  onClick={handleDayChange}
-                  className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
-                  style={{
-                    color: getColor(),
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${getColor()}`,
-                  }}
-                >
-                  new day
-                </button>
-                <button
-                  onClick={() => {
-                    console.log('=== STORAGE CHECK ===');
-                    console.log('Entries in state:', entries.length);
-                    const saved = localStorage.getItem('journalEntries');
-                    if (saved) {
-                      const parsed = JSON.parse(saved);
-                      console.log('Entries in localStorage:', parsed.length);
-                      console.log('Dates:', parsed.map((e: any) => e.date));
-                    } else {
-                      console.log('No entries in localStorage!');
-                    }
-                    console.log('Lock state:', isLocked);
-                    console.log('isLocked in localStorage:', localStorage.getItem('isLocked'));
-                  }}
-                  className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
-                  style={{
-                    color: getColor(),
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${getColor()}`,
-                  }}
-                >
-                  check storage
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
