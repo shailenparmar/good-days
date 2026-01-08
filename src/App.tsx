@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Calendar, Download, Copy } from 'lucide-react';
-import TypingGame, { TypingGameLeaderboard } from './TypingGame';
+import { Settings, Download, Copy } from 'lucide-react';
 
 interface JournalEntry {
   date: string; // YYYY-MM-DD format
   content: string;
   startedAt?: number; // Timestamp when entry was first created
+  lastModified?: number; // Timestamp when entry was last modified
 }
 
 function App() {
@@ -49,8 +49,15 @@ function App() {
     const saved = localStorage.getItem('bgLightness');
     return saved ? Number(saved) : 74; // First preset
   });
-  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
-  const [selectedCustomPreset, setSelectedCustomPreset] = useState<number | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(() => {
+    const saved = localStorage.getItem('selectedPreset');
+    return saved ? Number(saved) : null;
+  });
+  const [selectedCustomPreset, setSelectedCustomPreset] = useState<number | null>(() => {
+    const saved = localStorage.getItem('selectedCustomPreset');
+    return saved ? Number(saved) : null;
+  });
+  const [activePresetIndex, setActivePresetIndex] = useState<number | null>(null);
   const [presets, setPresets] = useState(() => {
     // Load presets from localStorage on initialization
     const savedPresets = localStorage.getItem('colorPresets');
@@ -64,6 +71,10 @@ function App() {
 
     if (savedPresets) {
       const parsed = JSON.parse(savedPresets);
+      // Ensure there are always 5 presets by filling in defaults if needed
+      while (parsed.length < 5) {
+        parsed.push(defaultPresets[parsed.length]);
+      }
       return parsed;
     }
     // Default presets if nothing saved (5 presets)
@@ -104,7 +115,14 @@ function App() {
     const saved = localStorage.getItem('userName');
     return saved || 'shai';
   });
-  const lastTypedTime = useRef<number>(Date.now());
+  const [isFirstVisit, setIsFirstVisit] = useState(() => {
+    const hasVisited = localStorage.getItem('hasVisited');
+    return hasVisited === null;
+  });
+  const lastTypedTime = useRef<number>(() => {
+    const saved = localStorage.getItem('lastTypedTime');
+    return saved ? Number(saved) : Date.now();
+  }());
   const lastContentLength = useRef<number>(0);
   const hasInsertedTimestamp = useRef<boolean>(false);
   const hasLoadedInitialContent = useRef<boolean>(false);
@@ -115,9 +133,6 @@ function App() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLSpanElement>(null);
   const unscrambledContent = useRef<string>('');
-
-  // Typing game state
-  const [isTypingGameActive, setIsTypingGameActive] = useState(false);
 
   // Load entries from localStorage on mount
   useEffect(() => {
@@ -176,6 +191,28 @@ function App() {
       console.log('✓ Editor populated with', content.length, 'chars for', selectedDate);
     }
   }, [entries, selectedDate]);
+
+  // Highlight name on first visit
+  useEffect(() => {
+    if (isFirstVisit && nameRef.current) {
+      // Wait a bit for the page to fully load
+      setTimeout(() => {
+        if (nameRef.current) {
+          nameRef.current.focus();
+          const range = document.createRange();
+          range.selectNodeContents(nameRef.current);
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+        // Mark as visited
+        localStorage.setItem('hasVisited', 'true');
+        setIsFirstVisit(false);
+      }, 500);
+    }
+  }, [isFirstVisit]);
 
   // Save color settings to localStorage when they change
   useEffect(() => {
@@ -237,6 +274,22 @@ function App() {
     localStorage.setItem('isLocked', String(isLocked));
   }, [isLocked]);
 
+  // Save selected preset to localStorage
+  useEffect(() => {
+    if (selectedPreset !== null) {
+      localStorage.setItem('selectedPreset', String(selectedPreset));
+      localStorage.removeItem('selectedCustomPreset');
+    }
+  }, [selectedPreset]);
+
+  // Save selected custom preset to localStorage
+  useEffect(() => {
+    if (selectedCustomPreset !== null) {
+      localStorage.setItem('selectedCustomPreset', String(selectedCustomPreset));
+      localStorage.removeItem('selectedPreset');
+    }
+  }, [selectedCustomPreset]);
+
   // Save userName to localStorage
   useEffect(() => {
     localStorage.setItem('userName', userName);
@@ -265,16 +318,137 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Clear selected preset when settings menu is closed
+  // Set/clear active preset when settings menu is opened/closed
   useEffect(() => {
     if (!showDebugMenu) {
-      setSelectedPreset(null);
-      setSelectedCustomPreset(null);
+      setActivePresetIndex(null);
       setPasswordChangeStep('current');
       setCurrentPasswordInput('');
       setNewPasswordInput('');
+    } else {
+      // When opening settings, set activePresetIndex to current preset
+      if (selectedPreset !== null) {
+        setActivePresetIndex(selectedPreset);
+      } else if (selectedCustomPreset !== null) {
+        setActivePresetIndex(5 + selectedCustomPreset);
+      }
     }
-  }, [showDebugMenu]);
+  }, [showDebugMenu, selectedPreset, selectedCustomPreset]);
+
+  // Keyboard navigation for presets
+  useEffect(() => {
+    const handlePresetNavigation = (e: KeyboardEvent) => {
+      if (!showDebugMenu) return;
+
+      const totalPresets = 5 + customPresets.length + 2; // 5 default + custom + rand + save
+      const totalDefaultAndCustom = 5 + customPresets.length;
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+
+        const cols = 5;
+        let newIndex = activePresetIndex === null ? 0 : activePresetIndex;
+        const currentRow = Math.floor(newIndex / cols);
+        const currentCol = newIndex % cols;
+
+        if (e.key === 'ArrowRight') {
+          // Move right within the current row, wrap around
+          const rowStart = currentRow * cols;
+          const rowEnd = Math.min(rowStart + cols, totalPresets);
+          const itemsInRow = rowEnd - rowStart;
+          const posInRow = newIndex - rowStart;
+          const newPosInRow = (posInRow + 1) % itemsInRow;
+          newIndex = rowStart + newPosInRow;
+        } else if (e.key === 'ArrowLeft') {
+          // Move left within the current row, wrap around
+          const rowStart = currentRow * cols;
+          const rowEnd = Math.min(rowStart + cols, totalPresets);
+          const itemsInRow = rowEnd - rowStart;
+          const posInRow = newIndex - rowStart;
+          const newPosInRow = (posInRow - 1 + itemsInRow) % itemsInRow;
+          newIndex = rowStart + newPosInRow;
+        } else if (e.key === 'ArrowDown') {
+          // Move down within the current column, wrap around
+          const itemsInCol = [];
+          for (let i = currentCol; i < totalPresets; i += cols) {
+            itemsInCol.push(i);
+          }
+          const posInCol = itemsInCol.indexOf(newIndex);
+          const newPosInCol = (posInCol + 1) % itemsInCol.length;
+          newIndex = itemsInCol[newPosInCol];
+        } else if (e.key === 'ArrowUp') {
+          // Move up within the current column, wrap around
+          const itemsInCol = [];
+          for (let i = currentCol; i < totalPresets; i += cols) {
+            itemsInCol.push(i);
+          }
+          const posInCol = itemsInCol.indexOf(newIndex);
+          const newPosInCol = (posInCol - 1 + itemsInCol.length) % itemsInCol.length;
+          newIndex = itemsInCol[newPosInCol];
+        }
+
+        setActivePresetIndex(newIndex);
+
+        // Auto-apply the preset when navigating
+        if (newIndex < 5) {
+          // Default preset - apply colors
+          const preset = presets[newIndex];
+          setHue(preset.hue);
+          setSaturation(preset.sat);
+          setLightness(preset.light);
+          setBgHue(preset.bgHue);
+          setBgSaturation(preset.bgSat);
+          setBgLightness(preset.bgLight);
+          setSelectedPreset(newIndex);
+          setSelectedCustomPreset(null);
+        } else if (newIndex < totalDefaultAndCustom) {
+          // Custom preset - apply colors
+          const customIndex = newIndex - 5;
+          const preset = customPresets[customIndex];
+          setHue(preset.hue);
+          setSaturation(preset.sat);
+          setLightness(preset.light);
+          setBgHue(preset.bgHue);
+          setBgSaturation(preset.bgSat);
+          setBgLightness(preset.bgLight);
+          setSelectedPreset(null);
+          setSelectedCustomPreset(customIndex);
+        } else {
+          // On rand or save - don't auto-apply, just select
+          setSelectedPreset(null);
+          setSelectedCustomPreset(null);
+        }
+      } else if (e.key === 'Enter' && activePresetIndex !== null) {
+        e.preventDefault();
+
+        if (activePresetIndex < 5) {
+          // Default preset - save current colors to this preset
+          const newPresets = [...presets];
+          newPresets[activePresetIndex] = {
+            hue,
+            sat: saturation,
+            light: lightness,
+            bgHue,
+            bgSat: bgSaturation,
+            bgLight: bgLightness,
+          };
+          setPresets(newPresets);
+        } else if (activePresetIndex < totalDefaultAndCustom) {
+          // Custom preset - can't update custom presets with Enter
+          // Just do nothing
+        } else if (activePresetIndex === totalDefaultAndCustom) {
+          // Rand button - trigger random
+          handleRandomTheme();
+        } else {
+          // Save button - save as new preset
+          handleSavePreset();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handlePresetNavigation);
+    return () => window.removeEventListener('keydown', handlePresetNavigation);
+  }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
   // Handle delete key for custom presets
   useEffect(() => {
@@ -330,7 +504,6 @@ function App() {
 
   // Handle day change (midnight or manual)
   const handleDayChange = () => {
-    console.log('=== DAY CHANGE STARTED ===');
     const currentDate = selectedDate;
 
     // Calculate tomorrow's date (simulate moving to next day)
@@ -398,11 +571,8 @@ function App() {
     setSelectedDate(tomorrowDate);
 
     // Reset tracking
-    lastTypedTime.current = Date.now();
     hasInsertedTimestamp.current = false;
     lastContentLength.current = 0;
-
-    console.log('=== DAY CHANGE COMPLETE ===');
   };
 
   // Automatic midnight detection - trigger exactly at 12:00am
@@ -453,12 +623,20 @@ function App() {
     // Turn off scramble mode when switching dates
     setIsScrambled(false);
 
-    // Reset the timer when switching dates
-    lastTypedTime.current = Date.now();
+    // Load the lastModified time for this date's entry
+    const entry = entries.find(e => e.date === selectedDate);
+    if (entry && entry.lastModified) {
+      lastTypedTime.current = entry.lastModified;
+      localStorage.setItem('lastTypedTime', String(entry.lastModified));
+    } else {
+      // If no entry or no lastModified, use current time
+      lastTypedTime.current = Date.now();
+      localStorage.setItem('lastTypedTime', String(Date.now()));
+    }
 
     // Allow editor to be populated when switching dates
     hasLoadedInitialContent.current = false;
-  }, [selectedDate]);
+  }, [selectedDate, entries]);
 
   // Auto-insert timestamp after inactivity AND track typing sessions
   useEffect(() => {
@@ -639,6 +817,7 @@ function App() {
     });
 
     lastTypedTime.current = now;
+    localStorage.setItem('lastTypedTime', String(now));
     lastContentLength.current = newContent.length;
     setCurrentContent(newContent);
     saveEntry(editorRef.current.innerHTML || '', now);
@@ -653,6 +832,7 @@ function App() {
   const saveEntry = (content: string, timestamp?: number) => {
     const existingIndex = entries.findIndex(e => e.date === selectedDate);
     let newEntries: JournalEntry[];
+    const now = Date.now();
 
     // Get text content - if editor is mounted use it, otherwise parse from HTML
     let textContent = '';
@@ -676,14 +856,16 @@ function App() {
           newEntries[existingIndex] = {
             date: selectedDate,
             content,
-            startedAt: entries[existingIndex].startedAt || timestamp || Date.now(),
+            startedAt: entries[existingIndex].startedAt || timestamp || now,
+            lastModified: now,
           };
         } else {
           // Create new today entry with empty content
           newEntries = [...entries, {
             date: selectedDate,
             content,
-            startedAt: timestamp || Date.now(),
+            startedAt: timestamp || now,
+            lastModified: now,
           }];
         }
       } else {
@@ -696,14 +878,16 @@ function App() {
       newEntries[existingIndex] = {
         date: selectedDate,
         content,
-        startedAt: entries[existingIndex].startedAt || timestamp || Date.now(),
+        startedAt: entries[existingIndex].startedAt || timestamp || now,
+        lastModified: now,
       };
     } else {
       // Add new with startedAt timestamp
       newEntries = [...entries, {
         date: selectedDate,
         content,
-        startedAt: timestamp || Date.now(),
+        startedAt: timestamp || now,
+        lastModified: now,
       }];
     }
 
@@ -717,9 +901,14 @@ function App() {
   // Handle password unlock
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === password) {
+    // Always check against the password in localStorage to avoid state sync issues
+    const savedPassword = localStorage.getItem('journalPassword') || 'shai';
+    if (passwordInput.trim() === savedPassword.trim()) {
       setIsLocked(false);
       setPasswordInput('');
+      // Reload password from localStorage
+      setPassword(savedPassword);
+
       // Reload from localStorage when unlocking
       const saved = localStorage.getItem('journalEntries');
       if (saved) {
@@ -734,6 +923,15 @@ function App() {
           editorRef.current.innerHTML = content;
         }
       }
+
+      // Reload preset selection
+      const savedPreset = localStorage.getItem('selectedPreset');
+      const savedCustomPreset = localStorage.getItem('selectedCustomPreset');
+      if (savedPreset) {
+        setSelectedPreset(Number(savedPreset));
+      } else if (savedCustomPreset) {
+        setSelectedCustomPreset(Number(savedCustomPreset));
+      }
     } else {
       setPasswordInput('');
     }
@@ -745,9 +943,10 @@ function App() {
 
     // First-time password setup (no password set yet)
     if (!hasPassword) {
-      if (newPasswordInput.trim() !== '') {
-        setPassword(newPasswordInput);
-        localStorage.setItem('journalPassword', newPasswordInput);
+      const trimmedPassword = newPasswordInput.trim();
+      if (trimmedPassword !== '') {
+        setPassword(trimmedPassword);
+        localStorage.setItem('journalPassword', trimmedPassword);
         setHasPassword(true);
         setNewPasswordInput('');
       }
@@ -755,17 +954,20 @@ function App() {
     }
 
     // Regular password change flow (password already set)
+    // Always check against localStorage to avoid state sync issues
+    const savedPassword = localStorage.getItem('journalPassword') || 'shai';
     if (passwordChangeStep === 'current') {
-      if (currentPasswordInput === password) {
+      if (currentPasswordInput.trim() === savedPassword.trim()) {
         setPasswordChangeStep('new');
         setCurrentPasswordInput('');
       } else {
         setCurrentPasswordInput('');
       }
     } else if (passwordChangeStep === 'new') {
-      if (newPasswordInput.trim() !== '') {
-        setPassword(newPasswordInput);
-        localStorage.setItem('journalPassword', newPasswordInput);
+      const trimmedPassword = newPasswordInput.trim();
+      if (trimmedPassword !== '') {
+        setPassword(trimmedPassword);
+        localStorage.setItem('journalPassword', trimmedPassword);
         setPasswordChangeStep('current');
         setCurrentPasswordInput('');
         setNewPasswordInput('');
@@ -981,7 +1183,7 @@ function App() {
     setSelectedCustomPreset(null);
 
     if (selectedPreset === index) {
-      // Second click - check if colors have changed
+      // Clicking same preset - check if colors have changed
       const preset = presets[index];
       const hasChanged =
         hue !== preset.hue ||
@@ -1004,8 +1206,7 @@ function App() {
         };
         setPresets(newPresets);
       }
-      // Always deselect (stop pulsing) on second click
-      setSelectedPreset(null);
+      // Keep preset selected (stay pulsing)
     } else {
       // First click - apply preset colors AND select it for editing
       const preset = presets[index];
@@ -1047,19 +1248,6 @@ function App() {
 
     setSelectedPreset(null);
     setSelectedCustomPreset(null);
-  };
-
-  // Typing game handler
-  const handleStartTypingGame = () => {
-    // Save current journal entry before starting game
-    if (editorRef.current) {
-      saveEntry(editorRef.current.innerHTML || '', Date.now());
-    }
-    setIsTypingGameActive(true);
-  };
-
-  const handleCloseTypingGame = () => {
-    setIsTypingGameActive(false);
   };
 
   // Save current colors as a new custom preset
@@ -1107,11 +1295,12 @@ function App() {
               type="password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              className="border font-mono px-4 py-2 rounded focus:outline-none"
+              className="border font-mono px-4 py-2 rounded"
               style={{
                 backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
-                borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
+                borderColor: getColor(),
                 color: getColor(),
+                outline: 'none',
               }}
               autoFocus
             />
@@ -1138,16 +1327,19 @@ function App() {
           .timestamp-text {
             color: ${getColor().replace('hsl', 'hsla').replace(')', ', 0.65)')} !important;
           }
-          @keyframes preset-pulse {
-            0%, 100% {
-              transform: scale(1);
+          @keyframes preset-flicker {
+            0% {
+              border-width: 5px;
             }
             50% {
-              transform: scale(0.85);
+              border-width: 3px;
+            }
+            100% {
+              border-width: 5px;
             }
           }
           .preset-pulse {
-            animation: preset-pulse 1s ease-in-out infinite;
+            animation: preset-flicker 1s steps(12) infinite;
           }
           .sidebar-button:hover:not(:disabled) {
             background-color: hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15) !important;
@@ -1220,16 +1412,6 @@ function App() {
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
       }}>
-        {isTypingGameActive ? (
-          /* Leaderboard View */
-          <TypingGameLeaderboard
-            getColor={getColor}
-            hue={hue}
-            saturation={saturation}
-            lightness={lightness}
-          />
-        ) : (
-          <>
         {/* Header - sticky */}
         <div className="sticky top-0 z-10" style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
@@ -1314,7 +1496,7 @@ function App() {
                 const seconds = totalSecondsOnApp % 60;
 
                 if (hours > 0) {
-                  return `${hours}h ${minutes}m on app`;
+                  return `${hours}h ${minutes}m ${seconds}s on app`;
                 } else if (minutes > 0) {
                   return `${minutes}m ${seconds}s on app`;
                 } else {
@@ -1368,19 +1550,6 @@ function App() {
           borderTop: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
         }}>
           <button
-            onClick={handleStartTypingGame}
-            disabled={isTypingGameActive}
-            className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{
-              color: getColor(),
-              backgroundColor: isTypingGameActive ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15)` : 'transparent',
-              border: `1px solid ${getColor()}`,
-            }}
-          >
-            <span>⌨</span>
-            <span>typing game</span>
-          </button>
-          <button
             onClick={() => setIsScrambled(!isScrambled)}
             className={`sidebar-button w-full px-3 py-2 text-xs font-mono rounded flex items-center justify-center gap-2 ${isScrambled ? 'active' : ''}`}
             style={{
@@ -1432,8 +1601,6 @@ function App() {
             <span>settings</span>
           </button>
         </div>
-          </>
-        )}
       </div>
 
       {/* Middle Column - Settings Panel */}
@@ -1449,104 +1616,161 @@ function App() {
                 {/* PRESETS */}
                 <div>
                   <div className="text-xs font-mono font-bold mb-2" style={{ color: getColor() }}>presets</div>
-                  <div className="space-y-1">
+                  <div className="grid grid-cols-5 gap-1">
                     {/* Default presets - 5 buttons */}
-                    <div className="grid grid-cols-5 gap-1">
-                      {presets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
-                        const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
-                        const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
+                    {presets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
+                      const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
+                      const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
+                      const isActive = activePresetIndex === index;
 
-                        return (
-                          <button
-                            key={`default-${index}`}
-                            onClick={() => handlePresetClick(index)}
-                            className={`h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center ${selectedPreset === index ? 'preset-pulse' : ''}`}
-                            style={{
-                              backgroundColor: bgColor,
-                              borderColor: textColor,
-                              borderWidth: '2px',
-                              borderStyle: 'solid',
-                              color: textColor,
-                            }}
-                          >
-                            {index + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
+                      return (
+                        <button
+                          key={`default-${index}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
 
-                    {/* Custom presets - dynamically added rows */}
-                    {customPresets.length > 0 && (
-                      <>
-                        {Array.from({ length: Math.ceil(customPresets.length / 5) }).map((_, rowIndex) => (
-                          <div key={`custom-row-${rowIndex}`} className="grid grid-cols-5 gap-1">
-                            {customPresets.slice(rowIndex * 5, (rowIndex + 1) * 5).map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, colIndex: number) => {
-                              const actualIndex = rowIndex * 5 + colIndex;
-                              const presetNumber = actualIndex + 6; // Start numbering from 6
-                              const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
-                              const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
-                              const isSelected = selectedCustomPreset === actualIndex;
+                            // Capture current state at click time
+                            const wasActive = activePresetIndex === index;
 
-                              return (
-                                <button
-                                  key={`custom-${actualIndex}`}
-                                  onClick={() => {
-                                    setHue(preset.hue);
-                                    setSaturation(preset.sat);
-                                    setLightness(preset.light);
-                                    setBgHue(preset.bgHue);
-                                    setBgSaturation(preset.bgSat);
-                                    setBgLightness(preset.bgLight);
-                                    setSelectedPreset(null);
-                                    setSelectedCustomPreset(actualIndex);
-                                  }}
-                                  className={`h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center ${isSelected ? 'preset-pulse' : ''}`}
-                                  style={{
-                                    backgroundColor: bgColor,
-                                    borderColor: textColor,
-                                    borderWidth: '2px',
-                                    borderStyle: 'solid',
-                                    color: textColor,
-                                  }}
-                                >
-                                  {presetNumber}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </>
-                    )}
+                            if (wasActive) {
+                              // Already pulsing - ONLY save, don't apply
+                              const newPresets = [...presets];
+                              newPresets[index] = {
+                                hue,
+                                sat: saturation,
+                                light: lightness,
+                                bgHue,
+                                bgSat: bgSaturation,
+                                bgLight: bgLightness,
+                              };
+                              setPresets(newPresets);
+                            } else {
+                              // Not active yet - apply colors
+                              const p = presets[index];
+                              setHue(p.hue);
+                              setSaturation(p.sat);
+                              setLightness(p.light);
+                              setBgHue(p.bgHue);
+                              setBgSaturation(p.bgSat);
+                              setBgLightness(p.bgLight);
+                              setSelectedPreset(index);
+                              setSelectedCustomPreset(null);
+                              setActivePresetIndex(index);
+                            }
+                          }}
+                          className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
+                          style={{
+                            backgroundColor: bgColor,
+                            borderColor: textColor,
+                            borderWidth: '2px',
+                            borderStyle: 'solid',
+                            color: textColor,
+                            outline: 'none',
+                            borderRadius: '6px',
+                          }}
+                        >
+                          {index + 1}
+                        </button>
+                      );
+                    })}
 
-                    {/* Rand and Save buttons */}
-                    <div className="grid grid-cols-5 gap-1">
-                      <button
-                        onClick={handleRandomTheme}
-                        className="h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center"
-                        style={{
-                          backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
-                          borderColor: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
-                          borderWidth: '2px',
-                          borderStyle: 'solid',
-                          color: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
-                        }}
-                      >
-                        rand
-                      </button>
-                      <button
-                        onClick={handleSavePreset}
-                        className="h-6 rounded transition-all text-xs font-mono font-bold flex items-center justify-center"
-                        style={{
-                          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
-                          borderColor: getColor(),
-                          borderWidth: '2px',
-                          borderStyle: 'solid',
-                          color: getColor(),
-                        }}
-                      >
-                        save
-                      </button>
-                    </div>
+                    {/* Custom presets */}
+                    {customPresets.map((preset: { hue: number; sat: number; light: number; bgHue: number; bgSat: number; bgLight: number }, index: number) => {
+                      const presetNumber = index + 6; // Start numbering from 6
+                      const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
+                      const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
+                      const isActive = activePresetIndex === (5 + index);
+
+                      return (
+                        <button
+                          key={`custom-${index}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const wasActive = activePresetIndex === (5 + index);
+
+                            if (wasActive) {
+                              // Already pulsing - save current colors to this custom preset
+                              const newCustomPresets = [...customPresets];
+                              newCustomPresets[index] = {
+                                hue,
+                                sat: saturation,
+                                light: lightness,
+                                bgHue,
+                                bgSat: bgSaturation,
+                                bgLight: bgLightness,
+                              };
+                              setCustomPresets(newCustomPresets);
+                            } else {
+                              // Not active yet - apply colors
+                              setHue(preset.hue);
+                              setSaturation(preset.sat);
+                              setLightness(preset.light);
+                              setBgHue(preset.bgHue);
+                              setBgSaturation(preset.bgSat);
+                              setBgLightness(preset.bgLight);
+                              setSelectedPreset(null);
+                              setSelectedCustomPreset(index);
+                              setActivePresetIndex(5 + index);
+                            }
+                          }}
+                          className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
+                          style={{
+                            backgroundColor: bgColor,
+                            borderColor: textColor,
+                            borderWidth: '2px',
+                            borderStyle: 'solid',
+                            color: textColor,
+                            outline: 'none',
+                            borderRadius: '6px',
+                          }}
+                        >
+                          {presetNumber}
+                        </button>
+                      );
+                    })}
+
+                    {/* Rand button */}
+                    <button
+                      onClick={() => {
+                        handleRandomTheme();
+                        setActivePresetIndex(5 + customPresets.length);
+                      }}
+                      className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${activePresetIndex === (5 + customPresets.length) ? 'preset-pulse' : ''}`}
+                      style={{
+                        backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
+                        borderColor: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
+                        borderWidth: '2px',
+                        borderStyle: 'solid',
+                        color: `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`,
+                        outline: 'none',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      rand
+                    </button>
+
+                    {/* Save button */}
+                    <button
+                      onClick={() => {
+                        handleSavePreset();
+                        setActivePresetIndex(5 + customPresets.length + 1);
+                      }}
+                      className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${activePresetIndex === (5 + customPresets.length + 1) ? 'preset-pulse' : ''}`}
+                      style={{
+                        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
+                        borderColor: getColor(),
+                        borderWidth: '2px',
+                        borderStyle: 'solid',
+                        color: getColor(),
+                        outline: 'none',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      save
+                    </button>
                   </div>
                 </div>
 
@@ -1734,20 +1958,6 @@ function App() {
 
       {/* Editor */}
       <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
-        {isTypingGameActive ? (
-          <TypingGame
-            isActive={isTypingGameActive}
-            onClose={handleCloseTypingGame}
-            getColor={getColor}
-            hue={hue}
-            saturation={saturation}
-            lightness={lightness}
-            bgHue={bgHue}
-            bgSaturation={bgSaturation}
-            bgLightness={bgLightness}
-          />
-        ) : (
-          <>
         {/* Editor header - sticky */}
         <div className="px-8 py-4 sticky top-0 z-10" style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
@@ -1812,8 +2022,6 @@ function App() {
             <span>waiting for input...</span>
           )}
         </div>
-          </>
-        )}
       </div>
     </div>
   );
