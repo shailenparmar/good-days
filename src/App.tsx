@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Download, Copy } from 'lucide-react';
+import { Settings, Calendar, Download, Copy } from 'lucide-react';
+import TypingGame, { TypingGameLeaderboard } from './TypingGame';
 
 interface JournalEntry {
   date: string; // YYYY-MM-DD format
@@ -111,6 +112,9 @@ function App() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLSpanElement>(null);
   const unscrambledContent = useRef<string>('');
+
+  // Typing game state
+  const [isTypingGameActive, setIsTypingGameActive] = useState(false);
 
   // Load entries from localStorage on mount
   useEffect(() => {
@@ -1014,6 +1018,19 @@ function App() {
     setSelectedPreset(null);
   };
 
+  // Typing game handler
+  const handleStartTypingGame = () => {
+    // Save current journal entry before starting game
+    if (editorRef.current) {
+      saveEntry(editorRef.current.innerHTML || '', Date.now());
+    }
+    setIsTypingGameActive(true);
+  };
+
+  const handleCloseTypingGame = () => {
+    setIsTypingGameActive(false);
+  };
+
   // Scramble text in DOM while preserving structure
   const scrambleNode = (node: Node): void => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -1157,6 +1174,16 @@ function App() {
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
       }}>
+        {isTypingGameActive ? (
+          /* Leaderboard View */
+          <TypingGameLeaderboard
+            getColor={getColor}
+            hue={hue}
+            saturation={saturation}
+            lightness={lightness}
+          />
+        ) : (
+          <>
         {/* Header - sticky */}
         <div className="sticky top-0 z-10" style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
@@ -1295,6 +1322,19 @@ function App() {
           borderTop: `1px solid hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`
         }}>
           <button
+            onClick={handleStartTypingGame}
+            disabled={isTypingGameActive}
+            className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{
+              color: getColor(),
+              backgroundColor: isTypingGameActive ? `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.15)` : 'transparent',
+              border: `1px solid ${getColor()}`,
+            }}
+          >
+            <span>⌨</span>
+            <span>typing game</span>
+          </button>
+          <button
             onClick={() => setIsScrambled(!isScrambled)}
             className={`sidebar-button w-full px-3 py-2 text-xs font-mono rounded flex items-center justify-center gap-2 ${isScrambled ? 'active' : ''}`}
             style={{
@@ -1346,6 +1386,8 @@ function App() {
             <span>settings</span>
           </button>
         </div>
+          </>
+        )}
       </div>
 
       {/* Middle Column - Settings Panel */}
@@ -1584,6 +1626,20 @@ function App() {
 
       {/* Editor */}
       <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+        {isTypingGameActive ? (
+          <TypingGame
+            isActive={isTypingGameActive}
+            onClose={handleCloseTypingGame}
+            getColor={getColor}
+            hue={hue}
+            saturation={saturation}
+            lightness={lightness}
+            bgHue={bgHue}
+            bgSaturation={bgSaturation}
+            bgLightness={bgLightness}
+          />
+        ) : (
+          <>
         {/* Editor header - sticky */}
         <div className="px-8 py-4 sticky top-0 z-10" style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
@@ -1648,6 +1704,8 @@ function App() {
             <span>waiting for input...</span>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
