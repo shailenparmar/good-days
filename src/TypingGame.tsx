@@ -369,7 +369,7 @@ export default function TypingGame({
                 return (
                   <span
                     key={actualIndex}
-                    className={isCurrent ? 'text-5xl font-bold' : ''}
+                    className={isCurrent ? 'font-bold' : ''}
                     style={{
                       color: isPast
                         ? getColor().replace('hsl', 'hsla').replace(')', ', 0.3)')
