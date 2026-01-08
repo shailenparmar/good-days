@@ -629,13 +629,12 @@ function App() {
     // Load the lastModified time for this date's entry
     const entry = entries.find(e => e.date === selectedDate);
     if (entry && entry.lastModified) {
+      // Entry exists with lastModified - use that time
       lastTypedTime.current = entry.lastModified;
       localStorage.setItem('lastTypedTime', String(entry.lastModified));
-    } else {
-      // If no entry or no lastModified, use current time
-      lastTypedTime.current = Date.now();
-      localStorage.setItem('lastTypedTime', String(Date.now()));
     }
+    // If no entry or no lastModified, keep the previous lastTypedTime value
+    // This ensures timestamps work for new pages (time has elapsed since last activity)
 
     // Allow editor to be populated when switching dates
     hasLoadedInitialContent.current = false;
