@@ -11,7 +11,10 @@ function App() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
   const [currentContent, setCurrentContent] = useState<string>('');
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(() => {
+    const saved = localStorage.getItem('isLocked');
+    return saved === 'true';
+  });
   const [passwordInput, setPasswordInput] = useState('');
   const [showDebugMenu, setShowDebugMenu] = useState(false);
   const [isScrambled, setIsScrambled] = useState(false);
@@ -153,6 +156,11 @@ function App() {
     localStorage.setItem('totalKeystrokes', String(totalKeystrokes));
   }, [totalKeystrokes]);
 
+  // Save lock state to localStorage
+  useEffect(() => {
+    localStorage.setItem('isLocked', String(isLocked));
+  }, [isLocked]);
+
   // Update current time and time until midnight every second
   useEffect(() => {
     const updateTime = () => {
@@ -223,9 +231,11 @@ function App() {
   // Handle day change (midnight or manual)
   const handleDayChange = () => {
     console.log('=== DAY CHANGE STARTED ===');
-    console.log('Currently viewing date:', selectedDate);
-    console.log('Today\'s actual date:', getTodayDate());
-    console.log('Total entries before:', entries.length);
+    const currentDate = selectedDate;
+    const todayDate = getTodayDate();
+
+    console.log('Currently viewing date:', currentDate);
+    console.log('Today\'s actual date:', todayDate);
 
     // Save current content before switching
     if (editorRef.current) {
@@ -233,35 +243,39 @@ function App() {
       const textContent = editorRef.current.textContent || '';
 
       console.log('Editor has content:', textContent.length, 'chars');
-      console.log('Content preview:', textContent.substring(0, 50));
 
       if (textContent.trim()) {
-        // Find or create entry for current viewing date
-        const currentEntries = [...entries];
-        const existingIndex = currentEntries.findIndex(e => e.date === selectedDate);
+        // Use functional update to get latest entries
+        setEntries(prevEntries => {
+          console.log('Previous entries count:', prevEntries.length);
 
-        if (existingIndex >= 0) {
-          console.log('Updating existing entry for', selectedDate);
-          currentEntries[existingIndex] = {
-            date: selectedDate,
-            content,
-            startedAt: currentEntries[existingIndex].startedAt || Date.now(),
-          };
-        } else {
-          console.log('Creating new entry for', selectedDate);
-          currentEntries.push({
-            date: selectedDate,
-            content,
-            startedAt: Date.now(),
-          });
-        }
+          const newEntries = [...prevEntries];
+          const existingIndex = newEntries.findIndex(e => e.date === currentDate);
 
-        currentEntries.sort((a, b) => b.date.localeCompare(a.date));
+          if (existingIndex >= 0) {
+            console.log('Updating existing entry for', currentDate);
+            newEntries[existingIndex] = {
+              date: currentDate,
+              content,
+              startedAt: newEntries[existingIndex].startedAt || Date.now(),
+            };
+          } else {
+            console.log('Creating new entry for', currentDate);
+            newEntries.push({
+              date: currentDate,
+              content,
+              startedAt: Date.now(),
+            });
+          }
 
-        console.log('Saving entries. New count:', currentEntries.length);
-        setEntries(currentEntries);
-        localStorage.setItem('journalEntries', JSON.stringify(currentEntries));
-        console.log('✓ Saved successfully');
+          newEntries.sort((a, b) => b.date.localeCompare(a.date));
+
+          console.log('New entries count:', newEntries.length);
+          localStorage.setItem('journalEntries', JSON.stringify(newEntries));
+          console.log('✓ Saved to localStorage');
+
+          return newEntries;
+        });
       } else {
         console.log('No content to save (empty)');
       }
@@ -270,7 +284,6 @@ function App() {
     }
 
     // Switch to today's date
-    const todayDate = getTodayDate();
     console.log('Switching to:', todayDate);
     setSelectedDate(todayDate);
 
@@ -1351,8 +1364,18 @@ function App() {
                 </button>
                 <button
                   onClick={() => {
-                    console.log('Current Presets:', JSON.stringify(presets, null, 2));
-                    console.log('Copy this to update defaultPresets in code');
+                    console.log('=== STORAGE CHECK ===');
+                    console.log('Entries in state:', entries.length);
+                    const saved = localStorage.getItem('journalEntries');
+                    if (saved) {
+                      const parsed = JSON.parse(saved);
+                      console.log('Entries in localStorage:', parsed.length);
+                      console.log('Dates:', parsed.map((e: any) => e.date));
+                    } else {
+                      console.log('No entries in localStorage!');
+                    }
+                    console.log('Lock state:', isLocked);
+                    console.log('isLocked in localStorage:', localStorage.getItem('isLocked'));
                   }}
                   className="sidebar-button w-full px-3 py-2 text-xs font-mono rounded"
                   style={{
@@ -1361,7 +1384,7 @@ function App() {
                     border: `1px solid ${getColor()}`,
                   }}
                 >
-                  log presets
+                  check storage
                 </button>
               </div>
             </div>
