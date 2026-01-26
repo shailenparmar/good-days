@@ -234,7 +234,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
             style={{
               backgroundColor: getBackgroundColor(),
               border: `3px solid ${getBorderColor()}`,
-              color: textColor,
+              color: getBorderColor(),
               caretColor: textColor,
               outline: 'none',
               cursor: isSaving ? 'not-allowed' : 'text',
@@ -242,8 +242,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           />
           {showAnimatedPlaceholder && (
             <div
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
-              style={{ color: getColor(), opacity: 0.9 }}
+              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
+              style={{ color: getColor(), opacity: 0.9, left: '14px' }}
             >
               {animPhase === 'bold' ? (
                 <>

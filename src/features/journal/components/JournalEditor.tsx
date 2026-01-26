@@ -38,6 +38,25 @@ function scrambleText(text: string): string {
   ).join('');
 }
 
+// Helper: Scramble HTML by walking text nodes and scrambling their content
+function scrambleHtml(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+
+  // Walk all text nodes and scramble them
+  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode as Text);
+  }
+
+  textNodes.forEach(node => {
+    node.textContent = scrambleText(node.textContent || '');
+  });
+
+  return div.innerHTML;
+}
+
 export function JournalEditor({
   entries,
   selectedDate,
@@ -122,8 +141,7 @@ export function JournalEditor({
 
     if (isScrambled) {
       // ENTERING scramble mode - just show scrambled overlay
-      const currentText = htmlToText(editorRef.current.innerHTML).replace(/\n+$/, '');
-      setScrambledDisplay(scrambleText(currentText));
+      setScrambledDisplay(scrambleHtml(editorRef.current.innerHTML || ''));
     } else {
       // EXITING scramble mode - just hide overlay
       setScrambledDisplay('');
@@ -165,8 +183,7 @@ export function JournalEditor({
 
     // When scrambled, update the scrambled display
     if (isScrambled) {
-      const currentText = htmlToText(editorRef.current.innerHTML).replace(/\n+$/, '');
-      setScrambledDisplay(scrambleText(currentText));
+      setScrambledDisplay(scrambleHtml(editorRef.current.innerHTML || ''));
       onInput(editorRef.current.innerHTML || '');
       return;
     }
@@ -257,24 +274,6 @@ export function JournalEditor({
         `}
       </style>
       <div className="relative w-full h-full">
-        {/* Scrambled overlay - shows scrambled text on top, no pointer events */}
-        {isScrambled && (
-          <div
-            className="absolute top-0 left-0 w-full h-full font-mono font-bold whitespace-pre-wrap dynamic-editor"
-            style={{
-              pointerEvents: 'none',
-              padding: 0,
-              margin: 0,
-              fontSize: '16px',
-              lineHeight: '1.625',
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-              zIndex: 1,
-            }}
-          >
-            {scrambledDisplay}
-          </div>
-        )}
-
         {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
         <div
           ref={editorRef}
@@ -290,6 +289,17 @@ export function JournalEditor({
           spellCheck="false"
           suppressContentEditableWarning
         />
+
+        {/* Scrambled overlay - shows scrambled text on top, no pointer events */}
+        {isScrambled && (
+          <div
+            className="absolute top-0 left-0 w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+            style={{
+              pointerEvents: 'none',
+            }}
+            dangerouslySetInnerHTML={{ __html: scrambledDisplay }}
+          />
+        )}
         {showPlaceholder && (
           <div
             className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none"
