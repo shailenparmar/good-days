@@ -5,7 +5,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/my-journal-app/', // GitHub Pages base path
+  base: '/good-days/', // GitHub Pages base path
   resolve: {
     alias: {
       '@features': path.resolve(__dirname, './src/features'),
