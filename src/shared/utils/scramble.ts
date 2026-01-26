@@ -1,10 +1,15 @@
 // Text scrambling utility
 
 export function scrambleChar(char: string): string {
+  // Scramble letters
   if (char.match(/[a-zA-Z]/)) {
     const isUpper = char === char.toUpperCase();
     const randomChar = String.fromCharCode(97 + Math.floor(Math.random() * 26));
     return isUpper ? randomChar.toUpperCase() : randomChar;
+  }
+  // Scramble digits
+  if (char.match(/[0-9]/)) {
+    return String(Math.floor(Math.random() * 10));
   }
   return char;
 }

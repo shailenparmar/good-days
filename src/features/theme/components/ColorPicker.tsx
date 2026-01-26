@@ -54,12 +54,8 @@ export function ColorPicker({ type }: ColorPickerProps) {
 
   return (
     <div>
-      <div className="text-xs font-mono font-bold mb-1" style={{ color: getColor() }}>
-        {type}
-      </div>
-
       {/* Hue slider */}
-      <div className="mb-2">
+      <div className="mb-1">
         <style>
           {`
             .hue-slider-${type}::-webkit-slider-thumb {
@@ -90,6 +86,9 @@ export function ColorPicker({ type }: ColorPickerProps) {
           max="360"
           value={currentHue}
           onChange={(e) => setHueValue(Number(e.target.value))}
+          onMouseUp={(e) => e.currentTarget.blur()}
+          onKeyDown={(e) => e.preventDefault()}
+          tabIndex={-1}
           className={`w-full h-2 rounded appearance-none cursor-pointer hue-slider-${type}`}
           style={{
             background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'

@@ -49,11 +49,11 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20 }: Entry
 
   return (
     <div
-      className="p-6 sticky top-0 z-10"
+      className="p-4 sticky top-0 z-10"
       style={{
         paddingBottom: `${paddingBottom}px`,
         backgroundColor: `hsl(${getBgColor().match(/\d+/g)![0]}, ${getBgColor().match(/\d+/g)![1]}%, ${Math.min(100, Number(getBgColor().match(/\d+/g)![2]) + 2)}%)`,
-        borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
     >
       <div className="flex justify-between items-baseline">

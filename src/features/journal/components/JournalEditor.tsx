@@ -14,6 +14,30 @@ interface JournalEditorProps {
   unscrambledContentRef?: React.MutableRefObject<string>;
 }
 
+// Helper: Convert plain text to HTML (newlines become <br>)
+function textToHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
+// Helper: Convert HTML to plain text
+function htmlToText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  return div.textContent || '';
+}
+
+// Helper: Scramble text (letters -> random letters, digits -> random digits)
+function scrambleText(text: string): string {
+  return text.split('').map(c =>
+    /[a-zA-Z0-9]/.test(c) ? scrambleChar(c) : c
+  ).join('');
+}
+
 export function JournalEditor({
   entries,
   selectedDate,
@@ -24,11 +48,13 @@ export function JournalEditor({
 }: JournalEditorProps) {
   const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
 
+  // Refs for normal editing
   const lastContentLength = useRef<number>(0);
   const hasLoadedInitialContent = useRef<boolean>(false);
   const isCurrentlyTyping = useRef<boolean>(false);
-  const previousTextContent = useRef<string>('');
-  const scrambledDisplayText = useRef<string>('');
+
+  // State for scramble mode
+  const [scrambledDisplay, setScrambledDisplay] = useState<string>('');
 
   // Placeholder animation state
   const [boldCount, setBoldCount] = useState(0);
@@ -90,6 +116,21 @@ export function JournalEditor({
     }
   }, [showPlaceholder]);
 
+  // Handle scramble mode transitions
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    if (isScrambled) {
+      // ENTERING scramble mode - just show scrambled overlay
+      const currentText = htmlToText(editorRef.current.innerHTML).replace(/\n+$/, '');
+      setScrambledDisplay(scrambleText(currentText));
+    } else {
+      // EXITING scramble mode - just hide overlay
+      setScrambledDisplay('');
+    }
+  }, [isScrambled, editorRef, unscrambledContentRef]);
+
+
   // Populate editor when selectedDate changes or on initial load
   useEffect(() => {
     if (!editorRef.current) return;
@@ -116,36 +157,19 @@ export function JournalEditor({
     hasLoadedInitialContent.current = false;
   }, [selectedDate]);
 
-  // Initialize scrambled state when scramble mode is enabled
-  useEffect(() => {
-    if (isScrambled && editorRef.current && unscrambledContentRef) {
-      // App.tsx has already scrambled the editor and saved real content to unscrambledContentRef
-      // Wait a tick for App.tsx to finish scrambling
-      setTimeout(() => {
-        if (editorRef.current && unscrambledContentRef.current) {
-          // Parse the real text from the saved HTML
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = unscrambledContentRef.current;
-          previousTextContent.current = tempDiv.textContent || '';
-          // Get the scrambled display from the editor
-          scrambledDisplayText.current = editorRef.current.textContent || '';
-        }
-      }, 10);
-    } else {
-      // Reset when unscrambled
-      previousTextContent.current = '';
-      scrambledDisplayText.current = '';
-    }
-  }, [isScrambled, editorRef, unscrambledContentRef]);
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
     isCurrentlyTyping.current = true;
 
-    // Get the current content (this is the real content before any scrambling)
-    const currentHTML = editorRef.current.innerHTML || '';
-    const newContent = editorRef.current.textContent || '';
+    // When scrambled, update the scrambled display
+    if (isScrambled) {
+      const currentText = htmlToText(editorRef.current.innerHTML).replace(/\n+$/, '');
+      setScrambledDisplay(scrambleText(currentText));
+      onInput(editorRef.current.innerHTML || '');
+      return;
+    }
 
     // Remove timestamps that have no content after them
     const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
@@ -191,85 +215,8 @@ export function JournalEditor({
       }
     });
 
-    lastContentLength.current = newContent.length;
-
-    // Handle scrambled mode typing
-    if (isScrambled && unscrambledContentRef) {
-      // The editor currently shows: previous scrambled text + newly typed chars
-      const editorText = editorRef.current.textContent || '';
-      const prevScrambled = scrambledDisplayText.current;
-      const prevReal = previousTextContent.current;
-
-      // Save cursor position
-      const selection = window.getSelection();
-      let cursorOffset = 0;
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(editorRef.current);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-        cursorOffset = preCaretRange.toString().length;
-      }
-
-      let newScrambled = prevScrambled;
-      let newReal = prevReal;
-
-      if (editorText.length > prevScrambled.length) {
-        // Characters were added
-        const addedCount = editorText.length - prevScrambled.length;
-        // The cursor is right after the inserted characters
-        const insertPos = cursorOffset - addedCount;
-        // Get the new characters (these are unscrambled, just typed by user)
-        const newChars = editorText.slice(insertPos, insertPos + addedCount);
-        // Scramble them
-        const scrambledNewChars = newChars.split('').map(scrambleChar).join('');
-        // Insert into scrambled display at the right position
-        newScrambled = prevScrambled.slice(0, insertPos) + scrambledNewChars + prevScrambled.slice(insertPos);
-        // Also update the real content
-        newReal = prevReal.slice(0, insertPos) + newChars + prevReal.slice(insertPos);
-      } else if (editorText.length < prevScrambled.length) {
-        // Characters were deleted
-        const deletedCount = prevScrambled.length - editorText.length;
-        // Find where deletion happened by comparing with previous scrambled
-        let deletePos = 0;
-        while (deletePos < editorText.length && editorText[deletePos] === prevScrambled[deletePos]) {
-          deletePos++;
-        }
-        newScrambled = prevScrambled.slice(0, deletePos) + prevScrambled.slice(deletePos + deletedCount);
-        newReal = prevReal.slice(0, deletePos) + prevReal.slice(deletePos + deletedCount);
-      }
-
-      // Update refs
-      previousTextContent.current = newReal;
-      scrambledDisplayText.current = newScrambled;
-
-      // Save the real content as HTML
-      unscrambledContentRef.current = newReal;
-      onInput(newReal);
-
-      // Update display with scrambled text
-      editorRef.current.textContent = newScrambled;
-
-      // Restore cursor position
-      if (selection && editorRef.current) {
-        const textNode = editorRef.current.firstChild || editorRef.current;
-        const newRange = document.createRange();
-        const safeOffset = Math.min(cursorOffset, newScrambled.length);
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          newRange.setStart(textNode, safeOffset);
-        } else {
-          newRange.setStart(editorRef.current, 0);
-        }
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-      }
-    } else {
-      onInput(editorRef.current.innerHTML || '');
-      // Keep track for when scramble mode is enabled
-      previousTextContent.current = editorRef.current.textContent || '';
-      scrambledDisplayText.current = '';
-    }
+    lastContentLength.current = editorRef.current.textContent?.length || 0;
+    onInput(editorRef.current.innerHTML || '');
 
     // Update isEmpty state for placeholder animation
     const editorText = editorRef.current.textContent || '';
@@ -285,7 +232,7 @@ export function JournalEditor({
     setTimeout(() => {
       isCurrentlyTyping.current = false;
     }, 100);
-  }, [editorRef, onInput, isEmpty, isScrambled, unscrambledContentRef]);
+  }, [editorRef, onInput, isEmpty, isScrambled]);
 
   return (
     <div className="flex-1 p-8 relative overflow-y-auto" style={{ backgroundColor: getBgColor() }}>
@@ -310,6 +257,25 @@ export function JournalEditor({
         `}
       </style>
       <div className="relative w-full h-full">
+        {/* Scrambled overlay - shows scrambled text on top, no pointer events */}
+        {isScrambled && (
+          <div
+            className="absolute top-0 left-0 w-full h-full font-mono font-bold whitespace-pre-wrap dynamic-editor"
+            style={{
+              pointerEvents: 'none',
+              padding: 0,
+              margin: 0,
+              fontSize: '16px',
+              lineHeight: '1.625',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              zIndex: 1,
+            }}
+          >
+            {scrambledDisplay}
+          </div>
+        )}
+
+        {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
         <div
           ref={editorRef}
           contentEditable
@@ -317,6 +283,10 @@ export function JournalEditor({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className="w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+          style={{
+            color: isScrambled ? 'transparent' : undefined,
+            caretColor: getColor(),
+          }}
           spellCheck="false"
           suppressContentEditableWarning
         />

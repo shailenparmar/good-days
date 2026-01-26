@@ -10,7 +10,6 @@ import { SettingsPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
-import { scrambleNode } from '@shared/utils/scramble';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton } from '@shared/components';
 
@@ -51,20 +50,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [auth, journal]);
 
-  // Handle scrambling
-  useEffect(() => {
-    if (!editorRef.current) return;
-
-    if (isScrambled) {
-      unscrambledContent.current = editorRef.current.innerHTML;
-      scrambleNode(editorRef.current);
-    } else {
-      if (unscrambledContent.current) {
-        editorRef.current.innerHTML = unscrambledContent.current;
-        unscrambledContent.current = '';
-      }
-    }
-  }, [isScrambled]);
+  // Note: Scramble/unscramble handling is done in JournalEditor
 
   // Clear unscrambled backup and turn off scramble when changing dates (not on initial load)
   const previousSelectedDate = useRef<string>(journal.selectedDate);
@@ -164,7 +150,7 @@ function AppContent() {
         className="w-80 flex flex-col min-h-screen"
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-          borderRight: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+          borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
       >
         {/* Header */}
@@ -172,19 +158,19 @@ function AppContent() {
           className="sticky top-0 z-10"
           style={{
             backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <div className="p-6 pb-4">
-            <h1 className="text-2xl font-extrabold font-mono tracking-tight" style={{ color: getColor() }}>
+          <div className="p-4">
+            <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center" style={{ color: getColor() }}>
               good days
             </h1>
           </div>
 
           {/* Stats */}
           <div
-            className="px-6 pb-4 pt-4"
-            style={{ borderTop: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            className="p-4"
+            style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
           >
             <StatsDisplay
               entries={journal.entries}
@@ -196,9 +182,10 @@ function AppContent() {
 
         {/* Entries list */}
         <div
-          className="flex-1 overflow-y-auto"
-          style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)` }}
+          className="flex-1 overflow-y-auto scrollbar-hide"
+          style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`, scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
+          <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
           <EntrySidebar
             entries={journal.entries}
             selectedDate={journal.selectedDate}
@@ -215,7 +202,7 @@ function AppContent() {
           className="p-4 space-y-2"
           style={{
             backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderTop: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+            borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
           <FunctionButton onClick={() => setIsScrambled(!isScrambled)} isActive={isScrambled}>
