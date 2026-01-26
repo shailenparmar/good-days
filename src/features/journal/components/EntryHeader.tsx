@@ -1,0 +1,73 @@
+import { useState, useEffect } from 'react';
+import { useTheme } from '@features/theme';
+import { formatDate } from '@shared/utils/date';
+import { getItem } from '@shared/storage';
+import type { JournalEntry } from '../types';
+
+interface EntryHeaderProps {
+  selectedDate: string;
+  entries: JournalEntry[];
+  paddingBottom?: number;
+}
+
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20 }: EntryHeaderProps) {
+  const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
+  const [use24Hour, setUse24Hour] = useState(() => getItem('timeFormat') === '24h');
+
+  // Listen for storage changes to update time format
+  useEffect(() => {
+    const handleStorage = () => setUse24Hour(getItem('timeFormat') === '24h');
+    window.addEventListener('storage', handleStorage);
+    const interval = setInterval(handleStorage, 100); // Poll for same-tab changes
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const entry = entries.find(e => e.date === selectedDate);
+
+  const getStartedAtText = () => {
+    if (entry?.startedAt) {
+      const date = new Date(entry.startedAt);
+      if (use24Hour) {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `started at ${hours}:${minutes}:${seconds}`;
+      } else {
+        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
+      }
+    }
+    const date = new Date(selectedDate + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).toLowerCase();
+  };
+
+  return (
+    <div
+      className="p-6 sticky top-0 z-10"
+      style={{
+        paddingBottom: `${paddingBottom}px`,
+        backgroundColor: `hsl(${getBgColor().match(/\d+/g)![0]}, ${getBgColor().match(/\d+/g)![1]}%, ${Math.min(100, Number(getBgColor().match(/\d+/g)![2]) + 2)}%)`,
+        borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+      }}
+    >
+      <div className="flex justify-between items-baseline">
+        <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>
+          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }).toLowerCase()}
+        </h2>
+        <p className="font-extrabold font-mono" style={{ color: getColor(), fontSize: '0.9rem' }}>
+          {getStartedAtText()}
+        </p>
+      </div>
+    </div>
+  );
+}

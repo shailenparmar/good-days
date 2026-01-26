@@ -445,7 +445,7 @@ export default function TypingGame({
                 className="w-full px-4 py-2 text-center font-mono rounded focus:outline-none"
                 style={{
                   backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
-                  borderColor: getColor(),
+                  borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
                   borderWidth: '2px',
                   color: getColor(),
                 }}
@@ -473,7 +473,7 @@ export default function TypingGame({
               onClick={handleExitGame}
               className="px-6 py-2 font-mono rounded"
               style={{
-                borderColor: getColor(),
+                borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
                 borderWidth: '2px',
                 color: getColor(),
               }}
@@ -543,7 +543,7 @@ export function TypingGameLeaderboard({
                 key={index}
                 className="p-3 rounded border font-mono text-xs"
                 style={{
-                  borderColor: getColor(),
+                  borderColor: `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 36)}%, 0.3)`,
                   color: getColor(),
                 }}
               >

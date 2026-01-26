@@ -1,0 +1,92 @@
+import { useRef, useEffect } from 'react';
+import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
+import { PasswordSettings } from '@features/auth';
+import { ExportButtons } from '@features/export';
+import { TimeDisplay } from './TimeDisplay';
+import type { JournalEntry } from '@features/journal';
+
+interface SettingsPanelProps {
+  showDebugMenu: boolean;
+  onClose: () => void;
+  hasPassword: boolean;
+  verifyPassword: (password: string) => boolean;
+  setPassword: (password: string) => void;
+  entries: JournalEntry[];
+}
+
+export function SettingsPanel({
+  showDebugMenu,
+  onClose,
+  hasPassword,
+  verifyPassword,
+  setPassword,
+  entries,
+}: SettingsPanelProps) {
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+
+  // Close settings menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showDebugMenu && settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('button[data-settings-toggle]')) {
+          onClose();
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDebugMenu, onClose]);
+
+  if (!showDebugMenu) return null;
+
+  return (
+    <div
+      ref={settingsRef}
+      className="w-80 flex flex-col min-h-screen"
+      style={{
+        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
+        borderRight: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+      }}
+    >
+      {/* Color Picker Section */}
+      <div
+        className="px-6 pb-4 pt-4"
+        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+      >
+        <div className="space-y-3">
+          <PresetGrid showDebugMenu={showDebugMenu} />
+          <ColorPicker type="text" />
+          <ColorPicker type="background" />
+        </div>
+      </div>
+
+      {/* Time Display Section */}
+      <div
+        className="px-6 pb-4 pt-4"
+        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+      >
+        <TimeDisplay />
+      </div>
+
+      {/* Password Settings Section */}
+      <div
+        className="px-6 pb-4 pt-4"
+        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+      >
+        <PasswordSettings
+          hasPassword={hasPassword}
+          verifyPassword={verifyPassword}
+          setPassword={setPassword}
+        />
+      </div>
+
+      {/* Export Section */}
+      <div className="px-6 pb-4 pt-4">
+        <ExportButtons entries={entries} />
+      </div>
+    </div>
+  );
+}
