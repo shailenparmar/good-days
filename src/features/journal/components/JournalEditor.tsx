@@ -273,7 +273,7 @@ export function JournalEditor({
           }
         `}
       </style>
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full overflow-y-auto scrollbar-hide">
         {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
         <div
           ref={editorRef}
@@ -281,7 +281,7 @@ export function JournalEditor({
           onInput={handleInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+          className="w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor overflow-y-auto scrollbar-hide"
           style={{
             color: isScrambled ? 'transparent' : undefined,
             caretColor: getColor(),
