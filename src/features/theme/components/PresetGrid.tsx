@@ -265,7 +265,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
   };
 
   return (
-    <div ref={containerRef} className="max-h-28 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+    <div ref={containerRef} className="max-h-44 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       <div className="grid grid-cols-5 gap-1">
         {/* Default presets */}

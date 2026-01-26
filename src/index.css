@@ -91,3 +91,13 @@ button:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Hide scrollbars globally for elements with scrollbar-hide class */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
