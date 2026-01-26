@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { formatDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
@@ -15,6 +15,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);
   const [keyboardFocusedEntry, setKeyboardFocusedEntry] = useState<string | null>(null);
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   // Clear keyboard focus when settings opens
   useEffect(() => {
@@ -22,6 +23,14 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
       setKeyboardFocusedEntry(null);
     }
   }, [settingsOpen]);
+
+  // Scroll focused entry into view
+  useEffect(() => {
+    if (keyboardFocusedEntry) {
+      const button = buttonRefs.current.get(keyboardFocusedEntry);
+      button?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [keyboardFocusedEntry]);
 
   // Arrow key navigation (only when settings is closed)
   useEffect(() => {
@@ -31,11 +40,19 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
 
       // Don't handle if focus is on an input, textarea, or contenteditable
       const activeElement = document.activeElement;
-      if (
-        activeElement?.tagName === 'INPUT' ||
+      const isInEditor = activeElement?.tagName === 'INPUT' ||
         activeElement?.tagName === 'TEXTAREA' ||
-        (activeElement as HTMLElement)?.isContentEditable
-      ) {
+        (activeElement as HTMLElement)?.isContentEditable;
+
+      // Handle Enter/Space for navigation only if NOT in editor
+      if ((e.key === 'Enter' || e.key === ' ') && keyboardFocusedEntry && !isInEditor) {
+        e.preventDefault();
+        onSelectDate(keyboardFocusedEntry);
+        setKeyboardFocusedEntry(null);
+        return;
+      }
+
+      if (isInEditor) {
         return;
       }
 
@@ -51,19 +68,17 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         const baseIndex = focusedIndex !== -1 ? focusedIndex : currentIndex;
-        if (baseIndex === -1) return;
-        const newIndex = baseIndex > 0 ? baseIndex - 1 : entries.length - 1;
+        if (baseIndex === -1 || baseIndex === 0) return;
+        const newIndex = baseIndex - 1;
         setKeyboardFocusedEntry(entries[newIndex].date);
+        onSelectDate(entries[newIndex].date);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         const baseIndex = focusedIndex !== -1 ? focusedIndex : currentIndex;
-        if (baseIndex === -1) return;
-        const newIndex = baseIndex < entries.length - 1 ? baseIndex + 1 : 0;
+        if (baseIndex === -1 || baseIndex === entries.length - 1) return;
+        const newIndex = baseIndex + 1;
         setKeyboardFocusedEntry(entries[newIndex].date);
-      } else if ((e.key === 'Enter' || e.key === ' ') && keyboardFocusedEntry) {
-        e.preventDefault();
-        onSelectDate(keyboardFocusedEntry);
-        setKeyboardFocusedEntry(null);
+        onSelectDate(entries[newIndex].date);
       }
     };
 
@@ -81,7 +96,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
 
   return (
-    <div className="p-3 space-y-1">
+    <div className="p-4 space-y-2">
       {entries.map(entry => {
         const isSelected = entry.date === selectedDate;
         const isHovered = hoveredEntry === entry.date || keyboardFocusedEntry === entry.date;
@@ -95,16 +110,23 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         return (
           <button
             key={entry.date}
-            onClick={() => onSelectDate(entry.date)}
-            onMouseEnter={() => {
-              setHoveredEntry(entry.date);
+            ref={(el) => {
+              if (el) buttonRefs.current.set(entry.date, el);
+            }}
+            onClick={() => {
               setKeyboardFocusedEntry(null);
+              onSelectDate(entry.date);
+            }}
+            onMouseEnter={() => {
+              if (!keyboardFocusedEntry) {
+                setHoveredEntry(entry.date);
+              }
             }}
             onMouseLeave={() => { setHoveredEntry(null); setClickedEntry(null); }}
             onMouseDown={() => setClickedEntry(entry.date)}
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
-            className="w-full text-left px-3 py-2 rounded font-mono font-bold text-sm cursor-pointer outline-none focus:outline-none"
+            className="w-full text-center px-3 py-2 rounded font-mono font-bold text-xs cursor-pointer outline-none focus:outline-none"
             style={{
               border: `3px solid ${currentBorderColor}`,
               color: textColor,

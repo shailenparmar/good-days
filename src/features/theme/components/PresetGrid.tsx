@@ -78,17 +78,16 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         if (e.key === 'ArrowRight') {
           const rowStart = currentRow * cols;
           const rowEnd = Math.min(rowStart + cols, totalPresets);
-          const itemsInRow = rowEnd - rowStart;
-          const posInRow = newIndex - rowStart;
-          const newPosInRow = (posInRow + 1) % itemsInRow;
-          newIndex = rowStart + newPosInRow;
+          // Stop at end of row (no wrap)
+          if (newIndex < rowEnd - 1) {
+            newIndex = newIndex + 1;
+          }
         } else if (e.key === 'ArrowLeft') {
           const rowStart = currentRow * cols;
-          const rowEnd = Math.min(rowStart + cols, totalPresets);
-          const itemsInRow = rowEnd - rowStart;
-          const posInRow = newIndex - rowStart;
-          const newPosInRow = (posInRow - 1 + itemsInRow) % itemsInRow;
-          newIndex = rowStart + newPosInRow;
+          // Stop at start of row (no wrap)
+          if (newIndex > rowStart) {
+            newIndex = newIndex - 1;
+          }
         } else if (e.key === 'ArrowDown') {
           const currentCol = newIndex % cols;
           const itemsInCol = [];
@@ -96,8 +95,10 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
             itemsInCol.push(i);
           }
           const posInCol = itemsInCol.indexOf(newIndex);
-          const newPosInCol = (posInCol + 1) % itemsInCol.length;
-          newIndex = itemsInCol[newPosInCol];
+          // Stop at bottom of column (no wrap)
+          if (posInCol < itemsInCol.length - 1) {
+            newIndex = itemsInCol[posInCol + 1];
+          }
         } else if (e.key === 'ArrowUp') {
           const currentCol = newIndex % cols;
           const itemsInCol = [];
@@ -105,8 +106,10 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
             itemsInCol.push(i);
           }
           const posInCol = itemsInCol.indexOf(newIndex);
-          const newPosInCol = (posInCol - 1 + itemsInCol.length) % itemsInCol.length;
-          newIndex = itemsInCol[newPosInCol];
+          // Stop at top of column (no wrap)
+          if (posInCol > 0) {
+            newIndex = itemsInCol[posInCol - 1];
+          }
         }
 
         setActivePresetIndex(newIndex);

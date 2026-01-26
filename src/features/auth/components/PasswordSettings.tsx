@@ -205,7 +205,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
       <style>
         {`
           .password-input::placeholder {
-            color: ${textColor};
+            color: ${isSaving ? '#00ff00' : textColor};
             opacity: 0.9;
           }
         `}

@@ -48,15 +48,15 @@ export function SettingsPanel({
       className="w-80 flex flex-col min-h-screen"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderRight: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
     >
       {/* Color Picker Section */}
       <div
-        className="px-6 pb-4 pt-4"
-        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        className="p-4"
+        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
-        <div className="space-y-3">
+        <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} />
           <ColorPicker type="text" />
           <ColorPicker type="background" />
@@ -65,16 +65,16 @@ export function SettingsPanel({
 
       {/* Time Display Section */}
       <div
-        className="px-6 pb-4 pt-4"
-        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        className="p-4"
+        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
         <TimeDisplay />
       </div>
 
       {/* Password Settings Section */}
       <div
-        className="px-6 pb-4 pt-4"
-        style={{ borderBottom: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        className="p-4"
+        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
         <PasswordSettings
           hasPassword={hasPassword}
@@ -84,7 +84,7 @@ export function SettingsPanel({
       </div>
 
       {/* Export Section */}
-      <div className="px-6 pb-4 pt-4">
+      <div className="p-4">
         <ExportButtons entries={entries} />
       </div>
     </div>

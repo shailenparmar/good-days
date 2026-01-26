@@ -31,9 +31,15 @@ export function FunctionButton({ onClick, disabled, isActive, children, dataAttr
     return 'transparent';
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    onClick();
+    e.currentTarget.blur();
+  };
+
   return (
     <button
-      onClick={() => !disabled && onClick()}
+      onClick={handleClick}
       disabled={disabled}
       tabIndex={-1}
       data-settings-toggle={dataAttribute === 'settings-toggle' ? true : undefined}
