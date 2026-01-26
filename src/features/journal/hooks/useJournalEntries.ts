@@ -1,0 +1,162 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { getItem, setItem, isElectron, forceSave } from '@shared/storage';
+import { getTodayDate } from '@shared/utils/date';
+import type { JournalEntry } from '../types';
+
+export function useJournalEntries() {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  const [currentContent, setCurrentContent] = useState<string>('');
+  // Storage is initialized in main.tsx before app renders
+  const [storageReady] = useState(true);
+
+  const previousDate = useRef<string | null>(null);
+  const lastTypedTime = useRef<number>(
+    (() => {
+      const saved = getItem('lastTypedTime');
+      return saved ? Number(saved) : Date.now();
+    })()
+  );
+
+  // Force save before closing
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isElectron()) {
+        forceSave();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Load entries from storage on mount (after storage is ready)
+  useEffect(() => {
+    if (!storageReady) return;
+
+    const saved = getItem('journalEntries');
+    if (saved) {
+      const loadedEntries = JSON.parse(saved);
+      setEntries(loadedEntries);
+    }
+  }, [storageReady]);
+
+  // Ensure today's entry always exists
+  useEffect(() => {
+    const today = getTodayDate();
+    const todayEntry = entries.find(e => e.date === today);
+
+    if (!todayEntry && entries.length > 0) {
+      const newEntries = [...entries, {
+        date: today,
+        content: '',
+        startedAt: Date.now(),
+      }].sort((a, b) => b.date.localeCompare(a.date));
+
+      setEntries(newEntries);
+      setItem('journalEntries', JSON.stringify(newEntries));
+    }
+  }, [entries]);
+
+  // Handle date changes
+  useEffect(() => {
+    const isDateSwitch = previousDate.current !== null && previousDate.current !== selectedDate;
+
+    const entry = entries.find(e => e.date === selectedDate);
+    if (entry && entry.lastModified && isDateSwitch) {
+      lastTypedTime.current = entry.lastModified;
+      setItem('lastTypedTime', String(entry.lastModified));
+    }
+
+    previousDate.current = selectedDate;
+  }, [selectedDate, entries]);
+
+  // Save content
+  const saveEntry = useCallback((content: string, timestamp?: number) => {
+    const now = Date.now();
+
+    // Get text content from HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    const textContent = tempDiv.textContent || '';
+
+    const isToday = selectedDate === getTodayDate();
+
+    setEntries(prevEntries => {
+      const existingIndex = prevEntries.findIndex(e => e.date === selectedDate);
+      let newEntries: JournalEntry[];
+
+      if (textContent.trim() === '') {
+        if (isToday) {
+          if (existingIndex >= 0) {
+            newEntries = [...prevEntries];
+            newEntries[existingIndex] = {
+              date: selectedDate,
+              content,
+              startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
+              lastModified: now,
+            };
+          } else {
+            newEntries = [...prevEntries, {
+              date: selectedDate,
+              content,
+              startedAt: timestamp || now,
+              lastModified: now,
+            }];
+          }
+        } else {
+          newEntries = prevEntries.filter(e => e.date !== selectedDate);
+        }
+      } else if (existingIndex >= 0) {
+        newEntries = [...prevEntries];
+        newEntries[existingIndex] = {
+          date: selectedDate,
+          content,
+          startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
+          lastModified: now,
+        };
+      } else {
+        newEntries = [...prevEntries, {
+          date: selectedDate,
+          content,
+          startedAt: timestamp || now,
+          lastModified: now,
+        }];
+      }
+
+      newEntries.sort((a, b) => b.date.localeCompare(a.date));
+      setItem('journalEntries', JSON.stringify(newEntries));
+      return newEntries;
+    });
+
+    lastTypedTime.current = now;
+    setItem('lastTypedTime', String(now));
+  }, [selectedDate]);
+
+  // Reload entries from storage (used after unlock)
+  const reloadEntries = useCallback(() => {
+    const saved = getItem('journalEntries');
+    if (saved) {
+      const loadedEntries = JSON.parse(saved);
+      setEntries(loadedEntries);
+
+      const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
+      const content = entry?.content || '';
+      setCurrentContent(content);
+      return content;
+    }
+    return '';
+  }, [selectedDate]);
+
+  return {
+    entries,
+    selectedDate,
+    currentContent,
+    storageReady,
+    setEntries,
+    setSelectedDate,
+    setCurrentContent,
+    saveEntry,
+    reloadEntries,
+    lastTypedTime,
+  };
+}

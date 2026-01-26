@@ -1,0 +1,21 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Yellow background with thick blue rounded border -->
+  <rect
+    x="48"
+    y="48"
+    width="928"
+    height="928"
+    rx="180"
+    ry="180"
+    fill="hsl(59, 100%, 48%)"
+    stroke="hsl(241, 100%, 46%)"
+    stroke-width="96"
+  />
+  <!-- Blue circle dot in center -->
+  <circle
+    cx="512"
+    cy="512"
+    r="140"
+    fill="hsl(241, 100%, 46%)"
+  />
+</svg>
