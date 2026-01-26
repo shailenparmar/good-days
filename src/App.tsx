@@ -227,20 +227,6 @@ function AppContent() {
             <Settings className="w-3 h-3" />
             <span>settings</span>
           </FunctionButton>
-
-          <FunctionButton onClick={() => {
-            if (confirm('Reset all data? This will clear everything and reload.')) {
-              // Preserve cumulative stats
-              const totalSeconds = localStorage.getItem('totalSecondsOnApp');
-              const totalKeystrokes = localStorage.getItem('totalKeystrokes');
-              localStorage.clear();
-              if (totalSeconds) localStorage.setItem('totalSecondsOnApp', totalSeconds);
-              if (totalKeystrokes) localStorage.setItem('totalKeystrokes', totalKeystrokes);
-              window.location.reload();
-            }
-          }}>
-            <span>reset app (test)</span>
-          </FunctionButton>
         </div>
       </div>
 
