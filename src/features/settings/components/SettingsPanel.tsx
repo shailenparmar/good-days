@@ -45,7 +45,7 @@ export function SettingsPanel({
   return (
     <div
       ref={settingsRef}
-      className="w-80 flex flex-col min-h-screen"
+      className="w-80 flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`

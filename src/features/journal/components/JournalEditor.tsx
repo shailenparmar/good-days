@@ -252,7 +252,7 @@ export function JournalEditor({
   }, [editorRef, onInput, isEmpty, isScrambled]);
 
   return (
-    <div className="flex-1 p-8 relative overflow-y-auto" style={{ backgroundColor: getBgColor() }}>
+    <div className="flex-1 p-8 relative overflow-y-auto scrollbar-hide" style={{ backgroundColor: getBgColor() }}>
       <style>
         {`
           .dynamic-editor {
