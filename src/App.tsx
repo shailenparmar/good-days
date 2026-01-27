@@ -10,6 +10,7 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
+import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton } from '@shared/components';
 
 function AppContent() {
@@ -72,6 +73,38 @@ function AppContent() {
     }
   }, [journal.selectedDate]);
 
+  // Automatic midnight detection
+  useEffect(() => {
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+      return setTimeout(() => {
+        // Save current content
+        if (editorRef.current) {
+          const content = editorRef.current.innerHTML || '';
+          const textContent = editorRef.current.textContent || '';
+          if (textContent.trim()) {
+            journal.saveEntry(content, Date.now());
+          }
+        }
+        // Switch to new day
+        journal.setSelectedDate(getTodayDate());
+        if (editorRef.current) {
+          editorRef.current.innerHTML = '';
+        }
+        scheduleNextMidnight();
+      }, msUntilMidnight);
+    };
+
+    const timeoutId = scheduleNextMidnight();
+    return () => clearTimeout(timeoutId);
+  }, [journal]);
+
   // Handle password unlock
   const handlePasswordSubmit = async (e: React.FormEvent): Promise<boolean> => {
     const success = await auth.handlePasswordSubmit(e);
@@ -90,14 +123,6 @@ function AppContent() {
     stats.incrementKeystrokes();
     journal.setCurrentContent(editorRef.current?.textContent || '');
     journal.saveEntry(content, Date.now());
-  };
-
-  // Handle new page creation
-  const handleNewPage = () => {
-    journal.createNewPage();
-    if (editorRef.current) {
-      editorRef.current.innerHTML = '';
-    }
   };
 
   // Lock screen (only show if password is set)
@@ -181,7 +206,6 @@ function AppContent() {
               setShowDebugMenu(false);
             }}
             onSaveTitle={journal.saveTitle}
-            onNewPage={handleNewPage}
             settingsOpen={showDebugMenu}
           />
         </div>
