@@ -12,7 +12,7 @@ export function EntryFooter({ currentContent }: EntryFooterProps) {
 
   return (
     <div
-      className="p-4 font-mono font-extrabold sticky bottom-0 z-10 text-right"
+      className="p-4 font-mono font-extrabold sticky bottom-0 z-10 text-right select-none"
       style={{
         fontSize: '0.9rem',
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,

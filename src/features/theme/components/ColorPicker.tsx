@@ -65,7 +65,6 @@ export function ColorPicker({ type }: ColorPickerProps) {
               height: 16px;
               border-radius: 50%;
               background: ${getColor()};
-              cursor: pointer;
               border: 2px solid ${getColor()};
               box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
             }
@@ -74,7 +73,6 @@ export function ColorPicker({ type }: ColorPickerProps) {
               height: 16px;
               border-radius: 50%;
               background: ${getColor()};
-              cursor: pointer;
               border: 2px solid ${getColor()};
               box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
             }
@@ -89,7 +87,7 @@ export function ColorPicker({ type }: ColorPickerProps) {
           onMouseUp={(e) => e.currentTarget.blur()}
           onKeyDown={(e) => e.preventDefault()}
           tabIndex={-1}
-          className={`w-full h-2 rounded appearance-none cursor-pointer hue-slider-${type}`}
+          className={`w-full h-2 rounded appearance-none hue-slider-${type}`}
           style={{
             background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'
           }}
@@ -101,7 +99,7 @@ export function ColorPicker({ type }: ColorPickerProps) {
         <div
           ref={pickerRef}
           onMouseDown={handlePickerMouseDown}
-          className="relative w-full h-20 rounded cursor-crosshair"
+          className="relative w-full h-20 rounded"
           style={{
             background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`
           }}

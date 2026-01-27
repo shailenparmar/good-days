@@ -160,7 +160,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
             onMouseDown={() => !isEditing && setClickedEntry(entry.date)}
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
-            className="w-full text-center px-3 py-2 rounded font-mono font-extrabold cursor-pointer outline-none focus:outline-none select-none"
+            className="w-full text-center px-3 py-2 rounded font-mono font-extrabold outline-none focus:outline-none select-none"
             style={{
               fontSize: '0.9rem',
               border: `3px solid ${currentBorderColor}`,
