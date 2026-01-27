@@ -41,7 +41,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i couldn't view your content even if i wanted to; it's technologically impossible.
           </p>
           <p>
-            this is because your data is saved to something called localStorage, which is a file on your hard drive. your browser pulls from it and saves to it.
+            your data is saved to IndexedDB, a database on your device. the app also works offline — no internet needed after your first visit.
           </p>
           <p>
             as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.
