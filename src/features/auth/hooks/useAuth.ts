@@ -3,9 +3,12 @@ import { getItem, setItem, removeItem } from '@shared/storage';
 
 const PASSWORD_KEY = 'passwordHash';
 const PASSWORD_SALT_KEY = 'passwordSalt';
-const UNLOCKED_KEY = 'sessionUnlocked';
 const PASSWORD_VERSION_KEY = 'passwordVersion';
 const CURRENT_PASSWORD_VERSION = 2;
+
+// Session unlock key - uses sessionStorage (not our custom storage)
+// sessionStorage persists across refresh but clears on window/tab close
+const SESSION_UNLOCKED_KEY = 'gooddays_session_unlocked';
 
 // Generate a random salt
 function generateSalt(): string {
@@ -76,24 +79,33 @@ export function useAuth() {
     return null;
   });
 
-  // Reactive state - syncs with storage
+  // Check if user has a password set (persisted in IndexedDB/localStorage)
   const [hasPassword, setHasPassword] = useState(() => getItem(PASSWORD_KEY) !== null);
-  // Only locked if has password AND not unlocked in this session
+
+  // Lock state logic:
+  // - Locked = has password AND not unlocked this session
+  // - sessionStorage persists across refresh (stays unlocked)
+  // - sessionStorage clears on window/tab close (locks on reopen)
+  // - ESC key clears session flag (locks immediately)
   const [isLocked, setIsLocked] = useState(() => {
     const hasPass = getItem(PASSWORD_KEY) !== null;
-    const wasUnlocked = sessionStorage.getItem(UNLOCKED_KEY) === 'true';
-    return hasPass && !wasUnlocked;
+    const unlockedThisSession = sessionStorage.getItem(SESSION_UNLOCKED_KEY) === 'true';
+    return hasPass && !unlockedThisSession;
   });
+
   const [passwordInput, setPasswordInput] = useState('');
 
   // Sync hasPassword with storage
   const refreshHasPassword = useCallback(() => {
     const exists = getItem(PASSWORD_KEY) !== null;
     setHasPassword(exists);
+    // Also re-evaluate lock state
+    const unlockedThisSession = sessionStorage.getItem(SESSION_UNLOCKED_KEY) === 'true';
+    setIsLocked(exists && !unlockedThisSession);
     return exists;
   }, []);
 
-  // Check storage on mount
+  // Check storage on mount and re-evaluate lock state
   useEffect(() => {
     refreshHasPassword();
   }, [refreshHasPassword]);
@@ -112,7 +124,7 @@ export function useAuth() {
 
     if (timingSafeEqual(inputHash, storedHash)) {
       setIsLocked(false);
-      sessionStorage.setItem(UNLOCKED_KEY, 'true');
+      sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
       setPasswordInput('');
       return true;
     } else {
@@ -151,13 +163,13 @@ export function useAuth() {
   const lock = useCallback(() => {
     if (getItem(PASSWORD_KEY) !== null) {
       setIsLocked(true);
-      sessionStorage.removeItem(UNLOCKED_KEY);
+      sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
     }
   }, []);
 
   const unlock = useCallback(() => {
     setIsLocked(false);
-    sessionStorage.setItem(UNLOCKED_KEY, 'true');
+    sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
   }, []);
 
   return {
