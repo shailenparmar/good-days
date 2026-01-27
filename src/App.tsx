@@ -31,10 +31,10 @@ function MobileNotSupported() {
       style={{ backgroundColor: PRESET_1.bg }}
     >
       <p
-        className="text-center font-mono font-bold text-lg select-none"
+        className="text-center font-mono font-bold text-lg select-none whitespace-nowrap"
         style={{ color: PRESET_1.text }}
       >
-        good days is not supported on mobile yet
+        good days is not supported on mobile<br />yet
       </p>
     </div>
   );
