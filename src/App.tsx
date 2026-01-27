@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 
 // Feature imports
 import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
 import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter } from '@features/journal';
 import { useStatistics, StatsDisplay } from '@features/statistics';
-import { SettingsPanel } from '@features/settings';
+import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
@@ -25,6 +25,7 @@ function AppContent() {
 
   // Local state
   const [showDebugMenu, setShowDebugMenu] = useState(false);
+  const [showAboutPanel, setShowAboutPanel] = useState(false);
   const [isScrambled, setIsScrambled] = useState(() => {
     return getItem('isScrambled') === 'true';
   });
@@ -217,13 +218,18 @@ function AppContent() {
           }}
         >
           <FunctionButton onClick={() => setIsScrambled(!isScrambled)} isActive={isScrambled}>
-            <span>~~</span>
+            {isScrambled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             <span>{isScrambled ? 'unscramble' : 'scramble'}</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => setShowDebugMenu(!showDebugMenu)} isActive={showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
             <span>settings</span>
+          </FunctionButton>
+
+          <FunctionButton onClick={() => setShowAboutPanel(!showAboutPanel)} isActive={showAboutPanel} dataAttribute="about-toggle">
+            <Heart className="w-3 h-3" />
+            <span>about</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => { localStorage.clear(); location.reload(); }}>
@@ -240,6 +246,12 @@ function AppContent() {
         verifyPassword={auth.verifyPassword}
         setPassword={auth.setPassword}
         entries={journal.entries}
+      />
+
+      {/* About Panel */}
+      <AboutPanel
+        isOpen={showAboutPanel}
+        onClose={() => setShowAboutPanel(false)}
       />
 
       {/* Main Editor Area */}

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import React from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -22,29 +22,12 @@ export function SettingsPanel({
   setPassword,
   entries,
 }: SettingsPanelProps) {
-  const settingsRef = useRef<HTMLDivElement>(null);
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
-
-  // Close settings menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showDebugMenu && settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        const target = event.target as HTMLElement;
-        if (!target.closest('button[data-settings-toggle]')) {
-          onClose();
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDebugMenu, onClose]);
 
   if (!showDebugMenu) return null;
 
   return (
     <div
-      ref={settingsRef}
       className="w-80 flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
