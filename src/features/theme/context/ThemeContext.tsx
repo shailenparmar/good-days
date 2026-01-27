@@ -93,6 +93,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   const colorwayOnSettingsOpen = useRef<string>('');
+  const hasLoadedFromStorage = useRef(false);
+
+  // Re-read values from storage after mount (handles race conditions)
+  useEffect(() => {
+    if (hasLoadedFromStorage.current) return;
+    hasLoadedFromStorage.current = true;
+
+    // Re-check storage values after mount
+    const savedHue = getItem('colorHue');
+    const savedSat = getItem('colorSaturation');
+    const savedLight = getItem('colorLightness');
+    const savedBgHue = getItem('bgHue');
+    const savedBgSat = getItem('bgSaturation');
+    const savedBgLight = getItem('bgLightness');
+
+    if (savedHue !== null) setHue(Number(savedHue));
+    if (savedSat !== null) setSaturation(Number(savedSat));
+    if (savedLight !== null) setLightness(Number(savedLight));
+    if (savedBgHue !== null) setBgHue(Number(savedBgHue));
+    if (savedBgSat !== null) setBgSaturation(Number(savedBgSat));
+    if (savedBgLight !== null) setBgLightness(Number(savedBgLight));
+  }, []);
 
   // Save color settings
   useEffect(() => {
