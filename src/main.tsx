@@ -91,10 +91,12 @@ if (isMobile) {
 } else {
   // Load full app only on desktop
   import('./App.tsx').then(({ default: App }) => {
-    import('@shared/storage').then(({ initStorage }) => {
+    import('@shared/storage').then(({ initStorage, isElectron }) => {
       const startApp = async () => {
-        // Initialize storage (IndexedDB for browser, file system for Electron)
-        await initStorage();
+        // Only init storage for Electron (file system); browser uses localStorage directly
+        if (isElectron()) {
+          await initStorage();
+        }
         createRoot(document.getElementById('root')!).render(
           <StrictMode>
             <App />
