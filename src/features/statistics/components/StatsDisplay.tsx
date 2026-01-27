@@ -55,7 +55,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           {totalWords.toLocaleString()} words
         </div>
         <div className="text-xs font-mono font-bold" style={{ color: getColor() }}>
-          {uniqueColorways} {uniqueColorways === 1 ? 'theme' : 'themes'}
+          {uniqueColorways} {uniqueColorways === 1 ? 'colorway' : 'colorways'}
         </div>
         <div className="text-xs font-mono font-bold whitespace-nowrap" style={{ color: getColor() }}>
           {formatTimeSpent(totalSecondsOnApp)}
@@ -79,7 +79,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         {totalWords.toLocaleString()} words total
       </div>
       <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-        {uniqueColorways} unique {uniqueColorways === 1 ? 'theme' : 'themes'}
+        {uniqueColorways} {uniqueColorways === 1 ? 'colorway' : 'colorways'}
       </div>
       <div className="text-xs font-mono font-bold text-center whitespace-nowrap" style={{ color: getColor() }}>
         {formatTimeSpent(totalSecondsOnApp)}

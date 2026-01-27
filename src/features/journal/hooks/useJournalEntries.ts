@@ -92,6 +92,7 @@ export function useJournalEntries() {
             newEntries[existingIndex] = {
               date: selectedDate,
               content,
+              title: prevEntries[existingIndex].title,
               startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
               lastModified: now,
             };
@@ -111,6 +112,7 @@ export function useJournalEntries() {
         newEntries[existingIndex] = {
           date: selectedDate,
           content,
+          title: prevEntries[existingIndex].title,
           startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
           lastModified: now,
         };
@@ -131,6 +133,23 @@ export function useJournalEntries() {
     lastTypedTime.current = now;
     setItem('lastTypedTime', String(now));
   }, [selectedDate]);
+
+  // Save title for an entry
+  const saveTitle = useCallback((date: string, title: string) => {
+    setEntries(prevEntries => {
+      const existingIndex = prevEntries.findIndex(e => e.date === date);
+      if (existingIndex < 0) return prevEntries;
+
+      const newEntries = [...prevEntries];
+      newEntries[existingIndex] = {
+        ...newEntries[existingIndex],
+        title: title.trim() || undefined, // Remove title if empty
+      };
+
+      setItem('journalEntries', JSON.stringify(newEntries));
+      return newEntries;
+    });
+  }, []);
 
   // Reload entries from storage (used after unlock)
   const reloadEntries = useCallback(() => {
@@ -156,6 +175,7 @@ export function useJournalEntries() {
     setSelectedDate,
     setCurrentContent,
     saveEntry,
+    saveTitle,
     reloadEntries,
     lastTypedTime,
   };

@@ -29,12 +29,22 @@ function AppContent() {
     return getItem('isScrambled') === 'true';
   });
 
-  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = theme;
+  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway } = theme;
 
   // Save scramble state to localStorage
   useEffect(() => {
     setItem('isScrambled', String(isScrambled));
   }, [isScrambled]);
+
+  // Track colorway when settings closes (for slider changes)
+  const prevShowDebugMenu = useRef(showDebugMenu);
+  useEffect(() => {
+    if (prevShowDebugMenu.current && !showDebugMenu) {
+      // Settings just closed, track the current colorway
+      trackCurrentColorway();
+    }
+    prevShowDebugMenu.current = showDebugMenu;
+  }, [showDebugMenu, trackCurrentColorway]);
 
   // ESC key to lock
   useEffect(() => {
@@ -193,6 +203,7 @@ function AppContent() {
               journal.setSelectedDate(date);
               setShowDebugMenu(false);
             }}
+            onSaveTitle={journal.saveTitle}
             settingsOpen={showDebugMenu}
           />
         </div>
@@ -213,6 +224,10 @@ function AppContent() {
           <FunctionButton onClick={() => setShowDebugMenu(!showDebugMenu)} isActive={showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
             <span>settings</span>
+          </FunctionButton>
+
+          <FunctionButton onClick={() => { localStorage.clear(); location.reload(); }}>
+            <span>reset app (debug)</span>
           </FunctionButton>
         </div>
       </div>

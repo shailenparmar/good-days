@@ -1,6 +1,5 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { useTheme } from '@features/theme';
-import { scrambleChar } from '@shared/utils/scramble';
 import type { JournalEntry } from '../types';
 
 interface JournalEditorProps {
@@ -14,36 +13,24 @@ interface JournalEditorProps {
   unscrambledContentRef?: React.MutableRefObject<string>;
 }
 
-// Helper: Convert plain text to HTML (newlines become <br>)
-function textToHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
+// Scramble a single character - letters and digits get randomized, everything else stays
+function scrambleChar(char: string): string {
+  if (/[a-zA-Z]/.test(char)) {
+    const isUpper = char === char.toUpperCase();
+    const randomChar = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+    return isUpper ? randomChar.toUpperCase() : randomChar;
+  }
+  if (/[0-9]/.test(char)) {
+    return String(Math.floor(Math.random() * 10));
+  }
+  return char; // spaces, punctuation, etc. stay as-is
 }
 
-// Helper: Convert HTML to plain text
-function htmlToText(html: string): string {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  div.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-  return div.textContent || '';
-}
-
-// Helper: Scramble text (letters -> random letters, digits -> random digits)
-function scrambleText(text: string): string {
-  return text.split('').map(c =>
-    /[a-zA-Z0-9]/.test(c) ? scrambleChar(c) : c
-  ).join('');
-}
-
-// Helper: Scramble HTML by walking text nodes and scrambling their content
+// Scramble all text in HTML - fresh random for each alphanumeric character
 function scrambleHtml(html: string): string {
   const div = document.createElement('div');
   div.innerHTML = html;
 
-  // Walk all text nodes and scramble them
   const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
   while (walker.nextNode()) {
@@ -51,7 +38,12 @@ function scrambleHtml(html: string): string {
   }
 
   textNodes.forEach(node => {
-    node.textContent = scrambleText(node.textContent || '');
+    const text = node.textContent || '';
+    let scrambled = '';
+    for (const char of text) {
+      scrambled += scrambleChar(char);
+    }
+    node.textContent = scrambled;
   });
 
   return div.innerHTML;
@@ -63,24 +55,36 @@ export function JournalEditor({
   isScrambled,
   onInput,
   editorRef,
-  unscrambledContentRef,
 }: JournalEditorProps) {
-  const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
+  const { getColor, getBgColor } = useTheme();
 
-  // Refs for normal editing
-  const lastContentLength = useRef<number>(0);
-  const hasLoadedInitialContent = useRef<boolean>(false);
-  const isCurrentlyTyping = useRef<boolean>(false);
+  // Single source of truth: editor content as state
+  const [editorContent, setEditorContent] = useState<string>('');
 
-  // State for scramble mode
-  const [scrambledDisplay, setScrambledDisplay] = useState<string>('');
+  // Scramble content - only recalculates when editorContent changes (not on every render)
+  const [scrambledContent, setScrambledContent] = useState('');
+
+  useEffect(() => {
+    if (isScrambled && editorContent) {
+      setScrambledContent(scrambleHtml(editorContent));
+    } else {
+      setScrambledContent('');
+    }
+  }, [editorContent, isScrambled]);
 
   // Placeholder animation state
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const [isEmpty, setIsEmpty] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const placeholderText = 'type here';
+
+  // Derived: isEmpty from editorContent
+  const isEmpty = useMemo(() => {
+    if (!editorContent) return true;
+    const div = document.createElement('div');
+    div.innerHTML = editorContent;
+    return (div.textContent || '').trim().length === 0;
+  }, [editorContent]);
 
   const showPlaceholder = isEmpty && !isFocused;
 
@@ -113,20 +117,6 @@ export function JournalEditor({
     }
   }, [showPlaceholder, boldCount, animPhase]);
 
-  // Reset animation when switching to empty entry
-  useEffect(() => {
-    const entry = entries.find(e => e.date === selectedDate);
-    // Check actual text content, not HTML
-    if (entry?.content) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = entry.content;
-      const hasContent = (tempDiv.textContent || '').trim().length > 0;
-      setIsEmpty(!hasContent);
-    } else {
-      setIsEmpty(true);
-    }
-  }, [entries, selectedDate]);
-
   // Reset animation when placeholder becomes visible
   useEffect(() => {
     if (showPlaceholder) {
@@ -135,121 +125,90 @@ export function JournalEditor({
     }
   }, [showPlaceholder]);
 
-  // Handle scramble mode transitions
+  // Load content when date changes
+  // We use a ref to track the current date to avoid re-running on every entries update
+  const loadedDateRef = useRef<string>('');
+
   useEffect(() => {
-    if (!editorRef.current) return;
-
-    if (isScrambled) {
-      // ENTERING scramble mode - just show scrambled overlay
-      setScrambledDisplay(scrambleHtml(editorRef.current.innerHTML || ''));
-    } else {
-      // EXITING scramble mode - just hide overlay
-      setScrambledDisplay('');
-    }
-  }, [isScrambled, editorRef, unscrambledContentRef]);
-
-
-  // Populate editor when selectedDate changes or on initial load
-  useEffect(() => {
-    if (!editorRef.current) return;
-
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
 
-    if (isCurrentlyTyping.current) {
-      return;
-    }
-
-    const isTyping = document.activeElement === editorRef.current;
-    const shouldUpdate = !isTyping || !hasLoadedInitialContent.current;
-
-    if (shouldUpdate) {
-      editorRef.current.innerHTML = content;
-      lastContentLength.current = editorRef.current.textContent?.length || 0;
-      hasLoadedInitialContent.current = true;
+    // Only do a full load when date actually changes
+    if (loadedDateRef.current !== selectedDate) {
+      loadedDateRef.current = selectedDate;
+      setEditorContent(content);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = content;
+      }
     }
   }, [entries, selectedDate, editorRef]);
 
-  // Reset loaded content flag when date changes
+  // Keep DOM in sync with state when state is the source of truth (e.g., initial load)
+  // This ensures clicking in scrambled mode works correctly
   useEffect(() => {
-    hasLoadedInitialContent.current = false;
-  }, [selectedDate]);
+    if (editorRef.current && editorRef.current.innerHTML !== editorContent) {
+      // Only sync if user isn't actively focused (typing)
+      if (document.activeElement !== editorRef.current) {
+        editorRef.current.innerHTML = editorContent;
+      }
+    }
+  }, [editorContent, editorRef]);
 
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
-    isCurrentlyTyping.current = true;
-
-    // When scrambled, update the scrambled display
-    if (isScrambled) {
-      setScrambledDisplay(scrambleHtml(editorRef.current.innerHTML || ''));
-      onInput(editorRef.current.innerHTML || '');
-      return;
-    }
-
-    // Remove timestamps that have no content after them
-    const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
-    timestamps.forEach((timestamp, index) => {
-      const isLastTimestamp = index === timestamps.length - 1;
-      if (isLastTimestamp) {
-        const timestampNode = timestamp as HTMLElement;
-        const parent = timestampNode.parentElement;
-        if (parent) {
-          let hasContentAfter = false;
-          let node = timestampNode.nextSibling;
-          while (node) {
-            if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-              hasContentAfter = true;
-              break;
-            }
-            if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).textContent?.trim()) {
-              hasContentAfter = true;
-              break;
-            }
-            node = node.nextSibling;
-          }
-
-          if (!hasContentAfter) {
-            let prev = timestampNode.previousSibling;
-            let next = timestampNode.nextSibling;
-
-            while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && !prev.textContent?.trim()))) {
-              const toRemove = prev;
-              prev = prev.previousSibling;
-              toRemove.remove();
+    // Clean up empty timestamps (only when not scrambled to avoid DOM manipulation issues)
+    if (!isScrambled) {
+      const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
+      timestamps.forEach((timestamp, index) => {
+        const isLastTimestamp = index === timestamps.length - 1;
+        if (isLastTimestamp) {
+          const timestampNode = timestamp as HTMLElement;
+          const parent = timestampNode.parentElement;
+          if (parent) {
+            let hasContentAfter = false;
+            let node = timestampNode.nextSibling;
+            while (node) {
+              if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+                hasContentAfter = true;
+                break;
+              }
+              if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).textContent?.trim()) {
+                hasContentAfter = true;
+                break;
+              }
+              node = node.nextSibling;
             }
 
-            while (next && (next.nodeName === 'BR' || (next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()))) {
-              const toRemove = next;
-              next = next.nextSibling;
-              toRemove.remove();
-            }
+            if (!hasContentAfter) {
+              let prev = timestampNode.previousSibling;
+              let next = timestampNode.nextSibling;
 
-            timestampNode.remove();
+              while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && !prev.textContent?.trim()))) {
+                const toRemove = prev;
+                prev = prev.previousSibling;
+                toRemove.remove();
+              }
+
+              while (next && (next.nodeName === 'BR' || (next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()))) {
+                const toRemove = next;
+                next = next.nextSibling;
+                toRemove.remove();
+              }
+
+              timestampNode.remove();
+            }
           }
         }
-      }
-    });
-
-    lastContentLength.current = editorRef.current.textContent?.length || 0;
-    onInput(editorRef.current.innerHTML || '');
-
-    // Update isEmpty state for placeholder animation
-    const editorText = editorRef.current.textContent || '';
-    const nowEmpty = editorText.trim().length === 0;
-    if (nowEmpty !== isEmpty) {
-      setIsEmpty(nowEmpty);
-      if (nowEmpty) {
-        setBoldCount(0);
-        setAnimPhase('bold');
-      }
+      });
     }
 
-    setTimeout(() => {
-      isCurrentlyTyping.current = false;
-    }, 100);
-  }, [editorRef, onInput, isEmpty, isScrambled]);
+    // Update state - this is the single source of truth
+    const content = editorRef.current.innerHTML || '';
+    setEditorContent(content);
+    onInput(content);
+  }, [editorRef, onInput, isScrambled]);
 
   return (
     <div className="flex-1 p-8 relative overflow-y-auto scrollbar-hide" style={{ backgroundColor: getBgColor() }}>
@@ -274,50 +233,53 @@ export function JournalEditor({
         `}
       </style>
       <div className="relative w-full h-full overflow-y-auto scrollbar-hide">
-        {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
-        <div
-          ref={editorRef}
-          contentEditable
-          onInput={handleInput}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className="w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor overflow-y-auto scrollbar-hide"
-          style={{
-            color: isScrambled ? 'transparent' : undefined,
-            caretColor: getColor(),
-          }}
-          spellCheck="false"
-          suppressContentEditableWarning
-        />
-
-        {/* Scrambled overlay - shows scrambled text on top, no pointer events */}
-        {isScrambled && (
+        {/* Container for both layers - they share the same content height and scroll together */}
+        <div className="relative min-h-full">
+          {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
           <div
-            className="absolute top-0 left-0 w-full h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+            ref={editorRef}
+            contentEditable
+            onInput={handleInput}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className="w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
             style={{
-              pointerEvents: 'none',
+              color: isScrambled ? 'transparent' : undefined,
+              caretColor: getColor(),
             }}
-            dangerouslySetInnerHTML={{ __html: scrambledDisplay }}
+            spellCheck="false"
+            suppressContentEditableWarning
           />
-        )}
-        {showPlaceholder && (
-          <div
-            className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none"
-            style={{ color: getColor(), opacity: 0.9 }}
-          >
-            {animPhase === 'bold' ? (
-              <>
-                <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
-                <span>{placeholderText.slice(boldCount)}</span>
-              </>
-            ) : (
-              <>
-                <span>{placeholderText.slice(0, boldCount)}</span>
-                <span className="font-bold">{placeholderText.slice(boldCount)}</span>
-              </>
-            )}
-          </div>
-        )}
+
+          {/* Scrambled overlay - positioned over editor, scrolls with it */}
+          {isScrambled && scrambledContent && (
+            <div
+              className="absolute top-0 left-0 w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+              style={{
+                pointerEvents: 'none',
+              }}
+              dangerouslySetInnerHTML={{ __html: scrambledContent }}
+            />
+          )}
+          {showPlaceholder && (
+            <div
+              className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none"
+              style={{ color: getColor(), opacity: 0.9 }}
+            >
+              {animPhase === 'bold' ? (
+                <>
+                  <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
+                  <span>{placeholderText.slice(boldCount)}</span>
+                </>
+              ) : (
+                <>
+                  <span>{placeholderText.slice(0, boldCount)}</span>
+                  <span className="font-bold">{placeholderText.slice(boldCount)}</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

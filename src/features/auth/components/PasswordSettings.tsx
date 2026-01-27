@@ -24,6 +24,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
+  // Label animation state (for "esc to lock")
+  const [labelAnimText, setLabelAnimText] = useState('');
+  const [labelBoldCount, setLabelBoldCount] = useState(0);
+  const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold' | 'done'>('done');
+
+
   // Handle bold/unbold animation at 12fps
   useEffect(() => {
     if (!animatingPlaceholder || animPhase === 'done') return;
@@ -61,6 +67,46 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setAnimPhase('bold');
   };
 
+  // Handle label bold/unbold animation at 12fps
+  useEffect(() => {
+    if (!labelAnimText || labelAnimPhase === 'done') return;
+
+    if (labelAnimPhase === 'bold') {
+      if (labelBoldCount >= labelAnimText.length) {
+        setLabelAnimPhase('unbold');
+        setLabelBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setLabelBoldCount(c => c + 1);
+      }, 83);
+      return () => clearTimeout(timer);
+    }
+
+    if (labelAnimPhase === 'unbold') {
+      if (labelBoldCount >= labelAnimText.length) {
+        setLabelAnimPhase('bold');
+        setLabelBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setLabelBoldCount(c => c + 1);
+      }, 83);
+      return () => clearTimeout(timer);
+    }
+  }, [labelAnimText, labelBoldCount, labelAnimPhase]);
+
+  const startLabelAnimation = (text: string) => {
+    setLabelAnimText(text);
+    setLabelBoldCount(0);
+    setLabelAnimPhase('bold');
+  };
+
+  const stopLabelAnimation = () => {
+    setLabelAnimText('');
+    setLabelAnimPhase('done');
+  };
+
   // Animate "type here" on initial mount for set password flow
   useEffect(() => {
     if (step === 'set' && !hasPassword) {
@@ -73,7 +119,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setTimeout(() => {
       setFlashState('none');
       onComplete();
-    }, 200);
+    }, 600);
   };
 
   const flashRed = () => {
@@ -151,16 +197,16 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
 
       case 'confirm':
         if (input.trim() === newPasswordTemp) {
-          flashGreen(() => {
-            setPassword(newPasswordTemp);
-            setInput('');
-            setNewPasswordTemp('');
-            setIsSaving(true);
-            setTimeout(() => {
-              setIsSaving(false);
-              setStep('old');
-            }, 5000);
-          });
+          setPassword(newPasswordTemp);
+          setInput('');
+          setNewPasswordTemp('');
+          setIsSaving(true);
+          startLabelAnimation('esc to lock');
+          setTimeout(() => {
+            setIsSaving(false);
+            stopLabelAnimation();
+            setStep('old');
+          }, 15000);
         } else {
           flashRed();
           setStep('old');
@@ -180,16 +226,16 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
 
       case 'set-confirm':
         if (input.trim() === newPasswordTemp) {
-          flashGreen(() => {
-            setPassword(newPasswordTemp);
-            setInput('');
-            setNewPasswordTemp('');
-            setIsSaving(true);
-            setTimeout(() => {
-              setIsSaving(false);
-              setStep('old');
-            }, 5000);
-          });
+          setPassword(newPasswordTemp);
+          setInput('');
+          setNewPasswordTemp('');
+          setIsSaving(true);
+          startLabelAnimation('esc to lock');
+          setTimeout(() => {
+            setIsSaving(false);
+            stopLabelAnimation();
+            setStep('old');
+          }, 15000);
         } else {
           flashRed();
           setStep('set');
@@ -210,8 +256,24 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           }
         `}
       </style>
-      <div className="text-xs font-mono font-bold" style={{ color: getColor() }}>
-        {getLabel()}
+      <div className="text-xs font-mono" style={{ color: getColor() }}>
+        {isSaving && labelAnimText ? (
+          labelAnimPhase === 'bold' ? (
+            <>
+              <span className="font-bold">{labelAnimText.slice(0, labelBoldCount)}</span>
+              <span>{labelAnimText.slice(labelBoldCount)}</span>
+            </>
+          ) : labelAnimPhase === 'unbold' ? (
+            <>
+              <span>{labelAnimText.slice(0, labelBoldCount)}</span>
+              <span className="font-bold">{labelAnimText.slice(labelBoldCount)}</span>
+            </>
+          ) : (
+            <span>{labelAnimText}</span>
+          )
+        ) : (
+          <span className="font-bold">{getLabel()}</span>
+        )}
       </div>
       <form onSubmit={handleSubmit}>
         <div className="relative">
@@ -229,7 +291,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
             onMouseDown={() => !isSaving && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
             placeholder={showAnimatedPlaceholder ? '' : (isSaving ? 'password saved' : getPlaceholder())}
-            disabled={isSaving}
+            disabled={isSaving || flashState === 'green'}
             className="password-input w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
               backgroundColor: getBackgroundColor(),

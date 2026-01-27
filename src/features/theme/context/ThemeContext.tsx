@@ -3,7 +3,7 @@ import { getItem, setItem, removeItem } from '@shared/storage';
 import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking } from '../types';
 
 const DEFAULT_PRESETS: ColorPreset[] = [
-  { hue: 190, sat: 63, light: 0, bgHue: 162, bgSat: 100, bgLight: 74 },
+  { hue: 144, sat: 36, light: 43, bgHue: 84, bgSat: 100, bgLight: 94 },
   { hue: 229, sat: 61, light: 100, bgHue: 251, bgSat: 100, bgLight: 59 },
   { hue: 35, sat: 100, light: 40, bgHue: 30, bgSat: 100, bgLight: 11 },
   { hue: 241, sat: 100, light: 46, bgHue: 59, bgSat: 100, bgLight: 48 },
@@ -18,29 +18,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Text color state (defaults to preset 1)
   const [hue, setHue] = useState(() => {
     const saved = getItem('colorHue');
-    return saved ? Number(saved) : 190;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].hue;
   });
   const [saturation, setSaturation] = useState(() => {
     const saved = getItem('colorSaturation');
-    return saved ? Number(saved) : 63;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].sat;
   });
   const [lightness, setLightness] = useState(() => {
     const saved = getItem('colorLightness');
-    return saved ? Number(saved) : 0;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].light;
   });
 
   // Background color state (defaults to preset 1)
   const [bgHue, setBgHue] = useState(() => {
     const saved = getItem('bgHue');
-    return saved ? Number(saved) : 162;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].bgHue;
   });
   const [bgSaturation, setBgSaturation] = useState(() => {
     const saved = getItem('bgSaturation');
-    return saved ? Number(saved) : 100;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].bgSat;
   });
   const [bgLightness, setBgLightness] = useState(() => {
     const saved = getItem('bgLightness');
-    return saved ? Number(saved) : 74;
+    return saved ? Number(saved) : DEFAULT_PRESETS[0].bgLight;
   });
 
   // Preset state
@@ -77,15 +77,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     hue: 0, sat: 50, light: 50, bgHue: 0, bgSat: 0, bgLight: 10
   });
 
-  // Colorway tracking
+  // Colorway tracking - start with preset 1 already counted
   const [uniqueColorways, setUniqueColorways] = useState(() => {
     const saved = getItem('uniqueColorways');
-    return saved ? Number(saved) : 0;
+    return saved ? Number(saved) : 1;
   });
 
   const [seenColorways, setSeenColorways] = useState<Set<string>>(() => {
     const saved = getItem('seenColorways');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    if (saved) return new Set(JSON.parse(saved));
+    // Initialize with preset 1's colorway
+    const preset1 = DEFAULT_PRESETS[0];
+    const preset1Key = `${preset1.hue}-${preset1.sat}-${preset1.light}-${preset1.bgHue}-${preset1.bgSat}-${preset1.bgLight}`;
+    return new Set([preset1Key]);
   });
 
   const colorwayOnSettingsOpen = useRef<string>('');
@@ -161,6 +165,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setBgHue(preset.bgHue);
     setBgSaturation(preset.bgSat);
     setBgLightness(preset.bgLight);
+
+    // Track colorway immediately for preset clicks
+    const colorway = getColorwayKey(preset.hue, preset.sat, preset.light, preset.bgHue, preset.bgSat, preset.bgLight);
+    trackColorway(colorway);
   };
 
   const savePreset = (index: number, preset: ColorPreset) => {
@@ -196,6 +204,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       setSelectedCustomPreset(null);
     }
+  };
+
+  // Track current colorway (call when settings closes for slider changes)
+  const trackCurrentColorway = () => {
+    const colorway = getColorwayKey(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+    trackColorway(colorway);
   };
 
   const randomizeTheme = () => {
@@ -269,6 +283,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     uniqueColorways,
     seenColorways,
     trackColorway,
+    trackCurrentColorway,
     getColorwayKey,
   };
 
