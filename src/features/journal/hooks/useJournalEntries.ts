@@ -75,12 +75,12 @@ export function useJournalEntries() {
     }
   }, [storageReady]);
 
-  // Create a new page for today
-  const createNewPage = useCallback(() => {
+  // Ensure today's entry always exists
+  useEffect(() => {
     const today = getTodayDate();
     const todayEntry = entries.find(e => e.date === today);
 
-    if (!todayEntry) {
+    if (!todayEntry && entries.length > 0) {
       const newEntries = [...entries, {
         date: today,
         content: '',
@@ -91,9 +91,6 @@ export function useJournalEntries() {
       setEntries(newEntries);
       setItem('journalEntries', JSON.stringify(newEntries));
     }
-
-    setSelectedDate(today);
-    return today;
   }, [entries]);
 
   // Handle date changes
@@ -226,7 +223,6 @@ export function useJournalEntries() {
     saveEntry,
     saveTitle,
     reloadEntries,
-    createNewPage,
     lastTypedTime,
   };
 }

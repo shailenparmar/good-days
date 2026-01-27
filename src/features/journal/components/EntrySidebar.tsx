@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Plus } from 'lucide-react';
 import { useTheme } from '@features/theme';
-import { formatDate, getTodayDate } from '@shared/utils/date';
+import { formatDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
 interface EntrySidebarProps {
@@ -9,11 +8,10 @@ interface EntrySidebarProps {
   selectedDate: string;
   onSelectDate: (date: string) => void;
   onSaveTitle: (date: string, title: string) => void;
-  onNewPage: () => void;
   settingsOpen?: boolean;
 }
 
-export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle, onNewPage, settingsOpen }: EntrySidebarProps) {
+export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle, settingsOpen }: EntrySidebarProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);
@@ -117,45 +115,17 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [entries, selectedDate, onSelectDate, settingsOpen, keyboardFocusedEntry]);
 
+  if (entries.length === 0) {
+    return null;
+  }
+
   const textColor = getColor();
   const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
 
-  // Check if today's entry already exists
-  const today = getTodayDate();
-  const hasTodayEntry = entries.some(e => e.date === today);
-
-  // New page button state
-  const [newPageHovered, setNewPageHovered] = useState(false);
-  const [newPageClicked, setNewPageClicked] = useState(false);
-
-  const newPageBorderColor = newPageClicked ? activeColor : (newPageHovered ? textColor : borderColor);
-  const newPageBg = newPageHovered ? hoverBg : 'transparent';
-
   return (
     <div className="p-4 space-y-2">
-      {/* New Page button - only show if today doesn't have an entry */}
-      {!hasTodayEntry && (
-        <div
-          onClick={() => onNewPage()}
-          onMouseEnter={() => setNewPageHovered(true)}
-          onMouseLeave={() => { setNewPageHovered(false); setNewPageClicked(false); }}
-          onMouseDown={() => setNewPageClicked(true)}
-          onMouseUp={() => setNewPageClicked(false)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded font-mono font-extrabold cursor-pointer outline-none focus:outline-none select-none"
-          style={{
-            fontSize: '0.9rem',
-            border: `3px solid ${newPageBorderColor}`,
-            color: textColor,
-            backgroundColor: newPageBg,
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          <span>new page</span>
-        </div>
-      )}
-
       {entries.map(entry => {
         const isSelected = entry.date === selectedDate;
         const isHovered = hoveredEntry === entry.date || keyboardFocusedEntry === entry.date;
