@@ -11,9 +11,11 @@ function MobileScreen() {
     hue: 144, sat: 36, light: 43,
     bgHue: 84, bgSat: 100, bgLight: 94
   });
+  const [pulseKey, setPulseKey] = useState(0);
   const [isPulsing, setIsPulsing] = useState(false);
 
-  const randomize = () => {
+  const randomize = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const lightBg = Math.random() > 0.5;
     setColors({
       hue: Math.floor(Math.random() * 360),
@@ -23,23 +25,29 @@ function MobileScreen() {
       bgSat: 50 + Math.floor(Math.random() * 50),
       bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
     });
+    setPulseKey(k => k + 1); // Reset animation
     setIsPulsing(true);
   };
+
+  const stopPulsing = () => setIsPulsing(false);
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
   const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      padding: '32px',
-      backgroundColor: bgColor,
-    }}>
+    <div
+      onClick={stopPulsing}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        padding: '32px',
+        backgroundColor: bgColor,
+      }}
+    >
       <style>{`
         @keyframes mobile-pulse {
           0% { box-shadow: inset 0 0 0 6px ${textColor}; }
@@ -56,6 +64,7 @@ function MobileScreen() {
         ))}
       </div>
       <button
+        key={pulseKey}
         onClick={randomize}
         className={isPulsing ? 'mobile-rand-pulse' : ''}
         style={{
@@ -63,7 +72,7 @@ function MobileScreen() {
           padding: '8px 40px',
           fontFamily: 'monospace',
           fontWeight: 800,
-          fontSize: '1.25rem',
+          fontSize: '1.5rem',
           backgroundColor: 'transparent',
           border: `6px solid ${textColor}`,
           borderRadius: '12px',
