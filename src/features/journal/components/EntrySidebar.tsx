@@ -148,12 +148,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
             onClick={() => {
               if (!isEditing) {
                 setKeyboardFocusedEntry(null);
-                if (isSelected) {
-                  // Already selected, start editing
-                  handleStartEdit(entry.date, entry.title);
-                } else {
-                  onSelectDate(entry.date);
-                }
+                onSelectDate(entry.date);
               }
             }}
             onMouseEnter={() => {
@@ -165,8 +160,9 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
             onMouseDown={() => !isEditing && setClickedEntry(entry.date)}
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
-            className="w-full text-center px-3 py-2 rounded font-mono font-bold text-xs cursor-pointer outline-none focus:outline-none"
+            className="w-full text-center px-3 py-2 rounded font-mono font-extrabold cursor-pointer outline-none focus:outline-none select-none"
             style={{
+              fontSize: '0.9rem',
               border: `3px solid ${currentBorderColor}`,
               color: textColor,
               backgroundColor: currentBg,
@@ -193,11 +189,20 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
                 placeholder={formatDate(entry.date)}
                 spellCheck={false}
                 autoComplete="off"
-                className="w-full bg-transparent text-center font-mono font-bold text-xs outline-none p-0 m-0"
-                style={{ color: textColor, border: 'none' }}
+                className="w-full bg-transparent text-center font-mono font-extrabold outline-none p-0 m-0"
+                style={{ fontSize: '0.9rem', color: textColor, border: 'none' }}
               />
             ) : (
-              displayText
+              <span
+                onClick={(e) => {
+                  if (isSelected) {
+                    e.stopPropagation();
+                    handleStartEdit(entry.date, entry.title);
+                  }
+                }}
+              >
+                {displayText}
+              </span>
             )}
           </div>
         );

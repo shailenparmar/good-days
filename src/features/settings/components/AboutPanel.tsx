@@ -44,7 +44,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             this is because your data is saved to something called localStorage, which is a file on your hard drive. your browser pulls from it and saves to it.
           </p>
           <p>
-            as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code running here.
+            as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.
           </p>
           <a
             href="https://github.com/shailenparmar/good-days"

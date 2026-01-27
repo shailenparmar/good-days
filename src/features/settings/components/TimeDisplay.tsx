@@ -43,7 +43,7 @@ function TimeButton({
     <button
       onClick={onClick}
       tabIndex={-1}
-      className={`flex-1 px-3 py-2 text-xs font-mono font-bold outline-none focus:outline-none ${position === 'left' ? 'rounded-l' : 'rounded-r'}`}
+      className={`flex-1 px-3 py-2 text-xs font-mono font-bold outline-none focus:outline-none select-none ${position === 'left' ? 'rounded-l' : 'rounded-r'}`}
       style={{
         color: textColor,
         backgroundColor: getBackground(),
