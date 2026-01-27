@@ -42,9 +42,9 @@ function MobileScreen() {
     }}>
       <style>{`
         @keyframes mobile-pulse {
-          0% { box-shadow: 0 0 0 12px ${textColor}; }
-          50% { box-shadow: 0 0 0 0px ${textColor}; }
-          100% { box-shadow: 0 0 0 12px ${textColor}; }
+          0% { box-shadow: inset 0 0 0 12px ${textColor}; }
+          50% { box-shadow: inset 0 0 0 0px ${textColor}; }
+          100% { box-shadow: inset 0 0 0 12px ${textColor}; }
         }
         .mobile-rand-pulse {
           animation: mobile-pulse 1s steps(12) infinite;
