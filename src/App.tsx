@@ -63,9 +63,9 @@ function MobileNotSupported() {
       <style>
         {`
           @keyframes preset-flicker-mobile {
-            0% { box-shadow: 0 0 0 2px ${getBorderColor()}; }
+            0% { box-shadow: 0 0 0 3px ${getBorderColor()}; }
             50% { box-shadow: 0 0 0 0px ${getBorderColor()}; }
-            100% { box-shadow: 0 0 0 2px ${getBorderColor()}; }
+            100% { box-shadow: 0 0 0 3px ${getBorderColor()}; }
           }
           .preset-pulse-mobile {
             animation: preset-flicker-mobile 1s steps(12) infinite;
@@ -93,11 +93,12 @@ function MobileNotSupported() {
         onMouseUp={() => setIsPressed(false)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-        className={`mb-12 px-8 py-4 rounded font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse-mobile' : ''}`}
+        className={`mb-12 px-10 py-5 font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse-mobile' : ''}`}
         style={{
-          fontSize: '1.25rem',
+          fontSize: '1.5rem',
           backgroundColor: isHovered || isActive ? hoverBg : 'transparent',
-          border: `5px solid ${getBorderColor()}`,
+          border: `6px solid ${getBorderColor()}`,
+          borderRadius: '12px',
           color: textColor,
           outline: 'none',
         }}
