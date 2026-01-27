@@ -18,11 +18,45 @@ export function useJournalEntries() {
     })()
   );
 
-  // Force save before closing
+  // Track latest state in refs for beforeunload (can't access state in event handlers)
+  const entriesRef = useRef<JournalEntry[]>([]);
+  const pendingSaveRef = useRef<{ content: string; date: string } | null>(null);
+
+  // Keep entriesRef in sync
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  // Force save before closing (works for both Electron and browser)
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (isElectron()) {
         forceSave();
+      } else if (pendingSaveRef.current) {
+        // Browser mode: save any pending content directly to localStorage
+        const { content, date } = pendingSaveRef.current;
+        const currentEntries = entriesRef.current;
+        const existingIndex = currentEntries.findIndex(e => e.date === date);
+
+        let newEntries: JournalEntry[];
+        if (existingIndex >= 0) {
+          newEntries = [...currentEntries];
+          newEntries[existingIndex] = {
+            ...newEntries[existingIndex],
+            content,
+            lastModified: Date.now(),
+          };
+        } else {
+          newEntries = [...currentEntries, {
+            date,
+            content,
+            startedAt: Date.now(),
+            lastModified: Date.now(),
+          }];
+        }
+        newEntries.sort((a, b) => b.date.localeCompare(a.date));
+        localStorage.setItem('journalEntries', JSON.stringify(newEntries));
+        pendingSaveRef.current = null;
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -73,6 +107,9 @@ export function useJournalEntries() {
   // Save content
   const saveEntry = useCallback((content: string, timestamp?: number) => {
     const now = Date.now();
+
+    // Track pending save for beforeunload
+    pendingSaveRef.current = { content, date: selectedDate };
 
     // Get text content from HTML
     const tempDiv = document.createElement('div');
@@ -127,6 +164,7 @@ export function useJournalEntries() {
 
       newEntries.sort((a, b) => b.date.localeCompare(a.date));
       setItem('journalEntries', JSON.stringify(newEntries));
+      pendingSaveRef.current = null; // Clear pending save after successful write
       return newEntries;
     });
 
