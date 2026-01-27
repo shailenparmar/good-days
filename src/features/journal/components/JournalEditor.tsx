@@ -65,6 +65,8 @@ export function JournalEditor({
 
   // Track which date we've loaded to prevent re-loading same content
   const loadedDateRef = useRef<string | null>(null);
+  // Track if initial content has loaded (to prevent placeholder flash)
+  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Scrambled content for overlay (only computed when scrambled)
   const [scrambledHtml, setScrambledHtml] = useState('');
@@ -104,6 +106,9 @@ export function JournalEditor({
       setScrambledHtml('');
       setScrambleReady(true);
     }
+
+    // Mark content as loaded (prevents placeholder flash)
+    setContentLoaded(true);
   }, [entries, selectedDate, editorRef, isScrambled]);
 
   // Update scrambled content when scramble mode changes or content changes
@@ -188,8 +193,8 @@ export function JournalEditor({
     editorRef.current?.focus();
   }, [editorRef]);
 
-  // Placeholder animation
-  const showPlaceholder = isEditorEmpty() && !isFocused;
+  // Placeholder animation - only show after content has loaded to prevent flash
+  const showPlaceholder = contentLoaded && isEditorEmpty() && !isFocused;
 
   useEffect(() => {
     if (!showPlaceholder) return;
