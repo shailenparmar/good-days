@@ -13,28 +13,72 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-// Preset 1 colors for mobile message
-const PRESET_1 = {
-  text: 'hsl(144, 36%, 43%)',
-  bg: 'hsl(84, 100%, 94%)',
-};
-
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+// Generate random theme colors
+function generateRandomColors() {
+  const hue = Math.floor(Math.random() * 360);
+  const sat = 30 + Math.floor(Math.random() * 40); // 30-70%
+  const light = 35 + Math.floor(Math.random() * 25); // 35-60%
+  const bgHue = (hue + 60 + Math.floor(Math.random() * 120)) % 360; // offset from text hue
+  const bgSat = 70 + Math.floor(Math.random() * 30); // 70-100%
+  const bgLight = 90 + Math.floor(Math.random() * 8); // 90-98%
+  return {
+    text: `hsl(${hue}, ${sat}%, ${light}%)`,
+    bg: `hsl(${bgHue}, ${bgSat}%, ${bgLight}%)`,
+    hue, sat, light,
+  };
+}
+
 function MobileNotSupported() {
+  const [colors, setColors] = useState(() => generateRandomColors());
+  const [isPressed, setIsPressed] = useState(false);
+
+  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
+
+  const handleRand = () => {
+    setColors(generateRandomColors());
+  };
+
+  const borderDefault = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
+  const borderActive = `hsl(${colors.hue}, ${colors.sat}%, ${Math.max(0, colors.light * 0.65)}%)`;
+
   return (
     <div
-      className="flex items-center justify-center h-screen p-8"
-      style={{ backgroundColor: PRESET_1.bg }}
+      className="flex flex-col items-center justify-center h-screen p-8"
+      style={{ backgroundColor: colors.bg }}
     >
-      <p
-        className="text-center font-mono font-bold text-sm select-none whitespace-nowrap"
-        style={{ color: PRESET_1.text }}
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {words.map((word, i) => (
+          <p
+            key={i}
+            className="font-mono font-bold text-lg select-none"
+            style={{ color: colors.text }}
+          >
+            {word}
+          </p>
+        ))}
+      </div>
+
+      <button
+        onClick={handleRand}
+        onTouchStart={() => setIsPressed(true)}
+        onTouchEnd={() => setIsPressed(false)}
+        onMouseDown={() => setIsPressed(true)}
+        onMouseUp={() => setIsPressed(false)}
+        onMouseLeave={() => setIsPressed(false)}
+        className="mb-12 px-8 py-3 rounded text-base font-mono font-bold select-none"
+        style={{
+          backgroundColor: colors.bg,
+          border: `3px solid ${isPressed ? borderActive : borderDefault}`,
+          color: colors.text,
+          borderRadius: '6px',
+        }}
       >
-        good days is not supported on mobile<br />yet
-      </p>
+        rand
+      </button>
     </div>
   );
 }
