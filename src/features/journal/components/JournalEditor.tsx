@@ -251,6 +251,7 @@ export function JournalEditor({
             ref={editorRef}
             contentEditable
             onInput={handleInput}
+            onClick={() => editorRef.current?.focus()}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             className={`w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
