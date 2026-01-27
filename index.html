@@ -8,9 +8,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>good days</title>
+    <style>
+      #mobile-screen { display: none; }
+      #root { display: block; height: 100%; }
+      @media (max-width: 768px) {
+        #mobile-screen { display: flex !important; }
+        #root { display: none !important; }
+      }
+    </style>
   </head>
-  <body style="background-color: #e8f5e9 !important; margin: 0; padding: 0;">
-    <div id="mobile-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(84,100%,94%);">
+  <body style="background-color: #e8f5e9 !important; margin: 0; padding: 0; height: 100%;">
+    <div id="mobile-screen" style="flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(84,100%,94%);">
       <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">good</p>
       <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">days</p>
       <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">is</p>
@@ -20,16 +28,7 @@
       <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">mobile</p>
       <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">yet</p>
     </div>
-    <div id="root" style="display:none;"></div>
-    <script>
-      (function() {
-        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (!isMobile) {
-          document.getElementById('mobile-screen').style.display = 'none';
-          document.getElementById('root').style.display = 'block';
-        }
-      })();
-    </script>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
