@@ -24,10 +24,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
-  // Label animation state (for "esc to lock")
-  const [labelAnimText, setLabelAnimText] = useState('');
-  const [labelBoldCount, setLabelBoldCount] = useState(0);
-  const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold' | 'done'>('done');
 
 
   // Handle bold/unbold animation at 12fps
@@ -116,8 +112,11 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
 
   // Animate placeholder on mount and when step changes
   useEffect(() => {
-    startPlaceholderAnimation(getPlaceholder());
+    if (!isSaving) {
+      startPlaceholderAnimation(getPlaceholder());
+    }
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const flashGreen = (onComplete: () => void) => {
     setFlashState('green');
@@ -156,7 +155,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     return 'transparent';
   };
 
-  const showAnimatedPlaceholder = animatingPlaceholder && !input && !isFocused;
+  const showAnimatedPlaceholder = animatingPlaceholder && !input && !isSaving;
 
   const getPlaceholder = () => {
     switch (step) {
@@ -207,12 +206,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           setInput('');
           setNewPasswordTemp('');
           setIsSaving(true);
-          startLabelAnimation('esc to lock');
-          setTimeout(() => {
-            setIsSaving(false);
-            stopLabelAnimation();
-            setStep('old');
-          }, 15000);
         } else {
           flashRed();
           setStep('old');
@@ -236,12 +229,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           setInput('');
           setNewPasswordTemp('');
           setIsSaving(true);
-          startLabelAnimation('esc to lock');
-          setTimeout(() => {
-            setIsSaving(false);
-            stopLabelAnimation();
-            setStep('old');
-          }, 15000);
         } else {
           flashRed();
           setStep('set');
@@ -263,20 +250,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
         `}
       </style>
       <div className="text-xs font-mono" style={{ color: getColor() }}>
-        {isSaving && labelAnimText ? (
-          labelAnimPhase === 'bold' ? (
-            <>
-              <span className="font-bold">{labelAnimText.slice(0, labelBoldCount)}</span>
-              <span>{labelAnimText.slice(labelBoldCount)}</span>
-            </>
-          ) : labelAnimPhase === 'unbold' ? (
-            <>
-              <span>{labelAnimText.slice(0, labelBoldCount)}</span>
-              <span className="font-bold">{labelAnimText.slice(labelBoldCount)}</span>
-            </>
-          ) : (
-            <span>{labelAnimText}</span>
-          )
+        {isSaving ? (
+          <span>esc to lock</span>
         ) : (
           <span className="font-bold">{getLabel()}</span>
         )}
@@ -296,7 +271,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
             onMouseDown={() => !isSaving && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
-            placeholder={isFocused ? '' : (isSaving ? 'password saved' : getPlaceholder())}
+            placeholder=""
             disabled={isSaving || flashState === 'green'}
             className="password-input w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
@@ -308,6 +283,14 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
               cursor: isSaving ? 'not-allowed' : 'text',
             }}
           />
+          {isSaving && (
+            <div
+              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono font-bold pointer-events-none"
+              style={{ color: '#00ff00', left: '14px' }}
+            >
+              password saved
+            </div>
+          )}
           {showAnimatedPlaceholder && (
             <div
               className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
