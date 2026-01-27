@@ -41,7 +41,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i couldn't view your content even if i wanted to; it's technologically impossible.
           </p>
           <p>
-            your data is saved to IndexedDB, a database on your device. the app also works offline — no internet needed after your first visit.
+            your data is saved locally on this device. you can even download a web app that works offline.
           </p>
           <p>
             as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.
