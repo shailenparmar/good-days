@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getItem, setItem, isElectron, forceSave } from '@shared/storage';
+import { getItem, setItem, forceSave } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
@@ -55,37 +55,11 @@ export function useJournalEntries() {
     entriesRef.current = entries;
   }, [entries]);
 
-  // Force save before closing (works for both Electron and browser)
+  // Force save before closing (works for Electron and IndexedDB)
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (isElectron()) {
-        forceSave();
-      } else if (pendingSaveRef.current) {
-        // Browser mode: save any pending content directly to localStorage
-        const { content, date } = pendingSaveRef.current;
-        const currentEntries = entriesRef.current;
-        const existingIndex = currentEntries.findIndex(e => e.date === date);
-
-        let newEntries: JournalEntry[];
-        if (existingIndex >= 0) {
-          newEntries = [...currentEntries];
-          newEntries[existingIndex] = {
-            ...newEntries[existingIndex],
-            content,
-            lastModified: Date.now(),
-          };
-        } else {
-          newEntries = [...currentEntries, {
-            date,
-            content,
-            startedAt: Date.now(),
-            lastModified: Date.now(),
-          }];
-        }
-        newEntries.sort((a, b) => b.date.localeCompare(a.date));
-        localStorage.setItem('journalEntries', JSON.stringify(newEntries));
-        pendingSaveRef.current = null;
-      }
+      // forceSave handles both Electron and IndexedDB modes
+      forceSave();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
