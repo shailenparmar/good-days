@@ -8,10 +8,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>good days</title>
+    <script>
+      // Hide fallback on desktop BEFORE it renders (blocking script)
+      var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (!isMobile) {
+        document.write('<style>#fallback{display:none!important}</style>');
+      }
+    </script>
   </head>
   <body style="background-color: #e8f5e9 !important; margin: 0; padding: 0;">
     <div id="root">
-      <!-- Fallback content shown until React loads -->
+      <!-- Fallback content for mobile only -->
       <div id="fallback" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(84,100%,94%);">
         <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">good</p>
         <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">days</p>
