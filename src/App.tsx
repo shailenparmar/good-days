@@ -232,10 +232,6 @@ function AppContent() {
             <Heart className="w-3 h-3" />
             <span>about</span>
           </FunctionButton>
-
-          <FunctionButton onClick={() => { localStorage.clear(); location.reload(); }}>
-            <span>reset app (debug)</span>
-          </FunctionButton>
         </div>
       </div>
 
