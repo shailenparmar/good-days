@@ -374,10 +374,9 @@ function AppContent() {
 }
 
 function App() {
-  const [mobile, setMobile] = useState(false);
+  const [mobile, setMobile] = useState(() => isMobile());
 
   useEffect(() => {
-    setMobile(isMobile());
     const handleResize = () => setMobile(isMobile());
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
