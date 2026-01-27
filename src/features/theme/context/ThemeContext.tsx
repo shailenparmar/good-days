@@ -104,6 +104,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setItem('bgLightness', String(bgLightness));
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
+  // Update Safari toolbar color when background changes
+  useEffect(() => {
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) {
+      meta.setAttribute('content', `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`);
+    }
+  }, [bgHue, bgSaturation, bgLightness]);
+
   // Save presets
   useEffect(() => {
     setItem('colorPresets', JSON.stringify(presets));
