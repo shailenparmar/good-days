@@ -55,5 +55,6 @@ export interface ColorwayTracking {
   uniqueColorways: number;
   seenColorways: Set<string>;
   trackColorway: (colorway: string) => void;
+  trackCurrentColorway: () => void;
   getColorwayKey: (h: number, s: number, l: number, bh: number, bs: number, bl: number) => string;
 }

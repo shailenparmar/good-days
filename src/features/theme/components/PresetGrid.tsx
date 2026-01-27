@@ -25,23 +25,72 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
   const [showKeyboardHint, setShowKeyboardHint] = useState(false);
-  const [hintDismissed, setHintDismissed] = useState(() => {
+  const [hintPermanentlyDismissed, setHintPermanentlyDismissed] = useState(() => {
     return getItem('presetKeyboardHintDismissed') === 'true';
   });
+  const [keyboardUseCount, setKeyboardUseCount] = useState(0);
 
-  // Show hint after 3+ clicks (only for first-time users)
+  // Hint animation state
+  const hintLine1 = 'try arrow keys and spacebar.';
+  const hintLine2 = 'backspace deletes a preset.';
+  const hintFullText = hintLine1 + hintLine2;
+  const [boldCount, setBoldCount] = useState(0);
+  const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
+
+
+  // Reset click count when settings panel opens
   useEffect(() => {
-    if (presetClickCount >= 3 && !hintDismissed) {
-      setShowKeyboardHint(true);
-      // Auto-dismiss after 10 seconds and remember
-      const timeout = setTimeout(() => {
-        setShowKeyboardHint(false);
-        setHintDismissed(true);
-        setItem('presetKeyboardHintDismissed', 'true');
-      }, 10000);
-      return () => clearTimeout(timeout);
+    if (showDebugMenu) {
+      setPresetClickCount(0);
     }
-  }, [presetClickCount, hintDismissed]);
+  }, [showDebugMenu]);
+
+  // Show hint after 3+ clicks (unless permanently dismissed)
+  useEffect(() => {
+    if (presetClickCount >= 3 && !hintPermanentlyDismissed) {
+      setShowKeyboardHint(true);
+      setBoldCount(0);
+      setAnimPhase('bold');
+    }
+  }, [presetClickCount, hintPermanentlyDismissed]);
+
+  // Permanently dismiss after 3+ keyboard uses
+  useEffect(() => {
+    if (keyboardUseCount >= 3 && !hintPermanentlyDismissed) {
+      setShowKeyboardHint(false);
+      setHintPermanentlyDismissed(true);
+      setItem('presetKeyboardHintDismissed', 'true');
+    }
+  }, [keyboardUseCount, hintPermanentlyDismissed]);
+
+  // Handle bold/unbold animation at 12fps
+  useEffect(() => {
+    if (!showKeyboardHint) return;
+
+    if (animPhase === 'bold') {
+      if (boldCount >= hintFullText.length) {
+        setAnimPhase('unbold');
+        setBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setBoldCount(c => c + 1);
+      }, 83); // ~12fps
+      return () => clearTimeout(timer);
+    }
+
+    if (animPhase === 'unbold') {
+      if (boldCount >= hintFullText.length) {
+        setAnimPhase('bold');
+        setBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setBoldCount(c => c + 1);
+      }, 83); // ~12fps
+      return () => clearTimeout(timer);
+    }
+  }, [showKeyboardHint, boldCount, animPhase]);
 
   // Set/clear active preset when settings menu is opened/closed
   useEffect(() => {
@@ -65,11 +114,12 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         return;
       }
 
-      const totalPresets = 5 + customPresets.length + 2; // 5 default + custom + rand + save
-      const totalDefaultAndCustom = 5 + customPresets.length;
+      const totalPresets = presets.length + customPresets.length + 2; // default + custom + rand + save
+      const totalDefaultAndCustom = presets.length + customPresets.length;
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
+        setKeyboardUseCount(c => c + 1);
 
         const cols = 5;
         let newIndex = activePresetIndex === null ? 0 : activePresetIndex;
@@ -121,13 +171,13 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         }, 0);
 
         // Auto-apply the preset when navigating
-        if (newIndex < 5) {
+        if (newIndex < presets.length) {
           const preset = presets[newIndex];
           applyPreset(preset);
           setSelectedPreset(newIndex);
           setSelectedCustomPreset(null);
         } else if (newIndex < totalDefaultAndCustom) {
-          const customIndex = newIndex - 5;
+          const customIndex = newIndex - presets.length;
           const preset = customPresets[customIndex];
           applyPreset(preset);
           setSelectedPreset(null);
@@ -139,8 +189,9 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
       } else if (e.key === ' ' && activePresetIndex !== null) {
         // Spacebar to select/apply preset, rand, or save
         e.preventDefault();
+        setKeyboardUseCount(c => c + 1);
 
-        if (activePresetIndex < 5) {
+        if (activePresetIndex < presets.length) {
           // Apply default preset
           const preset = presets[activePresetIndex];
           applyPreset(preset);
@@ -148,7 +199,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           setSelectedCustomPreset(null);
         } else if (activePresetIndex < totalDefaultAndCustom) {
           // Apply custom preset
-          const customIndex = activePresetIndex - 5;
+          const customIndex = activePresetIndex - presets.length;
           const preset = customPresets[customIndex];
           applyPreset(preset);
           setSelectedPreset(null);
@@ -164,7 +215,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         // Enter to save current colors to active preset
         e.preventDefault();
 
-        if (activePresetIndex < 5) {
+        if (activePresetIndex < presets.length) {
           const newPresets = [...presets];
           newPresets[activePresetIndex] = {
             hue,
@@ -187,7 +238,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
     return () => window.removeEventListener('keydown', handlePresetNavigation);
   }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset]);
 
-  // Handle delete key for custom presets
+  // Handle delete key for presets
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle if focus is on an input, textarea, or contenteditable
@@ -201,17 +252,37 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
       }
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && showDebugMenu) {
-        if (activePresetIndex !== null && activePresetIndex >= 5 && activePresetIndex < 5 + customPresets.length) {
-          const customIndex = activePresetIndex - 5;
-          deleteCustomPreset(customIndex);
+        setKeyboardUseCount(c => c + 1);
+        if (activePresetIndex !== null && activePresetIndex < presets.length) {
+          // Delete default preset
           e.preventDefault();
+          const newPresets = presets.filter((_, i) => i !== activePresetIndex);
+          setPresets(newPresets);
+          // Move to next available preset or stay at end
+          if (newPresets.length > 0) {
+            const newIndex = Math.min(activePresetIndex, newPresets.length - 1);
+            setActivePresetIndex(newIndex);
+            applyPreset(newPresets[newIndex]);
+            setSelectedPreset(newIndex);
+            setSelectedCustomPreset(null);
+          } else if (customPresets.length > 0) {
+            setActivePresetIndex(0);
+            applyPreset(customPresets[0]);
+            setSelectedPreset(null);
+            setSelectedCustomPreset(0);
+          }
+        } else if (activePresetIndex !== null && activePresetIndex >= presets.length && activePresetIndex < presets.length + customPresets.length) {
+          // Delete custom preset
+          e.preventDefault();
+          const customIndex = activePresetIndex - presets.length;
+          deleteCustomPreset(customIndex);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePresetIndex, customPresets, showDebugMenu, deleteCustomPreset]);
+  }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset]);
 
   const handlePresetClick = (index: number, preset: ColorPreset) => {
     // Track mouse clicks for first-time user hint
@@ -243,7 +314,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
     // Track mouse clicks for first-time user hint
     setPresetClickCount(c => c + 1);
 
-    const wasActive = activePresetIndex === (5 + index);
+    const wasActive = activePresetIndex === (presets.length + index);
 
     if (wasActive) {
       const newCustomPresets = [...customPresets];
@@ -260,7 +331,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
       applyPreset(preset);
       setSelectedPreset(null);
       setSelectedCustomPreset(index);
-      setActivePresetIndex(5 + index);
+      setActivePresetIndex(presets.length + index);
     }
   };
 
@@ -311,8 +382,8 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
 
         {/* Custom presets */}
         {customPresets.map((preset, index) => {
-          const presetNumber = index + 6;
-          const globalIndex = 5 + index;
+          const presetNumber = presets.length + 1 + index;
+          const globalIndex = presets.length + index;
           const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
           const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
           const borderDefault = `hsla(${preset.hue}, ${preset.sat}%, ${preset.light}%, 0.6)`;
@@ -354,7 +425,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
 
         {/* Rand button */}
         {(() => {
-          const randIndex = 5 + customPresets.length;
+          const randIndex = presets.length + customPresets.length;
           const textColor = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`;
           const borderDefault = `hsla(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%, 0.6)`;
           const borderActive = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${Math.max(0, randomPreview.light * 0.65)}%)`;
@@ -392,7 +463,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
 
         {/* Save button */}
         {(() => {
-          const saveIndex = 5 + customPresets.length + 1;
+          const saveIndex = presets.length + customPresets.length + 1;
           const textColor = getColor();
           const borderDefault = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
           const borderActive = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
@@ -427,7 +498,48 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
             </button>
           );
         })()}
+
       </div>
+      {/* Keyboard hint */}
+      {showKeyboardHint && (
+        <div
+          className="text-xs font-mono mt-1"
+          style={{ color: getColor(), opacity: 0.9 }}
+        >
+          {(() => {
+            const line1Bold = Math.min(boldCount, hintLine1.length);
+            const line2Bold = Math.max(0, boldCount - hintLine1.length);
+
+            if (animPhase === 'bold') {
+              return (
+                <>
+                  <div>
+                    <span className="font-bold">{hintLine1.slice(0, line1Bold)}</span>
+                    <span>{hintLine1.slice(line1Bold)}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold">{hintLine2.slice(0, line2Bold)}</span>
+                    <span>{hintLine2.slice(line2Bold)}</span>
+                  </div>
+                </>
+              );
+            } else {
+              return (
+                <>
+                  <div>
+                    <span>{hintLine1.slice(0, line1Bold)}</span>
+                    <span className="font-bold">{hintLine1.slice(line1Bold)}</span>
+                  </div>
+                  <div>
+                    <span>{hintLine2.slice(0, line2Bold)}</span>
+                    <span className="font-bold">{hintLine2.slice(line2Bold)}</span>
+                  </div>
+                </>
+              );
+            }
+          })()}
+        </div>
+      )}
     </div>
   );
 }
