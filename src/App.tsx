@@ -17,14 +17,18 @@ function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-// Generate truly random theme colors (same as full app)
+// Generate random theme colors with guaranteed contrast
 function generateRandomColors() {
   const hue = Math.floor(Math.random() * 360);
-  const sat = Math.floor(Math.random() * 101);
-  const light = Math.floor(Math.random() * 101);
+  const sat = 30 + Math.floor(Math.random() * 70); // 30-100%
   const bgHue = Math.floor(Math.random() * 360);
-  const bgSat = Math.floor(Math.random() * 101);
-  const bgLight = Math.floor(Math.random() * 101);
+  const bgSat = 50 + Math.floor(Math.random() * 50); // 50-100%
+
+  // Ensure contrast: either light bg + dark text, or dark bg + light text
+  const lightBg = Math.random() > 0.5;
+  const bgLight = lightBg ? 75 + Math.floor(Math.random() * 23) : 5 + Math.floor(Math.random() * 20); // 75-97% or 5-25%
+  const light = lightBg ? 20 + Math.floor(Math.random() * 35) : 70 + Math.floor(Math.random() * 28); // 20-55% or 70-98%
+
   return { hue, sat, light, bgHue, bgSat, bgLight };
 }
 
