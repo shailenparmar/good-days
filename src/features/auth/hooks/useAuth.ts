@@ -1,18 +1,47 @@
-import { useState, useCallback } from 'react';
-import { getItem, setItem } from '@shared/storage';
+import { useState, useCallback, useEffect } from 'react';
+import { getItem, setItem, removeItem } from '@shared/storage';
+
+// Simple hash function for password storage
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'good-days-salt');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const PASSWORD_KEY = 'passwordHash';
 
 export function useAuth() {
-  const [isLocked, setIsLocked] = useState(false);
+  // Reactive state - syncs with storage
+  const [hasPassword, setHasPassword] = useState(() => getItem(PASSWORD_KEY) !== null);
+  const [isLocked, setIsLocked] = useState(() => getItem(PASSWORD_KEY) !== null);
   const [passwordInput, setPasswordInput] = useState('');
-  const [hasPassword, setHasPassword] = useState(() => {
-    return getItem('userPassword') !== null;
-  });
 
-  const handlePasswordSubmit = useCallback((e: React.FormEvent) => {
+  // Sync hasPassword with storage
+  const refreshHasPassword = useCallback(() => {
+    const exists = getItem(PASSWORD_KEY) !== null;
+    setHasPassword(exists);
+    return exists;
+  }, []);
+
+  // Check storage on mount
+  useEffect(() => {
+    refreshHasPassword();
+  }, [refreshHasPassword]);
+
+  const handlePasswordSubmit = useCallback(async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
-    const storedPassword = getItem('userPassword');
+    const storedHash = getItem(PASSWORD_KEY);
 
-    if (storedPassword && passwordInput.trim() === storedPassword) {
+    if (!storedHash) {
+      setPasswordInput('');
+      return false;
+    }
+
+    const inputHash = await hashPassword(passwordInput.trim());
+
+    if (inputHash === storedHash) {
       setIsLocked(false);
       setPasswordInput('');
       return true;
@@ -22,20 +51,31 @@ export function useAuth() {
     }
   }, [passwordInput]);
 
-  const setPassword = useCallback((newPassword: string) => {
-    setItem('userPassword', newPassword);
+  const setPassword = useCallback(async (newPassword: string): Promise<boolean> => {
+    const trimmed = newPassword.trim();
+    if (trimmed.length === 0) return false;
+
+    const hash = await hashPassword(trimmed);
+    setItem(PASSWORD_KEY, hash);
     setHasPassword(true);
+    return true;
   }, []);
 
-  // Read directly from storage each time - no stale closures
-  const verifyPassword = (password: string): boolean => {
-    const storedPassword = getItem('userPassword');
-    if (!storedPassword) return false;
-    return storedPassword.trim() === password.trim();
-  };
+  const removePassword = useCallback(() => {
+    removeItem(PASSWORD_KEY);
+    setHasPassword(false);
+    setIsLocked(false);
+  }, []);
+
+  const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
+    const storedHash = getItem(PASSWORD_KEY);
+    if (!storedHash) return false;
+    const inputHash = await hashPassword(password.trim());
+    return inputHash === storedHash;
+  }, []);
 
   const lock = useCallback(() => {
-    if (getItem('userPassword') !== null) {
+    if (getItem(PASSWORD_KEY) !== null) {
       setIsLocked(true);
     }
   }, []);
@@ -51,8 +91,10 @@ export function useAuth() {
     setPasswordInput,
     handlePasswordSubmit,
     setPassword,
+    removePassword,
     verifyPassword,
     lock,
     unlock,
+    refreshHasPassword,
   };
 }

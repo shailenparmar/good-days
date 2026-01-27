@@ -6,8 +6,8 @@ type FlashState = 'none' | 'green' | 'red';
 
 interface PasswordSettingsProps {
   hasPassword: boolean;
-  verifyPassword: (password: string) => boolean;
-  setPassword: (password: string) => void;
+  verifyPassword: (password: string) => Promise<boolean>;
+  setPassword: (password: string) => Promise<boolean>;
 }
 
 export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: PasswordSettingsProps) {
@@ -107,6 +107,13 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setLabelAnimPhase('done');
   };
 
+  // Sync step state with hasPassword prop changes
+  useEffect(() => {
+    if (!isSaving) {
+      setStep(hasPassword ? 'old' : 'set');
+    }
+  }, [hasPassword, isSaving]);
+
   // Animate "type here" on initial mount for set password flow
   useEffect(() => {
     if (step === 'set' && !hasPassword) {
@@ -167,14 +174,15 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     return hasPassword ? 'change password' : 'set password';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!input.trim()) return;
 
     switch (step) {
       case 'old':
-        if (verifyPassword(input.trim())) {
+        const isValid = await verifyPassword(input.trim());
+        if (isValid) {
           flashGreen(() => {
             setStep('new');
             setInput('');
@@ -197,7 +205,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
 
       case 'confirm':
         if (input.trim() === newPasswordTemp) {
-          setPassword(newPasswordTemp);
+          await setPassword(newPasswordTemp);
           setInput('');
           setNewPasswordTemp('');
           setIsSaving(true);
@@ -226,7 +234,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
 
       case 'set-confirm':
         if (input.trim() === newPasswordTemp) {
-          setPassword(newPasswordTemp);
+          await setPassword(newPasswordTemp);
           setInput('');
           setNewPasswordTemp('');
           setIsSaving(true);

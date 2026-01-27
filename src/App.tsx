@@ -106,8 +106,8 @@ function AppContent() {
   }, [journal]);
 
   // Handle password unlock
-  const handlePasswordSubmit = (e: React.FormEvent): boolean => {
-    const success = auth.handlePasswordSubmit(e);
+  const handlePasswordSubmit = async (e: React.FormEvent): Promise<boolean> => {
+    const success = await auth.handlePasswordSubmit(e);
     if (success) {
       journal.reloadEntries();
       if (editorRef.current) {
@@ -163,6 +163,7 @@ function AppContent() {
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
         {/* Header */}
         <div
@@ -241,23 +242,21 @@ function AppContent() {
       {/* Settings Panel */}
       <SettingsPanel
         showDebugMenu={showDebugMenu}
-        onClose={() => setShowDebugMenu(false)}
         hasPassword={auth.hasPassword}
         verifyPassword={auth.verifyPassword}
         setPassword={auth.setPassword}
         entries={journal.entries}
+        onCloseAbout={() => setShowAboutPanel(false)}
       />
 
       {/* About Panel */}
-      <AboutPanel
-        isOpen={showAboutPanel}
-        onClose={() => setShowAboutPanel(false)}
-      />
+      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} />
 
       {/* Main Editor Area */}
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
         <EntryHeader selectedDate={journal.selectedDate} entries={journal.entries} paddingBottom={20} />
 

@@ -7,20 +7,20 @@ import type { JournalEntry } from '@features/journal';
 
 interface SettingsPanelProps {
   showDebugMenu: boolean;
-  onClose: () => void;
   hasPassword: boolean;
-  verifyPassword: (password: string) => boolean;
-  setPassword: (password: string) => void;
+  verifyPassword: (password: string) => Promise<boolean>;
+  setPassword: (password: string) => Promise<boolean>;
   entries: JournalEntry[];
+  onCloseAbout: () => void;
 }
 
 export function SettingsPanel({
   showDebugMenu,
-  onClose,
   hasPassword,
   verifyPassword,
   setPassword,
   entries,
+  onCloseAbout,
 }: SettingsPanelProps) {
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
@@ -33,6 +33,7 @@ export function SettingsPanel({
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
+      onClick={onCloseAbout}
     >
       {/* Color Picker Section */}
       <div
