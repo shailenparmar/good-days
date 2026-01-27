@@ -70,6 +70,7 @@ export function useJournalEntries() {
     const saved = getItem('journalEntries');
     if (saved) {
       const loadedEntries = JSON.parse(saved);
+      entriesRef.current = loadedEntries; // Update ref immediately
       setEntries(loadedEntries);
     }
   }, [storageReady]);
@@ -86,6 +87,7 @@ export function useJournalEntries() {
         startedAt: Date.now(),
       }].sort((a, b) => b.date.localeCompare(a.date));
 
+      entriesRef.current = newEntries; // Update ref immediately
       setEntries(newEntries);
       setItem('journalEntries', JSON.stringify(newEntries));
     }
@@ -108,9 +110,6 @@ export function useJournalEntries() {
   const saveEntry = useCallback((content: string, timestamp?: number) => {
     const now = Date.now();
 
-    // Track pending save for beforeunload
-    pendingSaveRef.current = { content, date: selectedDate };
-
     // Get text content from HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
@@ -118,55 +117,64 @@ export function useJournalEntries() {
 
     const isToday = selectedDate === getTodayDate();
 
-    setEntries(prevEntries => {
-      const existingIndex = prevEntries.findIndex(e => e.date === selectedDate);
-      let newEntries: JournalEntry[];
+    // Build new entries using ref (synchronous, not affected by React batching)
+    const currentEntries = entriesRef.current;
+    const existingIndex = currentEntries.findIndex(e => e.date === selectedDate);
+    let newEntries: JournalEntry[];
 
-      if (textContent.trim() === '') {
-        if (isToday) {
-          if (existingIndex >= 0) {
-            newEntries = [...prevEntries];
-            newEntries[existingIndex] = {
-              date: selectedDate,
-              content,
-              title: prevEntries[existingIndex].title,
-              startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
-              lastModified: now,
-            };
-          } else {
-            newEntries = [...prevEntries, {
-              date: selectedDate,
-              content,
-              startedAt: timestamp || now,
-              lastModified: now,
-            }];
-          }
+    if (textContent.trim() === '') {
+      if (isToday) {
+        if (existingIndex >= 0) {
+          newEntries = [...currentEntries];
+          newEntries[existingIndex] = {
+            date: selectedDate,
+            content,
+            title: currentEntries[existingIndex].title,
+            startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
+            lastModified: now,
+          };
         } else {
-          newEntries = prevEntries.filter(e => e.date !== selectedDate);
+          newEntries = [...currentEntries, {
+            date: selectedDate,
+            content,
+            startedAt: timestamp || now,
+            lastModified: now,
+          }];
         }
-      } else if (existingIndex >= 0) {
-        newEntries = [...prevEntries];
-        newEntries[existingIndex] = {
-          date: selectedDate,
-          content,
-          title: prevEntries[existingIndex].title,
-          startedAt: prevEntries[existingIndex].startedAt || timestamp || now,
-          lastModified: now,
-        };
       } else {
-        newEntries = [...prevEntries, {
-          date: selectedDate,
-          content,
-          startedAt: timestamp || now,
-          lastModified: now,
-        }];
+        newEntries = currentEntries.filter(e => e.date !== selectedDate);
       }
+    } else if (existingIndex >= 0) {
+      newEntries = [...currentEntries];
+      newEntries[existingIndex] = {
+        date: selectedDate,
+        content,
+        title: currentEntries[existingIndex].title,
+        startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
+        lastModified: now,
+      };
+    } else {
+      newEntries = [...currentEntries, {
+        date: selectedDate,
+        content,
+        startedAt: timestamp || now,
+        lastModified: now,
+      }];
+    }
 
-      newEntries.sort((a, b) => b.date.localeCompare(a.date));
-      setItem('journalEntries', JSON.stringify(newEntries));
-      pendingSaveRef.current = null; // Clear pending save after successful write
-      return newEntries;
-    });
+    newEntries.sort((a, b) => b.date.localeCompare(a.date));
+
+    // Save to localStorage IMMEDIATELY (synchronous, before React can batch)
+    setItem('journalEntries', JSON.stringify(newEntries));
+
+    // Update ref immediately too
+    entriesRef.current = newEntries;
+
+    // Clear pending save since we just saved
+    pendingSaveRef.current = null;
+
+    // Update React state (can be batched, but localStorage already has the data)
+    setEntries(newEntries);
 
     lastTypedTime.current = now;
     setItem('lastTypedTime', String(now));
