@@ -7,16 +7,26 @@
     <title>good days</title>
   </head>
   <body style="background-color: #e8f5e9 !important; margin: 0; padding: 0;">
-    <div id="root">
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;font-weight:bold;color:#2e7d32;">
-        loading...
-      </div>
+    <div id="mobile-screen" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(84,100%,94%);">
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">good</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">days</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">is</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">not</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">supported</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">on</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">mobile</p>
+      <p style="color:hsl(144,36%,43%);font-family:monospace;font-weight:bold;font-size:20px;margin:4px 0;">yet</p>
     </div>
-    <noscript>
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;font-weight:bold;color:#2e7d32;">
-        JavaScript is required
-      </div>
-    </noscript>
+    <div id="root"></div>
+    <script>
+      (function() {
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          document.getElementById('mobile-screen').style.display = 'flex';
+          document.getElementById('root').style.display = 'none';
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
