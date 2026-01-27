@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@features/theme';
-import { formatDate } from '@shared/utils/date';
 import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
 

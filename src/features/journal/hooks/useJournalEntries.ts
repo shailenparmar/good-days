@@ -3,6 +3,30 @@ import { getItem, setItem, isElectron, forceSave } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
+// Validate a single journal entry
+function isValidEntry(entry: unknown): entry is JournalEntry {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const e = entry as Record<string, unknown>;
+  if (typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return false;
+  if (typeof e.content !== 'string') return false;
+  if (e.title !== undefined && typeof e.title !== 'string') return false;
+  if (e.startedAt !== undefined && typeof e.startedAt !== 'number') return false;
+  if (e.lastModified !== undefined && typeof e.lastModified !== 'number') return false;
+  return true;
+}
+
+// Safely parse and validate journal entries from storage
+function parseAndValidateEntries(json: string): JournalEntry[] {
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isValidEntry);
+  } catch {
+    console.error('Failed to parse journal entries');
+    return [];
+  }
+}
+
 export function useJournalEntries() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [selectedDate, setSelectedDateState] = useState<string>(() => {
@@ -73,8 +97,8 @@ export function useJournalEntries() {
 
     const saved = getItem('journalEntries');
     if (saved) {
-      const loadedEntries = JSON.parse(saved);
-      entriesRef.current = loadedEntries; // Update ref immediately
+      const loadedEntries = parseAndValidateEntries(saved);
+      entriesRef.current = loadedEntries;
       setEntries(loadedEntries);
     }
   }, [storageReady]);
@@ -211,7 +235,7 @@ export function useJournalEntries() {
   const reloadEntries = useCallback(() => {
     const saved = getItem('journalEntries');
     if (saved) {
-      const loadedEntries = JSON.parse(saved);
+      const loadedEntries = parseAndValidateEntries(saved);
       setEntries(loadedEntries);
 
       const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);

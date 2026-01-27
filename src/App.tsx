@@ -11,7 +11,7 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
-import { FunctionButton } from '@shared/components';
+import { FunctionButton, ErrorBoundary } from '@shared/components';
 
 // Preset 1 colors for mobile message
 const PRESET_1 = {
@@ -314,9 +314,11 @@ function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

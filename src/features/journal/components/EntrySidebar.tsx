@@ -125,7 +125,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
 
   return (
-    <div className="p-4 space-y-2">
+    <nav className="p-4 space-y-2" role="navigation" aria-label="Journal entries">
       {entries.map(entry => {
         const isSelected = entry.date === selectedDate;
         const isHovered = hoveredEntry === entry.date || keyboardFocusedEntry === entry.date;
@@ -160,6 +160,9 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
             onMouseDown={() => !isEditing && setClickedEntry(entry.date)}
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
+            role="button"
+            aria-label={`Journal entry for ${displayText}${isSelected ? ', selected' : ''}`}
+            aria-pressed={isSelected}
             className="w-full text-center px-3 py-2 rounded font-mono font-extrabold outline-none focus:outline-none select-none"
             style={{
               fontSize: '0.9rem',
@@ -189,6 +192,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
                 placeholder={formatDate(entry.date)}
                 spellCheck={false}
                 autoComplete="off"
+                aria-label="Entry title"
                 className="w-full bg-transparent text-center font-mono font-extrabold outline-none p-0 m-0"
                 style={{ fontSize: '0.9rem', color: textColor, border: 'none' }}
               />
@@ -207,6 +211,6 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
           </div>
         );
       })}
-    </div>
+    </nav>
   );
 }
