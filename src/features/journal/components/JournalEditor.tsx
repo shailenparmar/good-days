@@ -70,8 +70,6 @@ export function JournalEditor({
 
   // Scrambled content for overlay (only computed when scrambled)
   const [scrambledHtml, setScrambledHtml] = useState('');
-  // Track if scramble overlay is ready (to prevent flash of unscrambled content)
-  const [scrambleReady, setScrambleReady] = useState(!isScrambled);
 
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
@@ -101,10 +99,8 @@ export function JournalEditor({
     // Update scrambled overlay if needed
     if (isScrambled && sanitized) {
       setScrambledHtml(scrambleHtml(sanitized));
-      setScrambleReady(true);
     } else {
       setScrambledHtml('');
-      setScrambleReady(true);
     }
 
     // Mark content as loaded after paint (prevents placeholder flash)
@@ -121,10 +117,8 @@ export function JournalEditor({
     const content = editorRef.current.innerHTML || '';
     if (isScrambled && content) {
       setScrambledHtml(scrambleHtml(content));
-      setScrambleReady(true);
     } else {
       setScrambledHtml('');
-      setScrambleReady(true);
     }
   }, [editorRef, isScrambled]);
 
