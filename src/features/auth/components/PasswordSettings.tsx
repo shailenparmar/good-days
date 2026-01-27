@@ -114,12 +114,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     }
   }, [hasPassword, isSaving]);
 
-  // Animate "type here" on initial mount for set password flow
+  // Animate placeholder on mount and when step changes
   useEffect(() => {
-    if (step === 'set' && !hasPassword) {
-      startPlaceholderAnimation('type here');
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    startPlaceholderAnimation(getPlaceholder());
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flashGreen = (onComplete: () => void) => {
     setFlashState('green');
