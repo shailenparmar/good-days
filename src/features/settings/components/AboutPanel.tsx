@@ -66,7 +66,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i designed this journal for my own daily use, and i'm so happy you're playing with it!
           </p>
           <p>
-            try typing while scrambled, holding spacebar on rand, or changing your password — those are my favorite features lol.
+            try typing while scrambled, holding spacebar on rand, or changing your password — those are my favorite features. XD
           </p>
           <p className="mt-4">
             - shai
