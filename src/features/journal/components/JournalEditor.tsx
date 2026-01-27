@@ -226,8 +226,16 @@ export function JournalEditor({
     onInput(content);
   }, [editorRef, onInput, isScrambled]);
 
+  const handleContainerClick = useCallback(() => {
+    editorRef.current?.focus();
+  }, [editorRef]);
+
   return (
-    <div className="flex-1 p-8 relative overflow-y-auto scrollbar-hide" style={{ backgroundColor: getBgColor() }}>
+    <div
+      className="flex-1 p-8 relative overflow-y-auto scrollbar-hide cursor-text"
+      style={{ backgroundColor: getBgColor() }}
+      onClick={handleContainerClick}
+    >
       <style>
         {`
           .dynamic-editor {
@@ -253,9 +261,9 @@ export function JournalEditor({
           }
         `}
       </style>
-      <div className="relative w-full h-full overflow-y-auto scrollbar-hide">
+      <div className="relative w-full h-full overflow-y-auto scrollbar-hide" style={{ minHeight: '100%' }}>
         {/* Container for both layers - they share the same content height and scroll together */}
-        <div className="relative min-h-full">
+        <div className="relative" style={{ minHeight: '100%' }}>
           {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
           <div
             ref={editorRef}
@@ -264,7 +272,8 @@ export function JournalEditor({
             onClick={() => editorRef.current?.focus()}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className={`w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
+            className={`w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
+            style={{ minHeight: '100%', height: '100%' }}
             spellCheck="false"
             suppressContentEditableWarning
             role="textbox"
@@ -284,7 +293,7 @@ export function JournalEditor({
           )}
           {showPlaceholder && (
             <div
-              className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none"
+              className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none select-none"
               style={{ color: getColor(), opacity: 0.9 }}
             >
               {animPhase === 'bold' ? (
