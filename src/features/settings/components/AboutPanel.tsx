@@ -63,7 +63,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       <div className="p-4">
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
-            i designed this journal for my own daily use, and i'm so happy that you want to play with it!
+            i designed this journal for my own daily use, and i'm so happy you're playing with it!
           </p>
           <p>
             try typing while scrambled, holding spacebar on rand, or changing your password — those are my favorite features lol.
