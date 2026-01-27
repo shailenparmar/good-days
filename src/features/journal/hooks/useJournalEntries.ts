@@ -27,16 +27,24 @@ function parseAndValidateEntries(json: string): JournalEntry[] {
   }
 }
 
+// Load entries synchronously at initialization
+function loadEntriesFromStorage(): JournalEntry[] {
+  const saved = getItem('journalEntries');
+  if (saved) {
+    return parseAndValidateEntries(saved);
+  }
+  return [];
+}
+
 export function useJournalEntries() {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  // Load entries SYNCHRONOUSLY during initialization - never start with empty array
+  const [entries, setEntries] = useState<JournalEntry[]>(() => loadEntriesFromStorage());
   const [selectedDate, setSelectedDateState] = useState<string>(() => {
     // Restore last viewed date, or default to today
     const saved = getItem('selectedDate');
     return saved || getTodayDate();
   });
   const [currentContent, setCurrentContent] = useState<string>('');
-  // Storage is initialized in main.tsx before app renders
-  const [storageReady] = useState(true);
 
   const previousDate = useRef<string | null>(null);
   const lastTypedTime = useRef<number>(
@@ -47,7 +55,7 @@ export function useJournalEntries() {
   );
 
   // Track latest state in refs for beforeunload (can't access state in event handlers)
-  const entriesRef = useRef<JournalEntry[]>([]);
+  const entriesRef = useRef<JournalEntry[]>(entries);
   const pendingSaveRef = useRef<{ content: string; date: string } | null>(null);
 
   // Keep entriesRef in sync
@@ -55,27 +63,14 @@ export function useJournalEntries() {
     entriesRef.current = entries;
   }, [entries]);
 
-  // Force save before closing (works for Electron and IndexedDB)
+  // Force save before closing
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // forceSave handles both Electron and IndexedDB modes
       forceSave();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
-
-  // Load entries from storage on mount (after storage is ready)
-  useEffect(() => {
-    if (!storageReady) return;
-
-    const saved = getItem('journalEntries');
-    if (saved) {
-      const loadedEntries = parseAndValidateEntries(saved);
-      entriesRef.current = loadedEntries;
-      setEntries(loadedEntries);
-    }
-  }, [storageReady]);
 
   // Ensure today's entry always exists
   useEffect(() => {
@@ -224,7 +219,6 @@ export function useJournalEntries() {
     entries,
     selectedDate,
     currentContent,
-    storageReady,
     setEntries,
     setSelectedDate,
     setCurrentContent,
