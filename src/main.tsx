@@ -60,7 +60,7 @@ function MobileScreen() {
         className={isPulsing ? 'mobile-rand-pulse' : ''}
         style={{
           marginBottom: '48px',
-          padding: '24px 48px',
+          padding: '12px 48px',
           fontFamily: 'monospace',
           fontWeight: 800,
           fontSize: '2.5rem',
