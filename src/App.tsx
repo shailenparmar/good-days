@@ -34,29 +34,15 @@ function generateRandomColors() {
 
 function MobileNotSupported() {
   const [colors, setColors] = useState(() => generateRandomColors());
-  const [isPressed, setIsPressed] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isActive, setIsActive] = useState(false);
 
   const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+  const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
 
   const handleRand = () => {
     setColors(generateRandomColors());
-    setIsActive(true);
-  };
-
-  const borderDefault = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
-  const borderHover = textColor;
-  const borderActive = `hsl(${colors.hue}, ${colors.sat}%, ${Math.max(0, colors.light * 0.65)}%)`;
-  const hoverBg = `hsla(${colors.hue}, ${colors.sat}%, 50%, 0.2)`;
-
-  const getBorderColor = () => {
-    if (isPressed) return borderActive;
-    if (isHovered || isActive) return borderHover;
-    return borderDefault;
   };
 
   return (
@@ -64,19 +50,6 @@ function MobileNotSupported() {
       className="flex flex-col items-center justify-center h-screen p-8"
       style={{ backgroundColor: bgColor }}
     >
-      <style>
-        {`
-          @keyframes preset-flicker-mobile {
-            0% { box-shadow: 0 0 0 6px ${getBorderColor()}; }
-            50% { box-shadow: 0 0 0 0px ${getBorderColor()}; }
-            100% { box-shadow: 0 0 0 6px ${getBorderColor()}; }
-          }
-          .preset-pulse-mobile {
-            animation: preset-flicker-mobile 1s steps(12) infinite;
-          }
-        `}
-      </style>
-
       <div className="flex-1 flex flex-col items-center justify-center">
         {words.map((word, i) => (
           <p
@@ -91,17 +64,11 @@ function MobileNotSupported() {
 
       <button
         onClick={handleRand}
-        onTouchStart={() => setIsPressed(true)}
-        onTouchEnd={() => setIsPressed(false)}
-        onMouseDown={() => setIsPressed(true)}
-        onMouseUp={() => setIsPressed(false)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-        className={`mb-12 px-10 py-5 font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse-mobile' : ''}`}
+        className="mb-12 px-10 py-5 font-mono font-extrabold select-none flex items-center justify-center"
         style={{
           fontSize: '1.5rem',
-          backgroundColor: isHovered || isActive ? hoverBg : 'transparent',
-          border: `6px solid ${getBorderColor()}`,
+          backgroundColor: 'transparent',
+          border: `6px solid ${borderColor}`,
           borderRadius: '20px',
           color: textColor,
           outline: 'none',
