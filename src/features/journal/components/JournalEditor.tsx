@@ -68,6 +68,8 @@ export function JournalEditor({
 
   // Scrambled content for overlay (only computed when scrambled)
   const [scrambledHtml, setScrambledHtml] = useState('');
+  // Track if scramble overlay is ready (to prevent flash of unscrambled content)
+  const [scrambleReady, setScrambleReady] = useState(!isScrambled);
 
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
@@ -97,8 +99,10 @@ export function JournalEditor({
     // Update scrambled overlay if needed
     if (isScrambled && sanitized) {
       setScrambledHtml(scrambleHtml(sanitized));
+      setScrambleReady(true);
     } else {
       setScrambledHtml('');
+      setScrambleReady(true);
     }
   }, [entries, selectedDate, editorRef, isScrambled]);
 
@@ -108,8 +112,10 @@ export function JournalEditor({
     const content = editorRef.current.innerHTML || '';
     if (isScrambled && content) {
       setScrambledHtml(scrambleHtml(content));
+      setScrambleReady(true);
     } else {
       setScrambledHtml('');
+      setScrambleReady(true);
     }
   }, [editorRef, isScrambled]);
 
@@ -220,12 +226,6 @@ export function JournalEditor({
           .dynamic-editor {
             caret-color: ${getColor()};
           }
-          .dynamic-editor-visible {
-            color: ${getColor()};
-          }
-          .dynamic-editor-hidden {
-            color: transparent !important;
-          }
           .timestamp-line {
             background: repeating-linear-gradient(
               to right,
@@ -248,7 +248,8 @@ export function JournalEditor({
         onInput={handleInput}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        className={`absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
+        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+        style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
         suppressContentEditableWarning
         role="textbox"
@@ -259,7 +260,8 @@ export function JournalEditor({
       {/* Scrambled overlay */}
       {isScrambled && scrambledHtml && (
         <div
-          className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap dynamic-editor dynamic-editor-visible pointer-events-none"
+          className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
+          style={{ color: getColor() }}
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledHtml) }}
         />
       )}
