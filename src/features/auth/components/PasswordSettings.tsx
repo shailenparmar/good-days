@@ -63,45 +63,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setAnimPhase('bold');
   };
 
-  // Handle label bold/unbold animation at 12fps
-  useEffect(() => {
-    if (!labelAnimText || labelAnimPhase === 'done') return;
-
-    if (labelAnimPhase === 'bold') {
-      if (labelBoldCount >= labelAnimText.length) {
-        setLabelAnimPhase('unbold');
-        setLabelBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setLabelBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
-    }
-
-    if (labelAnimPhase === 'unbold') {
-      if (labelBoldCount >= labelAnimText.length) {
-        setLabelAnimPhase('bold');
-        setLabelBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setLabelBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
-    }
-  }, [labelAnimText, labelBoldCount, labelAnimPhase]);
-
-  const startLabelAnimation = (text: string) => {
-    setLabelAnimText(text);
-    setLabelBoldCount(0);
-    setLabelAnimPhase('bold');
-  };
-
-  const stopLabelAnimation = () => {
-    setLabelAnimText('');
-    setLabelAnimPhase('done');
-  };
 
   // Sync step state with hasPassword prop changes
   useEffect(() => {
