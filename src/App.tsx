@@ -93,9 +93,9 @@ function MobileNotSupported() {
         onMouseUp={() => setIsPressed(false)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-        className={`mb-12 px-6 py-2 rounded font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
+        className={`mb-12 px-8 py-4 rounded font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
         style={{
-          fontSize: '0.9rem',
+          fontSize: '1.25rem',
           backgroundColor: isHovered || isActive ? hoverBg : 'transparent',
           border: `3px solid ${getBorderColor()}`,
           color: textColor,
