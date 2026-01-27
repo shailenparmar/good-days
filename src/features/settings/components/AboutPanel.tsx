@@ -17,7 +17,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
 
   return (
     <div
-      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide"
+      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`

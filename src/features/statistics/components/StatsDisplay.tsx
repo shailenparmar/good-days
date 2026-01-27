@@ -41,7 +41,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   if (horizontal) {
     return (
-      <div className="flex justify-center gap-6 flex-wrap">
+      <div className="flex justify-center gap-6 flex-wrap select-none">
         <div className="text-xs font-mono font-bold" style={{ color: getColor() }}>
           {streak} day streak
         </div>
@@ -65,7 +65,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   }
 
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1 select-none">
       <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
         {streak} day {streak === 1 ? 'streak' : 'streak'}
       </div>

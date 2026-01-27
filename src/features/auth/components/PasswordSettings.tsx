@@ -24,7 +24,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
-
+  // Label animation state (for "esc to lock")
+  const [labelBoldCount, setLabelBoldCount] = useState(0);
+  const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold'>('bold');
+  const labelText = 'esc to lock';
 
   // Handle bold/unbold animation at 12fps
   useEffect(() => {
@@ -63,6 +66,42 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setAnimPhase('bold');
   };
 
+  // Handle label bold/unbold animation at 12fps (for "esc to lock")
+  useEffect(() => {
+    if (!isSaving) return;
+
+    if (labelAnimPhase === 'bold') {
+      if (labelBoldCount >= labelText.length) {
+        setLabelAnimPhase('unbold');
+        setLabelBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setLabelBoldCount(c => c + 1);
+      }, 83);
+      return () => clearTimeout(timer);
+    }
+
+    if (labelAnimPhase === 'unbold') {
+      if (labelBoldCount >= labelText.length) {
+        setLabelAnimPhase('bold');
+        setLabelBoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        setLabelBoldCount(c => c + 1);
+      }, 83);
+      return () => clearTimeout(timer);
+    }
+  }, [isSaving, labelBoldCount, labelAnimPhase]);
+
+  // Reset label animation when saving starts
+  useEffect(() => {
+    if (isSaving) {
+      setLabelBoldCount(0);
+      setLabelAnimPhase('bold');
+    }
+  }, [isSaving]);
 
   // Sync step state with hasPassword prop changes
   useEffect(() => {
@@ -212,7 +251,17 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
       </style>
       <div className="text-xs font-mono" style={{ color: getColor() }}>
         {isSaving ? (
-          <span>esc to lock</span>
+          labelAnimPhase === 'bold' ? (
+            <>
+              <span className="font-bold">{labelText.slice(0, labelBoldCount)}</span>
+              <span>{labelText.slice(labelBoldCount)}</span>
+            </>
+          ) : (
+            <>
+              <span>{labelText.slice(0, labelBoldCount)}</span>
+              <span className="font-bold">{labelText.slice(labelBoldCount)}</span>
+            </>
+          )
         ) : (
           <span className="font-bold">{getLabel()}</span>
         )}

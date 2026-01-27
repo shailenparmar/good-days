@@ -174,7 +174,7 @@ function AppContent() {
           }}
         >
           <div className="p-4">
-            <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center" style={{ color: getColor() }}>
+            <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               good days
             </h1>
           </div>

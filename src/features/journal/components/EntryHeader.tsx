@@ -56,7 +56,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20 }: Entry
         borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
     >
-      <div className="flex justify-between items-baseline">
+      <div className="flex justify-between items-baseline select-none">
         <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>
           {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
             year: 'numeric',
