@@ -13,11 +13,11 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
     const textContent = formatEntriesAsText(entries);
     if (!textContent) return;
 
-    const blob = new Blob([textContent], { type: 'text/markdown' });
+    const blob = new Blob([textContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `journal-export-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `journal-export-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -43,7 +43,7 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
       </FunctionButton>
       <FunctionButton onClick={handleExport} disabled={entries.length === 0} size="sm">
         <Download className="w-3 h-3" />
-        <span>export to markdown</span>
+        <span>export to txt</span>
       </FunctionButton>
     </div>
   );
