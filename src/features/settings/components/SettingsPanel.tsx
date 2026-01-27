@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -22,7 +21,7 @@ export function SettingsPanel({
   entries,
   onCloseAbout,
 }: SettingsPanelProps) {
-  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
   if (!showDebugMenu) return null;
 

@@ -1,6 +1,15 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import type { JournalEntry } from '../types';
+
+// Configure DOMPurify to allow safe HTML elements for the editor
+const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['br', 'div', 'span', 'p', 'b', 'i', 'u', 'strong', 'em'],
+    ALLOWED_ATTR: ['class', 'style'],
+  });
+};
 
 interface JournalEditorProps {
   entries: JournalEntry[];
@@ -142,9 +151,10 @@ export function JournalEditor({
     if (dateChanged || needsInitialLoad) {
       loadedDateRef.current = selectedDate;
       hasLoadedContentRef.current = entries.length > 0;
-      setEditorContent(content);
+      const sanitizedContent = sanitizeHtml(content);
+      setEditorContent(sanitizedContent);
       if (editorRef.current) {
-        editorRef.current.innerHTML = content;
+        editorRef.current.innerHTML = sanitizedContent;
       }
     }
   }, [entries, selectedDate, editorRef]);
@@ -257,6 +267,9 @@ export function JournalEditor({
             className={`w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
             spellCheck="false"
             suppressContentEditableWarning
+            role="textbox"
+            aria-label="Journal entry content"
+            aria-multiline="true"
           />
 
           {/* Scrambled overlay - positioned over editor, scrolls with it */}
@@ -266,7 +279,7 @@ export function JournalEditor({
               style={{
                 pointerEvents: 'none',
               }}
-              dangerouslySetInnerHTML={{ __html: scrambledContent }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledContent) }}
             />
           )}
           {showPlaceholder && (

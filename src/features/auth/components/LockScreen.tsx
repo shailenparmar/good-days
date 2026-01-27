@@ -113,7 +113,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       >
         days
       </span>
-      <form onSubmit={handleSubmit} className="relative w-72">
+      <form onSubmit={handleSubmit} className="relative w-72" role="form" aria-label="Unlock journal">
         <input
           type="password"
           value={passwordInput}
@@ -134,6 +134,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
             outline: 'none',
           }}
           autoFocus
+          aria-label="Password"
         />
         {showPlaceholder && (
           <div
