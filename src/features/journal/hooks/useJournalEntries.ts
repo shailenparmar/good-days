@@ -5,7 +5,11 @@ import type { JournalEntry } from '../types';
 
 export function useJournalEntries() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  const [selectedDate, setSelectedDateState] = useState<string>(() => {
+    // Restore last viewed date, or default to today
+    const saved = getItem('selectedDate');
+    return saved || getTodayDate();
+  });
   const [currentContent, setCurrentContent] = useState<string>('');
   // Storage is initialized in main.tsx before app renders
   const [storageReady] = useState(true);
@@ -92,6 +96,12 @@ export function useJournalEntries() {
       setItem('journalEntries', JSON.stringify(newEntries));
     }
   }, [entries]);
+
+  // Wrapper to persist selected date to localStorage
+  const setSelectedDate = useCallback((date: string) => {
+    setSelectedDateState(date);
+    setItem('selectedDate', date);
+  }, []);
 
   // Handle date changes
   useEffect(() => {
