@@ -1,9 +1,9 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import type { JournalEntry } from '../types';
 
-// Configure DOMPurify to allow safe HTML elements for the editor
+// Sanitize HTML - allow basic formatting tags
 const sanitizeHtml = (html: string): string => {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['br', 'div', 'span', 'p', 'b', 'i', 'u', 'strong', 'em'],
@@ -11,18 +11,7 @@ const sanitizeHtml = (html: string): string => {
   });
 };
 
-interface JournalEditorProps {
-  entries: JournalEntry[];
-  selectedDate: string;
-  currentContent: string;
-  isScrambled: boolean;
-  onInput: (content: string) => void;
-  onSave: (content: string, timestamp?: number) => void;
-  editorRef: React.RefObject<HTMLDivElement | null>;
-  unscrambledContentRef?: React.MutableRefObject<string>;
-}
-
-// Scramble a single character - letters and digits get randomized, everything else stays
+// Scramble text characters for privacy overlay
 function scrambleChar(char: string): string {
   if (/[a-zA-Z]/.test(char)) {
     const isUpper = char === char.toUpperCase();
@@ -32,20 +21,17 @@ function scrambleChar(char: string): string {
   if (/[0-9]/.test(char)) {
     return String(Math.floor(Math.random() * 10));
   }
-  return char; // spaces, punctuation, etc. stay as-is
+  return char;
 }
 
-// Scramble all text in HTML - fresh random for each alphanumeric character
 function scrambleHtml(html: string): string {
   const div = document.createElement('div');
   div.innerHTML = html;
-
   const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
   while (walker.nextNode()) {
     textNodes.push(walker.currentNode as Text);
   }
-
   textNodes.forEach(node => {
     const text = node.textContent || '';
     let scrambled = '';
@@ -54,8 +40,15 @@ function scrambleHtml(html: string): string {
     }
     node.textContent = scrambled;
   });
-
   return div.innerHTML;
+}
+
+interface JournalEditorProps {
+  entries: JournalEntry[];
+  selectedDate: string;
+  isScrambled: boolean;
+  onInput: (content: string) => void;
+  editorRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function JournalEditor({
@@ -67,66 +60,148 @@ export function JournalEditor({
 }: JournalEditorProps) {
   const { getColor, getBgColor } = useTheme();
 
-  // Single source of truth: editor content as state
-  const [editorContent, setEditorContent] = useState<string>('');
+  // Track focus state for placeholder visibility
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Scramble content - only recalculates when editorContent changes (not on every render)
-  const [scrambledContent, setScrambledContent] = useState('');
+  // Track which date we've loaded to prevent re-loading same content
+  const loadedDateRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (isScrambled && editorContent) {
-      setScrambledContent(scrambleHtml(editorContent));
-    } else {
-      setScrambledContent('');
-    }
-  }, [editorContent, isScrambled]);
+  // Scrambled content for overlay (only computed when scrambled)
+  const [scrambledHtml, setScrambledHtml] = useState('');
 
-  // Placeholder animation state
+  // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const [isFocused, setIsFocused] = useState(false);
   const placeholderText = 'type here';
 
-  // Derived: isEmpty from editorContent
-  const isEmpty = useMemo(() => {
-    if (!editorContent) return true;
-    const div = document.createElement('div');
-    div.innerHTML = editorContent;
-    return (div.textContent || '').trim().length === 0;
-  }, [editorContent]);
+  // Check if editor is empty - read directly from DOM
+  const isEditorEmpty = useCallback((): boolean => {
+    if (!editorRef.current) return true;
+    const text = editorRef.current.textContent || '';
+    return text.trim().length === 0;
+  }, [editorRef]);
 
-  const showPlaceholder = isEmpty && !isFocused;
+  // Load content when date changes
+  useEffect(() => {
+    if (loadedDateRef.current === selectedDate) return;
 
-  // Handle bold/unbold animation at 12fps
+    const entry = entries.find(e => e.date === selectedDate);
+    const content = entry?.content || '';
+    const sanitized = sanitizeHtml(content);
+
+    if (editorRef.current) {
+      editorRef.current.innerHTML = sanitized;
+    }
+    loadedDateRef.current = selectedDate;
+
+    // Update scrambled overlay if needed
+    if (isScrambled && sanitized) {
+      setScrambledHtml(scrambleHtml(sanitized));
+    } else {
+      setScrambledHtml('');
+    }
+  }, [entries, selectedDate, editorRef, isScrambled]);
+
+  // Update scrambled content when scramble mode changes or content changes
+  const updateScrambledContent = useCallback(() => {
+    if (!editorRef.current) return;
+    const content = editorRef.current.innerHTML || '';
+    if (isScrambled && content) {
+      setScrambledHtml(scrambleHtml(content));
+    } else {
+      setScrambledHtml('');
+    }
+  }, [editorRef, isScrambled]);
+
+  // When scramble mode toggles, update the overlay
+  useEffect(() => {
+    updateScrambledContent();
+  }, [isScrambled, updateScrambledContent]);
+
+  // Handle user input
+  const handleInput = useCallback(() => {
+    if (!editorRef.current) return;
+    const content = editorRef.current.innerHTML || '';
+    onInput(content);
+
+    // Update scrambled overlay
+    if (isScrambled && content) {
+      setScrambledHtml(scrambleHtml(content));
+    }
+  }, [editorRef, onInput, isScrambled]);
+
+  // Clean up empty timestamps on blur (not during typing)
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+
+    if (!editorRef.current) return;
+
+    const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
+    timestamps.forEach((timestamp, index) => {
+      if (index !== timestamps.length - 1) return;
+
+      const timestampNode = timestamp as HTMLElement;
+      let hasContentAfter = false;
+      let node = timestampNode.nextSibling;
+
+      while (node) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+          hasContentAfter = true;
+          break;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).textContent?.trim()) {
+          hasContentAfter = true;
+          break;
+        }
+        node = node.nextSibling;
+      }
+
+      if (!hasContentAfter) {
+        let prev = timestampNode.previousSibling;
+        let next = timestampNode.nextSibling;
+
+        while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && !prev.textContent?.trim()))) {
+          const toRemove = prev;
+          prev = prev.previousSibling;
+          toRemove.remove();
+        }
+
+        while (next && (next.nodeName === 'BR' || (next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()))) {
+          const toRemove = next;
+          next = next.nextSibling;
+          toRemove.remove();
+        }
+
+        timestampNode.remove();
+      }
+    });
+  }, [editorRef]);
+
+  // Focus the editor
+  const handleContainerClick = useCallback(() => {
+    editorRef.current?.focus();
+  }, [editorRef]);
+
+  // Placeholder animation
+  const showPlaceholder = isEditorEmpty() && !isFocused;
+
   useEffect(() => {
     if (!showPlaceholder) return;
 
-    if (animPhase === 'bold') {
-      if (boldCount >= placeholderText.length) {
-        setAnimPhase('unbold');
-        setBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
+    const nextCount = boldCount + 1;
+    const maxCount = placeholderText.length;
+
+    if (boldCount >= maxCount) {
+      setAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setBoldCount(0);
+      return;
     }
 
-    if (animPhase === 'unbold') {
-      if (boldCount >= placeholderText.length) {
-        setAnimPhase('bold');
-        setBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => setBoldCount(nextCount), 83);
+    return () => clearTimeout(timer);
   }, [showPlaceholder, boldCount, animPhase]);
 
-  // Reset animation when placeholder becomes visible
+  // Reset animation when placeholder appears
   useEffect(() => {
     if (showPlaceholder) {
       setBoldCount(0);
@@ -134,93 +209,9 @@ export function JournalEditor({
     }
   }, [showPlaceholder]);
 
-  // Load content when date changes or when entries first load
-  const loadedDateRef = useRef<string>('');
-  const hasLoadedContentRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    const entry = entries.find(e => e.date === selectedDate);
-    const content = entry?.content || '';
-
-    // Load when:
-    // 1. Date changes, OR
-    // 2. We haven't loaded real content yet and entries just populated
-    const dateChanged = loadedDateRef.current !== selectedDate;
-    const needsInitialLoad = !hasLoadedContentRef.current && entries.length > 0;
-
-    if (dateChanged || needsInitialLoad) {
-      loadedDateRef.current = selectedDate;
-      hasLoadedContentRef.current = entries.length > 0;
-      const sanitizedContent = sanitizeHtml(content);
-      setEditorContent(sanitizedContent);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = sanitizedContent;
-      }
-    }
-  }, [entries, selectedDate, editorRef]);
-
-  const handleInput = useCallback(() => {
-    if (!editorRef.current) return;
-
-    // Clean up empty timestamps (only when not scrambled to avoid DOM manipulation issues)
-    if (!isScrambled) {
-      const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
-      timestamps.forEach((timestamp, index) => {
-        const isLastTimestamp = index === timestamps.length - 1;
-        if (isLastTimestamp) {
-          const timestampNode = timestamp as HTMLElement;
-          const parent = timestampNode.parentElement;
-          if (parent) {
-            let hasContentAfter = false;
-            let node = timestampNode.nextSibling;
-            while (node) {
-              if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-                hasContentAfter = true;
-                break;
-              }
-              if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).textContent?.trim()) {
-                hasContentAfter = true;
-                break;
-              }
-              node = node.nextSibling;
-            }
-
-            if (!hasContentAfter) {
-              let prev = timestampNode.previousSibling;
-              let next = timestampNode.nextSibling;
-
-              while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && !prev.textContent?.trim()))) {
-                const toRemove = prev;
-                prev = prev.previousSibling;
-                toRemove.remove();
-              }
-
-              while (next && (next.nodeName === 'BR' || (next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()))) {
-                const toRemove = next;
-                next = next.nextSibling;
-                toRemove.remove();
-              }
-
-              timestampNode.remove();
-            }
-          }
-        }
-      });
-    }
-
-    // Update state - this is the single source of truth
-    const content = editorRef.current.innerHTML || '';
-    setEditorContent(content);
-    onInput(content);
-  }, [editorRef, onInput, isScrambled]);
-
-  const handleContainerClick = useCallback(() => {
-    editorRef.current?.focus();
-  }, [editorRef]);
-
   return (
     <div
-      className="flex-1 flex flex-col p-8 relative overflow-hidden cursor-text"
+      className="flex-1 relative cursor-text"
       style={{ backgroundColor: getBgColor() }}
       onClick={handleContainerClick}
     >
@@ -249,54 +240,49 @@ export function JournalEditor({
           }
         `}
       </style>
-      <div className="relative w-full flex-1 overflow-y-auto scrollbar-hide">
-        {/* Container for both layers */}
-        <div className="relative min-h-full">
-          {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
-          <div
-            ref={editorRef}
-            contentEditable
-            onInput={handleInput}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className={`w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
-            spellCheck="false"
-            suppressContentEditableWarning
-            role="textbox"
-            aria-label="Journal entry content"
-            aria-multiline="true"
-          />
 
-          {/* Scrambled overlay - positioned over editor, scrolls with it */}
-          {isScrambled && scrambledContent && (
-            <div
-              className="absolute top-0 left-0 w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor dynamic-editor-visible"
-              style={{
-                pointerEvents: 'none',
-              }}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledContent) }}
-            />
-          )}
-          {showPlaceholder && (
-            <div
-              className="absolute top-0 left-0 text-base leading-relaxed font-mono pointer-events-none select-none"
-              style={{ color: getColor(), opacity: 0.9 }}
-            >
-              {animPhase === 'bold' ? (
-                <>
-                  <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
-                  <span>{placeholderText.slice(boldCount)}</span>
-                </>
-              ) : (
-                <>
-                  <span>{placeholderText.slice(0, boldCount)}</span>
-                  <span className="font-bold">{placeholderText.slice(boldCount)}</span>
-                </>
-              )}
-            </div>
+      {/* Editor - absolutely positioned to fill container */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        onFocus={() => setIsFocused(true)}
+        onBlur={handleBlur}
+        className={`absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
+        spellCheck={false}
+        suppressContentEditableWarning
+        role="textbox"
+        aria-label="Journal entry content"
+        aria-multiline="true"
+      />
+
+      {/* Scrambled overlay */}
+      {isScrambled && scrambledHtml && (
+        <div
+          className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap dynamic-editor dynamic-editor-visible pointer-events-none"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledHtml) }}
+        />
+      )}
+
+      {/* Placeholder */}
+      {showPlaceholder && (
+        <div
+          className="absolute top-8 left-8 text-base leading-relaxed font-mono pointer-events-none select-none"
+          style={{ color: getColor(), opacity: 0.9 }}
+        >
+          {animPhase === 'bold' ? (
+            <>
+              <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
+              <span>{placeholderText.slice(boldCount)}</span>
+            </>
+          ) : (
+            <>
+              <span>{placeholderText.slice(0, boldCount)}</span>
+              <span className="font-bold">{placeholderText.slice(boldCount)}</span>
+            </>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

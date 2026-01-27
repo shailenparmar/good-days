@@ -13,6 +13,8 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
+const VERSION = '1.0.0';
+
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
@@ -204,7 +206,7 @@ function AppContent() {
         >
           <div className="p-4">
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-              good days
+              {showAboutPanel ? `good days v${VERSION}` : 'good days'}
             </h1>
           </div>
 
