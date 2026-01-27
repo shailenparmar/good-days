@@ -106,6 +106,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
   // Flash helpers
   const flashGreen = (onComplete: () => void) => {
     setFlashState('green');
+    setIsFocused(false); // Reset focus since input gets disabled
     setTimeout(() => {
       setFlashState('none');
       onComplete();
