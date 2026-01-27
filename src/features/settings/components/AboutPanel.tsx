@@ -44,6 +44,9 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             this is because the data you add is saved to a file on your hard drive called IndexedDB. your browser pulls from it to display it, but it never leaves your device.
           </p>
           <p>
+            IndexedDB = site data. so if you press "clear cookies and site data" in your browser's settings, you'll lose your entries. refreshing or quitting the browser is safe, though. it saves automatically.
+          </p>
+          <p>
             as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.{' '}
             <a
               href="https://github.com/shailenparmar/good-days"
@@ -55,9 +58,6 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
               <ExternalLink className="w-4 h-4" />
               github
             </a>
-          </p>
-          <p>
-            IndexedDB = site data. so if you press "clear cookies and site data" in your browser's settings, you'll lose your entries. refreshing or quitting the browser is safe, though. it saves automatically.
           </p>
         </div>
       </div>
