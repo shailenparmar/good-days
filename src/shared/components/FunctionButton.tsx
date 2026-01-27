@@ -32,6 +32,7 @@ export function FunctionButton({ onClick, disabled, isActive, children, dataAttr
   };
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     if (disabled) return;
     onClick();
     e.currentTarget.blur();

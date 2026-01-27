@@ -125,17 +125,23 @@ export function JournalEditor({
     }
   }, [showPlaceholder]);
 
-  // Load content when date changes
-  // We use a ref to track the current date to avoid re-running on every entries update
+  // Load content when date changes or when entries first load
   const loadedDateRef = useRef<string>('');
+  const hasLoadedContentRef = useRef<boolean>(false);
 
   useEffect(() => {
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
 
-    // Only do a full load when date actually changes
-    if (loadedDateRef.current !== selectedDate) {
+    // Load when:
+    // 1. Date changes, OR
+    // 2. We haven't loaded real content yet and entries just populated
+    const dateChanged = loadedDateRef.current !== selectedDate;
+    const needsInitialLoad = !hasLoadedContentRef.current && entries.length > 0;
+
+    if (dateChanged || needsInitialLoad) {
       loadedDateRef.current = selectedDate;
+      hasLoadedContentRef.current = entries.length > 0;
       setEditorContent(content);
       if (editorRef.current) {
         editorRef.current.innerHTML = content;
@@ -216,7 +222,12 @@ export function JournalEditor({
         {`
           .dynamic-editor {
             caret-color: ${getColor()};
+          }
+          .dynamic-editor-visible {
             color: ${getColor()};
+          }
+          .dynamic-editor-hidden {
+            color: transparent !important;
           }
           .timestamp-line {
             background: repeating-linear-gradient(
@@ -242,11 +253,7 @@ export function JournalEditor({
             onInput={handleInput}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className="w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
-            style={{
-              color: isScrambled ? 'transparent' : undefined,
-              caretColor: getColor(),
-            }}
+            className={`w-full min-h-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
             spellCheck="false"
             suppressContentEditableWarning
           />
@@ -254,7 +261,7 @@ export function JournalEditor({
           {/* Scrambled overlay - positioned over editor, scrolls with it */}
           {isScrambled && scrambledContent && (
             <div
-              className="absolute top-0 left-0 w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+              className="absolute top-0 left-0 w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor dynamic-editor-visible"
               style={{
                 pointerEvents: 'none',
               }}
