@@ -63,9 +63,9 @@ function MobileNotSupported() {
       <style>
         {`
           @keyframes preset-flicker-mobile {
-            0% { border-width: 7px; }
-            50% { border-width: 5px; }
-            100% { border-width: 7px; }
+            0% { box-shadow: 0 0 0 2px ${getBorderColor()}; }
+            50% { box-shadow: 0 0 0 0px ${getBorderColor()}; }
+            100% { box-shadow: 0 0 0 2px ${getBorderColor()}; }
           }
           .preset-pulse-mobile {
             animation: preset-flicker-mobile 1s steps(12) infinite;
