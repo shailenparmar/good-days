@@ -1,13 +1,34 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
 // Check mobile FIRST, before loading heavy imports
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-if (isMobile) {
-  // Render simple mobile screen without loading the full app
-  createRoot(document.getElementById('root')!).render(
+// Simple mobile component with rand button
+function MobileScreen() {
+  const [colors, setColors] = useState({
+    hue: 144, sat: 36, light: 43,
+    bgHue: 84, bgSat: 100, bgLight: 94
+  });
+
+  const randomize = () => {
+    const lightBg = Math.random() > 0.5;
+    setColors({
+      hue: Math.floor(Math.random() * 360),
+      sat: 30 + Math.floor(Math.random() * 70),
+      light: lightBg ? 25 + Math.floor(Math.random() * 30) : 70 + Math.floor(Math.random() * 25),
+      bgHue: Math.floor(Math.random() * 360),
+      bgSat: 50 + Math.floor(Math.random() * 50),
+      bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
+    });
+  };
+
+  const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
+  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
+
+  return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
@@ -15,18 +36,36 @@ if (isMobile) {
       justifyContent: 'center',
       height: '100vh',
       padding: '32px',
-      backgroundColor: 'hsl(84, 100%, 94%)',
+      backgroundColor: bgColor,
     }}>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>good</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>days</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>is</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>not</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>supported</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>on</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>mobile</p>
-      <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>yet</p>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {words.map((word, i) => (
+          <p key={i} style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>{word}</p>
+        ))}
+      </div>
+      <button
+        onClick={randomize}
+        style={{
+          marginBottom: '48px',
+          padding: '20px 40px',
+          fontFamily: 'monospace',
+          fontWeight: 800,
+          fontSize: '1.5rem',
+          backgroundColor: 'transparent',
+          border: `6px solid ${textColor}`,
+          borderRadius: '20px',
+          color: textColor,
+          cursor: 'pointer',
+        }}
+      >
+        rand
+      </button>
     </div>
   );
+}
+
+if (isMobile) {
+  createRoot(document.getElementById('root')!).render(<MobileScreen />);
 } else {
   // Load full app only on desktop
   import('./App.tsx').then(({ default: App }) => {

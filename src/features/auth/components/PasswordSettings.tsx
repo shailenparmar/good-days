@@ -10,89 +10,89 @@ interface PasswordSettingsProps {
   setPassword: (password: string) => Promise<boolean>;
 }
 
+// Get placeholder text for each step
+function getPlaceholderText(step: PasswordStep): string {
+  switch (step) {
+    case 'old': return 'old password';
+    case 'new': return 'new password';
+    case 'confirm': return 'new password again';
+    case 'set': return 'type here';
+    case 'set-confirm': return 'one more time';
+  }
+}
+
 export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: PasswordSettingsProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
+
+  // Core state
   const [step, setStep] = useState<PasswordStep>(hasPassword ? 'old' : 'set');
   const [input, setInput] = useState('');
   const [newPasswordTemp, setNewPasswordTemp] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [flashState, setFlashState] = useState<FlashState>('none');
-  const [animatingPlaceholder, setAnimatingPlaceholder] = useState('');
-  const [boldCount, setBoldCount] = useState(0);
-  const [animPhase, setAnimPhase] = useState<'bold' | 'unbold' | 'done'>('done');
+
+  // Input interaction state
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
-  // Label animation state (for "esc to lock")
+  // Placeholder animation state
+  const [boldCount, setBoldCount] = useState(0);
+  const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
+
+  // Label animation state (for "esc to lock" after save)
   const [labelBoldCount, setLabelBoldCount] = useState(0);
   const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold'>('bold');
   const labelText = 'esc to lock';
 
-  // Handle bold/unbold animation at 12fps
+  // Derived state
+  const placeholderText = getPlaceholderText(step);
+  const showPlaceholder = !input && !isSaving && !isFocused;
+  const isDisabled = isSaving || flashState === 'green';
+
+  // Sync step with hasPassword prop
   useEffect(() => {
-    if (!animatingPlaceholder || animPhase === 'done') return;
+    if (!isSaving) {
+      setStep(hasPassword ? 'old' : 'set');
+    }
+  }, [hasPassword, isSaving]);
 
-    if (animPhase === 'bold') {
-      if (boldCount >= animatingPlaceholder.length) {
-        // Start unbold phase
-        setAnimPhase('unbold');
-        setBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setBoldCount(c => c + 1);
-      }, 83); // ~12fps
-      return () => clearTimeout(timer);
+  // Placeholder animation - runs when placeholder is visible
+  useEffect(() => {
+    if (!showPlaceholder) return;
+
+    const maxCount = placeholderText.length;
+    if (boldCount >= maxCount) {
+      setAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setBoldCount(0);
+      return;
     }
 
-    if (animPhase === 'unbold') {
-      if (boldCount >= animatingPlaceholder.length) {
-        // Loop back to bold phase
-        setAnimPhase('bold');
-        setBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setBoldCount(c => c + 1);
-      }, 83); // ~12fps
-      return () => clearTimeout(timer);
+    const timer = setTimeout(() => setBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [showPlaceholder, boldCount, animPhase, placeholderText.length]);
+
+  // Reset placeholder animation when it becomes visible
+  useEffect(() => {
+    if (showPlaceholder) {
+      setBoldCount(0);
+      setAnimPhase('bold');
     }
-  }, [animatingPlaceholder, boldCount, animPhase]);
+  }, [showPlaceholder]);
 
-  const startPlaceholderAnimation = (text: string) => {
-    setAnimatingPlaceholder(text);
-    setBoldCount(0);
-    setAnimPhase('bold');
-  };
-
-  // Handle label bold/unbold animation at 12fps (for "esc to lock")
+  // Label animation - runs when saving
   useEffect(() => {
     if (!isSaving) return;
 
-    if (labelAnimPhase === 'bold') {
-      if (labelBoldCount >= labelText.length) {
-        setLabelAnimPhase('unbold');
-        setLabelBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setLabelBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
+    const maxCount = labelText.length;
+    if (labelBoldCount >= maxCount) {
+      setLabelAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setLabelBoldCount(0);
+      return;
     }
 
-    if (labelAnimPhase === 'unbold') {
-      if (labelBoldCount >= labelText.length) {
-        setLabelAnimPhase('bold');
-        setLabelBoldCount(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        setLabelBoldCount(c => c + 1);
-      }, 83);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => setLabelBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
   }, [isSaving, labelBoldCount, labelAnimPhase]);
 
   // Reset label animation when saving starts
@@ -103,21 +103,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     }
   }, [isSaving]);
 
-  // Sync step state with hasPassword prop changes
-  useEffect(() => {
-    if (!isSaving) {
-      setStep(hasPassword ? 'old' : 'set');
-    }
-  }, [hasPassword, isSaving]);
-
-  // Animate placeholder on mount and when step changes
-  useEffect(() => {
-    if (!isSaving) {
-      startPlaceholderAnimation(getPlaceholder());
-    }
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
+  // Flash helpers
   const flashGreen = (onComplete: () => void) => {
     setFlashState('green');
     setTimeout(() => {
@@ -127,7 +113,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
   };
 
   const flashRed = () => {
-    // Triple flicker
     setFlashState('red');
     setTimeout(() => setFlashState('none'), 80);
     setTimeout(() => setFlashState('red'), 160);
@@ -136,15 +121,15 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     setTimeout(() => setFlashState('none'), 400);
   };
 
-  const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
+  // Styling
   const textColor = getColor();
+  const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
 
   const getBorderColor = () => {
-    if (flashState === 'green') return '#00ff00';
+    if (flashState === 'green' || isSaving) return '#00ff00';
     if (flashState === 'red') return '#ff0000';
-    if (isSaving) return '#00ff00';
     if (isPressed) return activeColor;
     if (isFocused || isHovered || input) return textColor;
     return dividerColor;
@@ -155,48 +140,31 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     return 'transparent';
   };
 
-  const showAnimatedPlaceholder = !input && !isSaving && !isFocused;
-
-  const getPlaceholder = () => {
-    switch (step) {
-      case 'old': return 'old password';
-      case 'new': return 'new password';
-      case 'confirm': return 'new password again';
-      case 'set': return 'type here';
-      case 'set-confirm': return 'one more time';
-    }
-  };
-
-  const getLabel = () => {
-    return hasPassword ? 'change password' : 'set password';
-  };
-
+  // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!input.trim()) return;
 
     switch (step) {
-      case 'old':
+      case 'old': {
         const isValid = await verifyPassword(input.trim());
         if (isValid) {
           flashGreen(() => {
             setStep('new');
             setInput('');
-            startPlaceholderAnimation('new password');
           });
         } else {
           flashRed();
           setInput('');
         }
         break;
+      }
 
       case 'new':
         flashGreen(() => {
           setNewPasswordTemp(input.trim());
           setStep('confirm');
           setInput('');
-          startPlaceholderAnimation('new password again');
         });
         break;
 
@@ -219,7 +187,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           setNewPasswordTemp(input.trim());
           setStep('set-confirm');
           setInput('');
-          startPlaceholderAnimation('one more time');
         });
         break;
 
@@ -239,91 +206,77 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     }
   };
 
+  // Render animated text helper
+  const renderAnimatedText = (text: string, count: number, phase: 'bold' | 'unbold') => {
+    if (phase === 'bold') {
+      return (
+        <>
+          <span className="font-bold">{text.slice(0, count)}</span>
+          <span>{text.slice(count)}</span>
+        </>
+      );
+    }
+    return (
+      <>
+        <span>{text.slice(0, count)}</span>
+        <span className="font-bold">{text.slice(count)}</span>
+      </>
+    );
+  };
+
   return (
     <div className="space-y-2">
-      <style>
-        {`
-          .password-input::placeholder {
-            color: ${isSaving ? '#00ff00' : textColor};
-            opacity: 0.9;
-          }
-        `}
-      </style>
-      <div className="text-xs font-mono select-none" style={{ color: getColor() }}>
+      {/* Label */}
+      <div className="text-xs font-mono select-none" style={{ color: textColor }}>
         {isSaving ? (
-          labelAnimPhase === 'bold' ? (
-            <>
-              <span className="font-bold">{labelText.slice(0, labelBoldCount)}</span>
-              <span>{labelText.slice(labelBoldCount)}</span>
-            </>
-          ) : (
-            <>
-              <span>{labelText.slice(0, labelBoldCount)}</span>
-              <span className="font-bold">{labelText.slice(labelBoldCount)}</span>
-            </>
-          )
+          renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
         ) : (
-          <span className="font-bold">{getLabel()}</span>
+          <span className="font-bold">{hasPassword ? 'change password' : 'set password'}</span>
         )}
       </div>
+
+      {/* Input */}
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <input
             type={isSaving ? 'text' : 'password'}
             value={isSaving ? '' : input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              if (e.target.value) setAnimatingPlaceholder('');
-            }}
+            onChange={(e) => setInput(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              setIsFocused(false);
-              if (!input) {
-                startPlaceholderAnimation(getPlaceholder());
-              }
-            }}
-            onMouseEnter={() => !isSaving && setIsHovered(true)}
+            onBlur={() => setIsFocused(false)}
+            onMouseEnter={() => !isDisabled && setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-            onMouseDown={() => !isSaving && setIsPressed(true)}
+            onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
-            placeholder=""
-            disabled={isSaving || flashState === 'green'}
-            className="password-input w-full px-3 py-2 text-xs font-mono font-bold rounded"
+            disabled={isDisabled}
+            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
               backgroundColor: getBackgroundColor(),
               border: `3px solid ${getBorderColor()}`,
               color: getBorderColor(),
               caretColor: textColor,
               outline: 'none',
-              cursor: isSaving ? 'not-allowed' : 'text',
+              cursor: isDisabled ? 'not-allowed' : 'text',
             }}
           />
+
+          {/* Saved message */}
           {isSaving && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono font-bold pointer-events-none select-none"
-              style={{ color: '#00ff00', left: '14px' }}
+              className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono font-bold pointer-events-none select-none"
+              style={{ color: '#00ff00' }}
             >
               password saved
             </div>
           )}
-          {showAnimatedPlaceholder && (
+
+          {/* Animated placeholder */}
+          {showPlaceholder && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none select-none"
-              style={{ color: getColor(), opacity: 0.9, left: '14px' }}
+              className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono pointer-events-none select-none"
+              style={{ color: textColor, opacity: 0.9 }}
             >
-              {animPhase === 'bold' ? (
-                <>
-                  <span className="font-bold">{animatingPlaceholder.slice(0, boldCount)}</span>
-                  <span>{animatingPlaceholder.slice(boldCount)}</span>
-                </>
-              ) : animPhase === 'unbold' ? (
-                <>
-                  <span>{animatingPlaceholder.slice(0, boldCount)}</span>
-                  <span className="font-bold">{animatingPlaceholder.slice(boldCount)}</span>
-                </>
-              ) : (
-                <span>{animatingPlaceholder}</span>
-              )}
+              {renderAnimatedText(placeholderText, boldCount, animPhase)}
             </div>
           )}
         </div>
