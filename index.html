@@ -8,8 +8,21 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>good days</title>
+    <script>
+      // Read saved theme from localStorage and set background BEFORE body paints
+      (function() {
+        var h = localStorage.getItem('bgHue');
+        var s = localStorage.getItem('bgSaturation');
+        var l = localStorage.getItem('bgLightness');
+        // Default to preset 1: hsl(84, 100%, 94%)
+        h = h !== null ? h : '84';
+        s = s !== null ? s : '100';
+        l = l !== null ? l : '94';
+        document.write('<style>html,body{background-color:hsl(' + h + ',' + s + '%,' + l + '%)!important;margin:0;padding:0}</style>');
+      })();
+    </script>
   </head>
-  <body style="background-color: #e8f5e9 !important; margin: 0; padding: 0;">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
