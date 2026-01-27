@@ -248,7 +248,7 @@ export function JournalEditor({
         onInput={handleInput}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        className={`absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
+        className={`absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
         spellCheck={false}
         suppressContentEditableWarning
         role="textbox"
