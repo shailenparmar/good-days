@@ -18,62 +18,34 @@ function isMobile() {
 }
 
 function MobileNotSupported() {
-  const [colors, setColors] = useState({
-    hue: 144, sat: 36, light: 43,
-    bgHue: 84, bgSat: 100, bgLight: 94
-  });
-
-  const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
-  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
-  const borderColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
-
-  const randomize = () => {
-    const lightBg = Math.random() > 0.5;
-    setColors({
-      hue: Math.floor(Math.random() * 360),
-      sat: 30 + Math.floor(Math.random() * 70),
-      light: lightBg ? 25 + Math.floor(Math.random() * 30) : 70 + Math.floor(Math.random() * 25),
-      bgHue: Math.floor(Math.random() * 360),
-      bgSat: 50 + Math.floor(Math.random() * 50),
-      bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
-    });
-  };
-
-  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
-
   return (
     <div
-      className="flex flex-col items-center justify-center h-screen p-8"
-      style={{ backgroundColor: bgColor }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        padding: '32px',
+        backgroundColor: 'hsl(84, 100%, 94%)',
+      }}
     >
-      <div className="flex-1 flex flex-col items-center justify-center">
-        {words.map((word, i) => (
-          <p key={i} className="font-mono font-bold text-lg select-none" style={{ color: textColor }}>
-            {word}
-          </p>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>good</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>days</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>is</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>not</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>supported</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>on</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>mobile</p>
+        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>yet</p>
       </div>
-
-      <button
-        onClick={randomize}
-        className="mb-12 px-10 py-5 font-mono font-extrabold select-none"
-        style={{
-          fontSize: '1.5rem',
-          backgroundColor: 'transparent',
-          border: `6px solid ${borderColor}`,
-          borderRadius: '20px',
-          color: textColor,
-        }}
-      >
-        rand
-      </button>
     </div>
   );
 }
 
 function AppContent() {
   const editorRef = useRef<HTMLDivElement>(null);
-  const unscrambledContent = useRef<string>('');
 
   // Feature hooks
   const theme = useTheme();
@@ -121,11 +93,10 @@ function AppContent() {
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
-  // Clear unscrambled backup and turn off scramble when changing dates (not on initial load)
+  // Turn off scramble when changing dates
   const previousSelectedDate = useRef<string>(journal.selectedDate);
   useEffect(() => {
     if (previousSelectedDate.current !== journal.selectedDate) {
-      unscrambledContent.current = '';
       setIsScrambled(false);
       previousSelectedDate.current = journal.selectedDate;
     }
