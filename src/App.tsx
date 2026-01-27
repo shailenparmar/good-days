@@ -18,31 +18,51 @@ function isMobile() {
 }
 
 function MobileNotSupported() {
+  const [colors, setColors] = useState({
+    hue: 144, sat: 36, light: 43,
+    bgHue: 84, bgSat: 100, bgLight: 94
+  });
+
+  const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
+  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+  const borderColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
+
+  const randomize = () => {
+    const lightBg = Math.random() > 0.5;
+    setColors({
+      hue: Math.floor(Math.random() * 360),
+      sat: 30 + Math.floor(Math.random() * 70),
+      light: lightBg ? 25 + Math.floor(Math.random() * 30) : 70 + Math.floor(Math.random() * 25),
+      bgHue: Math.floor(Math.random() * 360),
+      bgSat: 50 + Math.floor(Math.random() * 50),
+      bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
+    });
+  };
+
+  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
+
   return (
     <div
       className="flex flex-col items-center justify-center h-screen p-8"
-      style={{ backgroundColor: '#e8f5e9' }}
+      style={{ backgroundColor: bgColor }}
     >
       <div className="flex-1 flex flex-col items-center justify-center">
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>good</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>days</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>is</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>not</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>supported</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>on</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>mobile</p>
-        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>yet</p>
+        {words.map((word, i) => (
+          <p key={i} className="font-mono font-bold text-lg select-none" style={{ color: textColor }}>
+            {word}
+          </p>
+        ))}
       </div>
 
       <button
-        onClick={() => window.location.reload()}
+        onClick={randomize}
         className="mb-12 px-10 py-5 font-mono font-extrabold select-none"
         style={{
           fontSize: '1.5rem',
           backgroundColor: 'transparent',
-          border: '6px solid #2e7d32',
+          border: `6px solid ${borderColor}`,
           borderRadius: '20px',
-          color: '#2e7d32',
+          color: textColor,
         }}
       >
         rand
@@ -297,12 +317,9 @@ function AppContent() {
         <JournalEditor
           entries={journal.entries}
           selectedDate={journal.selectedDate}
-          currentContent={journal.currentContent}
           isScrambled={isScrambled}
           onInput={handleInput}
-          onSave={journal.saveEntry}
           editorRef={editorRef}
-          unscrambledContentRef={unscrambledContent}
         />
 
         <EntryFooter currentContent={journal.currentContent} />
