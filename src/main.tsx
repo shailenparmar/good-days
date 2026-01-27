@@ -11,6 +11,7 @@ function MobileScreen() {
     hue: 144, sat: 36, light: 43,
     bgHue: 84, bgSat: 100, bgLight: 94
   });
+  const [isPulsing, setIsPulsing] = useState(false);
 
   const randomize = () => {
     const lightBg = Math.random() > 0.5;
@@ -22,6 +23,7 @@ function MobileScreen() {
       bgSat: 50 + Math.floor(Math.random() * 50),
       bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
     });
+    setIsPulsing(true);
   };
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
@@ -38,6 +40,16 @@ function MobileScreen() {
       padding: '32px',
       backgroundColor: bgColor,
     }}>
+      <style>{`
+        @keyframes mobile-pulse {
+          0% { box-shadow: 0 0 0 12px ${textColor}; }
+          50% { box-shadow: 0 0 0 0px ${textColor}; }
+          100% { box-shadow: 0 0 0 12px ${textColor}; }
+        }
+        .mobile-rand-pulse {
+          animation: mobile-pulse 1s steps(12) infinite;
+        }
+      `}</style>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         {words.map((word, i) => (
           <p key={i} style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>{word}</p>
@@ -45,15 +57,16 @@ function MobileScreen() {
       </div>
       <button
         onClick={randomize}
+        className={isPulsing ? 'mobile-rand-pulse' : ''}
         style={{
           marginBottom: '48px',
-          padding: '20px 40px',
+          padding: '24px 48px',
           fontFamily: 'monospace',
           fontWeight: 800,
-          fontSize: '1.5rem',
+          fontSize: '2.5rem',
           backgroundColor: 'transparent',
-          border: `6px solid ${textColor}`,
-          borderRadius: '20px',
+          border: `12px solid ${textColor}`,
+          borderRadius: '24px',
           color: textColor,
           cursor: 'pointer',
         }}
