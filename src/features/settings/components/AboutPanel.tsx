@@ -41,7 +41,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i couldn't view your content even if i wanted to; it's technologically impossible.
           </p>
           <p>
-            this is because the data you add is saved to a file on your hard drive called indexeddb. your browser manages it, but it's not fragile. it's a local database designed for long term storage. every character saves automatically.
+            this is because the data you add is saved to a file on your hard drive called IndexedDB. your browser manages it, but it's not fragile. it's a local database designed for long term storage. every character saves automatically.
           </p>
           <p>
             as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.
