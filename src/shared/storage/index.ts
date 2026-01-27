@@ -96,9 +96,18 @@ async function saveToIndexedDB(data: Record<string, unknown>): Promise<void> {
 async function migrateFromLocalStorage(): Promise<Record<string, unknown>> {
   const data: Record<string, unknown> = {};
 
-  // Keys we care about
-  const keys = ['journalEntries', 'selectedDate', 'lastTypedTime', 'isScrambled',
-                'colorway', 'totalKeystrokes', 'totalSecondsOnApp', 'passwordHash'];
+  // Keys we care about - ALL app data
+  const keys = [
+    'journalEntries', 'selectedDate', 'lastTypedTime', 'isScrambled',
+    'colorway', 'totalKeystrokes', 'totalSecondsOnApp', 'passwordHash',
+    // Theme colors
+    'bgHue', 'bgSaturation', 'bgLightness',
+    'colorHue', 'colorSaturation', 'colorLightness',
+    // Presets
+    'colorPresets', 'customColorPresets', 'selectedPreset', 'selectedCustomPreset',
+    // Colorway tracking
+    'uniqueColorways', 'seenColorways'
+  ];
 
   for (const key of keys) {
     const value = localStorage.getItem(key);
@@ -177,18 +186,18 @@ function scheduleSave(): void {
 
 // Get item from storage
 export const getItem = (key: string): string | null => {
-  if (isElectron() || (isIndexedDBAvailable() && storageInitialized)) {
+  if (isElectron()) {
     const value = dataCache[key];
     if (value === undefined) return null;
     return typeof value === 'string' ? value : JSON.stringify(value);
   }
-  // Fallback to localStorage
+  // Browser: always use localStorage (more reliable in Safari PWA)
   return localStorage.getItem(key);
 };
 
 // Set item in storage
 export const setItem = (key: string, value: string): void => {
-  if (isElectron() || (isIndexedDBAvailable() && storageInitialized)) {
+  if (isElectron()) {
     // Try to parse as JSON, otherwise store as string
     try {
       dataCache[key] = JSON.parse(value);
@@ -197,17 +206,18 @@ export const setItem = (key: string, value: string): void => {
     }
     scheduleSave();
   } else {
-    // Fallback to localStorage
+    // Browser: always use localStorage (more reliable in Safari PWA)
     localStorage.setItem(key, value);
   }
 };
 
 // Remove item from storage
 export const removeItem = (key: string): void => {
-  if (isElectron() || (isIndexedDBAvailable() && storageInitialized)) {
+  if (isElectron()) {
     delete dataCache[key];
     scheduleSave();
   } else {
+    // Browser: always use localStorage
     localStorage.removeItem(key);
   }
 };
