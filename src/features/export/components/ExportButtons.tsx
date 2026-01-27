@@ -37,11 +37,11 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
 
   return (
     <div className="space-y-2">
-      <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0}>
+      <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
         <Copy className="w-3 h-3" />
         <span>copy to clipboard</span>
       </FunctionButton>
-      <FunctionButton onClick={handleExport} disabled={entries.length === 0}>
+      <FunctionButton onClick={handleExport} disabled={entries.length === 0} size="sm">
         <Download className="w-3 h-3" />
         <span>export to markdown</span>
       </FunctionButton>

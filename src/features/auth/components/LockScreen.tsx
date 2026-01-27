@@ -8,10 +8,12 @@ interface LockScreenProps {
 }
 
 export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockScreenProps) {
-  const { getColor, getBgColor } = useTheme();
+  const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
   const [flashState, setFlashState] = useState<'none' | 'red'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
 
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
@@ -72,6 +74,23 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     }
   };
 
+  const textColor = getColor();
+  const borderDefault = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
+  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
+  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+
+  const getBorderColor = () => {
+    if (flashState === 'red') return '#ef4444';
+    if (isPressed) return activeColor;
+    if (isFocused || isHovered || passwordInput) return textColor;
+    return borderDefault;
+  };
+
+  const getBackgroundColor = () => {
+    if (isHovered || isFocused) return hoverBg;
+    return 'transparent';
+  };
+
   const getInputColor = () => {
     if (flashState === 'red') return '#ef4444';
     return getColor();
@@ -79,39 +98,43 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
 
   return (
     <div
-      className="flex items-center justify-center h-screen"
+      className="relative flex items-center justify-center h-screen"
       style={{ backgroundColor: getBgColor() }}
     >
-      <form onSubmit={handleSubmit} className="relative">
-        <span
-          className="absolute -top-5 left-0 text-xs font-mono font-bold"
-          style={{ color: getInputColor() }}
-        >
-          good
-        </span>
+      <span
+        className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight"
+        style={{ color: getInputColor() }}
+      >
+        good
+      </span>
+      <span
+        className="fixed bottom-4 right-4 text-2xl font-extrabold font-mono tracking-tight"
+        style={{ color: getInputColor() }}
+      >
+        days
+      </span>
+      <form onSubmit={handleSubmit} className="relative w-72">
         <input
           type="password"
           value={passwordInput}
           onChange={(e) => onPasswordChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
+          onMouseDown={() => setIsPressed(true)}
+          onMouseUp={() => setIsPressed(false)}
           disabled={isSubmitting}
-          className="px-3 py-2 text-xs font-mono font-bold rounded"
+          className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
           style={{
-            backgroundColor: getBgColor(),
-            border: `3px solid ${getInputColor()}`,
-            color: getInputColor(),
-            caretColor: getInputColor(),
+            backgroundColor: getBackgroundColor(),
+            border: `3px solid ${getBorderColor()}`,
+            color: getBorderColor(),
+            caretColor: textColor,
             outline: 'none',
           }}
           autoFocus
         />
-        <span
-          className="absolute -bottom-5 right-0 text-xs font-mono font-bold"
-          style={{ color: getInputColor() }}
-        >
-          days
-        </span>
         {showPlaceholder && (
           <div
             className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"

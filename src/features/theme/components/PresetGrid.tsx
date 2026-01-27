@@ -364,7 +364,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
               onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
               onMouseDown={() => setClickedIndex(index)}
               onMouseUp={() => setClickedIndex(null)}
-              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
+              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: bgColor,
                 borderColor: currentBorder,
@@ -407,7 +407,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
               onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
               onMouseDown={() => setClickedIndex(globalIndex)}
               onMouseUp={() => setClickedIndex(null)}
-              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
+              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: bgColor,
                 borderColor: currentBorder,
@@ -445,7 +445,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
               onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
               onMouseDown={() => setClickedIndex(randIndex)}
               onMouseUp={() => setClickedIndex(null)}
-              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${activePresetIndex === randIndex ? 'preset-pulse' : ''}`}
+              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === randIndex ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
                 borderColor: currentBorder,
@@ -483,7 +483,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
               onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
               onMouseDown={() => setClickedIndex(saveIndex)}
               onMouseUp={() => setClickedIndex(null)}
-              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
+              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
                 borderColor: currentBorder,
