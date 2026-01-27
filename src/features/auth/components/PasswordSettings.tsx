@@ -155,7 +155,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
     return 'transparent';
   };
 
-  const showAnimatedPlaceholder = animatingPlaceholder && !input && !isSaving;
+  const showAnimatedPlaceholder = !input && !isSaving && !isFocused;
 
   const getPlaceholder = () => {
     switch (step) {
@@ -276,7 +276,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
               if (e.target.value) setAnimatingPlaceholder('');
             }}
             onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            onBlur={() => {
+              setIsFocused(false);
+              if (!input) {
+                startPlaceholderAnimation(getPlaceholder());
+              }
+            }}
             onMouseEnter={() => !isSaving && setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
             onMouseDown={() => !isSaving && setIsPressed(true)}
