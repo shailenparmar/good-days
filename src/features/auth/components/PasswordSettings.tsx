@@ -298,7 +298,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
             onMouseDown={() => !isSaving && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
-            placeholder={isFocused || showAnimatedPlaceholder ? '' : (isSaving ? 'password saved' : getPlaceholder())}
+            placeholder={isFocused ? '' : (isSaving ? 'password saved' : getPlaceholder())}
             disabled={isSaving || flashState === 'green'}
             className="password-input w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
