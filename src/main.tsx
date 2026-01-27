@@ -42,9 +42,9 @@ function MobileScreen() {
     }}>
       <style>{`
         @keyframes mobile-pulse {
-          0% { box-shadow: inset 0 0 0 12px ${textColor}; }
+          0% { box-shadow: inset 0 0 0 6px ${textColor}; }
           50% { box-shadow: inset 0 0 0 0px ${textColor}; }
-          100% { box-shadow: inset 0 0 0 12px ${textColor}; }
+          100% { box-shadow: inset 0 0 0 6px ${textColor}; }
         }
         .mobile-rand-pulse {
           animation: mobile-pulse 1s steps(12) infinite;
@@ -60,13 +60,13 @@ function MobileScreen() {
         className={isPulsing ? 'mobile-rand-pulse' : ''}
         style={{
           marginBottom: '48px',
-          padding: '12px 48px',
+          padding: '8px 56px',
           fontFamily: 'monospace',
           fontWeight: 800,
-          fontSize: '2.5rem',
+          fontSize: '1.25rem',
           backgroundColor: 'transparent',
-          border: `12px solid ${textColor}`,
-          borderRadius: '24px',
+          border: `6px solid ${textColor}`,
+          borderRadius: '12px',
           color: textColor,
           cursor: 'pointer',
         }}
