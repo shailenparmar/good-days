@@ -34,16 +34,18 @@ git push origin main
 
 ## Versioning
 
-**IMPORTANT**: This project uses semantic versioning. The version number is stored in `src/App.tsx` as `const VERSION = 'x.y.z'`.
+**CRITICAL**: EVERY push to main MUST increment the version number. No exceptions. This allows the user to verify they're seeing the latest deployed build.
+
+The version number is stored in `src/App.tsx` as `const VERSION = 'x.y.z'`.
 
 When pushing changes:
-1. **Increment the version number** in `src/App.tsx`
-   - Patch (x.y.Z): Bug fixes, small tweaks
+1. **ALWAYS increment the version number** in `src/App.tsx` before pushing
+   - Patch (x.y.Z): Bug fixes, small tweaks, any change at all
    - Minor (x.Y.0): New features, non-breaking changes
    - Major (X.0.0): Breaking changes, major rewrites
 2. **Tell the user the version number** after pushing (e.g., "Pushed **v1.0.1**")
 3. Use the version in the commit message (e.g., "v1.0.1: Fix editor focus issue")
 
-The version displays in the app title ("good days v1.0.1") only when the about panel is open — a subtle, whimsical touch for users who are curious.
+The version displays in the app title ("good days v1.0.1") only when the about panel is open.
 
-This lets the user verify which build is deployed by opening the about panel and checking the version.
+This lets the user verify which build is deployed by opening the about panel and checking the version. If the version doesn't match, they know the deploy hasn't completed or there's a cache issue.
