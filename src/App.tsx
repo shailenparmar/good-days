@@ -33,45 +33,31 @@ function generateRandomColors() {
 }
 
 function MobileNotSupported() {
-  const [colors, setColors] = useState(() => generateRandomColors());
-
-  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
-
-  const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
-  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
-  const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
-
-  const handleRand = () => {
-    setColors(generateRandomColors());
-  };
-
   return (
     <div
       className="flex flex-col items-center justify-center h-screen p-8"
-      style={{ backgroundColor: bgColor }}
+      style={{ backgroundColor: '#e8f5e9' }}
     >
       <div className="flex-1 flex flex-col items-center justify-center">
-        {words.map((word, i) => (
-          <p
-            key={i}
-            className="font-mono font-bold text-lg select-none"
-            style={{ color: textColor }}
-          >
-            {word}
-          </p>
-        ))}
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>good</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>days</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>is</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>not</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>supported</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>on</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>mobile</p>
+        <p className="font-mono font-bold text-lg select-none" style={{ color: '#2e7d32' }}>yet</p>
       </div>
 
       <button
-        onClick={handleRand}
-        className="mb-12 px-10 py-5 font-mono font-extrabold select-none flex items-center justify-center"
+        onClick={() => window.location.reload()}
+        className="mb-12 px-10 py-5 font-mono font-extrabold select-none"
         style={{
           fontSize: '1.5rem',
           backgroundColor: 'transparent',
-          border: `6px solid ${borderColor}`,
+          border: '6px solid #2e7d32',
           borderRadius: '20px',
-          color: textColor,
-          outline: 'none',
+          color: '#2e7d32',
         }}
       >
         rand
