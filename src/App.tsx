@@ -98,7 +98,7 @@ function MobileNotSupported() {
           fontSize: '1.5rem',
           backgroundColor: isHovered || isActive ? hoverBg : 'transparent',
           border: `6px solid ${getBorderColor()}`,
-          borderRadius: '12px',
+          borderRadius: '20px',
           color: textColor,
           outline: 'none',
         }}
