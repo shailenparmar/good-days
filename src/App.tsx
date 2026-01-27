@@ -35,6 +35,7 @@ function generateRandomColors() {
 function MobileNotSupported() {
   const [colors, setColors] = useState(() => generateRandomColors());
   const [isPressed, setIsPressed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
 
@@ -43,7 +44,15 @@ function MobileNotSupported() {
   };
 
   const borderDefault = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
+  const borderHover = colors.text;
   const borderActive = `hsl(${colors.hue}, ${colors.sat}%, ${Math.max(0, colors.light * 0.65)}%)`;
+  const hoverBg = `hsla(${colors.hue}, ${colors.sat}%, 50%, 0.2)`;
+
+  const getBorderColor = () => {
+    if (isPressed) return borderActive;
+    if (isHovered) return borderHover;
+    return borderDefault;
+  };
 
   return (
     <div
@@ -68,13 +77,14 @@ function MobileNotSupported() {
         onTouchEnd={() => setIsPressed(false)}
         onMouseDown={() => setIsPressed(true)}
         onMouseUp={() => setIsPressed(false)}
-        onMouseLeave={() => setIsPressed(false)}
-        className="mb-12 px-8 py-3 rounded text-base font-mono font-bold select-none"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
+        className="mb-12 w-32 px-3 py-2 rounded font-mono font-extrabold select-none"
         style={{
-          backgroundColor: colors.bg,
-          border: `3px solid ${isPressed ? borderActive : borderDefault}`,
+          fontSize: '0.9rem',
+          backgroundColor: isHovered ? hoverBg : 'transparent',
+          border: `3px solid ${getBorderColor()}`,
           color: colors.text,
-          borderRadius: '6px',
         }}
       >
         rand
