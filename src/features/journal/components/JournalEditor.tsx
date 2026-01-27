@@ -107,8 +107,12 @@ export function JournalEditor({
       setScrambleReady(true);
     }
 
-    // Mark content as loaded (prevents placeholder flash)
-    setContentLoaded(true);
+    // Mark content as loaded after paint (prevents placeholder flash)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setContentLoaded(true);
+      });
+    });
   }, [entries, selectedDate, editorRef, isScrambled]);
 
   // Update scrambled content when scramble mode changes or content changes
