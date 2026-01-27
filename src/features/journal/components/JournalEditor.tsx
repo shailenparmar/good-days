@@ -159,18 +159,6 @@ export function JournalEditor({
     }
   }, [entries, selectedDate, editorRef]);
 
-  // Keep DOM in sync with state when state is the source of truth (e.g., initial load)
-  // This ensures clicking in scrambled mode works correctly
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== editorContent) {
-      // Only sync if user isn't actively focused (typing)
-      if (document.activeElement !== editorRef.current) {
-        editorRef.current.innerHTML = editorContent;
-      }
-    }
-  }, [editorContent, editorRef]);
-
-
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
@@ -232,7 +220,7 @@ export function JournalEditor({
 
   return (
     <div
-      className="flex-1 p-8 relative overflow-y-auto scrollbar-hide cursor-text"
+      className="flex-1 flex flex-col p-8 relative overflow-hidden cursor-text"
       style={{ backgroundColor: getBgColor() }}
       onClick={handleContainerClick}
     >
@@ -261,19 +249,17 @@ export function JournalEditor({
           }
         `}
       </style>
-      <div className="relative w-full h-full overflow-y-auto scrollbar-hide" style={{ minHeight: '100%' }}>
-        {/* Container for both layers - they share the same content height and scroll together */}
-        <div className="relative" style={{ minHeight: '100%' }}>
+      <div className="relative w-full flex-1 overflow-y-auto scrollbar-hide">
+        {/* Container for both layers */}
+        <div className="relative min-h-full">
           {/* Original editor - always rendered, text invisible when scrambled but cursor visible */}
           <div
             ref={editorRef}
             contentEditable
             onInput={handleInput}
-            onClick={() => editorRef.current?.focus()}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             className={`w-full focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor ${isScrambled ? 'dynamic-editor-hidden' : 'dynamic-editor-visible'}`}
-            style={{ minHeight: '100%', height: '100%' }}
             spellCheck="false"
             suppressContentEditableWarning
             role="textbox"
