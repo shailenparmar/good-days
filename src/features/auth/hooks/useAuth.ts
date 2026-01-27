@@ -11,11 +11,17 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 const PASSWORD_KEY = 'passwordHash';
+const UNLOCKED_KEY = 'sessionUnlocked'; // sessionStorage key - persists across refresh, clears on browser close
 
 export function useAuth() {
   // Reactive state - syncs with storage
   const [hasPassword, setHasPassword] = useState(() => getItem(PASSWORD_KEY) !== null);
-  const [isLocked, setIsLocked] = useState(() => getItem(PASSWORD_KEY) !== null);
+  // Only locked if has password AND not unlocked in this session
+  const [isLocked, setIsLocked] = useState(() => {
+    const hasPass = getItem(PASSWORD_KEY) !== null;
+    const wasUnlocked = sessionStorage.getItem(UNLOCKED_KEY) === 'true';
+    return hasPass && !wasUnlocked;
+  });
   const [passwordInput, setPasswordInput] = useState('');
 
   // Sync hasPassword with storage
@@ -43,6 +49,7 @@ export function useAuth() {
 
     if (inputHash === storedHash) {
       setIsLocked(false);
+      sessionStorage.setItem(UNLOCKED_KEY, 'true');
       setPasswordInput('');
       return true;
     } else {
@@ -77,11 +84,13 @@ export function useAuth() {
   const lock = useCallback(() => {
     if (getItem(PASSWORD_KEY) !== null) {
       setIsLocked(true);
+      sessionStorage.removeItem(UNLOCKED_KEY);
     }
   }, []);
 
   const unlock = useCallback(() => {
     setIsLocked(false);
+    sessionStorage.setItem(UNLOCKED_KEY, 'true');
   }, []);
 
   return {
