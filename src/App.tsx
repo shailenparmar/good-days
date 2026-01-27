@@ -17,54 +17,68 @@ function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-// Generate random theme colors
+// Generate truly random theme colors (same as full app)
 function generateRandomColors() {
   const hue = Math.floor(Math.random() * 360);
-  const sat = 30 + Math.floor(Math.random() * 40); // 30-70%
-  const light = 35 + Math.floor(Math.random() * 25); // 35-60%
-  const bgHue = (hue + 60 + Math.floor(Math.random() * 120)) % 360; // offset from text hue
-  const bgSat = 70 + Math.floor(Math.random() * 30); // 70-100%
-  const bgLight = 90 + Math.floor(Math.random() * 8); // 90-98%
-  return {
-    text: `hsl(${hue}, ${sat}%, ${light}%)`,
-    bg: `hsl(${bgHue}, ${bgSat}%, ${bgLight}%)`,
-    hue, sat, light,
-  };
+  const sat = Math.floor(Math.random() * 101);
+  const light = Math.floor(Math.random() * 101);
+  const bgHue = Math.floor(Math.random() * 360);
+  const bgSat = Math.floor(Math.random() * 101);
+  const bgLight = Math.floor(Math.random() * 101);
+  return { hue, sat, light, bgHue, bgSat, bgLight };
 }
 
 function MobileNotSupported() {
   const [colors, setColors] = useState(() => generateRandomColors());
   const [isPressed, setIsPressed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isActive, setIsActive] = useState(false);
 
   const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
 
+  const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
+  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+
   const handleRand = () => {
     setColors(generateRandomColors());
+    setIsActive(true);
   };
 
   const borderDefault = `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`;
-  const borderHover = colors.text;
+  const borderHover = textColor;
   const borderActive = `hsl(${colors.hue}, ${colors.sat}%, ${Math.max(0, colors.light * 0.65)}%)`;
   const hoverBg = `hsla(${colors.hue}, ${colors.sat}%, 50%, 0.2)`;
 
   const getBorderColor = () => {
     if (isPressed) return borderActive;
-    if (isHovered) return borderHover;
+    if (isHovered || isActive) return borderHover;
     return borderDefault;
   };
 
   return (
     <div
       className="flex flex-col items-center justify-center h-screen p-8"
-      style={{ backgroundColor: colors.bg }}
+      style={{ backgroundColor: bgColor }}
     >
+      <style>
+        {`
+          @keyframes preset-flicker {
+            0% { border-width: 5px; }
+            50% { border-width: 3px; }
+            100% { border-width: 5px; }
+          }
+          .preset-pulse {
+            animation: preset-flicker 1s steps(12) infinite;
+          }
+        `}
+      </style>
+
       <div className="flex-1 flex flex-col items-center justify-center">
         {words.map((word, i) => (
           <p
             key={i}
             className="font-mono font-bold text-lg select-none"
-            style={{ color: colors.text }}
+            style={{ color: textColor }}
           >
             {word}
           </p>
@@ -79,12 +93,13 @@ function MobileNotSupported() {
         onMouseUp={() => setIsPressed(false)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-        className="mb-12 w-32 px-3 py-2 rounded font-mono font-extrabold select-none"
+        className={`mb-12 w-full px-3 py-2 rounded font-mono font-extrabold select-none flex items-center justify-center ${isActive ? 'preset-pulse' : ''}`}
         style={{
           fontSize: '0.9rem',
-          backgroundColor: isHovered ? hoverBg : 'transparent',
+          backgroundColor: isHovered || isActive ? hoverBg : 'transparent',
           border: `3px solid ${getBorderColor()}`,
-          color: colors.text,
+          color: textColor,
+          outline: 'none',
         }}
       >
         rand
