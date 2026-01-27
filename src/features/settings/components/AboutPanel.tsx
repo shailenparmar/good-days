@@ -41,21 +41,24 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i couldn't view your content even if i wanted to; it's technologically impossible.
           </p>
           <p>
-            this is because the data you add is saved to a file on your hard drive called IndexedDB. your browser manages it, but it's not fragile. it's a local database designed for long term storage. every character saves automatically.
+            this is because the data you add is saved to a file on your hard drive called IndexedDB. your browser pulls from it to display it, but it never leaves your device.
           </p>
           <p>
-            as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.
+            as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.{' '}
+            <a
+              href="https://github.com/shailenparmar/good-days"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition-opacity hover:opacity-80"
+              style={{ color: getColor() }}
+            >
+              <ExternalLink className="w-4 h-4" />
+              github
+            </a>
           </p>
-          <a
-            href="https://github.com/shailenparmar/good-days"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 transition-opacity hover:opacity-80"
-            style={{ color: getColor() }}
-          >
-            <ExternalLink className="w-4 h-4" />
-            github
-          </a>
+          <p>
+            IndexedDB = site data. so if you press "clear cookies and site data" in your browser's settings, you'll lose your entries. refreshing or quitting the browser is safe, though. it saves automatically.
+          </p>
         </div>
       </div>
 
@@ -63,10 +66,10 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       <div className="p-4">
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
-            i designed this journal for my own daily use, and i'm so happy you're playing with it!
+            i designed this journal for my own daily use, and i'm elated to share it.
           </p>
           <p>
-            try typing while scrambled, holding spacebar on rand, or changing your password — those are my favorite features. XD
+            try typing while scrambled, adding the site to your dock, or holding spacebar on rand. here's to many colorways and many more good days.
           </p>
           <p className="mt-4">
             - shai
