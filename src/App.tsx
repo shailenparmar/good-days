@@ -30,7 +30,7 @@ function MobileNotSupported() {
       style={{ backgroundColor: PRESET_1.bg }}
     >
       <p
-        className="text-center font-mono font-bold text-lg select-none whitespace-nowrap"
+        className="text-center font-mono font-bold text-sm select-none whitespace-nowrap"
         style={{ color: PRESET_1.text }}
       >
         good days is not supported on mobile<br />yet
