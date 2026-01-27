@@ -13,6 +13,33 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton } from '@shared/components';
 
+// Preset 1 colors for mobile message
+const PRESET_1 = {
+  text: 'hsl(144, 36%, 43%)',
+  bg: 'hsl(84, 100%, 94%)',
+};
+
+function isMobile() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    || window.innerWidth < 768;
+}
+
+function MobileNotSupported() {
+  return (
+    <div
+      className="flex items-center justify-center h-screen p-8"
+      style={{ backgroundColor: PRESET_1.bg }}
+    >
+      <p
+        className="text-center font-mono font-bold text-lg select-none"
+        style={{ color: PRESET_1.text }}
+      >
+        good days is not supported on mobile yet
+      </p>
+    </div>
+  );
+}
+
 function AppContent() {
   const editorRef = useRef<HTMLDivElement>(null);
   const unscrambledContent = useRef<string>('');
@@ -274,6 +301,19 @@ function AppContent() {
 }
 
 function App() {
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    setMobile(isMobile());
+    const handleResize = () => setMobile(isMobile());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  if (mobile) {
+    return <MobileNotSupported />;
+  }
+
   return (
     <ThemeProvider>
       <AppContent />

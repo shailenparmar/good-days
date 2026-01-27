@@ -249,7 +249,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           }
         `}
       </style>
-      <div className="text-xs font-mono" style={{ color: getColor() }}>
+      <div className="text-xs font-mono select-none" style={{ color: getColor() }}>
         {isSaving ? (
           labelAnimPhase === 'bold' ? (
             <>
@@ -295,7 +295,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           />
           {isSaving && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono font-bold pointer-events-none"
+              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono font-bold pointer-events-none select-none"
               style={{ color: '#00ff00', left: '14px' }}
             >
               password saved
@@ -303,7 +303,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           )}
           {showAnimatedPlaceholder && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
+              className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none select-none"
               style={{ color: getColor(), opacity: 0.9, left: '14px' }}
             >
               {animPhase === 'bold' ? (
