@@ -11,7 +11,7 @@
     <meta name="theme-color" content="hsl(84, 100%, 94%)" id="theme-color-meta" />
     <title>good days</title>
     <script>
-      // Read saved theme from localStorage and set background BEFORE body paints
+      // Read saved theme from localStorage and apply BEFORE body paints
       (function() {
         var h = localStorage.getItem('bgHue');
         var s = localStorage.getItem('bgSaturation');
@@ -21,12 +21,11 @@
         s = s !== null ? s : '100';
         l = l !== null ? l : '94';
         var bgColor = 'hsl(' + h + ',' + s + '%,' + l + '%)';
+        // Set background immediately
         document.write('<style>html,body{background-color:' + bgColor + '!important;margin:0;padding:0}</style>');
-        // Update theme-color meta for Safari toolbar
-        document.addEventListener('DOMContentLoaded', function() {
-          var meta = document.getElementById('theme-color-meta');
-          if (meta) meta.setAttribute('content', bgColor);
-        });
+        // Update theme-color meta immediately for browser toolbar
+        var meta = document.getElementById('theme-color-meta');
+        if (meta) meta.setAttribute('content', bgColor);
       })();
     </script>
   </head>
