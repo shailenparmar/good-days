@@ -7,9 +7,10 @@ interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
+  onClick?: () => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20 }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick }: EntryHeaderProps) {
   const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
   const [use24Hour, setUse24Hour] = useState(() => getItem('timeFormat') === '24h');
 
@@ -52,8 +53,10 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20 }: Entry
       style={{
         paddingBottom: `${paddingBottom}px`,
         backgroundColor: `hsl(${getBgColor().match(/\d+/g)![0]}, ${getBgColor().match(/\d+/g)![1]}%, ${Math.min(100, Number(getBgColor().match(/\d+/g)![2]) + 2)}%)`,
-        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+        cursor: onClick ? 'pointer' : undefined
       }}
+      onClick={onClick}
     >
       <div className="flex justify-between items-baseline select-none">
         <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>

@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.92';
+const VERSION = '1.2.93';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -69,9 +69,15 @@ function AppContent() {
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
+  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < COLLAPSE_BREAKPOINT);
+    const handleResize = () => {
+      const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
+      setIsNarrow(narrow);
+      // Hide sidebar overlay when window becomes wide again
+      if (!narrow) setShowSidebarInNarrow(false);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -249,8 +255,8 @@ function AppContent() {
         `}
       </style>
 
-      {/* Sidebar - hidden when window is narrow */}
-      {!isNarrow && (
+      {/* Sidebar - hidden when window is narrow (unless toggled) */}
+      {(!isNarrow || showSidebarInNarrow) && (
       <div
         className="w-80 flex flex-col min-h-screen"
         style={{
@@ -264,8 +270,10 @@ function AppContent() {
           className="sticky top-0 z-10"
           style={{
             backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+            cursor: isNarrow ? 'pointer' : undefined
           }}
+          onClick={() => { if (isNarrow) setShowSidebarInNarrow(false); }}
         >
           <div className="p-4">
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
@@ -358,9 +366,13 @@ function AppContent() {
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
-        <EntryHeader selectedDate={journal.selectedDate} entries={journal.entries} paddingBottom={20} />
+        <EntryHeader
+          selectedDate={journal.selectedDate}
+          entries={journal.entries}
+          paddingBottom={20}
+          onClick={isNarrow ? () => setShowSidebarInNarrow(!showSidebarInNarrow) : undefined}
+        />
 
         <JournalEditor
           entries={journal.entries}
