@@ -16,8 +16,7 @@ export default defineConfig({
         name: 'good days',
         short_name: 'good days',
         description: 'A journaling app for good days',
-        theme_color: '#f5d600',
-        background_color: '#f5d600',
+        background_color: '#000000',
         display: 'standalone',
         icons: [
           {
@@ -29,12 +28,6 @@ export default defineConfig({
           {
             src: 'icon-512.png',
             sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'apple-touch-icon.png',
-            sizes: '180x180',
             type: 'image/png',
             purpose: 'any',
           },
