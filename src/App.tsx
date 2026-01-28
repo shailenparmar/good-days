@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Settings, Heart, Eye, EyeOff, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 // Feature imports
 import { ThemeProvider, useTheme } from '@features/theme';
@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.21';
+const VERSION = '1.2.24';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -56,13 +56,50 @@ function AppContent() {
   const stats = useStatistics();
 
   // Local state
-  const [showDebugMenu, setShowDebugMenu] = useState(false);
-  const [showAboutPanel, setShowAboutPanel] = useState(false);
+  const [showDebugMenu, setShowDebugMenu] = useState(() => {
+    return getItem('showSettings') === 'true';
+  });
+  const [showAboutPanel, setShowAboutPanel] = useState(() => {
+    return getItem('showAbout') === 'true';
+  });
   const [isScrambled, setIsScrambled] = useState(() => {
     return getItem('isScrambled') === 'true';
   });
 
+  // Responsive sidebar state
+  const COLLAPSE_BREAKPOINT = 768;
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Auto-collapse sidebar when window becomes narrow
+  useEffect(() => {
+    const handleResize = () => {
+      const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
+      setIsNarrow(narrow);
+      if (narrow) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
+
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway } = theme;
+
+  // Save panel states to localStorage
+  useEffect(() => {
+    setItem('showSettings', String(showDebugMenu));
+  }, [showDebugMenu]);
+
+  useEffect(() => {
+    setItem('showAbout', String(showAboutPanel));
+  }, [showAboutPanel]);
 
   // Save scramble state to localStorage
   useEffect(() => {
@@ -187,14 +224,25 @@ function AppContent() {
         `}
       </style>
 
+      {/* Sidebar overlay for narrow mode */}
+      {isNarrow && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20"
+          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
+      {sidebarOpen && (
       <div
-        className="w-80 flex flex-col min-h-screen"
+        className={`w-80 flex flex-col ${isNarrow ? 'fixed left-0 top-0 h-full z-30' : 'min-h-screen'}`}
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-          borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+          borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+          ...(isNarrow && { boxShadow: '4px 0 20px rgba(0,0,0,0.15)' })
         }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
+        onClick={(e) => { e.stopPropagation(); setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
         {/* Header */}
         <div
@@ -235,6 +283,7 @@ function AppContent() {
             onSelectDate={(date) => {
               journal.setSelectedDate(date);
               setShowDebugMenu(false);
+              if (isNarrow) setSidebarOpen(false);
             }}
             onSaveTitle={journal.saveTitle}
             settingsOpen={showDebugMenu}
@@ -265,6 +314,7 @@ function AppContent() {
           </FunctionButton>
         </div>
       </div>
+      )}
 
       {/* Settings Panel */}
       <SettingsPanel
@@ -285,6 +335,22 @@ function AppContent() {
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
         onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
+        {/* Sidebar toggle button - only show when sidebar can be toggled */}
+        {isNarrow && (
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
+            className="absolute top-4 left-4 z-20 p-2 rounded-md transition-colors"
+            style={{
+              backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.15)`,
+              color: getColor(),
+              border: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.5)`
+            }}
+            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          >
+            {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+          </button>
+        )}
+
         <EntryHeader selectedDate={journal.selectedDate} entries={journal.entries} paddingBottom={20} />
 
         <JournalEditor
