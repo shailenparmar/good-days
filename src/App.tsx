@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.39';
+const VERSION = '1.2.40';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -299,12 +299,7 @@ function AppContent() {
         setPassword={auth.setPassword}
         entries={journal.entries}
         onCloseAbout={() => setShowAboutPanel(false)}
-        onToggleInstall={() => setShowInstallPanel(!showInstallPanel)}
-        showInstallPanel={showInstallPanel}
       />
-
-      {/* Install Panel */}
-      <InstallPanel isOpen={showInstallPanel} onClose={() => setShowInstallPanel(false)} />
 
       {/* About Panel */}
       <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} />
