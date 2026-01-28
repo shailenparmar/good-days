@@ -15,7 +15,9 @@ declare global {
 }
 
 window.deferredInstallPrompt = null;
+console.log('[PWA] Listening for beforeinstallprompt...');
 window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('[PWA] beforeinstallprompt fired!', e);
   e.preventDefault();
   window.deferredInstallPrompt = e as BeforeInstallPromptEvent;
 });
