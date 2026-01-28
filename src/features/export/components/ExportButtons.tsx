@@ -1,13 +1,38 @@
-import { Download, Copy } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Copy, Smartphone } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
 }
 
 export function ExportButtons({ entries }: ExportButtonsProps) {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const handleExport = () => {
     const textContent = formatEntriesAsText(entries);
@@ -45,6 +70,12 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
+      {installPrompt && (
+        <FunctionButton onClick={handleInstall} size="sm">
+          <Smartphone className="w-3 h-3" />
+          <span>install app</span>
+        </FunctionButton>
+      )}
     </div>
   );
 }
