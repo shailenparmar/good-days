@@ -1,6 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <!-- Blue square filling entire canvas (no rounded corners) -->
-  <rect x="0" y="0" width="1024" height="1024" fill="hsl(241, 100%, 46%)" />
-  <!-- Yellow sharp-cornered square inside -->
+  <!-- Favicon keeps rounded design -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="hsl(241, 100%, 46%)" />
   <rect x="200" y="200" width="624" height="624" fill="hsl(59, 100%, 48%)" />
 </svg>
