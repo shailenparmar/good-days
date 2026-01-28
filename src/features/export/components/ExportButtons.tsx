@@ -77,11 +77,11 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
         <span>copy to clipboard</span>
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
-        <Download className="w-3 h-3" />
+        <Upload className="w-3 h-3" />
         <span>backup</span>
       </FunctionButton>
       <FunctionButton onClick={handleImportClick} size="sm">
-        <Upload className="w-3 h-3" />
+        <Download className="w-3 h-3" />
         <span>import backup</span>
       </FunctionButton>
       <input
