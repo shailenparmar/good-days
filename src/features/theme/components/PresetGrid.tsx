@@ -349,7 +349,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           const isHovered = hoveredIndex === index;
           const isClicked = clickedIndex === index;
 
-          const currentBorder = isClicked ? borderActive : (isHovered ? textColor : borderDefault);
+          const currentBorder = isClicked ? borderActive : borderDefault;
 
           return (
             <button
@@ -392,7 +392,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           const isHovered = hoveredIndex === globalIndex;
           const isClicked = clickedIndex === globalIndex;
 
-          const currentBorder = isClicked ? borderActive : (isHovered ? textColor : borderDefault);
+          const currentBorder = isClicked ? borderActive : borderDefault;
 
           return (
             <button
@@ -431,7 +431,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           const borderActive = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${Math.max(0, randomPreview.light * 0.65)}%)`;
           const isHovered = hoveredIndex === randIndex;
           const isClicked = clickedIndex === randIndex;
-          const currentBorder = isClicked ? borderActive : (isHovered ? textColor : borderDefault);
+          const currentBorder = isClicked ? borderActive : borderDefault;
 
           return (
             <button
@@ -469,7 +469,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           const borderActive = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
           const isHovered = hoveredIndex === saveIndex;
           const isClicked = clickedIndex === saveIndex;
-          const currentBorder = isClicked ? borderActive : (isHovered ? textColor : borderDefault);
+          const currentBorder = isClicked ? borderActive : borderDefault;
 
           return (
             <button
