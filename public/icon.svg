@@ -1,14 +1,6 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Blue background fills entire canvas -->
-  <rect x="0" y="0" width="1024" height="1024" fill="#1E14DC" />
-  <!-- Yellow rounded square in center -->
-  <rect
-    x="200"
-    y="200"
-    width="624"
-    height="624"
-    rx="80"
-    ry="80"
-    fill="#FFE500"
-  />
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Blue outer rounded rectangle (the thick border) -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="hsl(241, 100%, 46%)" />
+  <!-- Yellow inner square with sharp corners -->
+  <rect x="200" y="200" width="624" height="624" rx="0" ry="0" fill="hsl(59, 100%, 48%)" />
 </svg>
