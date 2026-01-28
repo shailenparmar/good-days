@@ -35,7 +35,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
-            your writing, passwords, and settings only exist on this device, even though you access the journal through a website.
+            your writing, passwords, and settings only exist on your device, even though you access the journal through a website.
           </p>
           <p>
             i couldn't view your content even if i wanted to; it's technologically impossible.
