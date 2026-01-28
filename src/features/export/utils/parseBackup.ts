@@ -107,7 +107,7 @@ export function mergeEntries(
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit'
-        })} backup:\n`;
+        })} backup:\n\n`;
 
         // Convert imported plain text to HTML (preserve line breaks)
         const importedHtml = imported.content
