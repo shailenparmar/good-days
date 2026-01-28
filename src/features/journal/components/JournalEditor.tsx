@@ -75,7 +75,7 @@ export function JournalEditor({
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const placeholderText = 'type here';
+  const placeholderText = 'start typing';
 
   // Check if editor is empty - read directly from DOM
   const isEditorEmpty = useCallback((): boolean => {
