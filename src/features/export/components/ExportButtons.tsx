@@ -1,39 +1,15 @@
-import { useState, useEffect } from 'react';
 import { Download, Copy, Laptop } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 interface ExportButtonsProps {
   entries: JournalEntry[];
+  onToggleInstall: () => void;
+  showInstallPanel: boolean;
 }
 
-export function ExportButtons({ entries }: ExportButtonsProps) {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setInstallPrompt(null);
-    }
-  };
-
+export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: ExportButtonsProps) {
   const handleExport = () => {
     const textContent = formatEntriesAsText(entries);
     if (!textContent) return;
@@ -70,12 +46,10 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      {installPrompt && (
-        <FunctionButton onClick={handleInstall} size="sm">
-          <Laptop className="w-3 h-3" />
-          <span>install app</span>
-        </FunctionButton>
-      )}
+      <FunctionButton onClick={onToggleInstall} isActive={showInstallPanel} size="sm">
+        <Laptop className="w-3 h-3" />
+        <span>install app</span>
+      </FunctionButton>
     </div>
   );
 }

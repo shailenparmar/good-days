@@ -11,6 +11,8 @@ interface SettingsPanelProps {
   setPassword: (password: string) => Promise<boolean>;
   entries: JournalEntry[];
   onCloseAbout: () => void;
+  onToggleInstall: () => void;
+  showInstallPanel: boolean;
 }
 
 export function SettingsPanel({
@@ -20,6 +22,8 @@ export function SettingsPanel({
   setPassword,
   entries,
   onCloseAbout,
+  onToggleInstall,
+  showInstallPanel,
 }: SettingsPanelProps) {
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
@@ -68,7 +72,7 @@ export function SettingsPanel({
 
       {/* Export Section */}
       <div className="p-4">
-        <ExportButtons entries={entries} />
+        <ExportButtons entries={entries} onToggleInstall={onToggleInstall} showInstallPanel={showInstallPanel} />
       </div>
     </div>
   );

@@ -6,14 +6,14 @@ import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
 import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter } from '@features/journal';
 import { useStatistics, StatsDisplay } from '@features/statistics';
-import { SettingsPanel, AboutPanel } from '@features/settings';
+import { SettingsPanel, AboutPanel, InstallPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.35';
+const VERSION = '1.2.36';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -62,6 +62,7 @@ function AppContent() {
   const [showAboutPanel, setShowAboutPanel] = useState(() => {
     return getItem('showAbout') === 'true';
   });
+  const [showInstallPanel, setShowInstallPanel] = useState(false);
   const [isScrambled, setIsScrambled] = useState(() => {
     return getItem('isScrambled') === 'true';
   });
@@ -218,7 +219,7 @@ function AppContent() {
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); setShowInstallPanel(false); }}
       >
         {/* Header */}
         <div
@@ -299,7 +300,12 @@ function AppContent() {
         setPassword={auth.setPassword}
         entries={journal.entries}
         onCloseAbout={() => setShowAboutPanel(false)}
+        onToggleInstall={() => setShowInstallPanel(!showInstallPanel)}
+        showInstallPanel={showInstallPanel}
       />
+
+      {/* Install Panel */}
+      <InstallPanel isOpen={showInstallPanel} onClose={() => setShowInstallPanel(false)} />
 
       {/* About Panel */}
       <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} />
@@ -308,7 +314,7 @@ function AppContent() {
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); setShowInstallPanel(false); }}
       >
         <EntryHeader selectedDate={journal.selectedDate} entries={journal.entries} paddingBottom={20} />
 
