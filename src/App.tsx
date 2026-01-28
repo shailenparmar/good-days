@@ -6,14 +6,14 @@ import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
 import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter } from '@features/journal';
 import { useStatistics, StatsDisplay } from '@features/statistics';
-import { SettingsPanel, AboutPanel, InstallPanel } from '@features/settings';
+import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.38';
+const VERSION = '1.2.39';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -62,7 +62,6 @@ function AppContent() {
   const [showAboutPanel, setShowAboutPanel] = useState(() => {
     return getItem('showAbout') === 'true';
   });
-  const [showInstallPanel, setShowInstallPanel] = useState(false);
   const [isScrambled, setIsScrambled] = useState(() => {
     return getItem('isScrambled') === 'true';
   });
@@ -219,7 +218,7 @@ function AppContent() {
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); setShowInstallPanel(false); }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
         {/* Header */}
         <div
@@ -314,7 +313,7 @@ function AppContent() {
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); setShowInstallPanel(false); }}
+        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
         <EntryHeader selectedDate={journal.selectedDate} entries={journal.entries} paddingBottom={20} />
 

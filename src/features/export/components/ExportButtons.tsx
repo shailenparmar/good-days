@@ -11,14 +11,11 @@ interface BeforeInstallPromptEvent extends Event {
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
-  onToggleInstall: () => void;
-  showInstallPanel: boolean;
 }
 
-export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: ExportButtonsProps) {
+export function ExportButtons({ entries }: ExportButtonsProps) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
-  // Capture the beforeinstallprompt event for Chrome/Edge
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
@@ -28,17 +25,12 @@ export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: Ex
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const handleInstallClick = async () => {
-    // Chrome/Edge: trigger native install prompt
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setInstallPrompt(null);
-      }
-    } else {
-      // Safari/Firefox: show instructions panel
-      onToggleInstall();
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
     }
   };
 
@@ -78,10 +70,12 @@ export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: Ex
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      <FunctionButton onClick={handleInstallClick} isActive={showInstallPanel} size="sm">
-        <Laptop className="w-3 h-3" />
-        <span>install app</span>
-      </FunctionButton>
+      {installPrompt && (
+        <FunctionButton onClick={handleInstall} size="sm">
+          <Laptop className="w-3 h-3" />
+          <span>install app</span>
+        </FunctionButton>
+      )}
     </div>
   );
 }
