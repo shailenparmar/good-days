@@ -30,25 +30,12 @@ export class ErrorBoundary extends Component<Props, State> {
           className="flex items-center justify-center h-screen p-8"
           style={{ backgroundColor: 'hsl(84, 100%, 94%)' }}
         >
-          <div className="text-center">
-            <p
-              className="font-mono font-bold text-sm select-none"
-              style={{ color: 'hsl(144, 36%, 43%)' }}
-            >
-              something went wrong
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 font-mono font-bold text-sm rounded"
-              style={{
-                color: 'hsl(144, 36%, 43%)',
-                border: '3px solid hsl(144, 36%, 43%)',
-                backgroundColor: 'transparent',
-              }}
-            >
-              reload
-            </button>
-          </div>
+          <p
+            className="text-base leading-relaxed font-mono font-bold"
+            style={{ color: 'hsl(144, 36%, 43%)' }}
+          >
+            something went wrong
+          </p>
         </div>
       );
     }
