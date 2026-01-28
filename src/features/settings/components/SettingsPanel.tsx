@@ -43,6 +43,11 @@ export function SettingsPanel({
           <PresetGrid showDebugMenu={showDebugMenu} />
           <ColorPicker type="text" />
           <ColorPicker type="background" />
+          {/* HSL Values Display */}
+          <div className="text-xs font-mono pt-2" style={{ color: `hsl(${hue}, ${saturation}%, ${lightness}%)` }}>
+            <div>text: hsl({hue}, {saturation}%, {lightness}%)</div>
+            <div>bg: hsl({bgHue}, {bgSaturation}%, {bgLightness}%)</div>
+          </div>
         </div>
       </div>
 

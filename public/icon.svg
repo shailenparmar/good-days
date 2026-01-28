@@ -1,5 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Favicon: preset 2 colors, rounded design -->
-  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#542DFE" />
-  <rect x="200" y="200" width="624" height="624" fill="#FFFFFF" />
+  <!-- Favicon: blue border, pink square, rounded -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#1B0FFF" />
+  <rect x="200" y="200" width="624" height="624" fill="#FF6565" />
 </svg>
