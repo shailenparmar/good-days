@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 
 interface LockScreenProps {
@@ -11,7 +11,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
   const [flashState, setFlashState] = useState<'none' | 'red'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFocused, setIsFocused] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
@@ -71,6 +72,9 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
 
     if (!success) {
       flashRed();
+      // Refocus input after failed attempt so cursor stays active
+      // Use setTimeout to ensure DOM has updated after isSubmitting becomes false
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
@@ -115,6 +119,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       </span>
       <form onSubmit={handleSubmit} className="relative w-72" role="form" aria-label="Unlock journal">
         <input
+          ref={inputRef}
           type="password"
           value={passwordInput}
           onChange={(e) => onPasswordChange(e.target.value)}
