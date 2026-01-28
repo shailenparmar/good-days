@@ -53,8 +53,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick
       style={{
         paddingBottom: `${paddingBottom}px`,
         backgroundColor: `hsl(${getBgColor().match(/\d+/g)![0]}, ${getBgColor().match(/\d+/g)![1]}%, ${Math.min(100, Number(getBgColor().match(/\d+/g)![2]) + 2)}%)`,
-        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
-        cursor: onClick ? 'pointer' : undefined
+        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
       onClick={onClick}
     >

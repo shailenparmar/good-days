@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.93';
+const VERSION = '1.2.94';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -270,8 +270,7 @@ function AppContent() {
           className="sticky top-0 z-10"
           style={{
             backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
-            cursor: isNarrow ? 'pointer' : undefined
+            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
           onClick={() => { if (isNarrow) setShowSidebarInNarrow(false); }}
         >
