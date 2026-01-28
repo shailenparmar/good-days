@@ -203,6 +203,14 @@ export function JournalEditor({
     });
   }, [editorRef]);
 
+  // Handle Tab key to insert tab character instead of moving focus
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      document.execCommand('insertText', false, '\t');
+    }
+  }, []);
+
   // Focus the editor
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
@@ -267,6 +275,7 @@ export function JournalEditor({
         contentEditable
         onInput={handleInput}
         onScroll={handleEditorScroll}
+        onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
