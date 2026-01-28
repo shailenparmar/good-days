@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.97';
+const VERSION = '1.2.98';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -70,6 +70,7 @@ function AppContent() {
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
+  const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
 
   useEffect(() => {
     const handleResize = () => {
@@ -258,13 +259,22 @@ function AppContent() {
       {/* Sidebar - hidden when window is narrow (unless toggled) */}
       {(!isNarrow || showSidebarInNarrow) && (
       <div
-        className="w-80 flex flex-col min-h-screen"
+        className="w-80 flex flex-col min-h-screen relative"
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
         onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
       >
+        {/* Clickable overlay for narrow mode - matches EntryHeader height */}
+        {isNarrow && showSidebarInNarrow && entryHeaderHeight > 0 && (
+          <div
+            className="absolute top-0 left-0 right-0 z-50"
+            style={{ height: entryHeaderHeight }}
+            onClick={() => setShowSidebarInNarrow(false)}
+          />
+        )}
+
         {/* Header */}
         <div
           className="sticky top-0 z-10"
@@ -273,11 +283,7 @@ function AppContent() {
             borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <div
-            className="p-4"
-            style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-            onClick={() => { if (isNarrow) setShowSidebarInNarrow(false); }}
-          >
+          <div className="p-4">
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {showAboutPanel ? `good days v${VERSION}` : 'good days'}
             </h1>
@@ -286,6 +292,7 @@ function AppContent() {
           {/* Stats */}
           <div
             className="p-4"
+            style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
           >
             <StatsDisplay
               entries={journal.entries}
@@ -373,6 +380,7 @@ function AppContent() {
           entries={journal.entries}
           paddingBottom={20}
           onClick={isNarrow ? () => setShowSidebarInNarrow(!showSidebarInNarrow) : undefined}
+          onHeightChange={setEntryHeaderHeight}
         />
 
         <JournalEditor
