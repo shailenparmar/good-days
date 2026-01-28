@@ -55,9 +55,16 @@ function MobileScreen() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '100vh',
+        minHeight: '100vh',
         padding: '32px',
+        paddingTop: 'max(32px, env(safe-area-inset-top))',
+        paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
         backgroundColor: bgColor,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
       }}
     >
       <style>{`
