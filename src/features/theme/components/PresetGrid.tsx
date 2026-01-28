@@ -18,7 +18,6 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
     getColor,
   } = useTheme();
 
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [clickedIndex, setClickedIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -343,13 +342,11 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         {presets.map((preset, index) => {
           const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
           const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
-          const borderDefault = `hsla(${preset.hue}, ${preset.sat}%, ${preset.light}%, 0.6)`;
           const borderActive = `hsl(${preset.hue}, ${preset.sat}%, ${Math.max(0, preset.light * 0.65)}%)`;
           const isActive = activePresetIndex === index;
-          const isHovered = hoveredIndex === index;
           const isClicked = clickedIndex === index;
 
-          const currentBorder = isClicked ? borderActive : borderDefault;
+          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -360,8 +357,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 e.stopPropagation();
                 handlePresetClick(index, preset);
               }}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
+              onMouseLeave={() => setClickedIndex(null)}
               onMouseDown={() => setClickedIndex(index)}
               onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
@@ -386,13 +382,11 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           const globalIndex = presets.length + index;
           const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
           const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
-          const borderDefault = `hsla(${preset.hue}, ${preset.sat}%, ${preset.light}%, 0.6)`;
           const borderActive = `hsl(${preset.hue}, ${preset.sat}%, ${Math.max(0, preset.light * 0.65)}%)`;
           const isActive = activePresetIndex === globalIndex;
-          const isHovered = hoveredIndex === globalIndex;
           const isClicked = clickedIndex === globalIndex;
 
-          const currentBorder = isClicked ? borderActive : borderDefault;
+          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -403,8 +397,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 e.stopPropagation();
                 handleCustomPresetClick(index, preset);
               }}
-              onMouseEnter={() => setHoveredIndex(globalIndex)}
-              onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
+              onMouseLeave={() => setClickedIndex(null)}
               onMouseDown={() => setClickedIndex(globalIndex)}
               onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
@@ -427,11 +420,9 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         {(() => {
           const randIndex = presets.length + customPresets.length;
           const textColor = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`;
-          const borderDefault = `hsla(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%, 0.6)`;
           const borderActive = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${Math.max(0, randomPreview.light * 0.65)}%)`;
-          const isHovered = hoveredIndex === randIndex;
           const isClicked = clickedIndex === randIndex;
-          const currentBorder = isClicked ? borderActive : borderDefault;
+          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -441,8 +432,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
               }}
-              onMouseEnter={() => setHoveredIndex(randIndex)}
-              onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
+              onMouseLeave={() => setClickedIndex(null)}
               onMouseDown={() => setClickedIndex(randIndex)}
               onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === randIndex ? 'preset-pulse' : ''}`}
@@ -465,11 +455,9 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
         {(() => {
           const saveIndex = presets.length + customPresets.length + 1;
           const textColor = getColor();
-          const borderDefault = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
           const borderActive = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-          const isHovered = hoveredIndex === saveIndex;
           const isClicked = clickedIndex === saveIndex;
-          const currentBorder = isClicked ? borderActive : borderDefault;
+          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -479,8 +467,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 saveCustomPreset();
                 setActivePresetIndex(saveIndex);
               }}
-              onMouseEnter={() => setHoveredIndex(saveIndex)}
-              onMouseLeave={() => { setHoveredIndex(null); setClickedIndex(null); }}
+              onMouseLeave={() => setClickedIndex(null)}
               onMouseDown={() => setClickedIndex(saveIndex)}
               onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
