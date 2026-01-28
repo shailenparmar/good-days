@@ -32,6 +32,17 @@ git push origin main
 - Tailwind CSS
 - Electron (for desktop app in `/electron`)
 
+## Pre-push Hook
+
+A pre-push hook runs `npm run typecheck` before every push to prevent CI failures. This catches TypeScript errors locally before they hit CI.
+
+To install (first time setup):
+```bash
+./scripts/setup-hooks.sh
+```
+
+If a push is blocked, fix the TypeScript errors shown and try again.
+
 ## Versioning
 
 **CRITICAL**: EVERY push to main MUST increment the version number. No exceptions. This allows the user to verify they're seeing the latest deployed build.

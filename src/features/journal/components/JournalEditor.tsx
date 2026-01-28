@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
+import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
 
 // Sanitize HTML - allow basic formatting tags
@@ -142,6 +143,35 @@ export function JournalEditor({
   // Handle user input (scrambled overlay is updated via MutationObserver)
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
+
+    // Check for \time and replace with timestamp
+    const textContent = editorRef.current.textContent || '';
+    if (textContent.includes('\\time')) {
+      const now = new Date();
+      const use24Hour = getItem('timeFormat') === '24h';
+      const timestamp = now.toLocaleTimeString('en-US', {
+        hour12: !use24Hour,
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      // Replace \time in the HTML content
+      const selection = window.getSelection();
+      const savedRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/g, `[${timestamp}]`);
+
+      // Restore cursor to end
+      if (savedRange && selection) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
     const content = editorRef.current.innerHTML || '';
     onInput(content);
   }, [editorRef, onInput]);
