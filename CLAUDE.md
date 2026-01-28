@@ -43,6 +43,77 @@ To install (first time setup):
 
 If a push is blocked, fix the TypeScript errors shown and try again.
 
+## App Icons (IMPORTANT - Prevents macOS/iOS Shading)
+
+When creating or modifying app icons, follow these rules to prevent macOS/iOS from applying dark shading effects:
+
+### Icon Files
+
+| File | Purpose | Design |
+|------|---------|--------|
+| `icon.svg` | Favicon (browser tab) | Rounded corners OK, transparent background OK |
+| `apple-touch-icon.png` | iOS/macOS dock | **Square** (OS rounds corners automatically) |
+| `icon-192.png` | Android/PWA | **Square** |
+| `icon-512.png` | Android/PWA | **Square** |
+| `og-image.png` | Social sharing | Icon on white background |
+
+### PNG Icon Requirements (Critical)
+
+To prevent macOS from adding dark shading to icons:
+
+1. **Use HEX colors** in SVG source (not HSL)
+   ```svg
+   fill="#0000EB"  <!-- Good -->
+   fill="hsl(241, 100%, 46%)"  <!-- Bad - may cause issues -->
+   ```
+
+2. **No embedded color profile** - just plain RGB
+   - `space: RGB` (not sRGB IEC61966-2.1)
+   - `samplesPerPixel: 3`
+
+3. **No alpha channel**
+   - `hasAlpha: no`
+
+4. **Fill entire canvas** - no transparency for dock icons
+   - The OS applies rounded corners automatically
+   - Transparent areas trigger OS "enhancement" effects
+
+Verify with: `sips -g hasAlpha -g space -g samplesPerPixel <icon>.png`
+
+### Manifest Config (vite.config.ts)
+
+```typescript
+manifest: {
+  background_color: '#000000',  // Keep black - other colors may tint icons
+  // Do NOT set theme_color in manifest (causes issues)
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+  ],
+}
+```
+
+Key points:
+- `background_color: '#000000'` - other colors (like yellow) caused shading
+- `purpose: 'any'` - NOT `maskable` (maskable triggers 3D effects)
+- Don't include apple-touch-icon in manifest (it's linked in HTML separately)
+
+### Generating Icons
+
+```bash
+# Create SVG with HEX colors, then:
+cd public
+rsvg-convert -w 180 -h 180 icon-source.svg -o apple-touch-icon.png
+rsvg-convert -w 192 -h 192 icon-source.svg -o icon-192.png
+rsvg-convert -w 512 -h 512 icon-source.svg -o icon-512.png
+
+# Do NOT embed color profiles - leave as plain RGB
+```
+
+### Backup
+
+Original working icons backed up at `public/icon-backup/` for reference.
+
 ## Versioning
 
 **CRITICAL**: EVERY push to main MUST increment the version number. No exceptions. This allows the user to verify they're seeing the latest deployed build.
