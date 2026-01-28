@@ -5,6 +5,19 @@ import './index.css'
 // Check mobile FIRST, before loading heavy imports
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+// Convert HSL to hex for theme-color (Safari prefers hex)
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 // Simple mobile component with rand button
 function MobileScreen() {
   const [colors, setColors] = useState({
@@ -38,14 +51,15 @@ function MobileScreen() {
   // Update theme-color meta tag and body background to match
   useEffect(() => {
     try {
+      const hexColor = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
       const meta = document.getElementById('theme-color-meta');
-      if (meta) meta.setAttribute('content', bgColor);
+      if (meta) meta.setAttribute('content', hexColor);
       document.body.style.backgroundColor = bgColor;
       document.documentElement.style.backgroundColor = bgColor;
     } catch (e) {
       // Ignore errors
     }
-  }, [bgColor]);
+  }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
 
   return (
     <div
