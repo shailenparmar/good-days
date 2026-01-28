@@ -4,6 +4,7 @@ import './index.css'
 
 // Check mobile FIRST, before loading heavy imports
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+console.log('[good-days] userAgent:', navigator.userAgent, 'isMobile:', isMobile);
 
 // Simple mobile component with rand button
 function MobileScreen() {
@@ -34,6 +35,7 @@ function MobileScreen() {
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
   const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
+  const debugInfo = `UA: ${navigator.userAgent.slice(0, 50)}...`;
 
   return (
     <div
@@ -63,6 +65,7 @@ function MobileScreen() {
           <p key={i} style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>{word}</p>
         ))}
       </div>
+      <p style={{ position: 'absolute', top: 8, left: 8, fontSize: '10px', color: textColor, fontFamily: 'monospace', opacity: 0.5 }}>{debugInfo}</p>
       <button
         key={pulseKey}
         onClick={randomize}
