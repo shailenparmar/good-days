@@ -37,10 +37,14 @@ function MobileScreen() {
 
   // Update theme-color meta tag and body background to match
   useEffect(() => {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', bgColor);
-    document.body.style.backgroundColor = bgColor;
-    document.documentElement.style.backgroundColor = bgColor;
+    try {
+      const meta = document.getElementById('theme-color-meta');
+      if (meta) meta.setAttribute('content', bgColor);
+      document.body.style.backgroundColor = bgColor;
+      document.documentElement.style.backgroundColor = bgColor;
+    } catch (e) {
+      // Ignore errors
+    }
   }, [bgColor]);
 
   return (

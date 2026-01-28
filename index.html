@@ -15,14 +15,11 @@
         var h = localStorage.getItem('bgHue');
         var s = localStorage.getItem('bgSaturation');
         var l = localStorage.getItem('bgLightness');
-        // Default to preset 1: hsl(84, 100%, 94%)
         h = h !== null ? h : '84';
         s = s !== null ? s : '100';
         l = l !== null ? l : '94';
         var bgColor = 'hsl(' + h + ',' + s + '%,' + l + '%)';
-        // Update theme-color meta tag
         document.getElementById('theme-color-meta').setAttribute('content', bgColor);
-        // Set background immediately
         document.write('<style>html,body{background-color:' + bgColor + '!important;margin:0;padding:0}</style>');
       })();
     </script>
