@@ -68,10 +68,7 @@ export function JournalEditor({
   // Track if initial content has loaded (to prevent placeholder flash)
   const [contentLoaded, setContentLoaded] = useState(false);
 
-  // Scrambled content for overlay (only computed when scrambled)
-  const [scrambledHtml, setScrambledHtml] = useState('');
-
-  // Ref for scrambled overlay to sync scroll position
+  // Ref for scrambled overlay (content managed via MutationObserver, not state)
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Placeholder animation
@@ -99,36 +96,39 @@ export function JournalEditor({
     }
     loadedDateRef.current = selectedDate;
 
-    // Update scrambled overlay if needed
-    if (isScrambled && sanitized) {
-      setScrambledHtml(scrambleHtml(sanitized));
-    } else {
-      setScrambledHtml('');
-    }
-
     // Mark content as loaded after paint (prevents placeholder flash)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setContentLoaded(true);
       });
     });
-  }, [entries, selectedDate, editorRef, isScrambled]);
+  }, [entries, selectedDate, editorRef]);
 
-  // Update scrambled content when scramble mode changes or content changes
-  const updateScrambledContent = useCallback(() => {
-    if (!editorRef.current) return;
-    const content = editorRef.current.innerHTML || '';
-    if (isScrambled && content) {
-      setScrambledHtml(scrambleHtml(content));
-    } else {
-      setScrambledHtml('');
-    }
-  }, [editorRef, isScrambled]);
-
-  // When scramble mode toggles, update the overlay
+  // MutationObserver to sync scrambled overlay with editor content
+  // This handles ALL changes: typing, paste, cut, undo, tab, date changes, etc.
   useEffect(() => {
-    updateScrambledContent();
-  }, [isScrambled, updateScrambledContent]);
+    if (!isScrambled || !editorRef.current) return;
+
+    const updateOverlay = () => {
+      if (!overlayRef.current || !editorRef.current) return;
+      const content = editorRef.current.innerHTML || '';
+      overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
+    };
+
+    // Initial sync when scramble mode turns on
+    updateOverlay();
+
+    // Watch for ANY DOM changes in the editor
+    const observer = new MutationObserver(updateOverlay);
+    observer.observe(editorRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      characterDataOldValue: true
+    });
+
+    return () => observer.disconnect();
+  }, [isScrambled, editorRef]);
 
   // Sync scroll position between editor and scrambled overlay
   const handleEditorScroll = useCallback(() => {
@@ -144,17 +144,12 @@ export function JournalEditor({
     }
   }, [isScrambled, editorRef]);
 
-  // Handle user input
+  // Handle user input (scrambled overlay is updated via MutationObserver)
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
     const content = editorRef.current.innerHTML || '';
     onInput(content);
-
-    // Update scrambled overlay
-    if (isScrambled && content) {
-      setScrambledHtml(scrambleHtml(content));
-    }
-  }, [editorRef, onInput, isScrambled]);
+  }, [editorRef, onInput]);
 
   // Clean up empty timestamps on blur (not during typing)
   const handleBlur = useCallback(() => {
@@ -307,13 +302,12 @@ export function JournalEditor({
         aria-multiline="true"
       />
 
-      {/* Scrambled overlay */}
-      {isScrambled && scrambledHtml && (
+      {/* Scrambled overlay - content managed via MutationObserver */}
+      {isScrambled && (
         <div
           ref={overlayRef}
           className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
           style={{ color: getColor() }}
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledHtml) }}
         />
       )}
 
