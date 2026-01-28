@@ -1,46 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Download, Copy, Laptop } from 'lucide-react';
+import { Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
 }
 
 export function ExportButtons({ entries }: ExportButtonsProps) {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
-    // Check for globally captured prompt first
-    return window.deferredInstallPrompt || null;
-  });
-
-  useEffect(() => {
-    // Also listen for future events (in case it fires after mount)
-    const handler = (e: Event) => {
-      e.preventDefault();
-      const prompt = e as BeforeInstallPromptEvent;
-      window.deferredInstallPrompt = prompt;
-      setInstallPrompt(prompt);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-      window.deferredInstallPrompt = null;
-      setInstallPrompt(null);
-    }
-  };
-
   const handleExport = () => {
     const textContent = formatEntriesAsText(entries);
     if (!textContent) return;
@@ -77,12 +44,6 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      {installPrompt && (
-        <FunctionButton onClick={handleInstall} size="sm">
-          <Laptop className="w-3 h-3" />
-          <span>install app</span>
-        </FunctionButton>
-      )}
     </div>
   );
 }
