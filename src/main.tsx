@@ -29,14 +29,13 @@ function MobileScreen() {
 
   const randomize = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const lightBg = Math.random() > 0.5;
     setColors({
       hue: Math.floor(Math.random() * 360),
-      sat: 30 + Math.floor(Math.random() * 70),
-      light: lightBg ? 25 + Math.floor(Math.random() * 30) : 70 + Math.floor(Math.random() * 25),
+      sat: Math.floor(Math.random() * 101),
+      light: Math.floor(Math.random() * 101),
       bgHue: Math.floor(Math.random() * 360),
-      bgSat: 50 + Math.floor(Math.random() * 50),
-      bgLight: lightBg ? 80 + Math.floor(Math.random() * 18) : 5 + Math.floor(Math.random() * 15),
+      bgSat: Math.floor(Math.random() * 101),
+      bgLight: Math.floor(Math.random() * 101),
     });
     setPulseKey(k => k + 1); // Reset animation
     setIsPulsing(true);
