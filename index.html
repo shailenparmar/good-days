@@ -8,12 +8,6 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg?v=2" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="hsl(84, 100%, 94%)" id="theme-color-meta" />
-    <meta property="og:title" content="good days" />
-    <meta property="og:description" content="your digital-analog journal oasis" />
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:type" content="website" />
-    <title>good days</title>
     <script>
       // Read saved theme from localStorage and apply BEFORE body paints
       (function() {
@@ -25,13 +19,17 @@
         s = s !== null ? s : '100';
         l = l !== null ? l : '94';
         var bgColor = 'hsl(' + h + ',' + s + '%,' + l + '%)';
+        // Write theme-color meta tag with correct value
+        document.write('<meta name="theme-color" content="' + bgColor + '" id="theme-color-meta" />');
         // Set background immediately
         document.write('<style>html,body{background-color:' + bgColor + '!important;margin:0;padding:0}</style>');
-        // Update theme-color meta immediately for browser toolbar
-        var meta = document.getElementById('theme-color-meta');
-        if (meta) meta.setAttribute('content', bgColor);
       })();
     </script>
+    <meta property="og:title" content="good days" />
+    <meta property="og:description" content="your digital-analog journal oasis" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:type" content="website" />
+    <title>good days</title>
   </head>
   <body>
     <div id="root"></div>
