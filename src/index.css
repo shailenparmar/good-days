@@ -33,14 +33,6 @@ html, body {
   }
 }
 
-/* Placeholder text */
-.custom-editor:empty:before {
-  content: attr(data-placeholder);
-  color: rgba(45, 212, 191, 0.3);
-  pointer-events: none;
-  white-space: pre-wrap;
-}
-
 /* Timestamp separator styling */
 .timestamp-separator {
   margin: 1rem 0;
