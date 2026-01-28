@@ -355,7 +355,9 @@ describe('Placeholder visibility logic', () => {
     isFocused: boolean
   ): boolean {
     const currentEntry = entries.find(e => e.date === selectedDate);
-    const hasContent = (currentEntry?.content?.trim().length ?? 0) > 0;
+    // Strip HTML tags to check for actual text content (handles <br> case)
+    const textOnly = (currentEntry?.content || '').replace(/<[^>]*>/g, '').trim();
+    const hasContent = textOnly.length > 0;
     return !hasContent && !isFocused;
   }
 
@@ -457,15 +459,24 @@ describe('Placeholder visibility logic', () => {
       expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(false);
     });
 
-    // Note: The placeholder logic checks raw content string length, not parsed text.
-    // HTML tags like <br> are considered content since they have length > 0.
-    it('hides placeholder for HTML with only tags (raw string has length)', () => {
+    // HTML tags are stripped - only actual text matters
+    it('shows placeholder for HTML with only <br> tags (no text)', () => {
       const entries = [{ date: '2025-01-28', content: '<br><br>' }];
-      expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(false);
+      expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(true);
     });
 
-    it('hides placeholder for HTML with whitespace text (raw string has length)', () => {
+    it('shows placeholder for HTML with only whitespace text', () => {
       const entries = [{ date: '2025-01-28', content: '<div>   </div>' }];
+      expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(true);
+    });
+
+    it('shows placeholder for complex empty HTML', () => {
+      const entries = [{ date: '2025-01-28', content: '<div><br></div><p></p>' }];
+      expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(true);
+    });
+
+    it('hides placeholder for HTML with actual text among tags', () => {
+      const entries = [{ date: '2025-01-28', content: '<div><br>Hello<br></div>' }];
       expect(shouldShowPlaceholder(entries, '2025-01-28', false)).toBe(false);
     });
   });
@@ -494,6 +505,125 @@ describe('Placeholder visibility logic', () => {
 
       expect(result1).toBe(result2);
       expect(result1).toBe(true);
+    });
+  });
+});
+
+// Test the <br> caret fix - ensures consistent caret rendering
+describe('Editor <br> caret fix', () => {
+  // Simulates the logic used in JournalEditor.tsx for consistent caret
+  function ensureCaretBr(innerHTML: string): string {
+    if (!innerHTML || innerHTML === '') {
+      return '<br>';
+    }
+    return innerHTML;
+  }
+
+  // Simulates content loading logic
+  function loadContent(content: string): string {
+    const sanitized = content;
+    return sanitized || '<br>';
+  }
+
+  describe('content loading', () => {
+    it('returns <br> for empty string', () => {
+      expect(loadContent('')).toBe('<br>');
+    });
+
+    it('preserves actual content', () => {
+      expect(loadContent('Hello')).toBe('Hello');
+    });
+
+    it('preserves HTML content', () => {
+      expect(loadContent('<div>Test</div>')).toBe('<div>Test</div>');
+    });
+  });
+
+  describe('input handling', () => {
+    it('adds <br> when innerHTML becomes empty', () => {
+      expect(ensureCaretBr('')).toBe('<br>');
+    });
+
+    it('preserves content when not empty', () => {
+      expect(ensureCaretBr('Hello')).toBe('Hello');
+    });
+
+    it('preserves existing <br>', () => {
+      expect(ensureCaretBr('<br>')).toBe('<br>');
+    });
+  });
+
+  describe('interaction with save logic', () => {
+    function isContentEmpty(innerHTML: string): boolean {
+      const div = document.createElement('div');
+      div.innerHTML = innerHTML;
+      const textContent = div.textContent || '';
+      return textContent.trim().length === 0;
+    }
+
+    it('<br> is treated as empty content for saving', () => {
+      expect(isContentEmpty('<br>')).toBe(true);
+    });
+
+    it('multiple <br> treated as empty', () => {
+      expect(isContentEmpty('<br><br><br>')).toBe(true);
+    });
+
+    it('actual text is not empty', () => {
+      expect(isContentEmpty('Hello')).toBe(false);
+    });
+
+    it('<div> with only <br> is empty', () => {
+      expect(isContentEmpty('<div><br></div>')).toBe(true);
+    });
+  });
+
+  describe('caret consistency guarantee', () => {
+    function simulateUserFlow(actions: ('type' | 'delete' | 'enter' | 'backspace')[]): string {
+      let innerHTML = '<br>';
+
+      for (const action of actions) {
+        switch (action) {
+          case 'type':
+            innerHTML = innerHTML === '<br>' ? 'a' : innerHTML + 'a';
+            break;
+          case 'delete':
+            innerHTML = innerHTML.length > 1 ? innerHTML.slice(0, -1) : '';
+            break;
+          case 'enter':
+            innerHTML = innerHTML === '<br>' ? '<div><br></div>' : innerHTML + '<br>';
+            break;
+          case 'backspace':
+            if (innerHTML === '<div><br></div>') {
+              innerHTML = '';
+            } else if (innerHTML.endsWith('<br>')) {
+              innerHTML = innerHTML.slice(0, -4);
+            } else if (innerHTML.length > 0) {
+              innerHTML = innerHTML.slice(0, -1);
+            }
+            break;
+        }
+        innerHTML = ensureCaretBr(innerHTML);
+      }
+
+      return innerHTML;
+    }
+
+    it('never returns empty after enter then backspace', () => {
+      const result = simulateUserFlow(['enter', 'backspace']);
+      expect(result).toBe('<br>');
+    });
+
+    it('never returns empty after type then delete all', () => {
+      const result = simulateUserFlow(['type', 'delete']);
+      expect(result).toBe('<br>');
+    });
+
+    it('never returns empty after complex sequence', () => {
+      const result = simulateUserFlow([
+        'type', 'type', 'enter', 'type', 'backspace', 'backspace', 'delete', 'delete', 'delete'
+      ]);
+      expect(result).not.toBe('');
     });
   });
 });

@@ -84,7 +84,8 @@ export function JournalEditor({
     const sanitized = sanitizeHtml(content);
 
     if (editorRef.current) {
-      editorRef.current.innerHTML = sanitized;
+      // Always have at least a <br> for consistent caret rendering
+      editorRef.current.innerHTML = sanitized || '<br>';
     }
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef]);
@@ -127,6 +128,12 @@ export function JournalEditor({
   // Handle user input (scrambled overlay is updated via MutationObserver)
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
+
+    // Ensure there's always a <br> for consistent caret rendering
+    // This prevents caret width changes when content becomes empty
+    if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
+      editorRef.current.innerHTML = '<br>';
+    }
 
     // Check for \time and replace with timestamp
     const textContent = editorRef.current.textContent || '';
@@ -240,8 +247,10 @@ export function JournalEditor({
   }, [editorRef]);
 
   // Placeholder - derived from actual data, not DOM state
+  // Strip HTML tags to check for actual text content (handles <br> case)
   const currentEntry = entries.find(e => e.date === selectedDate);
-  const hasContent = (currentEntry?.content?.trim().length ?? 0) > 0;
+  const textOnly = (currentEntry?.content || '').replace(/<[^>]*>/g, '').trim();
+  const hasContent = textOnly.length > 0;
   const showPlaceholder = !hasContent && !isFocused;
 
   useEffect(() => {
