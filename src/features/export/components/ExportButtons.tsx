@@ -1,7 +1,13 @@
+import { useState, useEffect } from 'react';
 import { Download, Copy, Laptop } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
@@ -10,6 +16,32 @@ interface ExportButtonsProps {
 }
 
 export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: ExportButtonsProps) {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Capture the beforeinstallprompt event for Chrome/Edge
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    // Chrome/Edge: trigger native install prompt
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } else {
+      // Safari/Firefox: show instructions panel
+      onToggleInstall();
+    }
+  };
+
   const handleExport = () => {
     const textContent = formatEntriesAsText(entries);
     if (!textContent) return;
@@ -46,7 +78,7 @@ export function ExportButtons({ entries, onToggleInstall, showInstallPanel }: Ex
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      <FunctionButton onClick={onToggleInstall} isActive={showInstallPanel} size="sm">
+      <FunctionButton onClick={handleInstallClick} isActive={showInstallPanel} size="sm">
         <Laptop className="w-3 h-3" />
         <span>install app</span>
       </FunctionButton>
