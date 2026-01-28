@@ -1,7 +1,5 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <!-- Favicon: rounded design with transparent background -->
-  <!-- Blue rounded outer border -->
-  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="hsl(241, 100%, 46%)" />
-  <!-- Yellow sharp inner square -->
-  <rect x="200" y="200" width="624" height="624" fill="hsl(59, 100%, 48%)" />
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Favicon: rounded design with HEX colors -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#0000EB" />
+  <rect x="200" y="200" width="624" height="624" fill="#F5F500" />
 </svg>
