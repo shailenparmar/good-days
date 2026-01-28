@@ -70,12 +70,10 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      {installPrompt && (
-        <FunctionButton onClick={handleInstall} size="sm">
-          <Smartphone className="w-3 h-3" />
-          <span>install app</span>
-        </FunctionButton>
-      )}
+      <FunctionButton onClick={handleInstall} disabled={!installPrompt} size="sm">
+        <Smartphone className="w-3 h-3" />
+        <span>install app{!installPrompt ? ' (n/a)' : ''}</span>
+      </FunctionButton>
     </div>
   );
 }
