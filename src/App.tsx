@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.76';
+const VERSION = '1.2.78';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -131,13 +131,29 @@ function AppContent() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key.length !== 1) return; // "Escape", "ArrowDown", etc.
 
-      // Focus the editor - keystroke will pass through naturally
-      editorRef.current?.focus();
+      // Skip spacebar when settings open (used for preset navigation)
+      if (showDebugMenu && e.key === ' ') return;
+
+      // Close settings/about panels if open
+      if (showDebugMenu) setShowDebugMenu(false);
+      if (showAboutPanel) setShowAboutPanel(false);
+
+      // Focus the editor and move cursor to end
+      if (editorRef.current) {
+        editorRef.current.focus();
+        // Move cursor to end of content
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false); // false = collapse to end
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [showDebugMenu, showAboutPanel]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
