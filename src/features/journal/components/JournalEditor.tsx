@@ -12,6 +12,19 @@ const sanitizeHtml = (html: string): string => {
   });
 };
 
+// Extract text content from HTML using DOM (robust, handles all edge cases)
+const getTextContent = (html: string): string => {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || '';
+};
+
+// Check if HTML has actual text content (not just tags like <br>)
+const hasActualContent = (html: string): boolean => {
+  return getTextContent(html).trim().length > 0;
+};
+
 // Scramble text characters for privacy overlay
 function scrambleChar(char: string): string {
   if (/[a-zA-Z]/.test(char)) {
@@ -90,6 +103,29 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef]);
 
+  // MutationObserver to ensure <br> exists for consistent caret rendering
+  // This catches ALL changes: typing, paste, cut, undo, select-all+delete, etc.
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const ensureBr = () => {
+      if (!editorRef.current) return;
+      // If editor is completely empty, add <br> for consistent caret
+      if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
+        editorRef.current.innerHTML = '<br>';
+      }
+    };
+
+    const observer = new MutationObserver(ensureBr);
+    observer.observe(editorRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
+  }, [editorRef]);
+
   // MutationObserver to sync scrambled overlay with editor content
   // This handles ALL changes: typing, paste, cut, undo, tab, date changes, etc.
   useEffect(() => {
@@ -126,14 +162,9 @@ export function JournalEditor({
   }, [editorRef]);
 
   // Handle user input (scrambled overlay is updated via MutationObserver)
+  // Note: <br> maintenance is handled by the MutationObserver above
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
-
-    // Ensure there's always a <br> for consistent caret rendering
-    // This prevents caret width changes when content becomes empty
-    if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
-      editorRef.current.innerHTML = '<br>';
-    }
 
     // Check for \time and replace with timestamp
     const textContent = editorRef.current.textContent || '';
@@ -246,11 +277,10 @@ export function JournalEditor({
     editorRef.current?.focus();
   }, [editorRef]);
 
-  // Placeholder - derived from actual data, not DOM state
-  // Strip HTML tags to check for actual text content (handles <br> case)
+  // Placeholder - derived from actual data using DOM-based text extraction
+  // This correctly handles <br>, <div><br></div>, and all HTML edge cases
   const currentEntry = entries.find(e => e.date === selectedDate);
-  const textOnly = (currentEntry?.content || '').replace(/<[^>]*>/g, '').trim();
-  const hasContent = textOnly.length > 0;
+  const hasContent = hasActualContent(currentEntry?.content || '');
   const showPlaceholder = !hasContent && !isFocused;
 
   useEffect(() => {
