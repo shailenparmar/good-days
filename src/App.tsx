@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.75';
+const VERSION = '1.2.76';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -115,6 +115,29 @@ function AppContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [auth, journal]);
+
+  // Auto-focus editor when typing anywhere (unless in another input)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Skip if in input or textarea
+      const activeEl = document.activeElement;
+      const tagName = activeEl?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea') return;
+
+      // Skip if already in a contenteditable (editor or title)
+      if (activeEl instanceof HTMLElement && activeEl.isContentEditable) return;
+
+      // Skip modifier keys and non-printable keys
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1) return; // "Escape", "ArrowDown", etc.
+
+      // Focus the editor - keystroke will pass through naturally
+      editorRef.current?.focus();
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
