@@ -2,26 +2,6 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
-// Capture PWA install prompt early, before React mounts
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-declare global {
-  interface Window {
-    deferredInstallPrompt: BeforeInstallPromptEvent | null;
-  }
-}
-
-window.deferredInstallPrompt = null;
-console.log('[PWA] Listening for beforeinstallprompt...');
-window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('[PWA] beforeinstallprompt fired!', e);
-  e.preventDefault();
-  window.deferredInstallPrompt = e as BeforeInstallPromptEvent;
-});
-
 // Check mobile FIRST, before loading heavy imports
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
