@@ -14,12 +14,18 @@ interface ExportButtonsProps {
 }
 
 export function ExportButtons({ entries }: ExportButtonsProps) {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
+    // Check for globally captured prompt first
+    return window.deferredInstallPrompt || null;
+  });
 
   useEffect(() => {
+    // Also listen for future events (in case it fires after mount)
     const handler = (e: Event) => {
       e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
+      const prompt = e as BeforeInstallPromptEvent;
+      window.deferredInstallPrompt = prompt;
+      setInstallPrompt(prompt);
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -30,6 +36,7 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
     await installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
+      window.deferredInstallPrompt = null;
       setInstallPrompt(null);
     }
   };

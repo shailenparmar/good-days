@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-push hook: run typecheck before pushing
+# Prevents pushing code that will fail CI
+
+echo "Running typecheck before push..."
+npm run typecheck
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Typecheck failed. Fix errors before pushing."
+  exit 1
+fi
+
+echo "✓ Typecheck passed"
