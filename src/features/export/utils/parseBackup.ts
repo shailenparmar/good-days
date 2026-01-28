@@ -99,15 +99,15 @@ export function mergeEntries(
       const importedText = imported.content.trim();
 
       if (existingText !== importedText && importedText !== '') {
-        // Different content - append imported content with separator
+        // Different content - append imported content with label above it
         const importDate = new Date(importTimestamp);
-        const importLabel = `\n\n---\n[imported on ${importDate.toLocaleDateString('en-US', {
+        const importLabel = `\n\nfrom ${importDate.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit'
-        })}]\n\n`;
+        })} backup:\n`;
 
         // Convert imported plain text to HTML (preserve line breaks)
         const importedHtml = imported.content
