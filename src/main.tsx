@@ -52,10 +52,19 @@ function MobileScreen() {
   useEffect(() => {
     try {
       const hexColor = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
-      const meta = document.getElementById('theme-color-meta');
-      if (meta) meta.setAttribute('content', hexColor);
-      document.body.style.backgroundColor = bgColor;
-      document.documentElement.style.backgroundColor = bgColor;
+
+      // Remove and re-add meta tag to force Safari to update
+      const oldMeta = document.getElementById('theme-color-meta');
+      if (oldMeta) oldMeta.remove();
+      const newMeta = document.createElement('meta');
+      newMeta.id = 'theme-color-meta';
+      newMeta.name = 'theme-color';
+      newMeta.content = hexColor;
+      document.head.appendChild(newMeta);
+
+      // Use setProperty with !important to override inline styles
+      document.body.style.setProperty('background-color', bgColor, 'important');
+      document.documentElement.style.setProperty('background-color', bgColor, 'important');
     } catch (e) {
       // Ignore errors
     }
