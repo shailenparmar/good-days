@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.84';
+const VERSION = '1.2.85';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -341,6 +341,13 @@ function AppContent() {
         onImportEntries={(newEntries) => {
           journal.setEntries(newEntries);
           setItem('journalEntries', JSON.stringify(newEntries));
+          // Update editor if current entry was modified
+          if (editorRef.current) {
+            const updatedEntry = newEntries.find(e => e.date === journal.selectedDate);
+            if (updatedEntry) {
+              editorRef.current.innerHTML = updatedEntry.content;
+            }
+          }
         }}
       />
 

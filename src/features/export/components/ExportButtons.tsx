@@ -52,7 +52,6 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
       const parsedEntries = parseBackupText(text);
 
       if (parsedEntries.length === 0) {
-        alert('No entries found in backup file. Make sure it\'s a valid Good Days backup.');
         return;
       }
 
@@ -60,10 +59,8 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
       const mergedEntries = mergeEntries(entries, parsedEntries, importTimestamp);
 
       onImport(mergedEntries);
-      alert(`Imported ${parsedEntries.length} entries successfully!`);
     } catch (err) {
       console.error('Failed to import backup:', err);
-      alert('Failed to import backup file. Please check the file format.');
     }
 
     // Reset input so same file can be selected again
