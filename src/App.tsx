@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.96';
+const VERSION = '1.2.97';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -272,9 +272,12 @@ function AppContent() {
             backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
             borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
-          onClick={() => { if (isNarrow) setShowSidebarInNarrow(false); }}
         >
-          <div className="p-4">
+          <div
+            className="p-4"
+            style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            onClick={() => { if (isNarrow) setShowSidebarInNarrow(false); }}
+          >
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {showAboutPanel ? `good days v${VERSION}` : 'good days'}
             </h1>
@@ -283,7 +286,6 @@ function AppContent() {
           {/* Stats */}
           <div
             className="p-4"
-            style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
           >
             <StatsDisplay
               entries={journal.entries}
