@@ -1,6 +1,7 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <!-- Transparent background with icon centered, leaving clear space around edges -->
-  <!-- Blue outer rounded rectangle (smaller, centered) -->
+  <!-- Yellow background filling entire canvas (no transparency) -->
+  <rect x="0" y="0" width="1024" height="1024" fill="hsl(59, 100%, 48%)" />
+  <!-- Blue rounded border -->
   <rect x="62" y="62" width="900" height="900" rx="180" ry="180" fill="hsl(241, 100%, 46%)" />
   <!-- Yellow inner square with sharp corners -->
   <rect x="238" y="238" width="548" height="548" fill="hsl(59, 100%, 48%)" />
