@@ -203,11 +203,31 @@ export function JournalEditor({
     });
   }, [editorRef]);
 
-  // Handle Tab key to insert tab character instead of moving focus
+  // Handle Tab key to insert/remove tab character
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Tab' && !e.shiftKey) {
+    if (e.key === 'Tab') {
       e.preventDefault();
-      document.execCommand('insertText', false, '\t');
+      if (e.shiftKey) {
+        // Shift+Tab: remove tab before cursor if present
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          if (range.startOffset > 0 && range.startContainer.nodeType === Node.TEXT_NODE) {
+            const text = range.startContainer.textContent || '';
+            const charBefore = text[range.startOffset - 1];
+            if (charBefore === '\t') {
+              // Delete the tab character
+              const newRange = document.createRange();
+              newRange.setStart(range.startContainer, range.startOffset - 1);
+              newRange.setEnd(range.startContainer, range.startOffset);
+              newRange.deleteContents();
+            }
+          }
+        }
+      } else {
+        // Tab: insert tab character
+        document.execCommand('insertText', false, '\t');
+      }
     }
   }, []);
 
