@@ -113,6 +113,8 @@ export function JournalEditor({
       if (!overlayRef.current || !editorRef.current) return;
       const content = editorRef.current.innerHTML || '';
       overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
+      // Sync scroll AFTER setting content (innerHTML can reset scrollTop)
+      overlayRef.current.scrollTop = editorRef.current.scrollTop;
     };
 
     // Initial sync when scramble mode turns on
@@ -130,19 +132,12 @@ export function JournalEditor({
     return () => observer.disconnect();
   }, [isScrambled, editorRef]);
 
-  // Sync scroll position between editor and scrambled overlay
+  // Sync scroll position during user scrolling
   const handleEditorScroll = useCallback(() => {
     if (overlayRef.current && editorRef.current) {
       overlayRef.current.scrollTop = editorRef.current.scrollTop;
     }
   }, [editorRef]);
-
-  // Sync scroll position when scramble mode turns on (overlay mounts)
-  useLayoutEffect(() => {
-    if (isScrambled && overlayRef.current && editorRef.current) {
-      overlayRef.current.scrollTop = editorRef.current.scrollTop;
-    }
-  }, [isScrambled, editorRef]);
 
   // Handle user input (scrambled overlay is updated via MutationObserver)
   const handleInput = useCallback(() => {
