@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.27';
+const VERSION = '1.2.28';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -69,9 +69,13 @@ function AppContent() {
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 768;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < COLLAPSE_BREAKPOINT);
+    const handleResize = () => {
+      setIsNarrow(window.innerWidth < COLLAPSE_BREAKPOINT);
+      setWindowWidth(window.innerWidth);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -321,6 +325,17 @@ function AppContent() {
         />
 
         <EntryFooter currentContent={journal.currentContent} />
+      </div>
+
+      {/* DEBUG: Remove after testing */}
+      <div
+        className="fixed bottom-4 right-4 px-3 py-2 rounded font-mono text-sm z-50"
+        style={{
+          backgroundColor: isNarrow ? 'rgba(220, 38, 38, 0.9)' : 'rgba(34, 197, 94, 0.9)',
+          color: 'white'
+        }}
+      >
+        {windowWidth}px {isNarrow ? '< 768 (NARROW)' : '≥ 768 (WIDE)'}
       </div>
     </div>
   );
