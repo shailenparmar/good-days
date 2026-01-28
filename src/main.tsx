@@ -53,18 +53,21 @@ function MobileScreen() {
     try {
       const hexColor = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
 
-      // Remove and re-add meta tag to force Safari to update
-      const oldMeta = document.getElementById('theme-color-meta');
-      if (oldMeta) oldMeta.remove();
+      // Remove ALL theme-color meta tags and re-add
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
       const newMeta = document.createElement('meta');
       newMeta.id = 'theme-color-meta';
       newMeta.name = 'theme-color';
       newMeta.content = hexColor;
       document.head.appendChild(newMeta);
 
-      // Use setProperty with !important to override inline styles
+      // Update body/html backgrounds with !important
       document.body.style.setProperty('background-color', bgColor, 'important');
       document.documentElement.style.setProperty('background-color', bgColor, 'important');
+
+      // Force Safari repaint by triggering a minimal scroll
+      window.scrollTo(0, window.scrollY === 0 ? 1 : 0);
+      setTimeout(() => window.scrollTo(0, 0), 10);
     } catch (e) {
       // Ignore errors
     }
