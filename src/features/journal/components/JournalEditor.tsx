@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import type { JournalEntry } from '../types';
