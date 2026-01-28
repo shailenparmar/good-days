@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.49';
+const VERSION = '1.2.50';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -196,9 +196,9 @@ function AppContent() {
       <style>
         {`
           @keyframes preset-flicker {
-            0% { border-width: 5px; }
-            50% { border-width: 3px; }
-            100% { border-width: 5px; }
+            0% { border-width: 6px; }
+            50% { border-width: 4px; }
+            100% { border-width: 6px; }
           }
           .preset-pulse {
             animation: preset-flicker 1s steps(12) infinite;
