@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import type { JournalEntry } from '../types';
@@ -71,6 +71,9 @@ export function JournalEditor({
   // Scrambled content for overlay (only computed when scrambled)
   const [scrambledHtml, setScrambledHtml] = useState('');
 
+  // Ref for scrambled overlay to sync scroll position
+  const overlayRef = useRef<HTMLDivElement>(null);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -126,6 +129,20 @@ export function JournalEditor({
   useEffect(() => {
     updateScrambledContent();
   }, [isScrambled, updateScrambledContent]);
+
+  // Sync scroll position between editor and scrambled overlay
+  const handleEditorScroll = useCallback(() => {
+    if (overlayRef.current && editorRef.current) {
+      overlayRef.current.scrollTop = editorRef.current.scrollTop;
+    }
+  }, [editorRef]);
+
+  // Sync scroll position when scramble mode turns on (overlay mounts)
+  useLayoutEffect(() => {
+    if (isScrambled && overlayRef.current && editorRef.current) {
+      overlayRef.current.scrollTop = editorRef.current.scrollTop;
+    }
+  }, [isScrambled, editorRef]);
 
   // Handle user input
   const handleInput = useCallback(() => {
@@ -249,6 +266,7 @@ export function JournalEditor({
         ref={editorRef}
         contentEditable
         onInput={handleInput}
+        onScroll={handleEditorScroll}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
@@ -263,6 +281,7 @@ export function JournalEditor({
       {/* Scrambled overlay */}
       {isScrambled && scrambledHtml && (
         <div
+          ref={overlayRef}
           className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
           style={{ color: getColor() }}
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(scrambledHtml) }}
