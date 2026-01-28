@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
@@ -8,9 +8,29 @@ interface EntryHeaderProps {
   entries: JournalEntry[];
   paddingBottom?: number;
   onClick?: () => void;
+  onHeightChange?: (height: number) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick, onHeightChange }: EntryHeaderProps) {
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  // Report height changes
+  useEffect(() => {
+    if (!onHeightChange || !headerRef.current) return;
+
+    const reportHeight = () => {
+      if (headerRef.current) {
+        onHeightChange(headerRef.current.offsetHeight);
+      }
+    };
+
+    reportHeight();
+
+    const observer = new ResizeObserver(reportHeight);
+    observer.observe(headerRef.current);
+
+    return () => observer.disconnect();
+  }, [onHeightChange]);
   const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
   const [use24Hour, setUse24Hour] = useState(() => getItem('timeFormat') === '24h');
 
@@ -49,6 +69,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick
 
   return (
     <div
+      ref={headerRef}
       className="p-4 sticky top-0 z-10"
       style={{
         paddingBottom: `${paddingBottom}px`,
