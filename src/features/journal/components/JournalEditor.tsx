@@ -66,8 +66,6 @@ export function JournalEditor({
 
   // Track which date we've loaded to prevent re-loading same content
   const loadedDateRef = useRef<string | null>(null);
-  // Track if initial content has loaded (to prevent placeholder flash)
-  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Ref for scrambled overlay (content managed via MutationObserver, not state)
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -76,13 +74,6 @@ export function JournalEditor({
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
   const placeholderText = 'start typing';
-
-  // Check if editor is empty - read directly from DOM
-  const isEditorEmpty = useCallback((): boolean => {
-    if (!editorRef.current) return true;
-    const text = editorRef.current.textContent || '';
-    return text.trim().length === 0;
-  }, [editorRef]);
 
   // Load content when date changes
   useEffect(() => {
@@ -96,13 +87,6 @@ export function JournalEditor({
       editorRef.current.innerHTML = sanitized;
     }
     loadedDateRef.current = selectedDate;
-
-    // Mark content as loaded after paint (prevents placeholder flash)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setContentLoaded(true);
-      });
-    });
   }, [entries, selectedDate, editorRef]);
 
   // MutationObserver to sync scrambled overlay with editor content
@@ -255,8 +239,10 @@ export function JournalEditor({
     editorRef.current?.focus();
   }, [editorRef]);
 
-  // Placeholder animation - only show after content has loaded to prevent flash
-  const showPlaceholder = contentLoaded && isEditorEmpty() && !isFocused;
+  // Placeholder - derived from actual data, not DOM state
+  const currentEntry = entries.find(e => e.date === selectedDate);
+  const hasContent = (currentEntry?.content?.trim().length ?? 0) > 0;
+  const showPlaceholder = !hasContent && !isFocused;
 
   useEffect(() => {
     if (!showPlaceholder) return;
