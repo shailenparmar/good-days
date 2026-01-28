@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Copy, Smartphone } from 'lucide-react';
+import { Download, Copy, Laptop } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
@@ -70,10 +70,12 @@ export function ExportButtons({ entries }: ExportButtonsProps) {
         <Download className="w-3 h-3" />
         <span>export to txt</span>
       </FunctionButton>
-      <FunctionButton onClick={handleInstall} disabled={!installPrompt} size="sm">
-        <Smartphone className="w-3 h-3" />
-        <span>install app{!installPrompt ? ' (n/a)' : ''}</span>
-      </FunctionButton>
+      {installPrompt && (
+        <FunctionButton onClick={handleInstall} size="sm">
+          <Laptop className="w-3 h-3" />
+          <span>install app</span>
+        </FunctionButton>
+      )}
     </div>
   );
 }
