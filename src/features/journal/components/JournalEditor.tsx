@@ -206,11 +206,10 @@ export function JournalEditor({
             const text = range.startContainer.textContent || '';
             const charBefore = text[range.startOffset - 1];
             if (charBefore === '\t') {
-              // Delete the tab character
-              const newRange = document.createRange();
-              newRange.setStart(range.startContainer, range.startOffset - 1);
-              newRange.setEnd(range.startContainer, range.startOffset);
-              newRange.deleteContents();
+              // Select the tab character, then replace with empty string
+              // Using execCommand keeps caret behavior consistent with Tab insert
+              selection.modify('extend', 'backward', 'character');
+              document.execCommand('insertText', false, '');
             }
           }
         }
