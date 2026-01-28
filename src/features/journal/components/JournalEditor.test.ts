@@ -348,16 +348,25 @@ describe('Placeholder visibility logic', () => {
     content: string;
   }
 
-  // This mirrors the logic in JournalEditor.tsx
+  // This mirrors the logic in JournalEditor.tsx - uses DOM-based text extraction
+  function getTextContent(html: string): string {
+    if (!html) return '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || '';
+  }
+
+  function hasActualContent(html: string): boolean {
+    return getTextContent(html).trim().length > 0;
+  }
+
   function shouldShowPlaceholder(
     entries: JournalEntry[],
     selectedDate: string,
     isFocused: boolean
   ): boolean {
     const currentEntry = entries.find(e => e.date === selectedDate);
-    // Strip HTML tags to check for actual text content (handles <br> case)
-    const textOnly = (currentEntry?.content || '').replace(/<[^>]*>/g, '').trim();
-    const hasContent = textOnly.length > 0;
+    const hasContent = hasActualContent(currentEntry?.content || '');
     return !hasContent && !isFocused;
   }
 
@@ -625,5 +634,96 @@ describe('Editor <br> caret fix', () => {
       ]);
       expect(result).not.toBe('');
     });
+  });
+});
+
+// Test content normalization (never save <br> as content)
+describe('Content normalization', () => {
+  function normalizeContent(content: string): string {
+    const div = document.createElement('div');
+    div.innerHTML = content;
+    const textContent = div.textContent || '';
+    return textContent.trim() === '' ? '' : content;
+  }
+
+  it('normalizes <br> to empty string', () => {
+    expect(normalizeContent('<br>')).toBe('');
+  });
+
+  it('normalizes multiple <br> to empty string', () => {
+    expect(normalizeContent('<br><br><br>')).toBe('');
+  });
+
+  it('normalizes <div><br></div> to empty string', () => {
+    expect(normalizeContent('<div><br></div>')).toBe('');
+  });
+
+  it('normalizes whitespace-only HTML to empty string', () => {
+    expect(normalizeContent('<div>   </div>')).toBe('');
+  });
+
+  it('preserves actual content', () => {
+    expect(normalizeContent('Hello')).toBe('Hello');
+  });
+
+  it('preserves HTML with text', () => {
+    expect(normalizeContent('<div>Hello</div>')).toBe('<div>Hello</div>');
+  });
+
+  it('preserves mixed content', () => {
+    expect(normalizeContent('<br>Hello<br>')).toBe('<br>Hello<br>');
+  });
+});
+
+// Test DOM-based text extraction (robust)
+describe('DOM-based text extraction', () => {
+  function getTextContent(html: string): string {
+    if (!html) return '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || '';
+  }
+
+  it('extracts text from plain string', () => {
+    expect(getTextContent('Hello')).toBe('Hello');
+  });
+
+  it('extracts text from HTML', () => {
+    expect(getTextContent('<div>Hello</div>')).toBe('Hello');
+  });
+
+  it('extracts text from nested HTML', () => {
+    expect(getTextContent('<div><span>Hello</span> <b>World</b></div>')).toBe('Hello World');
+  });
+
+  it('returns empty for <br>', () => {
+    expect(getTextContent('<br>')).toBe('');
+  });
+
+  it('returns empty for multiple <br>', () => {
+    expect(getTextContent('<br><br><br>')).toBe('');
+  });
+
+  it('returns empty for empty div', () => {
+    expect(getTextContent('<div></div>')).toBe('');
+  });
+
+  it('handles special characters correctly', () => {
+    expect(getTextContent('<div>&amp; &lt; &gt;</div>')).toBe('& < >');
+  });
+
+  it('handles attributes with > character', () => {
+    // This is why we use DOM instead of regex
+    expect(getTextContent('<div data-test="a>b">Hello</div>')).toBe('Hello');
+  });
+
+  it('handles malformed HTML gracefully', () => {
+    // Browser will try to fix malformed HTML
+    expect(getTextContent('<div>Hello<span>World</div>')).toContain('Hello');
+  });
+
+  it('returns empty for null/undefined', () => {
+    expect(getTextContent('')).toBe('');
+    expect(getTextContent(null as unknown as string)).toBe('');
   });
 });

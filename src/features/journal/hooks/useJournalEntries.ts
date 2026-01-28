@@ -118,6 +118,9 @@ export function useJournalEntries() {
     tempDiv.innerHTML = content;
     const textContent = tempDiv.textContent || '';
 
+    // Normalize content: if no actual text, save empty string (not <br> or other empty HTML)
+    const normalizedContent = textContent.trim() === '' ? '' : content;
+
     const isToday = selectedDate === getTodayDate();
 
     // Build new entries using ref (synchronous, not affected by React batching)
@@ -131,7 +134,7 @@ export function useJournalEntries() {
           newEntries = [...currentEntries];
           newEntries[existingIndex] = {
             date: selectedDate,
-            content,
+            content: normalizedContent,
             title: currentEntries[existingIndex].title,
             startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
             lastModified: now,
@@ -139,7 +142,7 @@ export function useJournalEntries() {
         } else {
           newEntries = [...currentEntries, {
             date: selectedDate,
-            content,
+            content: normalizedContent,
             startedAt: timestamp || now,
             lastModified: now,
           }];
