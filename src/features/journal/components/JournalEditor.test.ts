@@ -310,9 +310,10 @@ describe('Scroll sync', () => {
 describe('Edge cases', () => {
   it('handles HTML entities', () => {
     const result = scrambleHtml('&lt;hello&gt;');
-    // HTML entities become < and > when parsed
-    expect(result).toContain('<');
-    expect(result).toContain('>');
+    // HTML entities are preserved as entities, text inside gets scrambled
+    expect(result).toContain('&lt;');
+    expect(result).toContain('&gt;');
+    expect(result).toMatch(/&lt;[a-z]{5}&gt;/);
   });
 
   it('handles very long content', () => {
