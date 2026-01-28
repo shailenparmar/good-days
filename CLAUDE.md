@@ -25,6 +25,7 @@ git push origin main
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
 - Theme colors are HSL-based and managed via ThemeContext
 - Borders use 6px solid with theme color at 0.85 opacity
+- **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 
 ## Tech Stack
 
