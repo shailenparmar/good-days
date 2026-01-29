@@ -26,6 +26,7 @@ git push origin main
 - Theme colors are HSL-based and managed via ThemeContext
 - Borders use 6px solid with theme color at 0.85 opacity
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
+- **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
 ## Layout Modes & Sidebar Visibility
 
@@ -35,9 +36,9 @@ The app has two layout modes with different sidebar behavior.
 
 | Variable | Purpose | Persisted |
 |----------|---------|-----------|
-| `isNarrow` | `true` when window < 711px | No |
-| `showSidebarInNarrow` | Show sidebar when narrow | No |
-| `zenMode` | Hide sidebar when wide (distraction-free) | No |
+| `isNarrow` | `true` when window < 711px | No (computed from window width) |
+| `showSidebarInNarrow` | Show sidebar when narrow | Yes |
+| `zenMode` | Hide sidebar when wide (distraction-free) | Yes |
 | `showDebugMenu` | Settings panel visibility | Yes |
 | `showAboutPanel` | About panel visibility | Yes |
 
