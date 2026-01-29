@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -352,6 +352,7 @@ function AppContent() {
         hasPassword={auth.hasPassword}
         verifyPassword={auth.verifyPassword}
         setPassword={auth.setPassword}
+        removePassword={auth.removePassword}
         entries={journal.entries}
         onCloseAbout={() => setShowAboutPanel(false)}
         onImportEntries={(newEntries) => {

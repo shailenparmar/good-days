@@ -27,6 +27,71 @@ git push origin main
 - Borders use 6px solid with theme color at 0.85 opacity
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 
+## Buttons (IMPORTANT)
+
+**ALWAYS use the `FunctionButton` component** for all clickable buttons. Never create inline buttons with custom hover/click handlers.
+
+### Usage
+
+```tsx
+import { FunctionButton } from '@shared/components';
+
+// Basic button
+<FunctionButton onClick={handleClick}>
+  <span>button text</span>
+</FunctionButton>
+
+// With icon
+<FunctionButton onClick={handleClick} size="sm">
+  <Icon className="w-3 h-3" />
+  <span>button text</span>
+</FunctionButton>
+
+// Active state (for toggles)
+<FunctionButton onClick={handleClick} isActive={isActive}>
+  <span>toggle button</span>
+</FunctionButton>
+```
+
+### Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onClick` | `() => void` | Click handler (required) |
+| `disabled` | `boolean` | Disables the button |
+| `isActive` | `boolean` | Shows active/selected state |
+| `size` | `'sm' \| 'default'` | `'sm'` for settings panels, `'default'` for sidebar |
+| `children` | `ReactNode` | Button content (text, icons) |
+
+### Why FunctionButton?
+
+FunctionButton handles all the required behaviors:
+- **State management**: Uses `useState` for `isHovered` and `isClicked`
+- **Border colors**: Default (60% opacity) → Hover (full color) → Click (65% lightness)
+- **Background**: Transparent → Hover (20% opacity fill)
+- **Mouse events**: Proper `onMouseEnter`, `onMouseLeave`, `onMouseDown`, `onMouseUp`
+- **Click handling**: `e.stopPropagation()` and `e.currentTarget.blur()`
+- **Accessibility**: `tabIndex={-1}`, `outline-none`, `select-none`
+
+### DO NOT
+
+```tsx
+// BAD - Never do this:
+<button
+  onClick={handleClick}
+  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'white'}
+  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'gray'}
+>
+  bad button
+</button>
+```
+
+This breaks the style guide because:
+1. No proper state management (border flickers)
+2. Inline style manipulation is fragile
+3. Missing click behaviors (stopPropagation, blur)
+4. Missing accessibility attributes
+
 ## Tech Stack
 
 - Vite + React + TypeScript
