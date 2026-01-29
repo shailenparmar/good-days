@@ -4,11 +4,11 @@ import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
 
-// Sanitize HTML - allow basic formatting tags
+// Sanitize HTML - allow basic formatting tags, strip all attributes
 const sanitizeHtml = (html: string): string => {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['br', 'div', 'span', 'p', 'b', 'i', 'u', 'strong', 'em'],
-    ALLOWED_ATTR: ['class', 'style'],
+    ALLOWED_ATTR: [],
   });
 };
 
