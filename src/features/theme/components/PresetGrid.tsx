@@ -233,8 +233,8 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
       }
     };
 
-    window.addEventListener('keydown', handlePresetNavigation);
-    return () => window.removeEventListener('keydown', handlePresetNavigation);
+    window.addEventListener('keydown', handlePresetNavigation, true); // capture phase - runs before App.tsx
+    return () => window.removeEventListener('keydown', handlePresetNavigation, true);
   }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset]);
 
   // Handle delete key for presets
@@ -279,8 +279,8 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true); // capture phase - runs before App.tsx
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset]);
 
   const handlePresetClick = (index: number, preset: ColorPreset) => {
