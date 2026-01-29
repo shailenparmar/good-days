@@ -185,51 +185,51 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
           setSelectedPreset(null);
           setSelectedCustomPreset(null);
         }
-      } else if (e.key === ' ' && activePresetIndex !== null) {
-        // Spacebar to select/apply preset, rand, or save
-        e.preventDefault();
-        setKeyboardUseCount(c => c + 1);
+      } else if (e.key === 'Enter' && activePresetIndex !== null && activePresetIndex < totalDefaultAndCustom) {
+        // Enter overwrites preset only if colors have changed
+        const preset = activePresetIndex < presets.length
+          ? presets[activePresetIndex]
+          : customPresets[activePresetIndex - presets.length];
 
-        if (activePresetIndex < presets.length) {
-          // Apply default preset
-          const preset = presets[activePresetIndex];
-          applyPreset(preset);
-          setSelectedPreset(activePresetIndex);
-          setSelectedCustomPreset(null);
-        } else if (activePresetIndex < totalDefaultAndCustom) {
-          // Apply custom preset
-          const customIndex = activePresetIndex - presets.length;
-          const preset = customPresets[customIndex];
-          applyPreset(preset);
-          setSelectedPreset(null);
-          setSelectedCustomPreset(customIndex);
-        } else if (activePresetIndex === totalDefaultAndCustom) {
-          // Rand
-          randomizeTheme();
-        } else if (activePresetIndex === totalDefaultAndCustom + 1) {
-          // Save
-          saveCustomPreset();
-        }
-      } else if (e.key === 'Enter' && activePresetIndex !== null) {
-        // Enter to save current colors to active preset
-        e.preventDefault();
+        const colorsChanged = (
+          hue !== preset.hue ||
+          saturation !== preset.sat ||
+          lightness !== preset.light ||
+          bgHue !== preset.bgHue ||
+          bgSaturation !== preset.bgSat ||
+          bgLightness !== preset.bgLight
+        );
 
-        if (activePresetIndex < presets.length) {
-          const newPresets = [...presets];
-          newPresets[activePresetIndex] = {
-            hue,
-            sat: saturation,
-            light: lightness,
-            bgHue,
-            bgSat: bgSaturation,
-            bgLight: bgLightness,
-          };
-          setPresets(newPresets);
-        } else if (activePresetIndex === totalDefaultAndCustom) {
-          randomizeTheme();
-        } else if (activePresetIndex === totalDefaultAndCustom + 1) {
-          saveCustomPreset();
+        if (colorsChanged) {
+          e.preventDefault();
+          if (activePresetIndex < presets.length) {
+            // Overwrite default preset
+            const newPresets = [...presets];
+            newPresets[activePresetIndex] = {
+              hue,
+              sat: saturation,
+              light: lightness,
+              bgHue,
+              bgSat: bgSaturation,
+              bgLight: bgLightness,
+            };
+            setPresets(newPresets);
+          } else {
+            // Overwrite custom preset
+            const customIndex = activePresetIndex - presets.length;
+            const newCustomPresets = [...customPresets];
+            newCustomPresets[customIndex] = {
+              hue,
+              sat: saturation,
+              light: lightness,
+              bgHue,
+              bgSat: bgSaturation,
+              bgLight: bgLightness,
+            };
+            setCustomPresets(newCustomPresets);
+          }
         }
+        // If colors unchanged, don't preventDefault - let App.tsx focus editor
       }
     };
 
