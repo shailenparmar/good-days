@@ -727,3 +727,275 @@ describe('DOM-based text extraction', () => {
     expect(getTextContent(null as unknown as string)).toBe('');
   });
 });
+
+// Test rAF-based debouncing for fast typing race conditions
+describe('requestAnimationFrame debouncing', () => {
+  let container: HTMLDivElement;
+  let editor: HTMLDivElement;
+  let overlay: HTMLDivElement;
+  let observer: MutationObserver | null = null;
+  let rafId: number | null = null;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    editor = document.createElement('div');
+    editor.contentEditable = 'true';
+    overlay = document.createElement('div');
+    container.appendChild(editor);
+    container.appendChild(overlay);
+    document.body.appendChild(container);
+
+    // Mock requestAnimationFrame
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      const id = setTimeout(() => cb(performance.now()), 16);
+      return id as unknown as number;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      clearTimeout(id);
+    });
+  });
+
+  afterEach(() => {
+    observer?.disconnect();
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+    }
+    document.body.removeChild(container);
+    vi.restoreAllMocks();
+  });
+
+  it('batches rapid mutations into single update', async () => {
+    let updateCount = 0;
+
+    const updateOverlay = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        updateCount++;
+        const content = editor.innerHTML || '';
+        overlay.innerHTML = scrambleHtml(content);
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(updateOverlay);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Simulate very rapid typing (10 characters in quick succession)
+    for (let i = 0; i < 10; i++) {
+      editor.innerHTML += 'a';
+    }
+
+    // Wait for rAF to fire (mocked at 16ms)
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Should batch all updates into one (or few) rAF callbacks
+    expect(updateCount).toBeLessThanOrEqual(2);
+    expect(overlay.innerHTML).toMatch(/^[a-z]{10}$/);
+  });
+
+  it('preserves content during rapid typing', async () => {
+    const updateOverlay = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        const content = editor.innerHTML || '';
+        overlay.innerHTML = scrambleHtml(content);
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(updateOverlay);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Type very fast
+    const testString = 'quick brown fox';
+    for (const char of testString) {
+      editor.innerHTML += char;
+    }
+
+    // Wait for rAF
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Editor should have all characters
+    expect(editor.innerHTML).toBe(testString);
+    // Overlay should have same length (scrambled)
+    expect(overlay.innerHTML.length).toBe(testString.length);
+  });
+
+  it('handles interleaved type and delete during fast input', async () => {
+    const updateOverlay = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        const content = editor.innerHTML || '';
+        overlay.innerHTML = scrambleHtml(content);
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(updateOverlay);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Simulate typing with mistakes and corrections
+    editor.innerHTML = 'helo';  // typo
+    editor.innerHTML = 'hel';   // backspace
+    editor.innerHTML = 'hell';  // correct
+    editor.innerHTML = 'hello'; // continue
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(editor.innerHTML).toBe('hello');
+    expect(overlay.innerHTML.length).toBe(5);
+  });
+
+  it('cleans up pending rAF on observer disconnect', async () => {
+    let localRafId: number | null = null;
+    let rafScheduled = false;
+
+    const updateOverlay = () => {
+      if (localRafId !== null) {
+        cancelAnimationFrame(localRafId);
+      }
+      localRafId = requestAnimationFrame(() => {
+        overlay.innerHTML = scrambleHtml(editor.innerHTML || '');
+        localRafId = null;
+      });
+      rafScheduled = true;
+    };
+
+    observer = new MutationObserver(updateOverlay);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Trigger a mutation
+    editor.innerHTML = 'test';
+
+    // Wait for MutationObserver to fire (microtask)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Verify rAF was scheduled
+    expect(rafScheduled).toBe(true);
+    expect(localRafId).not.toBeNull();
+
+    // Now disconnect and cleanup before rAF fires
+    observer.disconnect();
+    if (localRafId !== null) {
+      cancelAnimationFrame(localRafId);
+      localRafId = null;
+    }
+
+    // localRafId should be cleaned up
+    expect(localRafId).toBeNull();
+  });
+});
+
+// Test ensureBr with rAF debouncing
+describe('ensureBr rAF debouncing', () => {
+  let editor: HTMLDivElement;
+  let observer: MutationObserver | null = null;
+  let rafId: number | null = null;
+
+  beforeEach(() => {
+    editor = document.createElement('div');
+    editor.contentEditable = 'true';
+    document.body.appendChild(editor);
+
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      const id = setTimeout(() => cb(performance.now()), 16);
+      return id as unknown as number;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      clearTimeout(id);
+    });
+  });
+
+  afterEach(() => {
+    observer?.disconnect();
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+    }
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('does not wipe content during rapid typing', async () => {
+    const ensureBr = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        if (!editor.innerHTML || editor.innerHTML === '') {
+          editor.innerHTML = '<br>';
+        }
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(ensureBr);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Simulate rapid typing
+    editor.innerHTML = 'a';
+    editor.innerHTML = 'ab';
+    editor.innerHTML = 'abc';
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Content should be preserved, NOT replaced with <br>
+    expect(editor.innerHTML).toBe('abc');
+  });
+
+  it('adds <br> only when truly empty after settling', async () => {
+    const ensureBr = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        if (!editor.innerHTML || editor.innerHTML === '') {
+          editor.innerHTML = '<br>';
+        }
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(ensureBr);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    // Start with content, then delete all
+    editor.innerHTML = 'test';
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(editor.innerHTML).toBe('test');
+
+    // Now clear it
+    editor.innerHTML = '';
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(editor.innerHTML).toBe('<br>');
+  });
+});
