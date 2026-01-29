@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.2.98';
+const VERSION = '1.2.99';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -291,7 +291,7 @@ function AppContent() {
 
           {/* Stats */}
           <div
-            className="p-4"
+            className="p-4 overflow-hidden"
             style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
           >
             <StatsDisplay
