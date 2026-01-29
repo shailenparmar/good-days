@@ -53,6 +53,21 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     }
   }, [showPlaceholder]);
 
+  // Auto-focus input when user starts typing anywhere on the lock screen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if already focused, or if it's a modifier/control key
+      if (document.activeElement === inputRef.current) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1) return; // Only printable characters
+
+      inputRef.current?.focus();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const flashRed = () => {
     setFlashState('red');
     setTimeout(() => setFlashState('none'), 80);
