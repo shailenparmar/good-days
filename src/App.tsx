@@ -163,6 +163,9 @@ function AppContent() {
       // Skip modifier keys
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
+      // When settings open, protect Space/Backspace for preset controls
+      if (showDebugMenu && (e.key === ' ' || e.key === 'Backspace')) return;
+
       // Handle printable characters, Enter, and Backspace
       const isPrintable = e.key.length === 1;
       const isEnterOrBackspace = e.key === 'Enter' || e.key === 'Backspace';
@@ -186,7 +189,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isNarrow, closePanels]);
+  }, [showDebugMenu, isNarrow, closePanels]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 

@@ -69,7 +69,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
             i designed this journal for my own daily use, and i'm elated to share it.
           </p>
           <p>
-            try drafting while scrambled, typing "\time", or holding enter on rand. here's to many colorways and many more good days.
+            try drafting while scrambled, typing "\time", or holding spacebar on rand. here's to many colorways and many more good days.
           </p>
           <p className="mt-4">
             - shai
