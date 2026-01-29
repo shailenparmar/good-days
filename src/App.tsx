@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -82,16 +82,18 @@ function AppContent() {
   useEffect(() => {
     const handleResize = () => {
       const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
+      const wasNarrow = isNarrow;
       setIsNarrow(narrow);
-      // Reset mode states when transitioning between narrow/wide
-      if (!narrow) {
+      // Reset all visibility states when transitioning between modes
+      if (narrow !== wasNarrow) {
         setShowSidebarInNarrow(false);
-        setZenMode(false); // Exit zen mode when going wide
+        setZenMode(false);
+        closePanels(); // Close settings/about on resize
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isNarrow, closePanels]);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway } = theme;
 
