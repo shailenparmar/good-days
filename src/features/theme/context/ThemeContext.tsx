@@ -243,6 +243,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   const randomizeTheme = () => {
+    // Haptic feedback on supported devices
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+
     const newHue = Math.floor(Math.random() * 360);
     const newSat = Math.floor(Math.random() * 101);
     const newLight = Math.floor(Math.random() * 101);
