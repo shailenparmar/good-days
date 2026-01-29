@@ -198,9 +198,9 @@ export function JournalEditor({
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
-    // Check for \time and replace with timestamp
+    // Check for \time or \TIME and replace with timestamp
     const textContent = editorRef.current.textContent || '';
-    if (textContent.includes('\\time')) {
+    if (textContent.toLowerCase().includes('\\time')) {
       const now = new Date();
       const use24Hour = getItem('timeFormat') === '24h';
       const timestamp = now.toLocaleTimeString('en-US', {
@@ -210,11 +210,11 @@ export function JournalEditor({
         second: '2-digit'
       });
 
-      // Replace \time in the HTML content
+      // Replace \time or \TIME in the HTML content
       const selection = window.getSelection();
       const savedRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
 
-      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/g, `[${timestamp}]`);
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/gi, `[${timestamp}]`);
 
       // Restore cursor to end
       if (savedRange && selection) {
