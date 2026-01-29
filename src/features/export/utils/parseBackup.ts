@@ -101,7 +101,7 @@ export function mergeEntries(
       if (existingText !== importedText && importedText !== '') {
         // Different content - append imported content with label above it
         const importDate = new Date(importTimestamp);
-        const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
+        const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
