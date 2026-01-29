@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.4.3';
+const VERSION = '1.4.4';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -84,16 +84,16 @@ function AppContent() {
       const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
       const wasNarrow = isNarrow;
       setIsNarrow(narrow);
-      // Reset all visibility states when transitioning between modes
+      // Reset sidebar visibility states when transitioning between modes
+      // Panels (settings/about) stay open - they're independent of layout mode
       if (narrow !== wasNarrow) {
         setShowSidebarInNarrow(false);
         setZenMode(false);
-        closePanels(); // Close settings/about on resize
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isNarrow, closePanels]);
+  }, [isNarrow]);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway } = theme;
 
