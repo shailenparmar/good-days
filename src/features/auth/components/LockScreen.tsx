@@ -59,7 +59,10 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       // Ignore if already focused, or if it's a modifier/control key
       if (document.activeElement === inputRef.current) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key.length !== 1) return; // Only printable characters
+
+      // Allow printable characters, backspace, and enter
+      const isTypingKey = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter';
+      if (!isTypingKey) return;
 
       inputRef.current?.focus();
     };
