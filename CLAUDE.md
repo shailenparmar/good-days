@@ -27,6 +27,128 @@ git push origin main
 - Borders use 6px solid with theme color at 0.85 opacity
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 
+## Layout Modes & Sidebar Visibility
+
+The app has two layout modes with different sidebar behavior.
+
+### State Variables (in App.tsx)
+
+| Variable | Purpose | Persisted |
+|----------|---------|-----------|
+| `isNarrow` | `true` when window < 711px | No |
+| `showSidebarInNarrow` | Show sidebar when narrow | No |
+| `zenMode` | Hide sidebar when wide (distraction-free) | No |
+| `showDebugMenu` | Settings panel visibility | Yes |
+| `showAboutPanel` | About panel visibility | Yes |
+
+### Sidebar Visibility Formula
+
+```tsx
+(isNarrow ? showSidebarInNarrow : !zenMode)
+```
+
+| Mode | Sidebar Shows When |
+|------|-------------------|
+| Wide | `!zenMode` (default: visible) |
+| Narrow | `showSidebarInNarrow` (default: hidden) |
+
+### Mode Transitions
+
+| Transition | Behavior |
+|------------|----------|
+| Wide → Narrow | `showSidebarInNarrow` stays false (sidebar hidden) |
+| Narrow → Wide | `showSidebarInNarrow` reset, `zenMode` reset (sidebar visible) |
+| Open settings/about | `zenMode` auto-exits (sidebar appears) |
+
+### Click Behaviors
+
+| Click Location | Wide Mode | Narrow Mode |
+|----------------|-----------|-------------|
+| EntryHeader | Toggle zen + close panels | Toggle sidebar + close panels |
+| Editor area | — | Close panels |
+| Sidebar | Close panels | Close panels |
+| Sidebar overlay | N/A | Close sidebar + panels |
+| Entry selection | Close panels | Close panels |
+| Typing | Close panels | Close panels |
+
+### Closing Panels
+
+**ALWAYS use `closePanels()`** - never call setters separately.
+
+```tsx
+const closePanels = useCallback(() => {
+  setShowDebugMenu(false);
+  setShowAboutPanel(false);
+}, []);
+```
+
+### Key Principles
+
+1. **Explicit state changes** - Sidebar visibility is always controlled by `showSidebarInNarrow` or `zenMode`, never by layout space
+2. **Zen mode auto-exits** - Opening settings/about exits zen mode so sidebar is accessible
+3. **Mode reset on resize** - Going narrow→wide resets both `showSidebarInNarrow` and `zenMode`
+4. **Stop propagation** - EntryHeader click stops propagation to prevent duplicate handler calls
+
+## ESC Key Behavior (IMPORTANT)
+
+ESC key locks the app, but NOT in certain situations. Two handlers coordinate this:
+
+### Handler Architecture
+
+| Handler | Location | Phase | Purpose |
+|---------|----------|-------|---------|
+| Password flow | `PasswordSettings.tsx` | Capture (runs first) | Reset password flow, call `preventDefault()` |
+| App lock | `App.tsx` | Bubble (runs second) | Lock app if not prevented |
+
+### When ESC Should NOT Lock
+
+1. **User is in an input field** - Check `document.activeElement.tagName`
+2. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
+3. **ESC was already handled** - Check `e.defaultPrevented`
+
+### When ESC SHOULD Lock
+
+1. **Main editor view** - No panels open, not in input
+2. **After password saved** - Label says "esc to lock", `isSaving=true`
+3. **Split buttons visible** - No password flow in progress
+
+### Password Flow ESC Behavior
+
+| State | `showInput` | `isSaving` | ESC Result |
+|-------|-------------|------------|------------|
+| Split buttons | `false` | `false` | Lock (no flow active) |
+| "old password" step | `true` | `false` | → Split buttons |
+| "new password" step | `true` | `false` | → "old password" |
+| "confirm" step | `true` | `false` | → "old password" |
+| "password" (set) | `true` | `false` | Blur input (show placeholder) |
+| "one more time" (set-confirm) | `true` | `false` | → "type here" |
+| "password saved" | `true` | `true` | Lock (handler skips) |
+
+### Implementation Details
+
+**PasswordSettings handler (capture phase):**
+- Always attached (avoids race conditions during state updates)
+- Checks `showInput && !isSaving` inside handler, not in useEffect guard
+- Calls `e.preventDefault()` when handling, so App.tsx skips
+
+**App.tsx handler (bubble phase):**
+- Checks `e.defaultPrevented` first
+- Checks if user is in input/textarea
+- Otherwise locks the app
+
+### Testing Checklist
+
+- [ ] Click "change password" → ESC → back to split buttons (no lock)
+- [ ] Type old password → ESC → back to split buttons (no lock)
+- [ ] At "new password" → ESC → back to "old password" (no lock)
+- [ ] At "confirm" → ESC → back to "old password" (no lock)
+- [ ] Password saved → ESC → locks app
+- [ ] No password, "password" (focused) → ESC → blurs input, shows placeholder
+- [ ] No password, "one more time" → ESC → back to "password", blurred
+- [ ] No password, wrong confirm → focused at "password" → ESC → blurs, shows placeholder
+- [ ] Main editor (no panels) → ESC → locks app
+- [ ] Rapid click + ESC → consistent behavior (no race condition)
+
 ## Buttons (IMPORTANT)
 
 **ALWAYS use the `FunctionButton` component** for all clickable buttons. Never create inline buttons with custom hover/click handlers.

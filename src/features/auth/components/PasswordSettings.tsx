@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
-import { FunctionButton } from '@shared/components';
 
 type PasswordStep = 'old' | 'new' | 'confirm' | 'set' | 'set-confirm';
 type FlashState = 'none' | 'green' | 'red';
@@ -18,13 +17,72 @@ function getPlaceholderText(step: PasswordStep): string {
     case 'old': return 'old password';
     case 'new': return 'new password';
     case 'confirm': return 'new password again';
-    case 'set': return 'type here';
+    case 'set': return 'password';
     case 'set-confirm': return 'one more time';
   }
 }
 
+// Split button component (like TimeButton)
+function PasswordButton({
+  onClick,
+  isSelected,
+  children,
+  position
+}: {
+  onClick: () => void;
+  isSelected: boolean;
+  children: React.ReactNode;
+  position: 'left' | 'right';
+}) {
+  const { getColor, hue, saturation, lightness } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+
+  const textColor = getColor();
+  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
+  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
+  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+
+  const getCurrentBorder = () => {
+    if (isClicked) return activeColor;
+    if (isHovered || isSelected) return textColor;
+    return borderColor;
+  };
+
+  const currentBorder = getCurrentBorder();
+
+  const getBackground = () => {
+    if (isSelected || isHovered) return hoverBg;
+    return 'transparent';
+  };
+
+  const borderStyle = position === 'left'
+    ? { borderTop: `3px solid ${currentBorder}`, borderBottom: `3px solid ${currentBorder}`, borderLeft: `3px solid ${currentBorder}`, borderRight: `1px solid ${currentBorder}` }
+    : { borderTop: `3px solid ${currentBorder}`, borderBottom: `3px solid ${currentBorder}`, borderRight: `3px solid ${currentBorder}`, borderLeft: `1px solid ${currentBorder}` };
+
+  return (
+    <button
+      onClick={onClick}
+      tabIndex={-1}
+      className={`flex-1 px-3 py-2 text-xs font-mono font-bold outline-none focus:outline-none select-none ${position === 'left' ? 'rounded-l' : 'rounded-r'}`}
+      style={{
+        color: textColor,
+        backgroundColor: getBackground(),
+        ...borderStyle,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setIsClicked(false); }}
+      onMouseDown={() => setIsClicked(true)}
+      onMouseUp={() => setIsClicked(false)}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function PasswordSettings({ hasPassword, verifyPassword, setPassword, removePassword }: PasswordSettingsProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Core state
   const [step, setStep] = useState<PasswordStep>(hasPassword ? 'old' : 'set');
@@ -32,6 +90,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const [newPasswordTemp, setNewPasswordTemp] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [flashState, setFlashState] = useState<FlashState>('none');
+
+  // Controls whether to show the input (when hasPassword, starts hidden until user clicks "change password")
+  const [showInput, setShowInput] = useState(!hasPassword);
 
   // Input interaction state
   const [isFocused, setIsFocused] = useState(false);
@@ -52,16 +113,58 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const showPlaceholder = !input && !isSaving && !isFocused;
   const isDisabled = isSaving || flashState === 'green';
 
-  // Sync step with hasPassword prop
+  // Sync step and showInput with hasPassword prop
   useEffect(() => {
     if (!isSaving) {
       setStep(hasPassword ? 'old' : 'set');
+      // When password is removed, show input for "set password" flow
+      // When password exists, hide input until user clicks "change password"
+      setShowInput(!hasPassword);
     }
   }, [hasPassword, isSaving]);
 
+  // Window-level ESC handler to reset password flow (without requiring input focus)
+  // Always attached to avoid race conditions, but checks state inside handler
+  useEffect(() => {
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+
+      // Don't handle if input not shown or saving (let App.tsx lock when saving)
+      if (!showInput || isSaving) return;
+
+      // Check each case and only preventDefault when we actually handle it
+      if (step === 'set-confirm') {
+        e.preventDefault();
+        setStep('set');
+        setInput('');
+        setNewPasswordTemp('');
+        inputRef.current?.blur();
+      } else if (step === 'new' || step === 'confirm') {
+        e.preventDefault();
+        setStep('old');
+        setInput('');
+        setNewPasswordTemp('');
+        inputRef.current?.blur();
+      } else if (step === 'old' && hasPassword) {
+        e.preventDefault();
+        setShowInput(false);
+        setInput('');
+      } else if (step === 'set' && !hasPassword) {
+        // First step of set password: blur to show placeholder, don't lock
+        e.preventDefault();
+        setInput('');
+        inputRef.current?.blur();
+      }
+    };
+
+    // Use capture phase so this runs BEFORE App.tsx's handler
+    window.addEventListener('keydown', handleWindowKeyDown, true);
+    return () => window.removeEventListener('keydown', handleWindowKeyDown, true);
+  }, [showInput, isSaving, step, hasPassword]);
+
   // Placeholder animation - runs when placeholder is visible
   useEffect(() => {
-    if (!showPlaceholder) return;
+    if (!showPlaceholder || !showInput) return;
 
     const maxCount = placeholderText.length;
     if (boldCount >= maxCount) {
@@ -72,15 +175,15 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
     const timer = setTimeout(() => setBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
-  }, [showPlaceholder, boldCount, animPhase, placeholderText.length]);
+  }, [showPlaceholder, showInput, boldCount, animPhase, placeholderText.length]);
 
   // Reset placeholder animation when it becomes visible
   useEffect(() => {
-    if (showPlaceholder) {
+    if (showPlaceholder && showInput) {
       setBoldCount(0);
       setAnimPhase('bold');
     }
-  }, [showPlaceholder]);
+  }, [showPlaceholder, showInput]);
 
   // Label animation - runs when saving
   useEffect(() => {
@@ -141,6 +244,48 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const getBackgroundColor = () => {
     if (isHovered || isFocused) return hoverBg;
     return 'transparent';
+  };
+
+  // Handle "change password" button click
+  const handleChangePasswordClick = () => {
+    setShowInput(true);
+    setStep('old');
+    setInput('');
+    setNewPasswordTemp('');
+  };
+
+  // Handle "remove password" button click
+  const handleRemovePasswordClick = () => {
+    removePassword();
+    // hasPassword will become false, useEffect will set showInput to true and step to 'set'
+  };
+
+  // Handle ESC key to reset flow (when input is focused)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (step === 'set-confirm') {
+        e.preventDefault();
+        setStep('set');
+        setInput('');
+        setNewPasswordTemp('');
+        inputRef.current?.blur();
+      } else if (step === 'new' || step === 'confirm') {
+        e.preventDefault();
+        setStep('old');
+        setInput('');
+        setNewPasswordTemp('');
+        inputRef.current?.blur();
+      } else if (step === 'old' && hasPassword) {
+        e.preventDefault();
+        setShowInput(false);
+        setInput('');
+      } else if (step === 'set' && !hasPassword) {
+        // First step of set password: blur to show placeholder
+        e.preventDefault();
+        setInput('');
+        inputRef.current?.blur();
+      }
+    }
   };
 
   // Form submission
@@ -227,6 +372,29 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     );
   };
 
+  // When hasPassword and input not shown yet, display split button
+  if (hasPassword && !showInput && !isSaving) {
+    return (
+      <div className="flex">
+        <PasswordButton
+          onClick={handleChangePasswordClick}
+          isSelected={false}
+          position="left"
+        >
+          change password
+        </PasswordButton>
+        <PasswordButton
+          onClick={handleRemovePasswordClick}
+          isSelected={false}
+          position="right"
+        >
+          remove password
+        </PasswordButton>
+      </div>
+    );
+  }
+
+  // Show input flow (either "set password" or "change password")
   return (
     <div className="space-y-2">
       {/* Label */}
@@ -242,6 +410,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <input
+            ref={inputRef}
             type={isSaving ? 'text' : 'password'}
             value={isSaving ? '' : input}
             onChange={(e) => setInput(e.target.value)}
@@ -251,6 +420,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
             onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
+            onKeyDown={handleKeyDown}
             disabled={isDisabled}
             className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
@@ -284,15 +454,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           )}
         </div>
       </form>
-
-      {/* Remove password button */}
-      {hasPassword && !isSaving && (
-        <div className="mt-2">
-          <FunctionButton onClick={removePassword} size="sm">
-            <span>remove password</span>
-          </FunctionButton>
-        </div>
-      )}
     </div>
   );
 }
