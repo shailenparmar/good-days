@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -164,8 +164,8 @@ function AppContent() {
       // Skip spacebar when settings open (used for preset navigation)
       if (showDebugMenu && e.key === ' ') return;
 
-      // Close settings/about panels if open
-      closePanels();
+      // Close settings/about panels if open (narrow mode only - wide mode has space)
+      if (isNarrow) closePanels();
 
       // Focus the editor and move cursor to end
       if (editorRef.current) {
@@ -182,7 +182,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [showDebugMenu, closePanels]);
+  }, [showDebugMenu, isNarrow, closePanels]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 

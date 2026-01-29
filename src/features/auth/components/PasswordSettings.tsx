@@ -106,7 +106,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Label animation state (for "esc to lock" after save)
   const [labelBoldCount, setLabelBoldCount] = useState(0);
   const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const labelText = 'esc to lock';
+  const labelText = 'lock with esc';
 
   // Derived state
   const placeholderText = getPlaceholderText(step);
@@ -260,34 +260,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     // hasPassword will become false, useEffect will set showInput to true and step to 'set'
   };
 
-  // Handle ESC key to reset flow (when input is focused)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      if (step === 'set-confirm') {
-        e.preventDefault();
-        setStep('set');
-        setInput('');
-        setNewPasswordTemp('');
-        inputRef.current?.blur();
-      } else if (step === 'new' || step === 'confirm') {
-        e.preventDefault();
-        setStep('old');
-        setInput('');
-        setNewPasswordTemp('');
-        inputRef.current?.blur();
-      } else if (step === 'old' && hasPassword) {
-        e.preventDefault();
-        setShowInput(false);
-        setInput('');
-      } else if (step === 'set' && !hasPassword) {
-        // First step of set password: blur to show placeholder
-        e.preventDefault();
-        setInput('');
-        inputRef.current?.blur();
-      }
-    }
-  };
-
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,7 +392,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
             onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
-            onKeyDown={handleKeyDown}
             disabled={isDisabled}
             className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{

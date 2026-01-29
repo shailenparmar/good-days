@@ -30,8 +30,8 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
   const [keyboardUseCount, setKeyboardUseCount] = useState(0);
 
   // Hint animation state
-  const hintLine1 = 'try arrow keys and spacebar.';
-  const hintLine2 = 'backspace deletes a preset.';
+  const hintLine1 = 'navigate presets with arrow keys.';
+  const hintLine2 = 'delete a preset with backspace.';
   const hintFullText = hintLine1 + hintLine2;
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
