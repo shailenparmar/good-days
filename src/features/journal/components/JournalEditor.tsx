@@ -108,12 +108,23 @@ export function JournalEditor({
   useEffect(() => {
     if (!editorRef.current) return;
 
+    let rafId: number | null = null;
+
     const ensureBr = () => {
-      if (!editorRef.current) return;
-      // If editor is completely empty, add <br> for consistent caret
-      if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
-        editorRef.current.innerHTML = '<br>';
+      // Cancel any pending check to avoid race conditions during fast typing
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
       }
+
+      // Batch using requestAnimationFrame to avoid mid-keystroke checks
+      rafId = requestAnimationFrame(() => {
+        if (!editorRef.current) return;
+        // If editor is completely empty, add <br> for consistent caret
+        if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
+          editorRef.current.innerHTML = '<br>';
+        }
+        rafId = null;
+      });
     };
 
     const observer = new MutationObserver(ensureBr);
@@ -123,7 +134,12 @@ export function JournalEditor({
       characterData: true,
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [editorRef]);
 
   // MutationObserver to sync scrambled overlay with editor content
@@ -131,12 +147,23 @@ export function JournalEditor({
   useEffect(() => {
     if (!isScrambled || !editorRef.current) return;
 
+    let rafId: number | null = null;
+
     const updateOverlay = () => {
-      if (!overlayRef.current || !editorRef.current) return;
-      const content = editorRef.current.innerHTML || '';
-      overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
-      // Sync scroll AFTER setting content (innerHTML can reset scrollTop)
-      overlayRef.current.scrollTop = editorRef.current.scrollTop;
+      // Cancel any pending update to avoid race conditions during fast typing
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+
+      // Batch updates using requestAnimationFrame
+      rafId = requestAnimationFrame(() => {
+        if (!overlayRef.current || !editorRef.current) return;
+        const content = editorRef.current.innerHTML || '';
+        overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
+        // Sync scroll AFTER setting content (innerHTML can reset scrollTop)
+        overlayRef.current.scrollTop = editorRef.current.scrollTop;
+        rafId = null;
+      });
     };
 
     // Initial sync when scramble mode turns on
@@ -151,7 +178,12 @@ export function JournalEditor({
       characterDataOldValue: true
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [isScrambled, editorRef]);
 
   // Sync scroll position during user scrolling
