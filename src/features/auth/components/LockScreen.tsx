@@ -56,13 +56,9 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   // Auto-focus input when user starts typing anywhere on the lock screen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if already focused, or if it's a modifier/control key
       if (document.activeElement === inputRef.current) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-      // Allow printable characters, backspace, and enter
-      const isTypingKey = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter';
-      if (!isTypingKey) return;
+      if (e.key.length !== 1) return;
 
       inputRef.current?.focus();
     };
