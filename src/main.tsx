@@ -29,6 +29,10 @@ function MobileScreen() {
 
   const randomize = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Haptic feedback on supported devices
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
     setColors({
       hue: Math.floor(Math.random() * 360),
       sat: Math.floor(Math.random() * 101),

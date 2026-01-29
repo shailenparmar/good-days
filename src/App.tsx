@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -380,7 +380,11 @@ function AppContent() {
           selectedDate={journal.selectedDate}
           entries={journal.entries}
           paddingBottom={20}
-          onClick={isNarrow ? () => setShowSidebarInNarrow(!showSidebarInNarrow) : undefined}
+          onClick={isNarrow ? () => {
+            setShowSidebarInNarrow(!showSidebarInNarrow);
+            setShowDebugMenu(false);
+            setShowAboutPanel(false);
+          } : undefined}
           onHeightChange={setEntryHeaderHeight}
         />
 
