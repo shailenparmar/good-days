@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 
 // Feature imports
@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.3.3';
+const VERSION = '1.4.0';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -70,14 +70,24 @@ function AppContent() {
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
+  const [zenMode, setZenMode] = useState(false); // Wide mode: hide sidebar for distraction-free writing
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
+
+  // Centralized panel closing - used by multiple click handlers
+  const closePanels = useCallback(() => {
+    setShowDebugMenu(false);
+    setShowAboutPanel(false);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
       const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
       setIsNarrow(narrow);
-      // Hide sidebar overlay when window becomes wide again
-      if (!narrow) setShowSidebarInNarrow(false);
+      // Reset mode states when transitioning between narrow/wide
+      if (!narrow) {
+        setShowSidebarInNarrow(false);
+        setZenMode(false); // Exit zen mode when going wide
+      }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -110,9 +120,20 @@ function AppContent() {
   }, [showDebugMenu, trackCurrentColorway]);
 
   // ESC key to lock
+  // DON'T lock when:
+  // 1. User is in an input field
+  // 2. ESC was already handled by another component (via e.defaultPrevented)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
+        // Don't lock if ESC was already handled (e.g., by password settings)
+        if (e.defaultPrevented) return;
+
+        // Don't lock if user is in an input field
+        const activeEl = document.activeElement;
+        const tagName = activeEl?.tagName?.toLowerCase();
+        if (tagName === 'input' || tagName === 'textarea') return;
+
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.innerHTML || '', Date.now());
         }
@@ -142,8 +163,7 @@ function AppContent() {
       if (showDebugMenu && e.key === ' ') return;
 
       // Close settings/about panels if open
-      if (showDebugMenu) setShowDebugMenu(false);
-      if (showAboutPanel) setShowAboutPanel(false);
+      closePanels();
 
       // Focus the editor and move cursor to end
       if (editorRef.current) {
@@ -160,7 +180,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [showDebugMenu, showAboutPanel]);
+  }, [showDebugMenu, closePanels]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
@@ -257,21 +277,30 @@ function AppContent() {
       </style>
 
       {/* Sidebar - hidden when window is narrow (unless toggled) */}
-      {(!isNarrow || showSidebarInNarrow) && (
+      {(isNarrow ? showSidebarInNarrow : !zenMode) && (
       <div
         className="w-80 flex flex-col min-h-screen relative"
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
-        onClick={() => { setShowDebugMenu(false); setShowAboutPanel(false); }}
+        onClick={closePanels}
       >
-        {/* Clickable overlay for narrow mode - matches EntryHeader height */}
-        {isNarrow && showSidebarInNarrow && entryHeaderHeight > 0 && (
+        {/* Clickable overlay for header zone - matches EntryHeader height */}
+        {/* Wide mode: toggle zen | Narrow mode: close sidebar */}
+        {entryHeaderHeight > 0 && (
           <div
             className="absolute top-0 left-0 right-0 z-50"
             style={{ height: entryHeaderHeight }}
-            onClick={() => setShowSidebarInNarrow(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isNarrow) {
+                setShowSidebarInNarrow(false);
+              } else {
+                setZenMode(!zenMode);
+              }
+              closePanels();
+            }}
           />
         )}
 
@@ -313,7 +342,7 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             onSelectDate={(date) => {
               journal.setSelectedDate(date);
-              setShowDebugMenu(false);
+              closePanels();
             }}
             onSaveTitle={journal.saveTitle}
             settingsOpen={showDebugMenu}
@@ -333,12 +362,20 @@ function AppContent() {
             <span>{isScrambled ? 'unscramble' : 'scramble'}</span>
           </FunctionButton>
 
-          <FunctionButton onClick={() => setShowDebugMenu(!showDebugMenu)} isActive={showDebugMenu} dataAttribute="settings-toggle">
+          <FunctionButton onClick={() => {
+            const opening = !showDebugMenu;
+            setShowDebugMenu(opening);
+            if (opening) setZenMode(false); // Exit zen when opening panel
+          }} isActive={showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
             <span>settings</span>
           </FunctionButton>
 
-          <FunctionButton onClick={() => setShowAboutPanel(!showAboutPanel)} isActive={showAboutPanel} dataAttribute="about-toggle">
+          <FunctionButton onClick={() => {
+            const opening = !showAboutPanel;
+            setShowAboutPanel(opening);
+            if (opening) setZenMode(false); // Exit zen when opening panel
+          }} isActive={showAboutPanel} dataAttribute="about-toggle">
             <Heart className="w-3 h-3" />
             <span>about</span>
           </FunctionButton>
@@ -375,16 +412,24 @@ function AppContent() {
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
+        onClick={() => { if (isNarrow) closePanels(); }}
       >
         <EntryHeader
           selectedDate={journal.selectedDate}
           entries={journal.entries}
           paddingBottom={20}
-          onClick={isNarrow ? () => {
-            setShowSidebarInNarrow(!showSidebarInNarrow);
-            setShowDebugMenu(false);
-            setShowAboutPanel(false);
-          } : undefined}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent bubbling to container
+            if (isNarrow) {
+              setShowSidebarInNarrow(!showSidebarInNarrow);
+              closePanels();
+            } else {
+              // Wide mode: toggle zen mode
+              const enteringZen = !zenMode;
+              setZenMode(enteringZen);
+              if (enteringZen) closePanels();
+            }
+          }}
           onHeightChange={setEntryHeaderHeight}
         />
 

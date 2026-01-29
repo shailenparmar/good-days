@@ -7,7 +7,7 @@ interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
 }
 
