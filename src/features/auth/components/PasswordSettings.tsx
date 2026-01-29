@@ -347,21 +347,23 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // When hasPassword and input not shown yet, display split button
   if (hasPassword && !showInput && !isSaving) {
     return (
-      <div className="flex">
-        <PasswordButton
-          onClick={handleChangePasswordClick}
-          isSelected={false}
-          position="left"
-        >
-          change password
-        </PasswordButton>
-        <PasswordButton
-          onClick={handleRemovePasswordClick}
-          isSelected={false}
-          position="right"
-        >
-          remove password
-        </PasswordButton>
+      <div className="flex justify-center overflow-hidden">
+        <div className="flex w-full min-w-max">
+          <PasswordButton
+            onClick={handleChangePasswordClick}
+            isSelected={false}
+            position="left"
+          >
+            change password
+          </PasswordButton>
+          <PasswordButton
+            onClick={handleRemovePasswordClick}
+            isSelected={false}
+            position="right"
+          >
+            remove password
+          </PasswordButton>
+        </div>
       </div>
     );
   }

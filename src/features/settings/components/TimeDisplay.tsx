@@ -85,8 +85,9 @@ export function TimeDisplay() {
   const format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
 
   return (
-    <div className="flex">
-      <TimeButton
+    <div className="flex justify-center overflow-hidden">
+      <div className="flex w-full min-w-max">
+        <TimeButton
         onClick={() => handleFormatChange(false)}
         isSelected={!use24Hour}
         position="left"
@@ -100,6 +101,7 @@ export function TimeDisplay() {
       >
         {format24}
       </TimeButton>
+      </div>
     </div>
   );
 }
