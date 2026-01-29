@@ -13,7 +13,7 @@ import { getItem, setItem } from '@shared/storage';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.4.4';
+const VERSION = '1.4.5';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -69,8 +69,12 @@ function AppContent() {
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
-  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
-  const [zenMode, setZenMode] = useState(false); // Wide mode: hide sidebar for distraction-free writing
+  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(() => {
+    return getItem('showSidebarInNarrow') === 'true';
+  });
+  const [zenMode, setZenMode] = useState(() => {
+    return getItem('zenMode') === 'true';
+  });
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
 
   // Centralized panel closing - used by multiple click handlers
@@ -110,6 +114,15 @@ function AppContent() {
   useEffect(() => {
     setItem('isScrambled', String(isScrambled));
   }, [isScrambled]);
+
+  // Save sidebar visibility states to localStorage
+  useEffect(() => {
+    setItem('showSidebarInNarrow', String(showSidebarInNarrow));
+  }, [showSidebarInNarrow]);
+
+  useEffect(() => {
+    setItem('zenMode', String(zenMode));
+  }, [zenMode]);
 
   // Track colorway when settings closes (for slider changes)
   const prevShowDebugMenu = useRef(showDebugMenu);
