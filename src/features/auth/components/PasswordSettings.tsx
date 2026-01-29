@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@features/theme';
+import { FunctionButton } from '@shared/components';
 
 type PasswordStep = 'old' | 'new' | 'confirm' | 'set' | 'set-confirm';
 type FlashState = 'none' | 'green' | 'red';
@@ -8,6 +9,7 @@ interface PasswordSettingsProps {
   hasPassword: boolean;
   verifyPassword: (password: string) => Promise<boolean>;
   setPassword: (password: string) => Promise<boolean>;
+  removePassword: () => void;
 }
 
 // Get placeholder text for each step
@@ -21,7 +23,7 @@ function getPlaceholderText(step: PasswordStep): string {
   }
 }
 
-export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: PasswordSettingsProps) {
+export function PasswordSettings({ hasPassword, verifyPassword, setPassword, removePassword }: PasswordSettingsProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
 
   // Core state
@@ -282,6 +284,15 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword }: P
           )}
         </div>
       </form>
+
+      {/* Remove password button */}
+      {hasPassword && !isSaving && (
+        <div className="mt-2">
+          <FunctionButton onClick={removePassword} size="sm">
+            <span>remove password</span>
+          </FunctionButton>
+        </div>
+      )}
     </div>
   );
 }

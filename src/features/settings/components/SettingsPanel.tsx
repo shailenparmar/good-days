@@ -9,6 +9,7 @@ interface SettingsPanelProps {
   hasPassword: boolean;
   verifyPassword: (password: string) => Promise<boolean>;
   setPassword: (password: string) => Promise<boolean>;
+  removePassword: () => void;
   entries: JournalEntry[];
   onCloseAbout: () => void;
   onImportEntries?: (entries: JournalEntry[]) => void;
@@ -19,6 +20,7 @@ export function SettingsPanel({
   hasPassword,
   verifyPassword,
   setPassword,
+  removePassword,
   entries,
   onCloseAbout,
   onImportEntries,
@@ -48,14 +50,6 @@ export function SettingsPanel({
         </div>
       </div>
 
-      {/* Time Display Section */}
-      <div
-        className="p-4"
-        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-      >
-        <TimeDisplay />
-      </div>
-
       {/* Password Settings Section */}
       <div
         className="p-4"
@@ -65,7 +59,16 @@ export function SettingsPanel({
           hasPassword={hasPassword}
           verifyPassword={verifyPassword}
           setPassword={setPassword}
+          removePassword={removePassword}
         />
+      </div>
+
+      {/* Time Display Section */}
+      <div
+        className="p-4"
+        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+      >
+        <TimeDisplay />
       </div>
 
       {/* Backup Section */}
