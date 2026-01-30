@@ -35,7 +35,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: process.env.GITHUB_ACTIONS ? '/good-days/' : '/', // GitHub Pages needs path, Vercel uses root
+  base: '/', // Custom domain (gdays.day) serves from root
   resolve: {
     alias: {
       '@features': path.resolve(__dirname, './src/features'),
