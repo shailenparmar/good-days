@@ -219,7 +219,6 @@ This breaks the style guide because:
 
 - Vite + React + TypeScript
 - Tailwind CSS
-- Electron (for desktop app in `/electron`)
 
 ## Pre-push Hook
 

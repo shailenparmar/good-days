@@ -110,7 +110,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
   // Derived state
   const placeholderText = getPlaceholderText(step);
-  const showPlaceholder = !input && !isSaving && !isFocused;
+  const showPlaceholder = !input && !isSaving;
   const isDisabled = isSaving || flashState === 'green';
 
   // Sync step and showInput with hasPassword prop
@@ -138,22 +138,19 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
         setStep('set');
         setInput('');
         setNewPasswordTemp('');
-        inputRef.current?.blur();
       } else if (step === 'new' || step === 'confirm') {
         e.preventDefault();
         setStep('old');
         setInput('');
         setNewPasswordTemp('');
-        inputRef.current?.blur();
       } else if (step === 'old' && hasPassword) {
         e.preventDefault();
         setShowInput(false);
         setInput('');
       } else if (step === 'set' && !hasPassword) {
-        // First step of set password: blur to show placeholder, don't lock
+        // First step of set password: clear input, placeholder shows while focused
         e.preventDefault();
         setInput('');
-        inputRef.current?.blur();
       }
     };
 
@@ -252,6 +249,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     setStep('old');
     setInput('');
     setNewPasswordTemp('');
+    // Auto-focus input after state update
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   // Handle "remove password" button click

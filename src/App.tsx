@@ -10,10 +10,11 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
+import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.4.9';
+const VERSION = '1.5.2';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -70,7 +71,7 @@ function AppContent() {
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
-  const [zenMode, setZenMode] = useState(false); // Wide mode: hide sidebar for distraction-free writing
+  const [zenMode, setZenMode] = usePersisted('zenMode', false); // Wide mode: hide sidebar for distraction-free writing
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
 
   // Centralized panel closing - used by multiple click handlers
@@ -147,8 +148,12 @@ function AppContent() {
   }, [auth, journal]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
+  // Only works when viewing today's entry (past entries are read-only)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only allow typing into today's entry
+      if (journal.selectedDate !== getTodayDate()) return;
+
       // Skip if already handled by another component (e.g., preset grid)
       if (e.defaultPrevented) return;
 
@@ -189,7 +194,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [showDebugMenu, isNarrow, closePanels]);
+  }, [showDebugMenu, isNarrow, closePanels, journal.selectedDate]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
@@ -353,7 +358,6 @@ function AppContent() {
               journal.setSelectedDate(date);
               closePanels();
             }}
-            onSaveTitle={journal.saveTitle}
             settingsOpen={showDebugMenu}
           />
         </div>
