@@ -12,7 +12,6 @@ interface SettingsPanelProps {
   removePassword: () => void;
   entries: JournalEntry[];
   onCloseAbout: () => void;
-  onImportEntries?: (entries: JournalEntry[]) => void;
 }
 
 export function SettingsPanel({
@@ -23,7 +22,6 @@ export function SettingsPanel({
   removePassword,
   entries,
   onCloseAbout,
-  onImportEntries,
 }: SettingsPanelProps) {
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
@@ -73,7 +71,7 @@ export function SettingsPanel({
 
       {/* Backup Section */}
       <div className="p-4">
-        <ExportButtons entries={entries} onImport={onImportEntries} />
+        <ExportButtons entries={entries} />
       </div>
     </div>
   );
