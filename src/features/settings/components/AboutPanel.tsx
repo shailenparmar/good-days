@@ -27,7 +27,8 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       {/* Header */}
       <div className="p-4" style={sectionStyle}>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
-          good days is your digital-analog journal oasis.
+          good days is your living time-capsule.<br />
+          a new page spawns at midnight; old logs are written in stone.
         </p>
       </div>
 
