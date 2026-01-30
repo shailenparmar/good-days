@@ -17,7 +17,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
 
   return (
     <div
-      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
+      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
@@ -25,14 +25,14 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       onClick={onCloseSettings}
     >
       {/* Header */}
-      <div className="p-4" style={sectionStyle}>
+      <div className="p-4" style={sectionStyle} contentEditable suppressContentEditableWarning>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
           a new page spawns at midnight;<br />old logs are written in stone.
         </p>
       </div>
 
       {/* Privacy */}
-      <div className="p-4" style={sectionStyle}>
+      <div className="p-4" style={sectionStyle} contentEditable suppressContentEditableWarning>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
             your writing, passwords, and settings only exist on your device, even though you access the journal through a website.
@@ -63,7 +63,7 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
       </div>
 
       {/* Personal note */}
-      <div className="p-4">
+      <div className="p-4" contentEditable suppressContentEditableWarning>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
             i designed this journal for my own daily use, and i'm elated to share it.
