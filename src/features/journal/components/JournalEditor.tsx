@@ -308,7 +308,9 @@ export function JournalEditor({
     });
   }, [editorRef]);
 
-  // Handle Tab key to insert/remove tab character
+  // Handle Tab and Backspace/Delete keys
+  // Using execCommand('insertText', '') keeps caret solid (no blink)
+  // Native deletion causes caret to blink; insertText treats it as input
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -322,7 +324,6 @@ export function JournalEditor({
             const charBefore = text[range.startOffset - 1];
             if (charBefore === '\t') {
               // Select the tab character, then replace with empty string
-              // Using execCommand keeps caret behavior consistent with Tab insert
               selection.modify('extend', 'backward', 'character');
               document.execCommand('insertText', false, '');
             }
@@ -331,6 +332,32 @@ export function JournalEditor({
       } else {
         // Tab: insert tab character
         document.execCommand('insertText', false, '\t');
+      }
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        if (!selection.isCollapsed) {
+          // Text is selected - delete selection
+          document.execCommand('insertText', false, '');
+        } else {
+          // No selection - delete char before cursor
+          selection.modify('extend', 'backward', 'character');
+          document.execCommand('insertText', false, '');
+        }
+      }
+    } else if (e.key === 'Delete') {
+      e.preventDefault();
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        if (!selection.isCollapsed) {
+          // Text is selected - delete selection
+          document.execCommand('insertText', false, '');
+        } else {
+          // No selection - delete char after cursor
+          selection.modify('extend', 'forward', 'character');
+          document.execCommand('insertText', false, '');
+        }
       }
     }
   }, []);
@@ -424,7 +451,7 @@ export function JournalEditor({
       {isScrambled && (
         <div
           ref={overlayRef}
-          className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
+          className="absolute inset-0 p-8 overflow-y-auto overflow-x-hidden scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
           style={{ color: getColor() }}
         />
       )}

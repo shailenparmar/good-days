@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 
 // Extract and test the scramble logic directly
 // These mirror the functions in JournalEditor.tsx
@@ -996,6 +996,492 @@ describe('ensureBr rAF debouncing', () => {
     // Now clear it
     editor.innerHTML = '';
     await new Promise(resolve => setTimeout(resolve, 50));
+    expect(editor.innerHTML).toBe('<br>');
+  });
+});
+
+// Test Backspace/Delete handling via execCommand (keeps caret solid)
+// The fix: use execCommand('insertText', '') instead of native deletion
+// This treats deletion as "input" so caret doesn't blink
+//
+// NOTE: These tests mock browser APIs (selection.modify, document.execCommand)
+// because JSDOM doesn't implement them. The actual behavior is tested manually.
+describe('Backspace/Delete via execCommand', () => {
+  let editor: HTMLDivElement;
+  let mockExecCommand: Mock<(commandId: string, showUI?: boolean, value?: string) => boolean>;
+  let mockModify: Mock<(alter?: string, direction?: string, granularity?: string) => void>;
+
+  beforeEach(() => {
+    editor = document.createElement('div');
+    editor.contentEditable = 'true';
+    document.body.appendChild(editor);
+    editor.focus();
+
+    // Mock execCommand since JSDOM doesn't implement it
+    mockExecCommand = vi.fn((command: string, _showUI?: boolean, value?: string) => {
+      if (command === 'insertText') {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          if (value) {
+            range.insertNode(document.createTextNode(value));
+          }
+        }
+      }
+      return true;
+    });
+    document.execCommand = mockExecCommand;
+
+    // Mock selection.modify since JSDOM doesn't implement it
+    mockModify = vi.fn((alter?: string, direction?: string, granularity?: string) => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      if (alter === 'extend' && granularity === 'character') {
+        if (direction === 'backward' && range.startOffset > 0) {
+          range.setStart(range.startContainer, range.startOffset - 1);
+        } else if (direction === 'forward') {
+          const textLength = range.startContainer.textContent?.length || 0;
+          if (range.endOffset < textLength) {
+            range.setEnd(range.endContainer, range.endOffset + 1);
+          }
+        }
+      }
+    });
+
+    // Add modify to Selection prototype for this test
+    const originalSelection = window.getSelection();
+    if (originalSelection) {
+      (originalSelection as Selection & { modify: typeof mockModify }).modify = mockModify;
+    }
+  });
+
+  afterEach(() => {
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  // Helper to set cursor position in text node
+  function setCursorPosition(node: Node, offset: number) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(node, offset);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  // Helper to select a range of text
+  function selectRange(node: Node, startOffset: number, endOffset: number) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(node, startOffset);
+    range.setEnd(node, endOffset);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  // Simulates the handleKeyDown logic for Backspace
+  function simulateBackspace() {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      if (!selection.isCollapsed) {
+        // Text is selected - delete selection
+        document.execCommand('insertText', false, '');
+      } else {
+        // No selection - delete char before cursor
+        (selection as Selection & { modify: typeof mockModify }).modify('extend', 'backward', 'character');
+        document.execCommand('insertText', false, '');
+      }
+    }
+  }
+
+  // Simulates the handleKeyDown logic for Delete
+  function simulateDelete() {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      if (!selection.isCollapsed) {
+        // Text is selected - delete selection
+        document.execCommand('insertText', false, '');
+      } else {
+        // No selection - delete char after cursor
+        (selection as Selection & { modify: typeof mockModify }).modify('extend', 'forward', 'character');
+        document.execCommand('insertText', false, '');
+      }
+    }
+  }
+
+  describe('Backspace', () => {
+    it('deletes single character before cursor', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 5); // cursor at end
+
+      simulateBackspace();
+
+      expect(editor.innerHTML).toBe('hell');
+    });
+
+    it('deletes character in middle of text', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 3); // cursor after "hel"
+
+      simulateBackspace();
+
+      expect(editor.innerHTML).toBe('helo');
+    });
+
+    it('does nothing at start of text', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 0); // cursor at start
+
+      simulateBackspace();
+
+      // Selection.modify extends backward but there's nothing to select
+      // So insertText replaces empty selection with empty string = no change
+      expect(editor.innerHTML).toBe('hello');
+    });
+
+    it('deletes selected text', () => {
+      editor.innerHTML = 'hello world';
+      const textNode = editor.firstChild!;
+      selectRange(textNode, 0, 5); // select "hello"
+
+      simulateBackspace();
+
+      expect(editor.innerHTML).toBe(' world');
+    });
+
+    it('deletes entire text when all selected', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      selectRange(textNode, 0, 5); // select all
+
+      simulateBackspace();
+
+      expect(editor.innerHTML).toBe('');
+    });
+
+    it('handles multiple consecutive backspaces', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 5); // cursor at end
+
+      simulateBackspace(); // "hell"
+      simulateBackspace(); // "hel"
+      simulateBackspace(); // "he"
+
+      expect(editor.innerHTML).toBe('he');
+    });
+
+    it('handles backspace on special characters', () => {
+      editor.innerHTML = 'a\tb';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 2); // cursor after tab
+
+      simulateBackspace();
+
+      expect(editor.innerHTML).toBe('ab');
+    });
+  });
+
+  describe('Delete (forward)', () => {
+    it('deletes single character after cursor', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 0); // cursor at start
+
+      simulateDelete();
+
+      expect(editor.innerHTML).toBe('ello');
+    });
+
+    it('deletes character in middle of text', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 2); // cursor after "he"
+
+      simulateDelete();
+
+      expect(editor.innerHTML).toBe('helo');
+    });
+
+    it('does nothing at end of text', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 5); // cursor at end
+
+      simulateDelete();
+
+      // Selection.modify extends forward but there's nothing to select
+      expect(editor.innerHTML).toBe('hello');
+    });
+
+    it('deletes selected text', () => {
+      editor.innerHTML = 'hello world';
+      const textNode = editor.firstChild!;
+      selectRange(textNode, 6, 11); // select "world"
+
+      simulateDelete();
+
+      expect(editor.innerHTML).toBe('hello ');
+    });
+
+    it('handles multiple consecutive deletes', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 0); // cursor at start
+
+      simulateDelete(); // "ello"
+      simulateDelete(); // "llo"
+      simulateDelete(); // "lo"
+
+      expect(editor.innerHTML).toBe('lo');
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('handles empty editor gracefully', () => {
+      editor.innerHTML = '';
+
+      // Should not throw
+      expect(() => simulateBackspace()).not.toThrow();
+      expect(() => simulateDelete()).not.toThrow();
+    });
+
+    it('handles editor with only <br>', () => {
+      editor.innerHTML = '<br>';
+
+      // Should not throw
+      expect(() => simulateBackspace()).not.toThrow();
+      expect(() => simulateDelete()).not.toThrow();
+    });
+  });
+
+  describe('API usage verification', () => {
+    // These tests verify that the correct APIs are called
+    // The key point: execCommand('insertText', '') is used instead of 'delete'
+
+    it('uses insertText command (not delete command)', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 5);
+
+      simulateBackspace();
+
+      // Should call insertText, NOT delete
+      expect(mockExecCommand).toHaveBeenCalledWith('insertText', false, '');
+      expect(mockExecCommand).not.toHaveBeenCalledWith('delete', expect.anything(), expect.anything());
+    });
+
+    it('selection.modify is used to select character before deletion', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 5);
+
+      simulateBackspace();
+
+      expect(mockModify).toHaveBeenCalledWith('extend', 'backward', 'character');
+    });
+
+    it('selection.modify with forward direction for Delete key', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      setCursorPosition(textNode, 0);
+
+      simulateDelete();
+
+      expect(mockModify).toHaveBeenCalledWith('extend', 'forward', 'character');
+    });
+
+    it('does not call modify when text is already selected', () => {
+      editor.innerHTML = 'hello';
+      const textNode = editor.firstChild!;
+      selectRange(textNode, 0, 5);
+
+      mockModify.mockClear();
+      simulateBackspace();
+
+      // Should NOT call modify since text is already selected
+      expect(mockModify).not.toHaveBeenCalled();
+      // But should still call execCommand to delete
+      expect(mockExecCommand).toHaveBeenCalledWith('insertText', false, '');
+    });
+  });
+});
+
+// Test interaction between Backspace/Delete and ensureBr
+describe('Backspace/Delete with ensureBr MutationObserver', () => {
+  let editor: HTMLDivElement;
+  let observer: MutationObserver | null = null;
+  let rafId: number | null = null;
+  let mockModify: Mock<(alter?: string, direction?: string, granularity?: string) => void>;
+
+  beforeEach(() => {
+    editor = document.createElement('div');
+    editor.contentEditable = 'true';
+    editor.innerHTML = '<br>'; // Start with <br> like real editor
+    document.body.appendChild(editor);
+    editor.focus();
+
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      const id = setTimeout(() => cb(performance.now()), 16);
+      return id as unknown as number;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      clearTimeout(id);
+    });
+
+    // Mock execCommand
+    const mockExecCommand: (commandId: string, showUI?: boolean, value?: string) => boolean = vi.fn((command: string, _showUI?: boolean, value?: string) => {
+      if (command === 'insertText') {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          if (value) {
+            range.insertNode(document.createTextNode(value));
+          }
+        }
+      }
+      return true;
+    });
+    document.execCommand = mockExecCommand;
+
+    // Mock selection.modify
+    mockModify = vi.fn((alter?: string, direction?: string, granularity?: string) => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      if (alter === 'extend' && granularity === 'character') {
+        if (direction === 'backward' && range.startOffset > 0) {
+          range.setStart(range.startContainer, range.startOffset - 1);
+        }
+      }
+    });
+
+    const originalSelection = window.getSelection();
+    if (originalSelection) {
+      (originalSelection as Selection & { modify: typeof mockModify }).modify = mockModify;
+    }
+  });
+
+  afterEach(() => {
+    observer?.disconnect();
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+    }
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  function setupEnsureBrObserver() {
+    const ensureBr = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        if (!editor.innerHTML || editor.innerHTML === '') {
+          editor.innerHTML = '<br>';
+        }
+        rafId = null;
+      });
+    };
+
+    observer = new MutationObserver(ensureBr);
+    observer.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+
+  function setCursorPosition(node: Node, offset: number) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(node, offset);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function selectRange(node: Node, startOffset: number, endOffset: number) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.setStart(node, startOffset);
+    range.setEnd(node, endOffset);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function simulateBackspace() {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      if (!selection.isCollapsed) {
+        document.execCommand('insertText', false, '');
+      } else {
+        (selection as Selection & { modify: typeof mockModify }).modify('extend', 'backward', 'character');
+        document.execCommand('insertText', false, '');
+      }
+    }
+  }
+
+  it('backspace to empty triggers ensureBr', async () => {
+    setupEnsureBrObserver();
+
+    editor.innerHTML = 'a';
+    const textNode = editor.firstChild!;
+    setCursorPosition(textNode, 1);
+
+    simulateBackspace();
+
+    // Wait for rAF
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // ensureBr should have added <br>
+    expect(editor.innerHTML).toBe('<br>');
+  });
+
+  it('rapid backspace through all content ends with <br>', async () => {
+    setupEnsureBrObserver();
+
+    editor.innerHTML = 'abc';
+    let textNode = editor.firstChild!;
+    setCursorPosition(textNode, 3);
+
+    simulateBackspace(); // "ab"
+    textNode = editor.firstChild!;
+    if (textNode) setCursorPosition(textNode, 2);
+
+    simulateBackspace(); // "a"
+    textNode = editor.firstChild!;
+    if (textNode) setCursorPosition(textNode, 1);
+
+    simulateBackspace(); // ""
+
+    // Wait for rAF
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(editor.innerHTML).toBe('<br>');
+  });
+
+  it('select-all then backspace triggers ensureBr', async () => {
+    setupEnsureBrObserver();
+
+    editor.innerHTML = 'hello world';
+    const textNode = editor.firstChild!;
+    selectRange(textNode, 0, 11); // select all
+
+    simulateBackspace();
+
+    // Wait for rAF
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     expect(editor.innerHTML).toBe('<br>');
   });
 });
