@@ -14,7 +14,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.3';
+const VERSION = '1.5.5';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -112,15 +112,6 @@ function AppContent() {
     setItem('isScrambled', String(isScrambled));
   }, [isScrambled]);
 
-  // Track colorway when settings closes (for slider changes)
-  const prevShowDebugMenu = useRef(showDebugMenu);
-  useEffect(() => {
-    if (prevShowDebugMenu.current && !showDebugMenu) {
-      // Settings just closed, track the current colorway
-      trackCurrentColorway();
-    }
-    prevShowDebugMenu.current = showDebugMenu;
-  }, [showDebugMenu, trackCurrentColorway]);
 
   // ESC key to lock
   // DON'T lock when:
@@ -255,6 +246,7 @@ function AppContent() {
   // Handle input with keystroke tracking
   const handleInput = (content: string) => {
     stats.incrementKeystrokes();
+    trackCurrentColorway(); // Track colorway on actual typing (not slider exploration)
     journal.setCurrentContent(editorRef.current?.textContent || '');
     journal.saveEntry(content, Date.now());
   };
