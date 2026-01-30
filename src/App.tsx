@@ -153,7 +153,10 @@ function AppContent() {
       const tagName = activeEl?.tagName?.toLowerCase();
       if (tagName === 'input' || tagName === 'textarea') return;
 
-      // Skip if already in a contenteditable (editor or title)
+      // Skip if already in the editor (prevents cursor jumping to end while typing)
+      if (editorRef.current?.contains(activeEl)) return;
+
+      // Skip if in any other contenteditable (e.g., title)
       if (activeEl instanceof HTMLElement && activeEl.isContentEditable) return;
 
       // Skip modifier keys
