@@ -35,7 +35,7 @@ git push origin main
 | **24px** (`text-2xl`) | "good days" title, lock screen corners |
 | **18px** (`text-lg`) | Date header ("jan 30, 2025") |
 | **16px** (`text-base`) | Editor/draft text, placeholder, about panel text |
-| **14.5px** | "started at" time, word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
+| **14px** | "started at" time, word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
 | **12px** (`text-xs`) | Stats display, settings controls, password inputs, preset grid |
 
 ## Layout Modes & Sidebar Visibility
