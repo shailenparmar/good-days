@@ -96,11 +96,23 @@ export function useJournalEntries() {
     setItem('selectedDate', date);
   }, []);
 
-  // Handle date changes
+  // Handle date changes - update currentContent and lastTypedTime
   useEffect(() => {
     const isDateSwitch = previousDate.current !== null && previousDate.current !== selectedDate;
 
     const entry = entries.find(e => e.date === selectedDate);
+
+    // Update currentContent with text content (for word/char count)
+    // Replace <br> and block elements with newlines before extracting text
+    const html = entry?.content || '';
+    const withLineBreaks = html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/p>/gi, '\n');
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = withLineBreaks;
+    setCurrentContent(tempDiv.textContent || '');
+
     if (entry && entry.lastModified && isDateSwitch) {
       lastTypedTime.current = entry.lastModified;
       setItem('lastTypedTime', String(entry.lastModified));
