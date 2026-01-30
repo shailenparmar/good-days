@@ -1,4 +1,4 @@
-export { useJournalEntries } from './hooks/useJournalEntries';
+export { useJournalEntries, htmlToText } from './hooks/useJournalEntries';
 export { JournalEditor } from './components/JournalEditor';
 export { EntrySidebar } from './components/EntrySidebar';
 export { EntryHeader } from './components/EntryHeader';
