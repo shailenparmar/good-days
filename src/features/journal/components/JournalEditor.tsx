@@ -177,8 +177,8 @@ export function JournalEditor({
         if (!overlayRef.current || !editorRef.current) return;
         const content = editorRef.current.innerHTML || '';
         overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
-        // Sync scroll AFTER setting content (innerHTML can reset scrollTop)
-        overlayRef.current.scrollTop = editorRef.current.scrollTop;
+        // Sync scroll position via transform (overlay uses overflow:hidden)
+        overlayRef.current.style.transform = `translateY(-${editorRef.current.scrollTop}px)`;
         rafId = null;
       });
     };
@@ -207,9 +207,9 @@ export function JournalEditor({
   const handleEditorScroll = useCallback(() => {
     if (!editorRef.current) return;
 
-    // Sync scrambled overlay
+    // Sync scrambled overlay position via transform (overlay uses overflow:hidden)
     if (overlayRef.current) {
-      overlayRef.current.scrollTop = editorRef.current.scrollTop;
+      overlayRef.current.style.transform = `translateY(-${editorRef.current.scrollTop}px)`;
     }
 
     // Debounce scroll position save (100ms)
@@ -437,7 +437,7 @@ export function JournalEditor({
         onKeyDown={isToday ? handleKeyDown : undefined}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words custom-editor dynamic-editor"
         style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
         suppressContentEditableWarning
@@ -447,13 +447,16 @@ export function JournalEditor({
         aria-readonly={!isToday}
       />
 
-      {/* Scrambled overlay - content managed via MutationObserver */}
+      {/* Scrambled overlay - mirrors editor content with scrambled text */}
+      {/* Outer container clips overflow; inner content shifts via scrollTop sync */}
       {isScrambled && (
-        <div
-          ref={overlayRef}
-          className="absolute inset-0 p-8 overflow-y-auto overflow-x-hidden scrollbar-hide text-base leading-relaxed font-mono font-bold whitespace-pre-wrap pointer-events-none"
-          style={{ color: getColor() }}
-        />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            ref={overlayRef}
+            className="absolute inset-0 p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+            style={{ color: getColor() }}
+          />
+        </div>
       )}
 
       {/* Placeholder */}
