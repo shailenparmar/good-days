@@ -28,6 +28,16 @@ git push origin main
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
+## Font Sizes
+
+| Size | Elements |
+|------|----------|
+| **24px** (`text-2xl`) | "good days" title, lock screen corners |
+| **18px** (`text-lg`) | Date header ("jan 30, 2025") |
+| **16px** (`text-base`) | Editor/draft text, placeholder, about panel text |
+| **14.5px** | "started at" time, word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
+| **12px** (`text-xs`) | Stats display, settings controls, password inputs, preset grid |
+
 ## Layout Modes & Sidebar Visibility
 
 The app has two layout modes with different sidebar behavior.
