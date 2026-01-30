@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
+import { DEFAULT_PRESETS } from '@features/theme';
 
 interface Props {
   children: ReactNode;
@@ -8,6 +9,11 @@ interface Props {
 interface State {
   hasError: boolean;
 }
+
+// Use preset 1 colors for error screen
+const preset1 = DEFAULT_PRESETS[0];
+const textColor = `hsl(${preset1.hue}, ${preset1.sat}%, ${preset1.light}%)`;
+const bgColor = `hsl(${preset1.bgHue}, ${preset1.bgSat}%, ${preset1.bgLight}%)`;
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -28,11 +34,11 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div
           className="flex items-center justify-center h-screen p-8"
-          style={{ backgroundColor: 'hsl(84, 100%, 94%)' }}
+          style={{ backgroundColor: bgColor }}
         >
           <p
             className="text-base leading-relaxed font-mono font-bold"
-            style={{ color: 'hsl(144, 36%, 43%)' }}
+            style={{ color: textColor }}
           >
             something went wrong
           </p>
