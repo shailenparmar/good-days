@@ -206,12 +206,18 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   }, [isSaving]);
 
   // Flash helpers
-  const flashGreen = (onComplete: () => void) => {
+  const flashGreen = (onComplete: () => void, refocusAfter: boolean = false) => {
     setFlashState('green');
     setIsFocused(false); // Reset focus since input gets disabled
     setTimeout(() => {
       setFlashState('none');
       onComplete();
+      // If refocusing, wait for React to commit DOM changes (input re-enabled)
+      if (refocusAfter) {
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
+      }
     }, 600);
   };
 
@@ -249,8 +255,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     setStep('old');
     setInput('');
     setNewPasswordTemp('');
-    // Auto-focus input after state update
-    setTimeout(() => inputRef.current?.focus(), 0);
+    // Auto-focus input after React commits DOM changes
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   // Handle "remove password" button click
@@ -271,10 +277,11 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           flashGreen(() => {
             setStep('new');
             setInput('');
-          });
+          }, true); // refocus after flash
         } else {
           flashRed();
           setInput('');
+          requestAnimationFrame(() => inputRef.current?.focus());
         }
         break;
       }
@@ -284,7 +291,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           setNewPasswordTemp(input.trim());
           setStep('confirm');
           setInput('');
-        });
+        }, true); // refocus after flash
         break;
 
       case 'confirm':
@@ -298,6 +305,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           setStep('old');
           setInput('');
           setNewPasswordTemp('');
+          requestAnimationFrame(() => inputRef.current?.focus());
         }
         break;
 
@@ -306,7 +314,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           setNewPasswordTemp(input.trim());
           setStep('set-confirm');
           setInput('');
-        });
+        }, true); // refocus after flash
         break;
 
       case 'set-confirm':
@@ -320,6 +328,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           setStep('set');
           setInput('');
           setNewPasswordTemp('');
+          requestAnimationFrame(() => inputRef.current?.focus());
         }
         break;
     }
