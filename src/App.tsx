@@ -4,7 +4,7 @@ import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 // Feature imports
 import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
-import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter } from '@features/journal';
+import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter, htmlToText } from '@features/journal';
 import { useStatistics, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
@@ -14,7 +14,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.7';
+const VERSION = '1.5.8';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -247,7 +247,7 @@ function AppContent() {
   const handleInput = (content: string) => {
     stats.incrementKeystrokes();
     trackCurrentColorway(); // Track colorway on actual typing (not slider exploration)
-    journal.setCurrentContent(editorRef.current?.textContent || '');
+    journal.setCurrentContent(htmlToText(content));
     journal.saveEntry(content, Date.now());
   };
 

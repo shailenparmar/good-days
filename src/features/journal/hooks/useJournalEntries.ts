@@ -36,6 +36,18 @@ function loadEntriesFromStorage(): JournalEntry[] {
   return [];
 }
 
+// Convert HTML to plain text, preserving line breaks for word counting
+export function htmlToText(html: string): string {
+  // Replace <br> and closing block tags with newlines before extracting text
+  const withLineBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/p>/gi, '\n');
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = withLineBreaks;
+  return tempDiv.textContent || '';
+}
+
 export function useJournalEntries() {
   // Load entries SYNCHRONOUSLY during initialization - never start with empty array
   const [entries, setEntries] = useState<JournalEntry[]>(() => loadEntriesFromStorage());
@@ -103,15 +115,7 @@ export function useJournalEntries() {
     const entry = entries.find(e => e.date === selectedDate);
 
     // Update currentContent with text content (for word/char count)
-    // Replace <br> and block elements with newlines before extracting text
-    const html = entry?.content || '';
-    const withLineBreaks = html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/div>/gi, '\n')
-      .replace(/<\/p>/gi, '\n');
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = withLineBreaks;
-    setCurrentContent(tempDiv.textContent || '');
+    setCurrentContent(htmlToText(entry?.content || ''));
 
     if (entry && entry.lastModified && isDateSwitch) {
       lastTypedTime.current = entry.lastModified;
