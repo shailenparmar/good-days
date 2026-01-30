@@ -448,12 +448,12 @@ export function JournalEditor({
       />
 
       {/* Scrambled overlay - mirrors editor content with scrambled text */}
-      {/* Outer container clips overflow; inner content shifts via scrollTop sync */}
+      {/* Outer container clips overflow; inner content flows naturally and shifts via transform */}
       {isScrambled && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
             ref={overlayRef}
-            className="absolute inset-0 p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
             style={{ color: getColor() }}
           />
         </div>
