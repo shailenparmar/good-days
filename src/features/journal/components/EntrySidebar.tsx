@@ -7,51 +7,22 @@ interface EntrySidebarProps {
   entries: JournalEntry[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
-  onSaveTitle: (date: string, title: string) => void;
   settingsOpen?: boolean;
 }
 
-export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle, settingsOpen }: EntrySidebarProps) {
+export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen }: EntrySidebarProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);
   const [keyboardFocusedEntry, setKeyboardFocusedEntry] = useState<string | null>(null);
-  const [editingEntry, setEditingEntry] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   // Clear keyboard focus when settings opens
   useEffect(() => {
     if (settingsOpen) {
       setKeyboardFocusedEntry(null);
-      setEditingEntry(null);
     }
   }, [settingsOpen]);
-
-  // Focus input when editing starts
-  useEffect(() => {
-    if (editingEntry) {
-      const input = inputRefs.current.get(editingEntry);
-      input?.focus();
-      input?.select();
-    }
-  }, [editingEntry]);
-
-  const handleStartEdit = (date: string, currentTitle: string | undefined) => {
-    setEditingEntry(date);
-    setEditValue(currentTitle || '');
-  };
-
-  const handleSaveEdit = (date: string) => {
-    onSaveTitle(date, editValue);
-    setEditingEntry(null);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingEntry(null);
-    setEditValue('');
-  };
 
   // Scroll focused entry into view
   useEffect(() => {
@@ -136,8 +107,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
         // Selected or hovered = filled background
         const currentBg = (isSelected || isHovered) ? hoverBg : 'transparent';
 
-        const isEditing = editingEntry === entry.date;
-        const displayText = entry.title || formatDate(entry.date);
+        const displayText = formatDate(entry.date);
 
         return (
           <div
@@ -146,18 +116,16 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
               if (el) buttonRefs.current.set(entry.date, el as unknown as HTMLButtonElement);
             }}
             onClick={() => {
-              if (!isEditing) {
-                setKeyboardFocusedEntry(null);
-                onSelectDate(entry.date);
-              }
+              setKeyboardFocusedEntry(null);
+              onSelectDate(entry.date);
             }}
             onMouseEnter={() => {
-              if (!keyboardFocusedEntry && !isEditing) {
+              if (!keyboardFocusedEntry) {
                 setHoveredEntry(entry.date);
               }
             }}
             onMouseLeave={() => { setHoveredEntry(null); setClickedEntry(null); }}
-            onMouseDown={() => !isEditing && setClickedEntry(entry.date)}
+            onMouseDown={() => setClickedEntry(entry.date)}
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
             role="button"
@@ -171,43 +139,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, onSaveTitle,
               backgroundColor: currentBg,
             }}
           >
-            {isEditing ? (
-              <input
-                ref={(el) => {
-                  if (el) inputRefs.current.set(entry.date, el);
-                }}
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value.slice(0, 24))}
-                onBlur={() => handleSaveEdit(entry.date)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveEdit(entry.date);
-                  } else if (e.key === 'Escape') {
-                    handleCancelEdit();
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                maxLength={24}
-                placeholder={formatDate(entry.date)}
-                spellCheck={false}
-                autoComplete="off"
-                aria-label="Entry title"
-                className="w-full bg-transparent text-center font-mono font-extrabold outline-none p-0 m-0"
-                style={{ fontSize: '0.9rem', color: textColor, border: 'none' }}
-              />
-            ) : (
-              <span
-                onClick={(e) => {
-                  if (isSelected) {
-                    e.stopPropagation();
-                    handleStartEdit(entry.date, entry.title);
-                  }
-                }}
-              >
-                {displayText}
-              </span>
-            )}
+            {displayText}
           </div>
         );
       })}

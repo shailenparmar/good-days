@@ -139,19 +139,10 @@ if (isMobile) {
 } else {
   // Load full app only on desktop
   import('./App.tsx').then(({ default: App }) => {
-    import('@shared/storage').then(({ initStorage, isElectron }) => {
-      const startApp = async () => {
-        // Only init storage for Electron (file system); browser uses localStorage directly
-        if (isElectron()) {
-          await initStorage();
-        }
-        createRoot(document.getElementById('root')!).render(
-          <StrictMode>
-            <App />
-          </StrictMode>,
-        );
-      };
-      startApp();
-    });
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
   });
 }

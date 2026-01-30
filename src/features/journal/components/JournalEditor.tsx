@@ -2,6 +2,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
+import { useKeyedPersisted } from '@shared/hooks';
+import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
 // Sanitize HTML - allow basic formatting tags, strip all attributes
@@ -83,6 +85,10 @@ export function JournalEditor({
   // Ref for scrambled overlay (content managed via MutationObserver, not state)
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  // Scroll position persistence
+  const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
+  const scrollSaveTimeout = useRef<number | null>(null);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -99,9 +105,20 @@ export function JournalEditor({
     if (editorRef.current) {
       // Always have at least a <br> for consistent caret rendering
       editorRef.current.innerHTML = sanitized || '<br>';
+
+      // Restore scroll position after content loads
+      const savedScrollTop = scrollPosition.get(selectedDate);
+      if (savedScrollTop > 0) {
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (editorRef.current) {
+            editorRef.current.scrollTop = savedScrollTop;
+          }
+        });
+      }
     }
     loadedDateRef.current = selectedDate;
-  }, [entries, selectedDate, editorRef]);
+  }, [entries, selectedDate, editorRef, scrollPosition]);
 
   // MutationObserver to ensure <br> exists for consistent caret rendering
   // This catches ALL changes: typing, paste, cut, undo, select-all+delete, etc.
@@ -186,12 +203,26 @@ export function JournalEditor({
     };
   }, [isScrambled, editorRef]);
 
-  // Sync scroll position during user scrolling
+  // Sync scroll position during user scrolling and persist to storage
   const handleEditorScroll = useCallback(() => {
-    if (overlayRef.current && editorRef.current) {
+    if (!editorRef.current) return;
+
+    // Sync scrambled overlay
+    if (overlayRef.current) {
       overlayRef.current.scrollTop = editorRef.current.scrollTop;
     }
-  }, [editorRef]);
+
+    // Debounce scroll position save (100ms)
+    if (scrollSaveTimeout.current !== null) {
+      clearTimeout(scrollSaveTimeout.current);
+    }
+    scrollSaveTimeout.current = window.setTimeout(() => {
+      if (editorRef.current) {
+        scrollPosition.set(selectedDate, editorRef.current.scrollTop);
+      }
+      scrollSaveTimeout.current = null;
+    }, 100);
+  }, [editorRef, selectedDate, scrollPosition]);
 
   // Handle user input (scrambled overlay is updated via MutationObserver)
   // Note: <br> maintenance is handled by the MutationObserver above
@@ -309,11 +340,15 @@ export function JournalEditor({
     editorRef.current?.focus();
   }, [editorRef]);
 
+  // Check if this is today's entry (the only editable entry)
+  const isToday = selectedDate === getTodayDate();
+
   // Placeholder - derived from actual data using DOM-based text extraction
   // This correctly handles <br>, <div><br></div>, and all HTML edge cases
   const currentEntry = entries.find(e => e.date === selectedDate);
   const hasContent = hasActualContent(currentEntry?.content || '');
-  const showPlaceholder = !hasContent && !isFocused;
+  // Only show placeholder for today's entry when empty and not focused
+  const showPlaceholder = isToday && !hasContent && !isFocused;
 
   useEffect(() => {
     if (!showPlaceholder) return;
@@ -366,21 +401,23 @@ export function JournalEditor({
       </style>
 
       {/* Editor - absolutely positioned to fill container */}
+      {/* Only today's entry is editable; past entries are read-only */}
       <div
         ref={editorRef}
-        contentEditable
-        onInput={handleInput}
+        contentEditable={isToday}
+        onInput={isToday ? handleInput : undefined}
         onScroll={handleEditorScroll}
-        onKeyDown={handleKeyDown}
+        onKeyDown={isToday ? handleKeyDown : undefined}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
         style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
         suppressContentEditableWarning
-        role="textbox"
-        aria-label="Journal entry content"
+        role={isToday ? 'textbox' : 'article'}
+        aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}
         aria-multiline="true"
+        aria-readonly={!isToday}
       />
 
       {/* Scrambled overlay - content managed via MutationObserver */}

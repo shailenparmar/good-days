@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getItem, setItem, isElectron, forceSave } from '@shared/storage';
+import { getItem, setItem } from '@shared/storage';
 
 export function useStatistics() {
   const [totalKeystrokes, setTotalKeystrokes] = useState(() => {
@@ -41,14 +41,11 @@ export function useStatistics() {
     };
   }, []);
 
-  // Force save before app closes
+  // Save before app closes
   useEffect(() => {
     const handleBeforeUnload = () => {
       const currentSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
       setItem('totalSecondsOnApp', String(baseSecondsRef.current + currentSessionSeconds));
-      if (isElectron()) {
-        forceSave();
-      }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
