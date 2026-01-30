@@ -17,37 +17,32 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
 
   return (
     <div
-      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide"
+      className="w-[32rem] flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
       onClick={onCloseSettings}
     >
-      {/* Header */}
-      <div className="p-4" style={sectionStyle} contentEditable suppressContentEditableWarning>
+      {/* Welcome */}
+      <div className="p-4" style={sectionStyle}>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
-          a new page spawns at midnight;<br />old logs are written in stone.
+          welcome to good days, your living time-capsule journal oasis.
         </p>
       </div>
 
       {/* Privacy */}
-      <div className="p-4" style={sectionStyle} contentEditable suppressContentEditableWarning>
+      <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+          <p>privacy:</p>
           <p>
-            your writing, passwords, and settings only exist on your device, even though you access the journal through a website.
+            your writing and passwords are safe. i couldn't view your data even if i wanted to; it's technologically impossible.
           </p>
           <p>
-            i couldn't view your content even if i wanted to; it's technologically impossible.
+            this is because everything you add is saved to a file on your hard drive called IndexedDB. the website pulls from it to display it, but it never leaves the hardware on your device.
           </p>
           <p>
-            this is because the data you add is saved to a file on your hard drive called IndexedDB. your browser pulls from it to display it, but it never leaves your device.
-          </p>
-          <p>
-            IndexedDB = site data. so if you press "clear cookies and site data" in your browser's settings, you'll lose your entries. refreshing or quitting is safe, though; it saves every character almost instantly.
-          </p>
-          <p>
-            as a safety guarantee, this app is open-source. you can press F12, Sources, and verify the code currently running.{' '}
+            as a safety guarantee, you can verify the code currently running; the entire product is open-source.{' '}
             <a
               href="https://github.com/shailenparmar/good-days"
               target="_blank"
@@ -62,14 +57,36 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
         </div>
       </div>
 
-      {/* Personal note */}
-      <div className="p-4" contentEditable suppressContentEditableWarning>
+      {/* Features */}
+      <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+          <p>features:</p>
           <p>
-            i designed this journal for my own daily use, and i'm elated to share it.
+            a new page spawns at midnight; old logs are written in stone.
           </p>
           <p>
-            try drafting while scrambled, typing "\time", or holding spacebar on rand. here's to many colorways and many more good days.
+            draft while scrambled to beat writer's block or spying eyes.
+          </p>
+          <p>
+            every character saves instantly. type \time for a timestamp.
+          </p>
+          <p>
+            click the editor header to toggle zen mode.
+          </p>
+          <p>
+            hold spacebar on rand for a quick party.
+          </p>
+          <p>
+            download an app for offline use by clicking the install icon at the right end of the chrome address bar. in safari, click the share icon and "add to dock."
+          </p>
+        </div>
+      </div>
+
+      {/* Personal note */}
+      <div className="p-4">
+        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+          <p>
+            i designed this journal for my own daily use, and i'm elated to share it. here's to many colorways and many more good days.
           </p>
           <p className="mt-4">
             - shai
