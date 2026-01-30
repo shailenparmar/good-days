@@ -133,7 +133,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             aria-pressed={isSelected}
             className="w-full text-center px-3 py-2 rounded font-mono font-extrabold outline-none focus:outline-none select-none"
             style={{
-              fontSize: '0.9rem',
+              fontSize: '14.5px',
               border: `3px solid ${currentBorderColor}`,
               color: textColor,
               backgroundColor: currentBg,

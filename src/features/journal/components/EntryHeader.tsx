@@ -86,7 +86,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick
             day: 'numeric',
           }).toLowerCase()}
         </h2>
-        <p className="font-extrabold font-mono" style={{ color: getColor(), fontSize: '0.9rem' }}>
+        <p className="font-extrabold font-mono" style={{ color: getColor(), fontSize: '14.5px' }}>
           {getStartedAtText()}
         </p>
       </div>
