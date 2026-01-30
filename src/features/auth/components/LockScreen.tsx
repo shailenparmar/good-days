@@ -19,7 +19,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const placeholderText = 'type here';
+  const placeholderText = 'password';
   const showPlaceholder = passwordInput.length === 0 && !isFocused;
 
   useEffect(() => {
