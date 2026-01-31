@@ -10,12 +10,12 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
-import { scrambleText } from '@shared/utils/scramble';
+import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
 import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.25';
+const VERSION = '1.5.26';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -127,6 +127,11 @@ function AppContent() {
   // Supermode: scramble + settings + about all open = chaos mode
   const isSupermode = isScrambled && showDebugMenu && showAboutPanel;
   const [scrambleSeed, setScrambleSeed] = useState(0);
+
+  // Sync global scramble seed for consistent rendering
+  useEffect(() => {
+    updateGlobalScrambleSeed(scrambleSeed);
+  }, [scrambleSeed]);
 
   // Save panel states to localStorage
   useEffect(() => {
@@ -472,10 +477,12 @@ function AppContent() {
         }}
         onCloseAbout={() => setShowAboutPanel(false)}
         stacked={showDebugMenu && showAboutPanel}
+        supermode={isSupermode}
+        scrambleSeed={scrambleSeed}
       />
 
       {/* About Panel */}
-      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} stacked={showDebugMenu && showAboutPanel} />
+      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} stacked={showDebugMenu && showAboutPanel} supermode={isSupermode} scrambleSeed={scrambleSeed} />
 
       {/* Main Editor Area */}
       <div
