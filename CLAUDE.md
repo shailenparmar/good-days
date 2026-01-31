@@ -361,14 +361,21 @@ ESC escapes through focus states before locking:
 | Zen (any mode) | Restore pre-zen state |
 | Wide + Minizen | Exit minizen (show sidebar) |
 | Wide + Full | Lock app |
+| Narrow + Default | Show sidebar |
 | Narrow + Sidebar Visible | Lock app |
-| Narrow + Default | Lock app |
 
 **ESC flow in wide mode:**
 ```
 Zen → ESC → (previous state)
 Minizen → ESC → Full
 Full → ESC → Lock
+```
+
+**ESC flow in narrow mode:**
+```
+Zen → ESC → (previous state)
+Default → ESC → Sidebar Visible
+Sidebar Visible → ESC → Lock
 ```
 
 ### Resize Transitions

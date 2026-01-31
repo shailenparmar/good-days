@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.29';
+const VERSION = '1.5.30';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -236,7 +236,8 @@ function AppContent() {
   // ESC key behavior (priority order):
   // 1. In zen mode: exit zen and restore previous state
   // 2. In minizen (wide): exit minizen (show sidebar)
-  // 3. Otherwise: lock the app
+  // 3. In narrow mode with sidebar hidden: show sidebar
+  // 4. Otherwise: lock the app
   // DON'T act when:
   // - User is in an input field
   // - ESC was already handled by another component (via e.defaultPrevented)
@@ -263,6 +264,12 @@ function AppContent() {
           return;
         }
 
+        // In narrow mode with sidebar hidden: show sidebar
+        if (isNarrow && !showSidebarInNarrow) {
+          setShowSidebarInNarrow(true);
+          return;
+        }
+
         // Otherwise: save and lock
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.innerHTML || '', Date.now());
@@ -272,7 +279,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal, zenMode, exitZen, isNarrow, minizen]);
+  }, [auth, journal, zenMode, exitZen, isNarrow, minizen, showSidebarInNarrow]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
   // Only works when viewing today's entry (past entries are read-only)
@@ -330,15 +337,6 @@ function AppContent() {
   }, [showDebugMenu, showAboutPanel, isNarrow, closePanels, journal.selectedDate]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
-
-  // Turn off scramble when changing dates
-  const previousSelectedDate = useRef<string>(journal.selectedDate);
-  useEffect(() => {
-    if (previousSelectedDate.current !== journal.selectedDate) {
-      setIsScrambled(false);
-      previousSelectedDate.current = journal.selectedDate;
-    }
-  }, [journal.selectedDate]);
 
   // Automatic midnight detection
   useEffect(() => {
