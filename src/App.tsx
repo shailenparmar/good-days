@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.58';
+const VERSION = '1.5.59';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -29,7 +29,6 @@ function MobileNotSupported() {
   }));
 
   const randomize = () => {
-    markEasterEggFound('mobileRand');
     const textHue = Math.floor(Math.random() * 360);
     const textSat = 20 + Math.floor(Math.random() * 60);
     const textLight = 25 + Math.floor(Math.random() * 35);

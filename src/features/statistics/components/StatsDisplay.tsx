@@ -267,13 +267,13 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             }}
           >
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-              {hue}, {saturation}%, {lightness}%
+              txt: {hue}, {saturation}%, {lightness}%
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {hslToHex(hue, saturation, lightness)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-              {bgHue}, {bgSaturation}%, {bgLightness}%
+              bg: {bgHue}, {bgSaturation}%, {bgLightness}%
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {hslToHex(bgHue, bgSaturation, bgLightness)}

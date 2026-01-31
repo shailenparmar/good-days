@@ -27,7 +27,7 @@ describe('easterEggs', () => {
         'arrowKeyPresets',
         'copyMarkdown',
         'selectColorText',
-        'mobileRand',
+        'resetBlackout',
       ];
 
       expectedEggs.forEach(egg => {
