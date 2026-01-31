@@ -157,7 +157,6 @@ export function SettingsPanel({
           {resetStep === 2 && (
             <div
               className="fixed inset-0 bg-black z-40"
-              style={{ opacity: 0.95 }}
               onClick={() => setResetStep(0)}
             />
           )}
