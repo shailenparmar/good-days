@@ -182,6 +182,118 @@ This prevents duplicate content from being appended during repeated imports.
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
+## Editor Cursor (IMPORTANT)
+
+The editor uses a `contentEditable` div with custom cursor styling.
+
+### Current Implementation
+
+The cursor is styled using CSS with the `caret-color` property set dynamically via inline styles to match the theme color.
+
+**CSS (src/index.css):**
+```css
+/* Custom editor with thick caret - color is set dynamically via inline styles */
+.custom-editor {
+  /* caret-color set via inline style */
+}
+
+/* Try to make it blocky in supporting browsers */
+@supports (caret-shape: block) {
+  .custom-editor {
+    caret-shape: block;
+  }
+}
+```
+
+**Inline style (JournalEditor.tsx):**
+```tsx
+<style>
+  {`
+    .dynamic-editor {
+      caret-color: ${getColor()};
+    }
+  `}
+</style>
+```
+
+### Browser Support
+
+| Browser | Cursor Appearance |
+|---------|-------------------|
+| Firefox | Block cursor (via `caret-shape: block`) |
+| Chrome | Thin line cursor (no block cursor support) |
+| Safari | Thin line cursor (no block cursor support) |
+
+**Note**: `caret-shape: block` is a CSS property only supported in Firefox. Chrome and Safari do not support this property and will show the default thin line cursor.
+
+### Why Not Use a Custom JavaScript Cursor?
+
+A custom JavaScript-based block cursor was attempted (v1.5.30) but had issues:
+
+1. **Position tracking complexity**: Tracking cursor position in `contentEditable` requires `selectionchange` events and `getClientRects()` which can be unreliable
+2. **Performance**: Requires hiding the native cursor (`caret-color: transparent`) and rendering a separate `<div>` that follows the cursor position
+3. **Edge cases**: Empty editors, line breaks, text selection all need special handling
+4. **Blinking behavior**: Requires managing `isTyping` state to make cursor solid while typing
+
+If a custom cursor is needed in the future, the v1.5.30 commit has a working (but buggy) implementation that can be referenced.
+
+### Keeping the Cursor Solid During Delete
+
+The native browser behavior causes the cursor to blink after deletion. To keep it solid, we intercept `Backspace` and `Delete` keys and use `execCommand('insertText', '')` instead of native deletion:
+
+```tsx
+const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      if (!selection.isCollapsed) {
+        document.execCommand('insertText', false, '');
+      } else {
+        const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
+        selection.modify('extend', 'backward', granularity);
+        document.execCommand('insertText', false, '');
+      }
+    }
+  }
+  // Similar for Delete key...
+}, []);
+```
+
+### Ensuring Consistent Caret Rendering
+
+An empty `contentEditable` div can have inconsistent caret rendering. A MutationObserver ensures there's always a `<br>` element:
+
+```tsx
+useEffect(() => {
+  if (!editorRef.current) return;
+  const ensureBr = () => {
+    if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
+      editorRef.current.innerHTML = '<br>';
+    }
+  };
+  const observer = new MutationObserver(ensureBr);
+  observer.observe(editorRef.current, { childList: true, subtree: true, characterData: true });
+  return () => observer.disconnect();
+}, [editorRef]);
+```
+
+### Troubleshooting
+
+| Issue | Likely Cause | Fix |
+|-------|--------------|-----|
+| No cursor visible | `caret-color: transparent` without custom cursor | Remove `caret-color: transparent` from CSS |
+| Cursor wrong color | Inline style not applied | Check `.dynamic-editor` class and inline `<style>` tag |
+| Cursor blinks on delete | Not using `execCommand` approach | Use `execCommand('insertText', '')` in `handleKeyDown` |
+| Cursor jumps to end | `\time` replacement or other HTML manipulation | Restore cursor position after manipulation |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/index.css` | CSS for `.custom-editor` including `caret-shape: block` |
+| `src/features/journal/components/JournalEditor.tsx` | Editor component with cursor handling |
+
 ## Scramble Mode
 
 Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
