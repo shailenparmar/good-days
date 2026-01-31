@@ -1,15 +1,3 @@
-/**
- * PRESERVED FOR FUTURE REIMPLEMENTATION
- *
- * This module handles importing backup files. Currently unused but kept
- * for reference if we want to re-add the import feature.
- *
- * To re-enable:
- * 1. Add import button back to ExportButtons.tsx
- * 2. Add onImport prop to ExportButtons and wire through SettingsPanel
- * 3. Call parseBackupText() and mergeEntries() on file upload
- */
-
 import type { JournalEntry } from '@features/journal';
 
 interface ParsedEntry {

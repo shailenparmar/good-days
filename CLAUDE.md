@@ -35,7 +35,7 @@ User → Cloudflare DNS → GitHub Pages → serves site
 | Type | Name | Target | Proxy |
 |------|------|--------|-------|
 | CNAME | `gdays.day` (apex) | `shailenparmar.github.io` | DNS only |
-| CNAME | `www` | `shailenparmar.github.io` | DNS only |
+| CNAME | `www` | `shailenparmar.github.io` | **Proxied** |
 
 Note: Cloudflare "flattens" the apex CNAME to A records (GitHub Pages IPs: 185.199.x.x).
 
@@ -44,27 +44,37 @@ Note: Cloudflare "flattens" the apex CNAME to A records (GitHub Pages IPs: 185.1
 The `public/CNAME` file tells GitHub Pages which custom domain to use:
 
 ```
-www.gdays.day
+gdays.day
 ```
 
-Using `www.gdays.day` (not the apex) allows GitHub Pages to:
-1. Provision SSL for both `www.gdays.day` and `gdays.day`
-2. Auto-redirect `gdays.day` → `www.gdays.day`
+### Cloudflare Redirect Rule
+
+A redirect rule handles `www.gdays.day` → `gdays.day`:
+
+| Setting | Value |
+|---------|-------|
+| Name | `www to apex` |
+| When | Hostname equals `www.gdays.day` |
+| Then | Dynamic redirect to `https://gdays.day${http.request.uri.path}` |
+| Status | 301 (permanent) |
+| Preserve query string | Yes |
+
+The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle SSL and the redirect.
 
 ### URLs
 
 | URL | Purpose |
 |-----|---------|
-| `https://www.gdays.day` | Production (primary) |
-| `https://gdays.day` | Production (redirects to www) |
+| `https://gdays.day` | Production (primary) |
+| `https://www.gdays.day` | Redirects to apex via Cloudflare |
 | `https://shailenparmar.github.io/good-days/` | GitHub Pages (redirects to gdays.day) |
 | `https://gdays.vercel.app/` | Vercel deployment (separate) |
 
 ### Troubleshooting
 
-**SSL cert error on www**: Ensure `public/CNAME` contains `www.gdays.day` (not `gdays.day`). GitHub Pages only provisions certs for the domain in the CNAME file.
+**SSL cert error on www**: Ensure the `www` DNS record is **Proxied** (orange cloud) in Cloudflare, and the redirect rule is active.
 
-**DNS not resolving**: Check Cloudflare DNS records. Both apex and www must point to `shailenparmar.github.io`. Use "DNS only" (gray cloud), not "Proxied" (orange cloud).
+**DNS not resolving**: Check Cloudflare DNS records. Apex must be DNS only, www must be Proxied.
 
 **Changes not appearing**:
 1. Check GitHub Actions completed successfully
@@ -76,6 +86,82 @@ Using `www.gdays.day` (not the apex) allows GitHub Pages to:
 - `src/features/` - Feature-based modules (auth, journal, theme, settings, statistics, export)
 - `src/shared/` - Shared utilities and components
 - `src/index.css` - Global styles including scrollbar-hide utility
+
+## Backup & Import
+
+The app supports exporting entries to an **encrypted** `.txt` file and importing them back.
+
+### Backup Format
+
+Backups are encrypted using AES-GCM with an app-embedded key. The file looks like:
+
+```
+good days encrypted backup Jan 30, 2026, 10:30 AM
+
+U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
+[base64 encrypted content continues]
+```
+
+The encrypted content, when decrypted, contains the plain text format:
+
+```
+# good days
+
+---
+
+## Monday, January 27, 2025
+
+*Started at 09:30:00*
+
+Entry content here...
+```
+
+### Encryption Details
+
+- **Algorithm**: AES-GCM (256-bit key)
+- **Key derivation**: PBKDF2 with fixed app secret
+- **IV**: Random 12 bytes per encryption (stored with ciphertext)
+- **Code location**: `src/features/export/utils/crypto.ts`
+
+Note: This is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
+
+### Import Conflict Handling
+
+When importing, entries are **merged** (not replaced). If an imported entry's date already exists:
+
+1. **Same content**: Skip (no change)
+2. **Different content**: Append imported content below existing with a separator
+
+The conflict separator format:
+
+```
+[existing content]
+---
+from Jan 30, 2026, 10:30 AM backup:
+
+[imported content]
+```
+
+Code location: `src/features/export/utils/parseBackup.ts`
+
+```typescript
+const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit'
+})} backup:\n\n`;
+```
+
+### Key Behaviors
+
+- **Import only accepts encrypted backups** (files must start with `good days encrypted backup`)
+- Import button is always enabled (can import into empty app)
+- New dates from import are added as new entries
+- `startedAt` is preserved (uses older timestamp if imported entry is older)
+- Entries are re-sorted by date after import
+- "Copy to clipboard" still copies plain text (not encrypted)
 
 ## UI Conventions
 
