@@ -31,6 +31,8 @@ function hslToHex(h: number, s: number, l: number): string {
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
+  const [isRainbowMode, setIsRainbowMode] = useState(false);
+  const [rainbowHue, setRainbowHue] = useState(0);
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -40,6 +42,47 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   // Track if we were in superscramble to refresh stats on exit
   const wasInSupermode = useRef(false);
+
+  // Rainbow mode animation - just animates the easter eggs text color
+  useEffect(() => {
+    if (!isRainbowMode) return;
+
+    // 360 degrees in 5 seconds = 72 degrees per second = ~1.2 degrees per 16ms frame
+    const animate = () => {
+      setRainbowHue(h => (h + 1.2) % 360);
+    };
+
+    const interval = setInterval(animate, 16); // ~60fps, full cycle in 5 seconds
+
+    // Stop on click or keypress - but delay adding listeners so the starting click doesn't stop it
+    const stopRainbow = (e: MouseEvent | KeyboardEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      setIsRainbowMode(false);
+    };
+
+    const timeoutId = setTimeout(() => {
+      window.addEventListener('click', stopRainbow, true);
+      window.addEventListener('keydown', stopRainbow, true);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+      window.removeEventListener('click', stopRainbow, true);
+      window.removeEventListener('keydown', stopRainbow, true);
+    };
+  }, [isRainbowMode]);
+
+  // Handle click on easter eggs text when all found
+  const handleEasterEggsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const eggCount = getEasterEggCount();
+    if (eggCount.found === eggCount.total && !isRainbowMode) {
+      setIsRainbowMode(true);
+    }
+  }, [isRainbowMode]);
 
   // Update live stats every second when stacked, but freeze in superscramble
   useEffect(() => {
@@ -248,7 +291,12 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.lexicon} word lexicon`)}
             </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+            <div
+              className="text-xs font-mono font-bold text-center"
+              style={{ color: isRainbowMode ? `hsl(${rainbowHue}, 100%, 50%)` : getColor() }}
+              onClick={handleEasterEggsClick}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               {s(`${getEasterEggCount().found}/${getEasterEggCount().total} easter eggs`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>

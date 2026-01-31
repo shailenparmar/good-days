@@ -125,7 +125,6 @@ function MobileScreen() {
           border: `8px solid ${textColor}`,
           borderRadius: '12px',
           color: textColor,
-          cursor: 'pointer',
         }}
       >
         rand
