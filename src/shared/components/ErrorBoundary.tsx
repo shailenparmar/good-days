@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
-import { DEFAULT_PRESETS } from '@features/theme';
 
 interface Props {
   children: ReactNode;
@@ -10,10 +9,9 @@ interface State {
   hasError: boolean;
 }
 
-// Use preset 1 colors for error screen
-const preset1 = DEFAULT_PRESETS[0];
-const textColor = `hsl(${preset1.hue}, ${preset1.sat}%, ${preset1.light}%)`;
-const bgColor = `hsl(${preset1.bgHue}, ${preset1.bgSat}%, ${preset1.bgLight}%)`;
+// Error screen colors: bright green on black
+const textColor = 'hsl(116, 100%, 53%)'; // #1fff0f
+const bgColor = 'hsl(0, 0%, 0%)'; // #000000
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
