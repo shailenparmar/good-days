@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { ExternalLink } from 'lucide-react';
-import { getItem, setItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
 
 interface AboutPanelProps {
@@ -19,39 +17,6 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
   // Helper to scramble text in supermode
   const s = (text: string) => supermode ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
-  const [width, setWidth] = useState(() => {
-    const saved = getItem('aboutPanelWidth');
-    return saved ? Number(saved) : 705;
-  });
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  // Save width to localStorage
-  useEffect(() => {
-    setItem('aboutPanelWidth', String(width));
-  }, [width]);
-
-  // Handle drag
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragRef.current = { startX: e.clientX, startWidth: width };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragRef.current) return;
-      const delta = e.clientX - dragRef.current.startX;
-      const newWidth = Math.max(300, Math.min(900, dragRef.current.startWidth + delta));
-      setWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      dragRef.current = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
 
   if (!isOpen) return null;
 
@@ -60,14 +25,15 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
   };
 
   return (
-    <div className="relative flex" style={{ width: `${width}px` }}>
-      <div
-        className="flex-1 flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
-        style={{
-          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        }}
-        onClick={stacked ? undefined : onCloseSettings}
-      >
+    <div
+      className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
+      style={{
+        width: '675px',
+        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
+        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+      }}
+      onClick={stacked ? undefined : onCloseSettings}
+    >
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
@@ -122,18 +88,6 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
           </p>
         </div>
       </div>
-      </div>
-
-      {/* Drag handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        className="h-screen flex-shrink-0"
-        style={{
-          width: '6px',
-          backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
-          cursor: 'ew-resize',
-        }}
-      />
     </div>
   );
 }

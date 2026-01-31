@@ -94,18 +94,21 @@ export function SettingsPanel({
         <div
           className="p-4"
           style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-          onMouseEnter={() => setHotkeyButtonHovered(true)}
-          onMouseLeave={() => setHotkeyButtonHovered(false)}
         >
-          <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
-            <span>
-              {hotkeyButtonHovered
-                ? (supermode ? scrambleText('option/alt + s') : 'option/alt + s')
-                : (supermode
-                    ? scrambleText(scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated')
-                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated'))}
-            </span>
-          </FunctionButton>
+          <div
+            onMouseEnter={() => setHotkeyButtonHovered(true)}
+            onMouseLeave={() => setHotkeyButtonHovered(false)}
+          >
+            <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
+              <span>
+                {hotkeyButtonHovered
+                  ? (supermode ? scrambleText('option/alt + s') : 'option/alt + s')
+                  : (supermode
+                      ? scrambleText(scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated')
+                      : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated'))}
+              </span>
+            </FunctionButton>
+          </div>
         </div>
       )}
 

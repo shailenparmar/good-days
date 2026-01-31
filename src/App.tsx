@@ -11,17 +11,37 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.27';
+const VERSION = '1.5.28';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 function MobileNotSupported() {
+  const [colors, setColors] = useState(() => ({
+    textHue: 144, textSat: 36, textLight: 43,
+    bgHue: 84, bgSat: 100, bgLight: 94,
+  }));
+
+  const randomize = () => {
+    markEasterEggFound('mobileRand');
+    const textHue = Math.floor(Math.random() * 360);
+    const textSat = 20 + Math.floor(Math.random() * 60);
+    const textLight = 25 + Math.floor(Math.random() * 35);
+    const bgHue = Math.floor(Math.random() * 360);
+    const bgSat = 30 + Math.floor(Math.random() * 70);
+    const bgLight = 85 + Math.floor(Math.random() * 12);
+    setColors({ textHue, textSat, textLight, bgHue, bgSat, bgLight });
+  };
+
+  const textColor = `hsl(${colors.textHue}, ${colors.textSat}%, ${colors.textLight}%)`;
+  const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+
   return (
     <div
       style={{
@@ -31,18 +51,34 @@ function MobileNotSupported() {
         justifyContent: 'center',
         height: '100vh',
         padding: '32px',
-        backgroundColor: 'hsl(84, 100%, 94%)',
+        backgroundColor: bgColor,
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>good</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>days</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>is</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>not</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>supported</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>on</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>mobile</p>
-        <p style={{ color: 'hsl(144, 36%, 43%)', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>yet</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>good</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>days</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>is</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>not</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>supported</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>on</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>mobile</p>
+        <p style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>yet</p>
+        <button
+          onClick={randomize}
+          style={{
+            marginTop: '16px',
+            padding: '8px 16px',
+            backgroundColor: 'transparent',
+            border: `3px solid ${textColor}`,
+            borderRadius: '6px',
+            color: textColor,
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            fontSize: '16px',
+          }}
+        >
+          rand
+        </button>
       </div>
     </div>
   );
@@ -158,14 +194,37 @@ function AppContent() {
     setItem('scrambleHotkeyActive', String(scrambleHotkeyActive));
   }, [scrambleHotkeyActive]);
 
+  // Easter egg tracking
+  useEffect(() => {
+    if (showDebugMenu && showAboutPanel) markEasterEggFound('powerstatMode');
+  }, [showDebugMenu, showAboutPanel]);
+
+  useEffect(() => {
+    if (isSupermode) markEasterEggFound('supermode');
+  }, [isSupermode]);
+
+  useEffect(() => {
+    if (minizen) markEasterEggFound('minizenMode');
+  }, [minizen]);
+
+  useEffect(() => {
+    if (zenMode) markEasterEggFound('zenMode');
+  }, [zenMode]);
+
+  useEffect(() => {
+    if (scrambleHotkeyActive) markEasterEggFound('scrambleHotkeyOn');
+  }, [scrambleHotkeyActive]);
+
   // Option/Alt+S hotkey for scramble toggle (when hotkey is activated)
   useEffect(() => {
     if (!scrambleHotkeyActive) return;
 
     const handleHotkey = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === 's') {
+      // Use e.code for physical key (Alt+S produces "ß" on Mac, so e.key !== 's')
+      if (e.altKey && e.code === 'KeyS') {
         e.preventDefault();
         setIsScrambled(prev => !prev);
+        markEasterEggFound('scrambleHotkeyUsed');
       }
     };
 

@@ -4,6 +4,7 @@ import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
 import { useKeyedPersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
 
 // Sanitize HTML - allow basic formatting tags, strip all attributes
@@ -229,6 +230,11 @@ export function JournalEditor({
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
+    // Track typing while scrambled
+    if (isScrambled) {
+      markEasterEggFound('scrambleTyping');
+    }
+
     // Check for \time or \TIME and replace with timestamp
     const textContent = editorRef.current.textContent || '';
     if (textContent.toLowerCase().includes('\\time')) {
@@ -246,6 +252,7 @@ export function JournalEditor({
       const savedRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
 
       editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/gi, `[${timestamp}]`);
+      markEasterEggFound('timeCommand');
 
       // Restore cursor to end
       if (savedRange && selection) {
@@ -259,7 +266,7 @@ export function JournalEditor({
 
     const content = editorRef.current.innerHTML || '';
     onInput(content);
-  }, [editorRef, onInput]);
+  }, [editorRef, onInput, isScrambled]);
 
   // Clean up empty timestamps on blur (not during typing)
   const handleBlur = useCallback(() => {
