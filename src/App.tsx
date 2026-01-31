@@ -15,7 +15,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.26';
+const VERSION = '1.5.27';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -55,9 +55,8 @@ function AppContent() {
   const theme = useTheme();
   const auth = useAuth();
   const journal = useJournalEntries();
-  const stats = useStatistics();
 
-  // Local state
+  // Panel and scramble state - declared before useStatistics so we can pause it in supermode
   const [showDebugMenu, setShowDebugMenu] = useState(() => {
     return getItem('showSettings') === 'true';
   });
@@ -67,6 +66,15 @@ function AppContent() {
   const [isScrambled, setIsScrambled] = useState(() => {
     return getItem('isScrambled') === 'true';
   });
+  const [scrambleHotkeyActive, setScrambleHotkeyActive] = useState(() => {
+    return getItem('scrambleHotkeyActive') === 'true';
+  });
+
+  // Supermode: scramble + settings + about all open = chaos mode
+  const isSupermode = isScrambled && showDebugMenu && showAboutPanel;
+
+  // Stats hook - paused in supermode to prevent jitter
+  const stats = useStatistics(isSupermode);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -124,8 +132,6 @@ function AppContent() {
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
 
-  // Supermode: scramble + settings + about all open = chaos mode
-  const isSupermode = isScrambled && showDebugMenu && showAboutPanel;
   const [scrambleSeed, setScrambleSeed] = useState(0);
 
   // Sync global scramble seed for consistent rendering
@@ -146,6 +152,26 @@ function AppContent() {
   useEffect(() => {
     setItem('isScrambled', String(isScrambled));
   }, [isScrambled]);
+
+  // Save scramble hotkey state to localStorage
+  useEffect(() => {
+    setItem('scrambleHotkeyActive', String(scrambleHotkeyActive));
+  }, [scrambleHotkeyActive]);
+
+  // Option/Alt+S hotkey for scramble toggle (when hotkey is activated)
+  useEffect(() => {
+    if (!scrambleHotkeyActive) return;
+
+    const handleHotkey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        setIsScrambled(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleHotkey);
+    return () => window.removeEventListener('keydown', handleHotkey);
+  }, [scrambleHotkeyActive]);
 
 
   // ESC key behavior (priority order):
@@ -419,6 +445,9 @@ function AppContent() {
               closePanels();
             }}
             settingsOpen={showDebugMenu}
+            stacked={showDebugMenu && showAboutPanel}
+            supermode={isSupermode}
+            scrambleSeed={scrambleSeed}
           />
         </div>
 
@@ -479,6 +508,8 @@ function AppContent() {
         stacked={showDebugMenu && showAboutPanel}
         supermode={isSupermode}
         scrambleSeed={scrambleSeed}
+        scrambleHotkeyActive={scrambleHotkeyActive}
+        onToggleScrambleHotkey={() => setScrambleHotkeyActive(prev => !prev)}
       />
 
       {/* About Panel */}
@@ -496,6 +527,9 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
+            stacked={showDebugMenu && showAboutPanel}
+            supermode={isSupermode}
+            scrambleSeed={scrambleSeed}
             onClick={(e) => {
               e.stopPropagation(); // Prevent bubbling to container
               closePanels();
@@ -524,6 +558,8 @@ function AppContent() {
         {!zenMode && (
           <EntryFooter
             currentContent={journal.currentContent}
+            supermode={isSupermode}
+            scrambleSeed={scrambleSeed}
             onClick={() => {
               closePanels();
               enterZen();

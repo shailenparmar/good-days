@@ -9,9 +9,10 @@ interface FunctionButtonProps {
   dataAttribute?: string;
   size?: 'sm' | 'default';
   ariaLabel?: string;
+  title?: string;
 }
 
-export function FunctionButton({ onClick, disabled, isActive, children, dataAttribute, size = 'default', ariaLabel }: FunctionButtonProps) {
+export function FunctionButton({ onClick, disabled, isActive, children, dataAttribute, size = 'default', ariaLabel, title }: FunctionButtonProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -48,6 +49,7 @@ export function FunctionButton({ onClick, disabled, isActive, children, dataAttr
       data-settings-toggle={dataAttribute === 'settings-toggle' ? true : undefined}
       aria-label={ariaLabel}
       aria-pressed={isActive}
+      title={title}
       className={`w-full px-3 py-2 font-mono rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 outline-none focus:outline-none select-none ${size === 'sm' ? 'text-xs font-bold' : 'font-extrabold'}`}
       style={{
         fontSize: size === 'sm' ? undefined : '14px',

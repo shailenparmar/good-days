@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { getItem, setItem } from '@shared/storage';
+import { scrambleText } from '@shared/utils/scramble';
 
 function TimeButton({
   onClick,
@@ -59,35 +60,68 @@ function TimeButton({
   );
 }
 
-export function TimeDisplay() {
+interface TimeDisplayProps {
+  stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
+}
+
+export function TimeDisplay({ stacked, supermode, scrambleSeed }: TimeDisplayProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [use24Hour, setUse24Hour] = useState(() => {
     const saved = getItem('timeFormat');
     return saved === '24h';
   });
+  // Track if we were in supermode to refresh time on exit
+  const wasInSupermode = useRef(false);
 
+  // Freeze time updates in supermode, otherwise update based on stacked mode
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 10);
+    // If exiting supermode, immediately update to current time
+    if (wasInSupermode.current && !supermode) {
+      setCurrentTime(new Date());
+    }
+    wasInSupermode.current = !!supermode;
+
+    // Don't run interval in supermode - freeze the display
+    if (supermode) return;
+
+    const interval = setInterval(() => setCurrentTime(new Date()), stacked ? 10 : 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [stacked, supermode]);
+
+  // Suppress unused variable warning - scrambleSeed triggers re-renders
+  void scrambleSeed;
 
   const handleFormatChange = (is24Hour: boolean) => {
     setUse24Hour(is24Hour);
     setItem('timeFormat', is24Hour ? '24h' : '12h');
   };
 
-  const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
   const time12 = currentTime.toLocaleTimeString('en-US', {
     hour12: true,
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit'
   });
-  // Move AM/PM to after milliseconds: "11:30:45 AM" -> "11:30:45.12 AM"
-  const ampm = time12.slice(-2);
-  const time12Base = time12.slice(0, -3);
-  const format12 = `${time12Base}.${ms} ${ampm}`;
-  const format24 = currentTime.toLocaleTimeString('en-US', { hour12: false }) + `.${ms}`;
+
+  // Only show milliseconds in powerstat mode (stacked)
+  let format12: string;
+  let format24: string;
+
+  if (stacked) {
+    const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
+    const ampm = time12.slice(-2);
+    const time12Base = time12.slice(0, -3);
+    format12 = `${time12Base}.${ms} ${ampm}`;
+    format24 = currentTime.toLocaleTimeString('en-US', { hour12: false }) + `.${ms}`;
+  } else {
+    format12 = time12;
+    format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
+  }
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
 
   return (
     <div className="flex justify-center overflow-hidden">
@@ -97,14 +131,14 @@ export function TimeDisplay() {
         isSelected={!use24Hour}
         position="left"
       >
-        {format12}
+        {s(format12)}
       </TimeButton>
       <TimeButton
         onClick={() => handleFormatChange(true)}
         isSelected={use24Hour}
         position="right"
       >
-        {format24}
+        {s(format24)}
       </TimeButton>
       </div>
     </div>

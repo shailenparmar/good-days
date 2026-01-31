@@ -1,13 +1,21 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getItem, setItem } from '@shared/storage';
+import { scrambleText } from '@shared/utils/scramble';
 import type { ColorPreset } from '../types';
 
 interface PresetGridProps {
   showDebugMenu: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
-export function PresetGrid({ showDebugMenu }: PresetGridProps) {
+export function PresetGrid({ showDebugMenu, supermode, scrambleSeed }: PresetGridProps) {
+  // Suppress unused variable warning - scrambleSeed triggers re-renders
+  void scrambleSeed;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
   const {
     hue, saturation, lightness,
     bgHue, bgSaturation, bgLightness,
@@ -363,7 +371,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 borderRadius: '6px',
               }}
             >
-              {index + 1}
+              {s(String(index + 1))}
             </button>
           );
         })}
@@ -403,7 +411,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 borderRadius: '6px',
               }}
             >
-              {presetNumber}
+              {s(String(presetNumber))}
             </button>
           );
         })}
@@ -438,7 +446,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 borderRadius: '6px',
               }}
             >
-              rand
+              {s('rand')}
             </button>
           );
         })()}
@@ -473,7 +481,7 @@ export function PresetGrid({ showDebugMenu }: PresetGridProps) {
                 borderRadius: '6px',
               }}
             >
-              save
+              {s('save')}
             </button>
           );
         })()}

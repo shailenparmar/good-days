@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
 import { TimeDisplay } from './TimeDisplay';
+import { FunctionButton } from '@shared/components';
+import { scrambleText } from '@shared/utils/scramble';
 import type { JournalEntry } from '@features/journal';
 
 interface SettingsPanelProps {
@@ -16,6 +19,8 @@ interface SettingsPanelProps {
   stacked?: boolean;
   supermode?: boolean;
   scrambleSeed?: number;
+  scrambleHotkeyActive?: boolean;
+  onToggleScrambleHotkey?: () => void;
 }
 
 export function SettingsPanel({
@@ -30,11 +35,13 @@ export function SettingsPanel({
   stacked,
   supermode,
   scrambleSeed,
+  scrambleHotkeyActive,
+  onToggleScrambleHotkey,
 }: SettingsPanelProps) {
-  // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
+  // Suppress unused variable warning
   void scrambleSeed;
-  void supermode;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
 
   if (!showDebugMenu) return null;
 
@@ -53,7 +60,7 @@ export function SettingsPanel({
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
         <div className="space-y-2">
-          <PresetGrid showDebugMenu={showDebugMenu} />
+          <PresetGrid showDebugMenu={showDebugMenu} supermode={supermode} scrambleSeed={scrambleSeed} />
           <ColorPicker type="text" />
           <ColorPicker type="background" />
         </div>
@@ -69,6 +76,8 @@ export function SettingsPanel({
           verifyPassword={verifyPassword}
           setPassword={setPassword}
           removePassword={removePassword}
+          supermode={supermode}
+          scrambleSeed={scrambleSeed}
         />
       </div>
 
@@ -77,12 +86,32 @@ export function SettingsPanel({
         className="p-4"
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
-        <TimeDisplay />
+        <TimeDisplay stacked={stacked} supermode={supermode} scrambleSeed={scrambleSeed} />
       </div>
+
+      {/* Scramble Hotkey Toggle - only in powerstat mode */}
+      {stacked && onToggleScrambleHotkey && (
+        <div
+          className="p-4"
+          style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+          onMouseEnter={() => setHotkeyButtonHovered(true)}
+          onMouseLeave={() => setHotkeyButtonHovered(false)}
+        >
+          <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
+            <span>
+              {hotkeyButtonHovered
+                ? (supermode ? scrambleText('option/alt + s') : 'option/alt + s')
+                : (supermode
+                    ? scrambleText(scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated')
+                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated'))}
+            </span>
+          </FunctionButton>
+        </div>
+      )}
 
       {/* Backup Section */}
       <div className="p-4">
-        <ExportButtons entries={entries} onImport={onImport} stacked={stacked} />
+        <ExportButtons entries={entries} onImport={onImport} stacked={stacked} supermode={supermode} scrambleSeed={scrambleSeed} />
       </div>
     </div>
   );
