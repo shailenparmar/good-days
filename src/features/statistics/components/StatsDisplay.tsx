@@ -154,9 +154,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const firstEntryDate = entries.length > 0 ? entries[entries.length - 1].date : null;
     const journalAgeMs = firstEntryDate ? Date.now() - new Date(firstEntryDate).getTime() : 0;
 
-    // Entries per week
-    const weeksActive = journalAgeMs / (1000 * 60 * 60 * 24 * 7);
-    const entriesPerWeek = weeksActive > 0 ? (entries.length / weeksActive).toFixed(2) : '0';
+    // Entries per week (minimum 1 week to avoid inflated extrapolation)
+    const weeksActive = Math.max(1, journalAgeMs / (1000 * 60 * 60 * 24 * 7));
+    const entriesPerWeek = (entries.length / weeksActive).toFixed(2);
 
     const maxStreak = calculateMaxStreak();
     const lexicon = calculateLexicon();
