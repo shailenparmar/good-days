@@ -355,7 +355,20 @@ The app has special modes that activate when multiple panels are open.
 | About panel shrinks | Width goes from 675px → 400px |
 | Scramble hotkey toggle | Button appears in Settings to enable Option/Alt+S hotkey |
 | Horizontal stats | StatsDisplay switches to horizontal layout |
+| Reset app button | Appears at bottom of Settings panel |
 | Easter egg tracking | `powerstatMode` is marked as found |
+
+### Reset App Button
+
+Only visible in powerstat mode. Three-step confirmation:
+
+1. "reset app" → click
+2. "are you sure?" → click
+3. "are you sure you're sure?!" → click → clears localStorage + IndexedDB, reloads
+
+**Behavior**: Moving mouse off the button at any step resets back to "reset app".
+
+Code location: `src/features/settings/components/SettingsPanel.tsx`
 
 ### Powerscramble Mode
 
