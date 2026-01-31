@@ -187,50 +187,136 @@ The app has two layout modes with different sidebar behavior.
 
 ### State Variables (in App.tsx)
 
-| Variable | Purpose | Persisted |
-|----------|---------|-----------|
-| `isNarrow` | `true` when window < 711px | No (computed from window width) |
-| `showSidebarInNarrow` | Show sidebar when narrow | Yes |
-| `zenMode` | Hide sidebar when wide (distraction-free) | Yes |
-| `showDebugMenu` | Settings panel visibility | Yes |
-| `showAboutPanel` | About panel visibility | Yes |
+| Variable | Purpose | Persisted | Default |
+|----------|---------|-----------|---------|
+| `isNarrow` | `true` when window < 711px | No (computed) | — |
+| `showSidebarInNarrow` | Show sidebar when narrow | No | `false` |
+| `zenMode` | Hide sidebar+header+footer when wide | Yes | `false` |
+| `showDebugMenu` | Settings panel open | Yes | `false` |
+| `showAboutPanel` | About panel open | Yes | `false` |
+
+### Visual Layout by State
+
+**Wide mode (`isNarrow = false`):**
+```
+┌─────────────┬──────────────────────┐
+│  Sidebar    │  Header (date)       │  ← visible when !zenMode
+│  - stats    │──────────────────────│
+│  - entries  │                      │
+│  - buttons  │  Editor              │
+│             │                      │
+│             │──────────────────────│
+│             │  Footer (word count) │  ← visible when !zenMode
+└─────────────┴──────────────────────┘
+```
+
+**Wide + Zen mode:**
+```
+┌────────────────────────────────────┐
+│                                    │
+│              Editor                │  ← just editor, nothing else
+│                                    │
+└────────────────────────────────────┘
+```
+
+**Narrow mode (`isNarrow = true`):**
+```
+┌────────────────────────────────────┐
+│  Header (date) ← tap to show sidebar
+│────────────────────────────────────│
+│                                    │
+│              Editor                │
+│                                    │
+│────────────────────────────────────│
+│  Footer (word count)               │
+└────────────────────────────────────┘
+```
 
 ### Sidebar Visibility Formula
 
 ```tsx
-(isNarrow ? showSidebarInNarrow : !zenMode)
+const showSidebar = isNarrow ? showSidebarInNarrow : !zenMode;
 ```
 
-| Mode | Sidebar Shows When |
-|------|-------------------|
-| Wide | `!zenMode` (default: visible) |
-| Narrow | `showSidebarInNarrow` (default: hidden) |
+### Resize Transitions (Edge Cases)
 
-### Mode Transitions
+When the window crosses the 711px breakpoint, state resets to prevent broken UI:
 
-| Transition | Sidebar | Panels | Zen | Header/Footer |
-|------------|---------|--------|-----|---------------|
-| Wide → Narrow | Hidden | **Close** | Reset | Show (zen N/A) |
-| Narrow → Wide | Show | Keep | Reset | Show |
-| Enter zen (wide) | Hide | Close | On | **Hide** |
-| Exit zen (wide) | Show | Keep | Off | Show |
-| Open panel (wide+zen) | Show | Open | Auto-exit | Show |
-| Open panel (narrow) | Show | Open | N/A | Show |
+#### Wide → Narrow (shrinking window)
 
-**Key insight**: Going narrow closes panels because there's no room. Zen mode is a wide-only concept.
+| Before State | After State | Why |
+|--------------|-------------|-----|
+| `zenMode = true` | `zenMode = false` | Zen is wide-only concept |
+| `zenMode = false` | `zenMode = false` | No change needed |
+| `showDebugMenu = true` | `showDebugMenu = false` | No room for panel |
+| `showAboutPanel = true` | `showAboutPanel = false` | No room for panel |
+| `showSidebarInNarrow = *` | `showSidebarInNarrow = false` | Start with sidebar hidden |
 
-### Click Behaviors
+**Result**: User sees editor + header + footer. Sidebar hidden. Panels closed.
+
+#### Narrow → Wide (expanding window)
+
+| Before State | After State | Why |
+|--------------|-------------|-----|
+| `showSidebarInNarrow = true` | `showSidebarInNarrow = false` | Reset for next narrow visit |
+| `showSidebarInNarrow = false` | `showSidebarInNarrow = false` | No change |
+| `zenMode = *` | `zenMode = false` | Show sidebar on return to wide |
+| `showDebugMenu = *` | (unchanged) | Keep panel state |
+| `showAboutPanel = *` | (unchanged) | Keep panel state |
+
+**Result**: User sees full layout with sidebar. Panels preserved.
+
+### Specific Edge Case Scenarios
+
+| Starting State | User Action | Result |
+|----------------|-------------|--------|
+| Wide + settings open | Drag to narrow | Settings closes, sidebar hidden |
+| Wide + about open | Drag to narrow | About closes, sidebar hidden |
+| Wide + both panels open | Drag to narrow | Both close, sidebar hidden |
+| Wide + zen mode | Drag to narrow | Zen off, sidebar hidden, header/footer show |
+| Narrow + sidebar open | Drag to wide | Sidebar stays (zenMode=false), sidebar visible |
+| Narrow + sidebar hidden | Drag to wide | zenMode=false, sidebar visible |
+
+### User Interactions
+
+#### Click Behaviors
 
 | Click Location | Wide Mode | Narrow Mode |
 |----------------|-----------|-------------|
-| EntryHeader | Toggle zen + close panels | Toggle sidebar + close panels |
-| Editor area | — | Close panels |
-| Sidebar | Close panels | Close panels |
+| EntryHeader | Toggle zen + close panels | Toggle sidebar visibility |
+| Editor area | — | Close panels only |
+| Sidebar area | Close panels | Close panels |
 | Sidebar overlay | N/A | Close sidebar + panels |
-| Entry selection | Close panels | Close panels |
-| Typing | Close panels | Close panels |
+| Entry in list | Close panels | Close panels |
+| Typing starts | Close panels (narrow only) | Close panels |
 
-### Closing Panels
+#### ESC Key Behavior
+
+| Current State | ESC Result |
+|---------------|------------|
+| In input field | Nothing (don't interrupt typing) |
+| Password flow active | Back one step (handled by PasswordSettings) |
+| Wide + zen mode | Exit zen mode (show sidebar/header/footer) |
+| Wide + not zen | Lock app |
+| Narrow (any state) | Lock app |
+
+### Panel Opening Behavior
+
+Opening settings or about has special zen interaction:
+
+```tsx
+// When opening a panel in wide mode
+if (opening) setZenMode(false); // Auto-exit zen so sidebar is visible
+```
+
+| Before | User clicks settings/about | Result |
+|--------|---------------------------|--------|
+| Wide + zen | Open panel | Zen exits, sidebar appears, panel opens |
+| Wide + no zen | Open panel | Panel opens in sidebar |
+| Narrow + sidebar hidden | Open panel | Sidebar appears, panel opens |
+| Narrow + sidebar visible | Open panel | Panel opens in sidebar |
+
+### Code: closePanels()
 
 **ALWAYS use `closePanels()`** - never call setters separately.
 
@@ -241,12 +327,37 @@ const closePanels = useCallback(() => {
 }, []);
 ```
 
+### Code: Resize Handler
+
+```tsx
+useEffect(() => {
+  const handleResize = () => {
+    const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
+    const wasNarrow = isNarrow;
+    setIsNarrow(narrow);
+
+    if (narrow !== wasNarrow) {
+      if (narrow && !wasNarrow) {
+        // Wide → Narrow: close panels (no room)
+        closePanels();
+      }
+      // Both directions: reset sidebar/zen state
+      setShowSidebarInNarrow(false);
+      setZenMode(false);
+    }
+  };
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [isNarrow, closePanels]);
+```
+
 ### Key Principles
 
-1. **Explicit state changes** - Sidebar visibility is always controlled by `showSidebarInNarrow` or `zenMode`, never by layout space
-2. **Zen mode auto-exits** - Opening settings/about exits zen mode so sidebar is accessible
-3. **Mode reset on resize** - Going narrow→wide resets both `showSidebarInNarrow` and `zenMode`
-4. **Stop propagation** - EntryHeader click stops propagation to prevent duplicate handler calls
+1. **Zen is wide-only** - Narrow mode has no zen concept; header/footer always show
+2. **Panels need sidebar** - Opening panel auto-exits zen so sidebar is accessible
+3. **Going narrow closes panels** - No room in narrow layout for settings/about
+4. **Going wide shows sidebar** - Reset zenMode=false so user sees full UI
+5. **ESC escapes zen first** - In zen, ESC exits zen instead of locking
 
 ## ESC Key Behavior (IMPORTANT)
 
