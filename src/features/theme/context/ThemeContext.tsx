@@ -3,11 +3,11 @@ import { getItem, setItem, removeItem } from '@shared/storage';
 import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking } from '../types';
 
 export const DEFAULT_PRESETS: ColorPreset[] = [
-  { hue: 243, sat: 73, light: 64, bgHue: 88, bgSat: 97, bgLight: 75 },
+  { hue: 116, sat: 100, light: 53, bgHue: 96, bgSat: 100, bgLight: 0 },
   { hue: 241, sat: 69, light: 47, bgHue: 59, bgSat: 100, bgLight: 66 },
   { hue: 35, sat: 100, light: 40, bgHue: 30, bgSat: 100, bgLight: 11 },
   { hue: 229, sat: 61, light: 100, bgHue: 251, bgSat: 100, bgLight: 59 },
-  { hue: 116, sat: 100, light: 53, bgHue: 96, bgSat: 100, bgLight: 0 },
+  { hue: 241, sat: 100, light: 46, bgHue: 84, bgSat: 100, bgLight: 94 },
 ];
 
 interface ThemeContextValue extends ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking {}
