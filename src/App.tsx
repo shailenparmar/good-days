@@ -14,7 +14,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.17';
+const VERSION = '1.5.18';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -336,6 +336,7 @@ function AppContent() {
               entries={journal.entries}
               totalKeystrokes={stats.totalKeystrokes}
               totalSecondsOnApp={stats.totalSecondsOnApp}
+              stacked={showDebugMenu && showAboutPanel}
             />
           </div>
         </div>
@@ -399,6 +400,10 @@ function AppContent() {
         setPassword={auth.setPassword}
         removePassword={auth.removePassword}
         entries={journal.entries}
+        onImport={(entries) => {
+          journal.setEntries(entries);
+          setItem('journalEntries', JSON.stringify(entries));
+        }}
         onCloseAbout={() => setShowAboutPanel(false)}
       />
 
