@@ -458,7 +458,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
       {/* Input */}
       <form onSubmit={handleSubmit}>
-        <div className="relative">
+        <div className="relative" onClick={() => {
+          if (isSaving) {
+            setIsSaving(false);
+            setShowInput(false);
+          }
+        }}>
           <input
             ref={inputRef}
             type={isSaving ? 'text' : 'password'}
