@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" id="theme-color-meta" content="#e5ffc2" />
+    <meta name="theme-color" id="theme-color-meta" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
@@ -19,9 +19,9 @@
         var h = localStorage.getItem('bgHue');
         var s = localStorage.getItem('bgSaturation');
         var l = localStorage.getItem('bgLightness');
-        h = h !== null ? parseFloat(h) : 84;
+        h = h !== null ? parseFloat(h) : 96;
         s = s !== null ? parseFloat(s) : 100;
-        l = l !== null ? parseFloat(l) : 94;
+        l = l !== null ? parseFloat(l) : 0;
         var bgColor = 'hsl(' + h + ',' + s + '%,' + l + '%)';
         var hexColor = hslToHex(h, s, l);
         document.getElementById('theme-color-meta').setAttribute('content', hexColor);
