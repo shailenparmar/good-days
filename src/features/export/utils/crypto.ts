@@ -66,7 +66,7 @@ export async function decryptText(encryptedBase64: string): Promise<string> {
   return decoder.decode(decrypted);
 }
 
-export function formatEncryptedBackup(encryptedContent: string): string {
+export function formatEncryptedBackup(encryptedContent: string, use24Hour: boolean): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {
     month: 'short',
@@ -74,7 +74,9 @@ export function formatEncryptedBackup(encryptedContent: string): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  });
+    second: '2-digit',
+    hour12: !use24Hour,
+  }).replace(/,/g, '');
 
   return `good days encrypted backup ${dateStr}\n\n${encryptedContent}`;
 }
