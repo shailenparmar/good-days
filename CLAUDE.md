@@ -325,6 +325,35 @@ Code location: `src/App.tsx` (hotkey listener), `src/features/settings/component
 | Settings | 320px (`w-80`) | No |
 | About | 675px | No |
 
+## Color Presets
+
+Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
+
+| Preset | Text Color | Background Color | Description |
+|--------|------------|------------------|-------------|
+| **1** | hsl(116, 100%, 53%) bright green | hsl(96, 100%, 0%) black | Default for new users |
+| **2** | hsl(241, 69%, 47%) blue | hsl(59, 100%, 66%) yellow | — |
+| **3** | hsl(35, 100%, 40%) orange | hsl(30, 100%, 11%) dark brown | — |
+| **4** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
+| **5** | hsl(241, 100%, 46%) purple | hsl(84, 100%, 94%) light green | Original icon colors |
+
+### New User Defaults
+
+New users see **Preset 1** (green on black). Two places set this:
+
+1. **React defaults**: `ThemeContext.tsx` uses `DEFAULT_PRESETS[0]` for initial state
+2. **HTML fallbacks**: `index.html` has hardcoded values for pre-React page load (prevents flash)
+
+When changing the default preset, update BOTH locations.
+
+### Error Screen
+
+The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded colors:
+- Text: `hsl(116, 100%, 53%)` - bright green (#1fff0f)
+- Background: `hsl(0, 0%, 0%)` - black (#000000)
+
+These are intentionally NOT tied to presets so the error screen always displays consistently.
+
 ## Font Sizes
 
 | Size | Elements |
