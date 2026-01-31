@@ -13,16 +13,16 @@ interface ExportButtonsProps {
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function ExportButtons({ entries, onImport, stacked, supermode, scrambleSeed }: ExportButtonsProps) {
+export function ExportButtons({ entries, onImport, stacked, superscramble, scrambleSeed }: ExportButtonsProps) {
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = () => {

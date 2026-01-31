@@ -25,7 +25,7 @@ export function useStatistics(paused: boolean = false) {
     setItem('totalSecondsOnApp', String(totalSecondsOnApp));
   }, [totalSecondsOnApp]);
 
-  // Track time spent on app (update every second) - paused in supermode
+  // Track time spent on app (update every second) - paused in superscramble
   useEffect(() => {
     const savedSeconds = getItem('totalSecondsOnApp');
     baseSecondsRef.current = savedSeconds ? Number(savedSeconds) : 0;

@@ -9,18 +9,18 @@ interface EntryHeaderProps {
   entries: JournalEntry[];
   paddingBottom?: number;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
   onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked, supermode, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked, superscramble, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   const headerRef = useRef<HTMLDivElement>(null);
 
   // Report height changes

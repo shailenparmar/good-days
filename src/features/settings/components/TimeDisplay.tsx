@@ -62,33 +62,33 @@ function TimeButton({
 
 interface TimeDisplayProps {
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function TimeDisplay({ stacked, supermode, scrambleSeed }: TimeDisplayProps) {
+export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDisplayProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [use24Hour, setUse24Hour] = useState(() => {
     const saved = getItem('timeFormat');
     return saved === '24h';
   });
-  // Track if we were in supermode to refresh time on exit
+  // Track if we were in superscramble to refresh time on exit
   const wasInSupermode = useRef(false);
 
-  // Freeze time updates in supermode, otherwise update based on stacked mode
+  // Freeze time updates in superscramble, otherwise update based on stacked mode
   useEffect(() => {
-    // If exiting supermode, immediately update to current time
-    if (wasInSupermode.current && !supermode) {
+    // If exiting superscramble, immediately update to current time
+    if (wasInSupermode.current && !superscramble) {
       setCurrentTime(new Date());
     }
-    wasInSupermode.current = !!supermode;
+    wasInSupermode.current = !!superscramble;
 
-    // Don't run interval in supermode - freeze the display
-    if (supermode) return;
+    // Don't run interval in superscramble - freeze the display
+    if (superscramble) return;
 
     const interval = setInterval(() => setCurrentTime(new Date()), stacked ? 100 : 1000);
     return () => clearInterval(interval);
-  }, [stacked, supermode]);
+  }, [stacked, superscramble]);
 
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
@@ -120,8 +120,8 @@ export function TimeDisplay({ stacked, supermode, scrambleSeed }: TimeDisplayPro
     format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
   }
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
 
   return (
     <div className="flex justify-center overflow-hidden">

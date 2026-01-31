@@ -3,12 +3,12 @@ import { scrambleText } from '@shared/utils/scramble';
 
 interface EntryFooterProps {
   currentContent: string;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
   onClick?: () => void;
 }
 
-export function EntryFooter({ currentContent, supermode, scrambleSeed, onClick }: EntryFooterProps) {
+export function EntryFooter({ currentContent, superscramble, scrambleSeed, onClick }: EntryFooterProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -17,8 +17,8 @@ export function EntryFooter({ currentContent, supermode, scrambleSeed, onClick }
   const wordCount = currentContent.split(/\s+/).filter(Boolean).length;
   const charCount = currentContent.length;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
 
   return (
     <div

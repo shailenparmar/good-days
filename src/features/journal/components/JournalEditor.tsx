@@ -347,35 +347,59 @@ export function JournalEditor({
         document.execCommand('insertText', false, '\t');
       }
     } else if (e.key === 'Backspace') {
-      e.preventDefault();
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        if (!selection.isCollapsed) {
-          // Text is selected - delete selection
-          document.execCommand('insertText', false, '');
-        } else {
-          // Determine granularity based on modifier keys
-          // ⌘+Backspace = delete to line start, ⌥+Backspace = delete word
-          const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
-          selection.modify('extend', 'backward', granularity);
-          document.execCommand('insertText', false, '');
-        }
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+
+      // If text is selected, handle with execCommand to keep cursor solid
+      if (!selection.isCollapsed) {
+        e.preventDefault();
+        document.execCommand('insertText', false, '');
+        return;
       }
+
+      // Check if we're in a text node with content before cursor - use custom handling
+      if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+        e.preventDefault();
+        // Determine granularity based on modifier keys
+        // ⌘+Backspace = delete to line start, ⌥+Backspace = delete word
+        const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
+        selection.modify('extend', 'backward', granularity);
+        document.execCommand('insertText', false, '');
+        return;
+      }
+
+      // For line breaks and structural elements (div, br), let browser handle natively
+      // This ensures correct behavior with Enter-created line breaks
     } else if (e.key === 'Delete') {
-      e.preventDefault();
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        if (!selection.isCollapsed) {
-          // Text is selected - delete selection
-          document.execCommand('insertText', false, '');
-        } else {
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+
+      // If text is selected, handle with execCommand to keep cursor solid
+      if (!selection.isCollapsed) {
+        e.preventDefault();
+        document.execCommand('insertText', false, '');
+        return;
+      }
+
+      // Check if we're in a text node with content after cursor - use custom handling
+      if (range.startContainer.nodeType === Node.TEXT_NODE) {
+        const textNode = range.startContainer as Text;
+        if (range.startOffset < textNode.length) {
+          e.preventDefault();
           // Determine granularity based on modifier keys
           // ⌥+Delete = delete word forward
           const granularity = e.altKey ? 'word' : 'character';
           selection.modify('extend', 'forward', granularity);
           document.execCommand('insertText', false, '');
+          return;
         }
       }
+
+      // For line breaks and structural elements (div, br), let browser handle natively
     }
   }, []);
 

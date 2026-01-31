@@ -1,4 +1,4 @@
-// Global seed - changes when user types in supermode
+// Global seed - changes when user types in superscramble
 let globalScrambleSeed = 0;
 
 export function setScrambleSeed(seed: number) {

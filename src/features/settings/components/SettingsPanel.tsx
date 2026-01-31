@@ -17,7 +17,7 @@ interface SettingsPanelProps {
   onImport: (entries: JournalEntry[]) => void;
   onCloseAbout: () => void;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
   scrambleHotkeyActive?: boolean;
   onToggleScrambleHotkey?: () => void;
@@ -33,7 +33,7 @@ export function SettingsPanel({
   onImport,
   onCloseAbout,
   stacked,
-  supermode,
+  superscramble,
   scrambleSeed,
   scrambleHotkeyActive,
   onToggleScrambleHotkey,
@@ -42,6 +42,27 @@ export function SettingsPanel({
   void scrambleSeed;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
+  const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
+
+  const handleResetApp = () => {
+    if (resetStep < 2) {
+      setResetStep(resetStep + 1);
+      return;
+    }
+    // Actually reset the app
+    localStorage.clear();
+    // Clear IndexedDB if used
+    indexedDB.deleteDatabase('good-days');
+    location.reload();
+  };
+
+  const getResetButtonText = () => {
+    switch (resetStep) {
+      case 1: return 'are you sure?';
+      case 2: return "are you sure you're sure?!";
+      default: return 'reset app';
+    }
+  };
 
   if (!showDebugMenu) return null;
 
@@ -60,7 +81,7 @@ export function SettingsPanel({
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
         <div className="space-y-2">
-          <PresetGrid showDebugMenu={showDebugMenu} supermode={supermode} scrambleSeed={scrambleSeed} />
+          <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
           <ColorPicker type="text" />
           <ColorPicker type="background" />
         </div>
@@ -76,7 +97,7 @@ export function SettingsPanel({
           verifyPassword={verifyPassword}
           setPassword={setPassword}
           removePassword={removePassword}
-          supermode={supermode}
+          superscramble={superscramble}
           scrambleSeed={scrambleSeed}
         />
       </div>
@@ -86,7 +107,7 @@ export function SettingsPanel({
         className="p-4"
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
       >
-        <TimeDisplay stacked={stacked} supermode={supermode} scrambleSeed={scrambleSeed} />
+        <TimeDisplay stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
 
       {/* Scramble Hotkey Toggle - only in powerstat mode */}
@@ -107,7 +128,7 @@ export function SettingsPanel({
                   const text = showShortcut
                     ? 'option/alt + s'
                     : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated');
-                  return supermode ? scrambleText(text) : text;
+                  return superscramble ? scrambleText(text) : text;
                 })()}
               </span>
             </FunctionButton>
@@ -116,9 +137,25 @@ export function SettingsPanel({
       )}
 
       {/* Backup Section */}
-      <div className="p-4">
-        <ExportButtons entries={entries} onImport={onImport} stacked={stacked} supermode={supermode} scrambleSeed={scrambleSeed} />
+      <div
+        className="p-4"
+        style={stacked ? { borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` } : undefined}
+      >
+        <ExportButtons entries={entries} onImport={onImport} stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
+
+      {/* Reset App - only in powerstat mode */}
+      {stacked && (
+        <div className="p-4">
+          <div onMouseLeave={() => setResetStep(0)}>
+            <FunctionButton onClick={handleResetApp} size="sm">
+              <span>
+                {superscramble ? scrambleText(getResetButtonText()) : getResetButtonText()}
+              </span>
+            </FunctionButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

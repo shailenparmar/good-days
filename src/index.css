@@ -26,10 +26,12 @@ html, body {
   /* caret-color set via inline style */
 }
 
-/* Try to make it blocky in supporting browsers */
+/* Block cursor in supporting browsers (Chrome 144+, Firefox) */
 @supports (caret-shape: block) {
-  .custom-editor {
-    caret-shape: block;
+  .custom-editor,
+  .custom-editor:focus,
+  .custom-editor * {
+    caret-shape: block !important;
   }
 }
 

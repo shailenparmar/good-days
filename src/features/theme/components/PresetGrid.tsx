@@ -7,16 +7,16 @@ import type { ColorPreset } from '../types';
 
 interface PresetGridProps {
   showDebugMenu: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function PresetGrid({ showDebugMenu, supermode, scrambleSeed }: PresetGridProps) {
+export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: PresetGridProps) {
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   const {
     hue, saturation, lightness,
     bgHue, bgSaturation, bgLightness,

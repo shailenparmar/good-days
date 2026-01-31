@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.38';
+const VERSION = '1.5.40';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -92,7 +92,7 @@ function AppContent() {
   const auth = useAuth();
   const journal = useJournalEntries();
 
-  // Panel and scramble state - declared before useStatistics so we can pause it in supermode
+  // Panel and scramble state - declared before useStatistics so we can pause it in superscramble
   const [showDebugMenu, setShowDebugMenu] = useState(() => {
     return getItem('showSettings') === 'true';
   });
@@ -106,11 +106,11 @@ function AppContent() {
     return getItem('scrambleHotkeyActive') === 'true';
   });
 
-  // Supermode: scramble + settings + about all open = chaos mode
-  const isSupermode = isScrambled && showDebugMenu && showAboutPanel;
+  // Superscramble: scramble + settings + about all open = chaos mode
+  const isSuperscramble = isScrambled && showDebugMenu && showAboutPanel;
 
-  // Stats hook - paused in supermode to prevent jitter
-  const stats = useStatistics(isSupermode);
+  // Stats hook - paused in superscramble to prevent jitter
+  const stats = useStatistics(isSuperscramble);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -274,8 +274,8 @@ function AppContent() {
   }, [showDebugMenu, showAboutPanel]);
 
   useEffect(() => {
-    if (isSupermode) markEasterEggFound('supermode');
-  }, [isSupermode]);
+    if (isSuperscramble) markEasterEggFound('superscramble');
+  }, [isSuperscramble]);
 
   useEffect(() => {
     if (minizen) markEasterEggFound('minizenMode');
@@ -467,10 +467,11 @@ function AppContent() {
     journal.setCurrentContent(htmlToText(content));
     journal.saveEntry(content, Date.now());
 
-    // Supermode: randomize theme and trigger global re-scramble on each keystroke
-    if (isSupermode) {
+    // Superscramble: randomize theme and trigger global re-scramble on each keystroke
+    if (isSuperscramble) {
       randomizeTheme();
       setScrambleSeed(s => s + 1);
+      markEasterEggFound('superscrambleTyping');
     }
   };
 
@@ -545,7 +546,7 @@ function AppContent() {
         >
           <div className="p-4">
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-              {isSupermode
+              {isSuperscramble
                 ? scrambleText(showAboutPanel ? `good days v${VERSION}` : 'good days')
                 : (showAboutPanel ? `good days v${VERSION}` : 'good days')}
             </h1>
@@ -561,7 +562,7 @@ function AppContent() {
               totalKeystrokes={stats.totalKeystrokes}
               totalSecondsOnApp={stats.totalSecondsOnApp}
               stacked={showDebugMenu && showAboutPanel}
-              supermode={isSupermode}
+              superscramble={isSuperscramble}
               scrambleSeed={scrambleSeed}
             />
           </div>
@@ -582,7 +583,7 @@ function AppContent() {
             }}
             settingsOpen={showDebugMenu}
             stacked={showDebugMenu && showAboutPanel}
-            supermode={isSupermode}
+            superscramble={isSuperscramble}
             scrambleSeed={scrambleSeed}
           />
         </div>
@@ -597,7 +598,7 @@ function AppContent() {
         >
           <FunctionButton onClick={() => setIsScrambled(!isScrambled)} isActive={isScrambled}>
             {isScrambled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            <span>{isSupermode ? scrambleText(isScrambled ? 'unscramble' : 'scramble') : (isScrambled ? 'unscramble' : 'scramble')}</span>
+            <span>{isSuperscramble ? scrambleText(isScrambled ? 'unscramble' : 'scramble') : (isScrambled ? 'unscramble' : 'scramble')}</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => {
@@ -611,7 +612,7 @@ function AppContent() {
             if (isNarrow) setPreNarrowState(null);
           }} isActive={showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
-            <span>{isSupermode ? scrambleText('settings') : 'settings'}</span>
+            <span>{isSuperscramble ? scrambleText('settings') : 'settings'}</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => {
@@ -625,7 +626,7 @@ function AppContent() {
             if (isNarrow) setPreNarrowState(null);
           }} isActive={showAboutPanel} dataAttribute="about-toggle">
             <Heart className="w-3 h-3" />
-            <span>{isSupermode ? scrambleText('about') : 'about'}</span>
+            <span>{isSuperscramble ? scrambleText('about') : 'about'}</span>
           </FunctionButton>
         </div>
       </div>
@@ -646,14 +647,14 @@ function AppContent() {
         }}
         onCloseAbout={() => setShowAboutPanel(false)}
         stacked={showDebugMenu && showAboutPanel}
-        supermode={isSupermode}
+        superscramble={isSuperscramble}
         scrambleSeed={scrambleSeed}
         scrambleHotkeyActive={scrambleHotkeyActive}
         onToggleScrambleHotkey={() => setScrambleHotkeyActive(prev => !prev)}
       />
 
       {/* About Panel */}
-      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} stacked={showDebugMenu && showAboutPanel} supermode={isSupermode} scrambleSeed={scrambleSeed} />
+      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} stacked={showDebugMenu && showAboutPanel} superscramble={isSuperscramble} scrambleSeed={scrambleSeed} />
 
       {/* Main Editor Area */}
       <div
@@ -668,7 +669,7 @@ function AppContent() {
             entries={journal.entries}
             paddingBottom={20}
             stacked={showDebugMenu && showAboutPanel}
-            supermode={isSupermode}
+            superscramble={isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={(e) => {
               e.stopPropagation(); // Prevent bubbling to container
@@ -710,7 +711,7 @@ function AppContent() {
         {!zenMode && (
           <EntryFooter
             currentContent={journal.currentContent}
-            supermode={isSupermode}
+            superscramble={isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={() => {
               enterZen(); // saves state then closes panels

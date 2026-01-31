@@ -11,7 +11,7 @@ interface StatsDisplayProps {
   totalSecondsOnApp: number;
   horizontal?: boolean;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
@@ -28,20 +28,20 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, supermode, scrambleSeed }: StatsDisplayProps) {
+export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
 
-  // Helper to scramble text in supermode (scrambleSeed forces re-render)
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble (scrambleSeed forces re-render)
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   // Suppress unused variable warnings
   void scrambleSeed; // scrambleSeed triggers re-renders
   void liveStats; // liveStats tracked but not displayed yet
 
-  // Track if we were in supermode to refresh stats on exit
+  // Track if we were in superscramble to refresh stats on exit
   const wasInSupermode = useRef(false);
 
-  // Update live stats every second when stacked, but freeze in supermode
+  // Update live stats every second when stacked, but freeze in superscramble
   useEffect(() => {
     if (!stacked) return;
 
@@ -51,19 +51,19 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       setLiveStats({ heapUsed, domNodes });
     };
 
-    // If exiting supermode, immediately update stats
-    if (wasInSupermode.current && !supermode) {
+    // If exiting superscramble, immediately update stats
+    if (wasInSupermode.current && !superscramble) {
       updateLiveStats();
     }
-    wasInSupermode.current = !!supermode;
+    wasInSupermode.current = !!superscramble;
 
-    // Don't run interval in supermode - freeze the display
-    if (supermode) return;
+    // Don't run interval in superscramble - freeze the display
+    if (superscramble) return;
 
     updateLiveStats();
     const interval = setInterval(updateLiveStats, 1000);
     return () => clearInterval(interval);
-  }, [stacked, supermode]);
+  }, [stacked, superscramble]);
 
   const calculateStreak = () => {
     if (entries.length === 0) return 0;
@@ -148,8 +148,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     }
 
     // localStorage limit is ~5MB in most browsers
-    const STORAGE_LIMIT = 5 * 1024 * 1024;
-    const remainingStorage = Math.max(0, STORAGE_LIMIT - totalStorageBytes);
+    const usedStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(2);
 
     // First entry date for "age"
     const firstEntryDate = entries.length > 0 ? entries[entries.length - 1].date : null;
@@ -166,7 +165,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const totalLogins = Number(localStorage.getItem('totalLogins') || '0');
 
     return {
-      remainingStorage,
+      usedStorageMB,
       entriesPerWeek,
       maxStreak,
       lexicon,
@@ -183,12 +182,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       markEasterEggFound('selectColorText');
     }
   }, []);
-
-  const formatBytes = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
 
   if (horizontal) {
     return (
@@ -250,7 +243,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.totalLogins} ${techStats.totalLogins === 1 ? 'login' : 'logins'}`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-              {s(`${formatBytes(techStats.remainingStorage)} remaining`)}
+              {s(`${techStats.usedStorageMB}/5 MB used`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.lexicon} word lexicon`)}
