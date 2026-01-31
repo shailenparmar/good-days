@@ -843,10 +843,22 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### Click-to-Dismiss Behavior
 
-Password flows can also be dismissed by clicking anywhere:
+Password flows can also be dismissed by clicking outside the input:
 
 - **After "password saved"** - Click anywhere dismisses message and returns to split buttons
-- **During "change password" flow** - Click anywhere outside the input returns to split buttons (same as ESC)
+- **During "change password" flow** - Click outside input returns to split buttons
+- **During "set password" flow** - Click outside input resets to first step and blurs
+
+### ESC vs Click-Outside (Smart Difference)
+
+Both reset the password flow, but with one key UX difference:
+
+| Action | Resets Flow | Focus |
+|--------|-------------|-------|
+| ESC | Yes | **Keeps focus** (ready to retype) |
+| Click outside | Yes | **Blurs** (you clicked away, done with input) |
+
+This is intentional: ESC means "clear and retry", click-outside means "I'm done here".
 
 ### Implementation Details
 
@@ -867,9 +879,11 @@ Password flows can also be dismissed by clicking anywhere:
 - [ ] At "new password" → ESC → back to "old password" (no lock)
 - [ ] At "confirm" → ESC → back to "old password" (no lock)
 - [ ] Password saved → ESC → locks app
-- [ ] No password, "password" (focused) → ESC → blurs input, shows placeholder
-- [ ] No password, "one more time" → ESC → back to "password", blurred
-- [ ] No password, wrong confirm → focused at "password" → ESC → blurs, shows placeholder
+- [ ] No password, "password" (focused) → ESC → clears input, keeps focus
+- [ ] No password, "password" (focused) → click outside → clears input, blurs
+- [ ] No password, "one more time" → ESC → back to "password", keeps focus
+- [ ] No password, "one more time" → click outside → back to "password", blurs
+- [ ] No password, wrong confirm → focused at "password" → ESC → clears, keeps focus
 - [ ] Main editor (no panels) → ESC → locks app
 - [ ] Rapid click + ESC → consistent behavior (no race condition)
 
