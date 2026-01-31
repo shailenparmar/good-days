@@ -6,14 +6,22 @@ import { parseBackupText, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
 import { getItem } from '@shared/storage';
+import { scrambleText } from '@shared/utils/scramble';
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
   stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
-export function ExportButtons({ entries, onImport, stacked }: ExportButtonsProps) {
+export function ExportButtons({ entries, onImport, stacked, supermode, scrambleSeed }: ExportButtonsProps) {
+  // Suppress unused variable warning - scrambleSeed triggers re-renders
+  void scrambleSeed;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = () => {
@@ -111,15 +119,15 @@ export function ExportButtons({ entries, onImport, stacked }: ExportButtonsProps
       />
       <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
         <Copy className="w-3 h-3" />
-        <span>{stacked ? 'copy markdown format' : 'copy to clipboard'}</span>
+        <span>{s(stacked ? 'copy markdown format' : 'copy to clipboard')}</span>
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
         <Upload className="w-3 h-3" />
-        <span>{stacked ? 'AES encrypted backup' : 'backup'}</span>
+        <span>{s(stacked ? 'AES encrypted backup' : 'backup')}</span>
       </FunctionButton>
       <FunctionButton onClick={handleImport} size="sm">
         <Download className="w-3 h-3" />
-        <span>{stacked ? 'import AES encrypted backup' : 'import'}</span>
+        <span>{s(stacked ? 'import AES encrypted backup' : 'import')}</span>
       </FunctionButton>
     </div>
   );

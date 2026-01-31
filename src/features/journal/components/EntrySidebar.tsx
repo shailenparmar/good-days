@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { formatDate } from '@shared/utils/date';
+import { scrambleText } from '@shared/utils/scramble';
 import type { JournalEntry } from '../types';
 
 interface EntrySidebarProps {
@@ -8,9 +9,17 @@ interface EntrySidebarProps {
   selectedDate: string;
   onSelectDate: (date: string) => void;
   settingsOpen?: boolean;
+  stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
-export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen }: EntrySidebarProps) {
+export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen, stacked, supermode, scrambleSeed }: EntrySidebarProps) {
+  // Suppress unused variable warning - scrambleSeed triggers re-renders
+  void scrambleSeed;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
   const { getColor, hue, saturation, lightness } = useTheme();
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);
@@ -107,7 +116,21 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         // Selected or hovered = filled background
         const currentBg = (isSelected || isHovered) ? hoverBg : 'transparent';
 
-        const displayText = formatDate(entry.date);
+        // In powerstat mode, show "1/28/2026 9:24 AM" format with startedAt time
+        let displayText: string;
+        if (stacked && entry.startedAt) {
+          const date = new Date(entry.startedAt);
+          displayText = date.toLocaleString('en-US', {
+            month: 'numeric',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        } else {
+          displayText = formatDate(entry.date);
+        }
 
         return (
           <div
@@ -139,7 +162,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
               backgroundColor: currentBg,
             }}
           >
-            {displayText}
+            {s(displayText)}
           </div>
         );
       })}

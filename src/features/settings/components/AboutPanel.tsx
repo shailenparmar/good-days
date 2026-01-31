@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { ExternalLink } from 'lucide-react';
 import { getItem, setItem } from '@shared/storage';
+import { scrambleText } from '@shared/utils/scramble';
 
 interface AboutPanelProps {
   isOpen: boolean;
@@ -14,7 +15,9 @@ interface AboutPanelProps {
 export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scrambleSeed }: AboutPanelProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
-  void supermode;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [width, setWidth] = useState(() => {
     const saved = getItem('aboutPanelWidth');
@@ -68,22 +71,22 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
-          welcome to good days, your time-capsule journal oasis.
+          {s("welcome to good days, your time-capsule journal oasis.")}
         </p>
       </div>
 
       {/* Privacy */}
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
-          <p>privacy:</p>
+          <p>{s("privacy:")}</p>
           <p>
-            entries are not sent to a server. a developer couldn't view your writing even if they wanted to.
+            {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
           </p>
           <p>
-            all data lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.
+            {s("all data added lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.")}
           </p>
           <p>
-            as a safety guarantee, the entire product is open-source.{' '}
+            {s("as a safety guarantee, the entire product is open-source.")}{' '}
             <a
               href="https://github.com/shailenparmar/good-days"
               target="_blank"
@@ -92,7 +95,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
               style={{ color: getColor() }}
             >
               <ExternalLink className="w-4 h-4" />
-              github
+              {s("github")}
             </a>
           </p>
         </div>
@@ -101,9 +104,10 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
       {/* Features */}
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
-          <p>features:</p>
-          <p>a new page spawns at midnight; old logs are set in stone. every character saves instantly. draft while scrambled to beat writer's block or prying eyes. clicking the editor header bows into zen mode. hold spacebar on rand for chaotic good. typing \time delivers a stamp.</p>
-          <p>write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, receive add to dock by bothering the share icon.</p>
+          <p>{s("features:")}</p>
+          <p>{s("a new page spawns at midnight; old logs are set in stone.")}</p>
+          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. about and settings join forces for powerstat mode.")}</p>
+          <p>{s("write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.")}</p>
         </div>
       </div>
 
@@ -111,10 +115,10 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
       <div className="p-4">
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
-            i hope this app disappears into your life. here's to many colorways and many more good days.
+            {s("i hope this app disappears into your life. here's to many colorways and many more good days.")}
           </p>
           <p className="mt-4">
-            - shai
+            {s("- shai")}
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getItem, setItem } from '@shared/storage';
 
-export function useStatistics() {
+export function useStatistics(paused: boolean = false) {
   const [totalKeystrokes, setTotalKeystrokes] = useState(() => {
     const saved = getItem('totalKeystrokes');
     return saved ? Number(saved) : 0;
@@ -25,11 +25,14 @@ export function useStatistics() {
     setItem('totalSecondsOnApp', String(totalSecondsOnApp));
   }, [totalSecondsOnApp]);
 
-  // Track time spent on app (update every second)
+  // Track time spent on app (update every second) - paused in supermode
   useEffect(() => {
     const savedSeconds = getItem('totalSecondsOnApp');
     baseSecondsRef.current = savedSeconds ? Number(savedSeconds) : 0;
     appSessionStart.current = Date.now();
+
+    // Don't run interval if paused
+    if (paused) return;
 
     const interval = setInterval(() => {
       const currentSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
@@ -39,7 +42,7 @@ export function useStatistics() {
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [paused]);
 
   // Save before app closes
   useEffect(() => {

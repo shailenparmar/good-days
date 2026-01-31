@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
@@ -36,7 +36,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
-  // Update live stats every second when stacked
+  // Track if we were in supermode to refresh stats on exit
+  const wasInSupermode = useRef(false);
+
+  // Update live stats every second when stacked, but freeze in supermode
   useEffect(() => {
     if (!stacked) return;
 
@@ -46,10 +49,19 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       setLiveStats({ heapUsed, domNodes });
     };
 
+    // If exiting supermode, immediately update stats
+    if (wasInSupermode.current && !supermode) {
+      updateLiveStats();
+    }
+    wasInSupermode.current = !!supermode;
+
+    // Don't run interval in supermode - freeze the display
+    if (supermode) return;
+
     updateLiveStats();
     const interval = setInterval(updateLiveStats, 1000);
     return () => clearInterval(interval);
-  }, [stacked]);
+  }, [stacked, supermode]);
 
   const calculateStreak = () => {
     if (entries.length === 0) return 0;

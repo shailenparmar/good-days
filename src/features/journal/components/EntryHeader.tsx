@@ -1,17 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
+import { scrambleText } from '@shared/utils/scramble';
 import type { JournalEntry } from '../types';
 
 interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
+  stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
   onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick, onHeightChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked, supermode, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
+  // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
+  void scrambleSeed;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
   const headerRef = useRef<HTMLDivElement>(null);
 
   // Report height changes
@@ -53,10 +62,16 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick
       if (use24Hour) {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `started at ${hours}:${minutes}:${seconds}`;
+        if (stacked) {
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+          return `started at ${hours}:${minutes}:${seconds}`;
+        }
+        return `started at ${hours}:${minutes}`;
       } else {
-        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
+        if (stacked) {
+          return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
+        }
+        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
       }
     }
     const date = new Date(selectedDate + 'T00:00:00');
@@ -80,14 +95,14 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, onClick
     >
       <div className="flex justify-between items-baseline select-none">
         <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>
-          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+          {s(new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
-          }).toLowerCase()}
+          }).toLowerCase())}
         </h2>
         <p className="font-extrabold font-mono" style={{ color: getColor(), fontSize: '14px' }}>
-          {getStartedAtText()}
+          {s(getStartedAtText())}
         </p>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
+import { scrambleText } from '@shared/utils/scramble';
 
 type PasswordStep = 'old' | 'new' | 'confirm' | 'set' | 'set-confirm';
 type FlashState = 'none' | 'green' | 'red';
@@ -9,6 +10,8 @@ interface PasswordSettingsProps {
   verifyPassword: (password: string) => Promise<boolean>;
   setPassword: (password: string) => Promise<boolean>;
   removePassword: () => void;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
 // Get placeholder text for each step
@@ -80,7 +83,13 @@ function PasswordButton({
   );
 }
 
-export function PasswordSettings({ hasPassword, verifyPassword, setPassword, removePassword }: PasswordSettingsProps) {
+export function PasswordSettings({ hasPassword, verifyPassword, setPassword, removePassword, supermode, scrambleSeed }: PasswordSettingsProps) {
+  // Suppress unused variable warning - scrambleSeed triggers re-renders
+  void scrambleSeed;
+
+  // Helper to scramble text in supermode
+  const s = (text: string) => supermode ? scrambleText(text) : text;
+
   const { getColor, hue, saturation, lightness } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -159,8 +168,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     return () => window.removeEventListener('keydown', handleWindowKeyDown, true);
   }, [showInput, isSaving, step, hasPassword]);
 
-  // Placeholder animation - runs when placeholder is visible
+  // Placeholder animation - runs when placeholder is visible (disabled in supermode)
   useEffect(() => {
+    if (supermode) return; // Disable animation in supermode
     if (!showPlaceholder || !showInput) return;
 
     const maxCount = placeholderText.length;
@@ -172,18 +182,20 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
     const timer = setTimeout(() => setBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
-  }, [showPlaceholder, showInput, boldCount, animPhase, placeholderText.length]);
+  }, [showPlaceholder, showInput, boldCount, animPhase, placeholderText.length, supermode]);
 
   // Reset placeholder animation when it becomes visible
   useEffect(() => {
+    if (supermode) return; // Disable animation in supermode
     if (showPlaceholder && showInput) {
       setBoldCount(0);
       setAnimPhase('bold');
     }
-  }, [showPlaceholder, showInput]);
+  }, [showPlaceholder, showInput, supermode]);
 
-  // Label animation - runs when saving
+  // Label animation - runs when saving (disabled in supermode)
   useEffect(() => {
+    if (supermode) return; // Disable animation in supermode
     if (!isSaving) return;
 
     const maxCount = labelText.length;
@@ -195,15 +207,62 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
     const timer = setTimeout(() => setLabelBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
-  }, [isSaving, labelBoldCount, labelAnimPhase]);
+  }, [isSaving, labelBoldCount, labelAnimPhase, supermode]);
 
   // Reset label animation when saving starts
   useEffect(() => {
+    if (supermode) return; // Disable animation in supermode
     if (isSaving) {
       setLabelBoldCount(0);
       setLabelAnimPhase('bold');
     }
+  }, [isSaving, supermode]);
+
+  // Click anywhere to dismiss "password saved" and return to split buttons
+  useEffect(() => {
+    if (!isSaving) return;
+
+    const handleClickAnywhere = () => {
+      setIsSaving(false);
+      setShowInput(false);
+    };
+
+    // Use a small delay to avoid the same click that triggered save from dismissing it
+    const timer = setTimeout(() => {
+      window.addEventListener('click', handleClickAnywhere);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleClickAnywhere);
+    };
   }, [isSaving]);
+
+  // Click outside input to dismiss change password flow (same as ESC)
+  useEffect(() => {
+    if (!hasPassword || !showInput || isSaving) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      // If click is on the input, ignore
+      if (inputRef.current && inputRef.current.contains(e.target as Node)) return;
+
+      // Reset to split buttons
+      setShowInput(false);
+      setInput('');
+      setNewPasswordTemp('');
+      setStep('old');
+    };
+
+    // Small delay to avoid the "change password" button click from immediately dismissing
+    const timer = setTimeout(() => {
+      window.addEventListener('click', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleClickOutside);
+    };
+  }, [hasPassword, showInput, isSaving]);
 
   // Flash helpers
   const flashGreen = (onComplete: () => void, refocusAfter: boolean = false) => {
@@ -362,14 +421,14 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             isSelected={false}
             position="left"
           >
-            change password
+            {s('change password')}
           </PasswordButton>
           <PasswordButton
             onClick={handleRemovePasswordClick}
             isSelected={false}
             position="right"
           >
-            remove password
+            {s('remove password')}
           </PasswordButton>
         </div>
       </div>
@@ -382,9 +441,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
       {/* Label */}
       <div className="text-xs font-mono select-none" style={{ color: textColor }}>
         {isSaving ? (
-          renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
+          supermode ? <span className="font-bold">{s(labelText)}</span> : renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
         ) : (
-          <span className="font-bold">{hasPassword ? 'change password' : 'set password'}</span>
+          <span className="font-bold">{s(hasPassword ? 'change password' : 'set password')}</span>
         )}
       </div>
 
@@ -420,7 +479,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
               className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono font-bold pointer-events-none select-none"
               style={{ color: '#00ff00' }}
             >
-              password saved
+              {s('password saved')}
             </div>
           )}
 
@@ -430,7 +489,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
               className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono pointer-events-none select-none"
               style={{ color: textColor, opacity: 0.9 }}
             >
-              {renderAnimatedText(placeholderText, boldCount, animPhase)}
+              {supermode ? <span className="font-bold">{s(placeholderText)}</span> : renderAnimatedText(placeholderText, boldCount, animPhase)}
             </div>
           )}
         </div>
