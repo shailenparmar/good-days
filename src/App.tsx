@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.30';
+const VERSION = '1.5.31';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -316,8 +316,11 @@ function AppContent() {
       const isEnterOrBackspace = e.key === 'Enter' || e.key === 'Backspace';
       if (!isPrintable && !isEnterOrBackspace) return;
 
-      // Close settings/about panels if open (narrow mode only - wide mode has space)
-      if (isNarrow) closePanels();
+      // Close settings/about panels and sidebar if open (narrow mode only)
+      if (isNarrow) {
+        closePanels();
+        setShowSidebarInNarrow(false);
+      }
 
       // Focus the editor and move cursor to end
       if (editorRef.current) {
@@ -609,6 +612,12 @@ function AppContent() {
           isScrambled={isScrambled}
           onInput={handleInput}
           editorRef={editorRef}
+          onClick={() => {
+            if (isNarrow) {
+              closePanels();
+              setShowSidebarInNarrow(false);
+            }
+          }}
         />
 
         {/* Hide footer in zen mode. Click footer to enter zen. */}

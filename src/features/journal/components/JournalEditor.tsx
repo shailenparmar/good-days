@@ -66,6 +66,7 @@ interface JournalEditorProps {
   isScrambled: boolean;
   onInput: (content: string) => void;
   editorRef: React.RefObject<HTMLDivElement | null>;
+  onClick?: () => void;
 }
 
 export function JournalEditor({
@@ -74,11 +75,19 @@ export function JournalEditor({
   isScrambled,
   onInput,
   editorRef,
+  onClick,
 }: JournalEditorProps) {
   const { getColor, getBgColor } = useTheme();
 
   // Track focus state for placeholder visibility
   const [isFocused, setIsFocused] = useState(false);
+
+  // Track typing state for cursor animation (solid while typing, blink when idle)
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<number | null>(null);
+
+  // Block cursor position (tracks cursor location for custom block cursor)
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number; height: number } | null>(null);
 
   // Track which date we've loaded to prevent re-loading same content
   const loadedDateRef = useRef<string | null>(null);
@@ -160,6 +169,81 @@ export function JournalEditor({
     };
   }, [editorRef]);
 
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Update block cursor position based on current selection
+  const updateCursorPosition = useCallback(() => {
+    if (!editorRef.current || !isFocused) {
+      setCursorPos(null);
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setCursorPos(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+
+    // Don't show cursor when text is selected
+    if (!range.collapsed) {
+      setCursorPos(null);
+      return;
+    }
+
+    const editorRect = editorRef.current.getBoundingClientRect();
+    let rect: DOMRect | null = null;
+
+    // Try to get rect from range
+    const rects = range.getClientRects();
+    if (rects.length > 0) {
+      rect = rects[0];
+    } else {
+      // Fallback: insert temp element to get position
+      const span = document.createElement('span');
+      span.textContent = '\u200b';
+      range.insertNode(span);
+      rect = span.getBoundingClientRect();
+      span.parentNode?.removeChild(span);
+      // Normalize to merge adjacent text nodes
+      editorRef.current.normalize();
+    }
+
+    if (rect) {
+      const x = rect.left - editorRect.left;
+      const y = rect.top - editorRect.top + editorRef.current.scrollTop;
+      const height = rect.height || 24;
+      setCursorPos({ x, y, height });
+    }
+  }, [editorRef, isFocused]);
+
+  // Listen for selection changes to update cursor position
+  useEffect(() => {
+    if (!isFocused) {
+      setCursorPos(null);
+      return;
+    }
+
+    const handleSelectionChange = () => {
+      requestAnimationFrame(updateCursorPosition);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    updateCursorPosition();
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [isFocused, updateCursorPosition]);
+
   // MutationObserver to sync scrambled overlay with editor content
   // This handles ALL changes: typing, paste, cut, undo, tab, date changes, etc.
   useEffect(() => {
@@ -234,6 +318,16 @@ export function JournalEditor({
     if (isScrambled) {
       markEasterEggFound('scrambleTyping');
     }
+
+    // Set typing state (cursor stays solid while typing)
+    setIsTyping(true);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = window.setTimeout(() => {
+      setIsTyping(false);
+      typingTimeoutRef.current = null;
+    }, 500);
 
     // Check for \time or \TIME and replace with timestamp
     const textContent = editorRef.current.textContent || '';
@@ -373,10 +467,11 @@ export function JournalEditor({
     }
   }, []);
 
-  // Focus the editor
+  // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
-  }, [editorRef]);
+    onClick?.();
+  }, [editorRef, onClick]);
 
   // Check if this is today's entry (the only editable entry)
   const isToday = selectedDate === getTodayDate();
@@ -457,6 +552,19 @@ export function JournalEditor({
         aria-multiline="true"
         aria-readonly={!isToday}
       />
+
+      {/* Block cursor - follows text cursor position */}
+      {isToday && isFocused && cursorPos && (
+        <div
+          className={`block-cursor ${isTyping ? 'typing' : ''}`}
+          style={{
+            backgroundColor: getColor(),
+            left: cursorPos.x,
+            top: cursorPos.y,
+            height: cursorPos.height,
+          }}
+        />
+      )}
 
       {/* Scrambled overlay - mirrors editor content with scrambled text */}
       {/* Outer container clips overflow; inner content flows naturally and shifts via transform */}
