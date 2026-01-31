@@ -38,7 +38,7 @@ export function SettingsPanel({
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
-      onClick={onCloseAbout}
+      onClick={stacked ? undefined : onCloseAbout}
     >
       {/* Color Picker Section */}
       <div
@@ -47,8 +47,8 @@ export function SettingsPanel({
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} />
-          <ColorPicker type="text" stacked={stacked} />
-          <ColorPicker type="background" stacked={stacked} />
+          <ColorPicker type="text" />
+          <ColorPicker type="background" />
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export function SettingsPanel({
 
       {/* Backup Section */}
       <div className="p-4">
-        <ExportButtons entries={entries} onImport={onImport} />
+        <ExportButtons entries={entries} onImport={onImport} stacked={stacked} />
       </div>
     </div>
   );

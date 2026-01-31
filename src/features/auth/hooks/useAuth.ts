@@ -5,6 +5,7 @@ const PASSWORD_KEY = 'passwordHash';
 const PASSWORD_SALT_KEY = 'passwordSalt';
 const PASSWORD_VERSION_KEY = 'passwordVersion';
 const CURRENT_PASSWORD_VERSION = 2;
+const LOGIN_COUNT_KEY = 'totalLogins';
 
 // Session unlock key - uses sessionStorage (not our custom storage)
 // sessionStorage persists across refresh but clears on window/tab close
@@ -126,6 +127,9 @@ export function useAuth() {
       setIsLocked(false);
       sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
       setPasswordInput('');
+      // Increment login count
+      const currentLogins = Number(getItem(LOGIN_COUNT_KEY) || '0');
+      setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
       return true;
     } else {
       setPasswordInput('');

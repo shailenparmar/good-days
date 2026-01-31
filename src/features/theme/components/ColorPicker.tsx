@@ -3,23 +3,9 @@ import { useTheme } from '../context/ThemeContext';
 
 interface ColorPickerProps {
   type: 'text' | 'background';
-  stacked?: boolean;
 }
 
-// Convert HSL to HEX
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-export function ColorPicker({ type, stacked }: ColorPickerProps) {
+export function ColorPicker({ type }: ColorPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
   const {
     hue, saturation, lightness,
@@ -118,30 +104,6 @@ export function ColorPicker({ type, stacked }: ColorPickerProps) {
             background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`
           }}
         >
-          {/* Stacked mode: color codes overlay */}
-          {stacked && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
-              <div
-                className="text-lg font-mono font-bold"
-                style={{
-                  color: isText ? getBgColor() : getColor(),
-                  textShadow: `0 0 4px ${isText ? getColor() : getBgColor()}`
-                }}
-              >
-                hsl({currentHue}, {currentSat}%, {currentLight}%)
-              </div>
-              <div
-                className="text-lg font-mono font-bold"
-                style={{
-                  color: isText ? getBgColor() : getColor(),
-                  textShadow: `0 0 4px ${isText ? getColor() : getBgColor()}`
-                }}
-              >
-                {hslToHex(currentHue, currentSat, currentLight)}
-              </div>
-            </div>
-          )}
-
           {/* Dot indicator */}
           <div
             className="absolute rounded-full pointer-events-none"

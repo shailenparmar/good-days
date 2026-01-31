@@ -10,9 +10,10 @@ import { getItem } from '@shared/storage';
 interface ExportButtonsProps {
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
+  stacked?: boolean;
 }
 
-export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
+export function ExportButtons({ entries, onImport, stacked }: ExportButtonsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = () => {
@@ -26,10 +27,12 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const fileContent = event.target?.result as string;
+      console.log('1. File content loaded:', fileContent?.substring(0, 100));
       if (!fileContent) return;
 
       // Check if this is an encrypted backup
       const encryptedContent = parseEncryptedBackup(fileContent);
+      console.log('2. Encrypted content extracted:', encryptedContent?.substring(0, 50));
       if (!encryptedContent) {
         console.error('Invalid backup file: not an encrypted backup');
         return;
@@ -38,11 +41,17 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
       try {
         // Decrypt the content
         const decrypted = await decryptText(encryptedContent);
+        console.log('3. Decrypted content:', decrypted?.substring(0, 200));
 
         // Parse the decrypted backup text
         const parsed = parseBackupText(decrypted);
+        console.log('4. Parsed entries:', parsed);
+
         const merged = mergeEntries(entries, parsed, Date.now());
+        console.log('5. Merged entries:', merged);
+
         onImport(merged);
+        console.log('6. Import called');
       } catch (err) {
         console.error('Failed to decrypt backup:', err);
       }
@@ -80,7 +89,8 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
   };
 
   const handleCopyToClipboard = async () => {
-    const textContent = formatEntriesForClipboard(entries);
+    // Powerstat mode: markdown format, Normal mode: plain text
+    const textContent = stacked ? formatEntriesAsText(entries) : formatEntriesForClipboard(entries);
     if (!textContent) return;
 
     try {
@@ -101,15 +111,15 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
       />
       <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
         <Copy className="w-3 h-3" />
-        <span>copy to clipboard</span>
+        <span>{stacked ? 'copy markdown format' : 'copy to clipboard'}</span>
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
         <Upload className="w-3 h-3" />
-        <span>backup</span>
+        <span>{stacked ? 'AES encrypted backup' : 'backup'}</span>
       </FunctionButton>
       <FunctionButton onClick={handleImport} size="sm">
         <Download className="w-3 h-3" />
-        <span>import</span>
+        <span>{stacked ? 'import AES encrypted backup' : 'import'}</span>
       </FunctionButton>
     </div>
   );
