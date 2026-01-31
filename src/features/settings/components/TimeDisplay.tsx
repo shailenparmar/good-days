@@ -86,7 +86,7 @@ export function TimeDisplay({ stacked, supermode, scrambleSeed }: TimeDisplayPro
     // Don't run interval in supermode - freeze the display
     if (supermode) return;
 
-    const interval = setInterval(() => setCurrentTime(new Date()), stacked ? 10 : 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), stacked ? 100 : 1000);
     return () => clearInterval(interval);
   }, [stacked, supermode]);
 
@@ -110,7 +110,7 @@ export function TimeDisplay({ stacked, supermode, scrambleSeed }: TimeDisplayPro
   let format24: string;
 
   if (stacked) {
-    const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
+    const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 1);
     const ampm = time12.slice(-2);
     const time12Base = time12.slice(0, -3);
     format12 = `${time12Base}.${ms} ${ampm}`;

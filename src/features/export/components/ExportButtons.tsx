@@ -7,6 +7,7 @@ import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup }
 import { FunctionButton } from '@shared/components';
 import { getItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
@@ -103,6 +104,10 @@ export function ExportButtons({ entries, onImport, stacked, supermode, scrambleS
 
     try {
       await navigator.clipboard.writeText(textContent);
+      // Track easter egg when copying in powerstat mode (markdown format)
+      if (stacked) {
+        markEasterEggFound('copyMarkdown');
+      }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }

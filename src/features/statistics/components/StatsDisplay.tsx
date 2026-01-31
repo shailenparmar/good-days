@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
+import { getEasterEggCount, markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
 
 interface StatsDisplayProps {
@@ -33,8 +34,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   // Helper to scramble text in supermode (scrambleSeed forces re-render)
   const s = (text: string) => supermode ? scrambleText(text) : text;
-  // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
-  void scrambleSeed;
+  // Suppress unused variable warnings
+  void scrambleSeed; // scrambleSeed triggers re-renders
+  void liveStats; // liveStats tracked but not displayed yet
 
   // Track if we were in supermode to refresh stats on exit
   const wasInSupermode = useRef(false);
@@ -174,6 +176,14 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   const techStats = stacked ? calculateTechnicalStats() : null;
 
+  // Track when user selects color text
+  const handleColorTextSelect = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim().length > 0) {
+      markEasterEggFound('selectColorText');
+    }
+  }, []);
+
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
@@ -246,7 +256,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.lexicon} word lexicon`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-              {s(`${liveStats.domNodes} HTML elements`)}
+              {s(`${getEasterEggCount().found}/${getEasterEggCount().total} easter eggs`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.entriesPerWeek} entries/week`)}
@@ -258,7 +268,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             style={{ borderTop: `2px solid ${getColor()}` }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              handleColorTextSelect();
+            }}
           >
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {hue}, {saturation}%, {lightness}%

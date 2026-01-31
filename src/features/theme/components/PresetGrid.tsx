@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getItem, setItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { ColorPreset } from '../types';
 
 interface PresetGridProps {
@@ -127,6 +128,7 @@ export function PresetGrid({ showDebugMenu, supermode, scrambleSeed }: PresetGri
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         setKeyboardUseCount(c => c + 1);
+        markEasterEggFound('arrowKeyPresets');
 
         const cols = 5;
         let newIndex = activePresetIndex === null ? 0 : activePresetIndex;
@@ -225,6 +227,7 @@ export function PresetGrid({ showDebugMenu, supermode, scrambleSeed }: PresetGri
           setCustomPresets(newCustomPresets);
         } else if (activePresetIndex === totalDefaultAndCustom) {
           // Rand
+          markEasterEggFound('spacebarRand');
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + 1) {
           // Save
