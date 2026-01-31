@@ -317,13 +317,44 @@ When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
+## Power Modes
+
+The app has special modes that activate when multiple panels are open.
+
+### Powerstat Mode
+
+**Trigger**: Settings + About panels both open
+
+| Feature | Description |
+|---------|-------------|
+| About panel shrinks | Width goes from 675px → 400px |
+| Scramble hotkey toggle | Button appears in Settings to enable Option/Alt+S hotkey |
+| Horizontal stats | StatsDisplay switches to horizontal layout |
+| Easter egg tracking | `powerstatMode` is marked as found |
+
+### Powerscramble Mode
+
+**Trigger**: Scramble ON + Settings + About all active together (internally called `isSupermode`)
+
+Includes all powerstat features, plus:
+
+| Feature | Description |
+|---------|-------------|
+| Theme randomizes on keystroke | Each character typed randomizes the colorway |
+| Global re-scramble on keystroke | All scrambled text re-randomizes on input |
+| Time tracking paused | Stats timer pauses to prevent jitter |
+| All UI text scrambled | Title, buttons, stats, sidebar entries all scramble |
+| Easter egg tracking | `supermode` is marked as found |
+
+Code location: `src/App.tsx` (isSupermode definition, line ~110)
+
 ## Panel Dimensions
 
 | Panel | Width | Resizable |
 |-------|-------|-----------|
 | Sidebar | 320px (`w-80`) | No |
 | Settings | 320px (`w-80`) | No |
-| About | 675px | No |
+| About | 675px (400px in powerstat/powerscramble) | No |
 
 ## Color Presets
 
@@ -384,7 +415,8 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | `zenMode` | Full zen: just editor, hide everything else | Yes | `false` |
 | `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | Yes | `false` |
 | `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` |
-| `preZenState` | Saved state before entering zen (for restore) | No | `null` |
+| `preFocusState` | Saved state before entering zen/minizen (for restore) | No | `null` |
+| `preNarrowState` | Saved panel state before narrowing (for restore on widen) | No | `null` |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
 
@@ -567,6 +599,8 @@ Sidebar Visible → ESC → Lock
 
 ### Resize Transitions
 
+Panel state is preserved across resize using `preNarrowState`.
+
 #### Wide → Narrow
 
 | Before | After | Reason |
@@ -574,9 +608,10 @@ Sidebar Visible → ESC → Lock
 | Full | Default | Sidebar becomes overlay-style in narrow |
 | Minizen | Default | Same visual (no sidebar, has header+footer) |
 | Zen | Zen | Stay in zen |
-| Panels open | Panels closed | No room |
+| Panels open | Panels closed (saved) | No room, but state saved for restore |
 
 **State changes:**
+- `preNarrowState` saves `{ showDebugMenu, showAboutPanel }`
 - `minizen = false` (reset)
 - `showSidebarInNarrow = false` (reset)
 - `closePanels()` (close settings/about)
@@ -589,12 +624,13 @@ Sidebar Visible → ESC → Lock
 | Default | Full | Show sidebar by default in wide |
 | Sidebar Visible | Full | Sidebar is normal in wide |
 | Zen | Zen | Stay in zen |
+| Panels were open before narrow | Panels restored | State restoration from preNarrowState |
 
 **State changes:**
+- `preNarrowState` restored → panels reopen if they were open
 - `minizen = false` (reset to show sidebar)
 - `showSidebarInNarrow = false` (reset)
 - `zenMode` preserved (if in zen, stay in zen)
-- Panels preserved
 
 ### Panel Behavior
 
@@ -696,12 +732,33 @@ const handleEditorClickInZen = () => {
 
 ### Key Principles
 
-1. **Zen remembers origin** - Exiting zen restores whatever state you were in before
+1. **Focus modes are fully reversible** - Exiting any focus mode restores the exact prior state, including open panels
 2. **Footer = zen toggle** - Footer click enters/exits zen in both modes
 3. **Header = sidebar toggle** - Header click toggles sidebar visibility (minizen in wide, overlay in narrow)
-4. **Panels need sidebar** - Opening panel exits zen/minizen to show sidebar
-5. **Zen survives resize** - If in zen, stay in zen across breakpoint
-6. **preZenState captures full context** - Both `minizen` and `showSidebarInNarrow` are saved/restored
+4. **Zen survives resize** - If in zen, stay in zen across breakpoint
+5. **preZenState captures full context** - Includes `minizen`, `showSidebarInNarrow`, `showDebugMenu`, `showAboutPanel`
+
+### State Restoration Framework
+
+Any action that hides UI elements must save the full layout state and restore it on exit.
+
+**State variable**: `preFocusState` (in App.tsx)
+
+```tsx
+// Full layout state to remember
+const [preFocusState, setPreFocusState] = useState<{
+  minizen: boolean;
+  showSidebarInNarrow: boolean;
+  showDebugMenu: boolean;
+  showAboutPanel: boolean;
+} | null>(null);
+```
+
+**Functions**:
+- `enterZen()` / `exitZen()` - Save/restore when entering/exiting zen mode
+- `enterMinizen()` / `exitMinizen()` - Save/restore when entering/exiting minizen
+
+**The rule**: If settings was open → zen → exit zen = settings open again. Same for minizen.
 
 ## ESC Key Behavior (IMPORTANT)
 

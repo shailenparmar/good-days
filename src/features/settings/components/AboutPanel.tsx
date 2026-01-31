@@ -28,7 +28,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scramb
     <div
       className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
-        width: '675px',
+        width: stacked ? '400px' : '675px',
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
       }}

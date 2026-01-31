@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.36';
+const VERSION = '1.5.37';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -118,25 +118,84 @@ function AppContent() {
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
   const [zenMode, setZenMode] = usePersisted('zenMode', false); // Full zen: just editor, hide everything
   const [minizen, setMinizen] = usePersisted('minizen', false); // Minizen: hide sidebar, keep header+footer (wide only)
-  const [preZenState, setPreZenState] = useState<{ minizen: boolean; showSidebarInNarrow: boolean } | null>(null);
+  // Unified state saved before entering any focus mode (zen or minizen)
+  const [preFocusState, setPreFocusState] = useState<{
+    minizen: boolean;
+    showSidebarInNarrow: boolean;
+    showDebugMenu: boolean;
+    showAboutPanel: boolean;
+  } | null>(null);
+  // Track if zen was entered from minizen (for proper exit behavior)
+  const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
+  // State saved before narrowing window (panels close in narrow, restore on widen)
+  const [preNarrowState, setPreNarrowState] = useState<{
+    showDebugMenu: boolean;
+    showAboutPanel: boolean;
+  } | null>(null);
 
-  // Exit zen mode and restore previous state
+  // Exit zen mode and restore previous state (including panels)
   const exitZen = useCallback(() => {
     setZenMode(false);
-    if (preZenState) {
-      setMinizen(preZenState.minizen);
-      setShowSidebarInNarrow(preZenState.showSidebarInNarrow);
-      setPreZenState(null);
+    if (zenFromMinizen) {
+      // Was in minizen before zen - go back to minizen, keep preFocusState for later
+      setZenFromMinizen(false);
+      // minizen is still true, preFocusState still has original state
+    } else if (preFocusState) {
+      // Was in full mode before zen - restore full state
+      setMinizen(preFocusState.minizen);
+      setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
+      setShowDebugMenu(preFocusState.showDebugMenu);
+      setShowAboutPanel(preFocusState.showAboutPanel);
+      setPreFocusState(null);
     }
-  }, [preZenState, setZenMode]);
+  }, [preFocusState, setZenMode, zenFromMinizen]);
 
-  // Enter zen mode, saving current state
+  // Enter zen mode, saving current state (including panels) then closing panels
+  // If already in minizen (preFocusState exists), don't overwrite - just add zen on top
   const enterZen = useCallback(() => {
-    setPreZenState({ minizen, showSidebarInNarrow });
+    if (minizen) {
+      // Entering zen from minizen - don't overwrite preFocusState, just track it
+      setZenFromMinizen(true);
+    } else {
+      // Not in minizen - save current state
+      setPreFocusState({
+        minizen,
+        showSidebarInNarrow,
+        showDebugMenu,
+        showAboutPanel,
+      });
+      setShowDebugMenu(false);
+      setShowAboutPanel(false);
+      setZenFromMinizen(false);
+    }
     setZenMode(true);
-  }, [minizen, showSidebarInNarrow, setZenMode]);
+  }, [minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel, setZenMode]);
+
+  // Enter minizen mode, saving current state (including panels)
+  const enterMinizen = useCallback(() => {
+    setPreFocusState({
+      minizen,
+      showSidebarInNarrow,
+      showDebugMenu,
+      showAboutPanel,
+    });
+    setMinizen(true);
+    setShowDebugMenu(false);
+    setShowAboutPanel(false);
+  }, [minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel]);
+
+  // Exit minizen mode and restore previous state (including panels)
+  const exitMinizen = useCallback(() => {
+    setMinizen(false);
+    if (preFocusState) {
+      setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
+      setShowDebugMenu(preFocusState.showDebugMenu);
+      setShowAboutPanel(preFocusState.showAboutPanel);
+      setPreFocusState(null);
+    }
+  }, [preFocusState]);
 
   // Centralized panel closing - used by multiple click handlers
   const closePanels = useCallback(() => {
@@ -153,8 +212,23 @@ function AppContent() {
       // Mode transition handling
       if (narrow !== wasNarrow) {
         if (narrow && !wasNarrow) {
-          // Wide → Narrow: close panels (no room for them)
+          // Wide → Narrow: save panel state, then close (no room for them)
+          // If in focus mode (zen/minizen), use preFocusState's values (what was open before focus mode)
+          const panelsToSave = preFocusState
+            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel }
+            : { showDebugMenu, showAboutPanel };
+          setPreNarrowState(panelsToSave);
           closePanels();
+          // Clear focus mode state so exiting zen/minizen doesn't reopen panels
+          setPreFocusState(null);
+          setZenFromMinizen(false);
+        } else if (!narrow && wasNarrow) {
+          // Narrow → Wide: restore panel state
+          if (preNarrowState) {
+            setShowDebugMenu(preNarrowState.showDebugMenu);
+            setShowAboutPanel(preNarrowState.showAboutPanel);
+            setPreNarrowState(null);
+          }
         }
         // Both directions: reset sidebar states (but preserve zen!)
         setShowSidebarInNarrow(false);
@@ -164,7 +238,7 @@ function AppContent() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isNarrow, closePanels]);
+  }, [isNarrow, closePanels, showDebugMenu, showAboutPanel, preNarrowState, preFocusState]);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
 
@@ -258,9 +332,9 @@ function AppContent() {
           return;
         }
 
-        // In minizen (wide only): exit minizen (show sidebar)
+        // In minizen (wide only): exit minizen and restore panels
         if (!isNarrow && minizen) {
-          setMinizen(false);
+          exitMinizen();
           return;
         }
 
@@ -279,7 +353,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal, zenMode, exitZen, isNarrow, minizen, showSidebarInNarrow]);
+  }, [auth, journal, zenMode, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
   // Only works when viewing today's entry (past entries are read-only)
@@ -450,11 +524,13 @@ function AppContent() {
             onClick={(e) => {
               e.stopPropagation();
               if (isNarrow) {
+                // User is intentionally interacting in narrow mode, clear saved wide state
                 setShowSidebarInNarrow(false);
+                closePanels();
+                setPreNarrowState(null);
               } else {
-                setMinizen(true); // Enter minizen (hide sidebar)
+                enterMinizen(); // Enter minizen, saves panel state
               }
-              closePanels();
             }}
           />
         )}
@@ -531,6 +607,8 @@ function AppContent() {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
             }
+            // Interacting with panels in narrow mode = commit to narrow, clear wide state
+            if (isNarrow) setPreNarrowState(null);
           }} isActive={showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
             <span>{isSupermode ? scrambleText('settings') : 'settings'}</span>
@@ -543,6 +621,8 @@ function AppContent() {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
             }
+            // Interacting with panels in narrow mode = commit to narrow, clear wide state
+            if (isNarrow) setPreNarrowState(null);
           }} isActive={showAboutPanel} dataAttribute="about-toggle">
             <Heart className="w-3 h-3" />
             <span>{isSupermode ? scrambleText('about') : 'about'}</span>
@@ -592,13 +672,19 @@ function AppContent() {
             scrambleSeed={scrambleSeed}
             onClick={(e) => {
               e.stopPropagation(); // Prevent bubbling to container
-              closePanels();
               if (isNarrow) {
                 // Narrow: toggle sidebar visibility
+                // User is intentionally interacting in narrow mode, clear saved wide state
                 setShowSidebarInNarrow(!showSidebarInNarrow);
+                closePanels();
+                setPreNarrowState(null);
               } else {
-                // Wide: toggle minizen (sidebar visibility)
-                setMinizen(!minizen);
+                // Wide: toggle minizen with state preservation
+                if (minizen) {
+                  exitMinizen();
+                } else {
+                  enterMinizen();
+                }
               }
             }}
             onHeightChange={setEntryHeaderHeight}
@@ -627,8 +713,7 @@ function AppContent() {
             supermode={isSupermode}
             scrambleSeed={scrambleSeed}
             onClick={() => {
-              closePanels();
-              enterZen();
+              enterZen(); // saves state then closes panels
             }}
           />
         )}
