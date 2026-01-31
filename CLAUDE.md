@@ -14,6 +14,63 @@ git commit -m "Description of changes"
 git push origin main
 ```
 
+## Domain & Hosting
+
+The production site is hosted on **GitHub Pages** with a custom domain managed by **Cloudflare**.
+
+### Architecture
+
+```
+User → Cloudflare DNS → GitHub Pages → serves site
+```
+
+| Component | Purpose |
+|-----------|---------|
+| **Cloudflare** | DNS management, domain registrar for `gdays.day` |
+| **GitHub Pages** | Static site hosting, SSL certificate provisioning |
+| **GitHub Actions** | Auto-deploys on push to `main` |
+
+### DNS Records (Cloudflare)
+
+| Type | Name | Target | Proxy |
+|------|------|--------|-------|
+| CNAME | `gdays.day` (apex) | `shailenparmar.github.io` | DNS only |
+| CNAME | `www` | `shailenparmar.github.io` | DNS only |
+
+Note: Cloudflare "flattens" the apex CNAME to A records (GitHub Pages IPs: 185.199.x.x).
+
+### CNAME File
+
+The `public/CNAME` file tells GitHub Pages which custom domain to use:
+
+```
+www.gdays.day
+```
+
+Using `www.gdays.day` (not the apex) allows GitHub Pages to:
+1. Provision SSL for both `www.gdays.day` and `gdays.day`
+2. Auto-redirect `gdays.day` → `www.gdays.day`
+
+### URLs
+
+| URL | Purpose |
+|-----|---------|
+| `https://www.gdays.day` | Production (primary) |
+| `https://gdays.day` | Production (redirects to www) |
+| `https://shailenparmar.github.io/good-days/` | GitHub Pages (redirects to gdays.day) |
+| `https://gdays.vercel.app/` | Vercel deployment (separate) |
+
+### Troubleshooting
+
+**SSL cert error on www**: Ensure `public/CNAME` contains `www.gdays.day` (not `gdays.day`). GitHub Pages only provisions certs for the domain in the CNAME file.
+
+**DNS not resolving**: Check Cloudflare DNS records. Both apex and www must point to `shailenparmar.github.io`. Use "DNS only" (gray cloud), not "Proxied" (orange cloud).
+
+**Changes not appearing**:
+1. Check GitHub Actions completed successfully
+2. Verify version number in about panel matches pushed version
+3. Hard refresh (Cmd+Shift+R) to bypass cache
+
 ## Project Structure
 
 - `src/features/` - Feature-based modules (auth, journal, theme, settings, statistics, export)
