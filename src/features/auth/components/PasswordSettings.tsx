@@ -458,12 +458,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
       {/* Input */}
       <form onSubmit={handleSubmit}>
-        <div className="relative" onClick={() => {
-          if (isSaving) {
-            setIsSaving(false);
-            setShowInput(false);
-          }
-        }}>
+        <div className="relative">
           <input
             ref={inputRef}
             type={isSaving ? 'text' : 'password'}
@@ -486,13 +481,18 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             }}
           />
 
-          {/* Saved message */}
+          {/* Saved message with clickable overlay */}
           {isSaving && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono font-bold pointer-events-none select-none"
-              style={{ color: '#00ff00' }}
+              className="absolute inset-0 flex items-center cursor-pointer"
+              onClick={() => {
+                setIsSaving(false);
+                setShowInput(false);
+              }}
             >
-              {s('password saved')}
+              <span className="ml-3.5 text-xs font-mono font-bold select-none" style={{ color: '#00ff00' }}>
+                {s('password saved')}
+              </span>
             </div>
           )}
 
