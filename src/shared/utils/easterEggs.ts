@@ -1,5 +1,5 @@
 // Easter egg tracking
-// 15 total easter eggs to discover
+// 14 total easter eggs to discover
 
 export const EASTER_EGGS = [
   'scrambleTyping',      // typing in scramble mode
@@ -15,7 +15,6 @@ export const EASTER_EGGS = [
   'arrowKeyPresets',     // arrow keys to navigate presets
   'copyMarkdown',        // copy markdown format in powerstat
   'selectColorText',     // selected color HSL/HEX text
-  'mobileRand',          // rand button pressed in mobile mode
   'resetBlackout',       // saw the blackout screen on reset confirmation
 ] as const;
 
