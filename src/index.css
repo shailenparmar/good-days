@@ -16,21 +16,28 @@ html, body {
   height: 100%;
 }
 
-/* Custom editor with thick caret - color is set dynamically via inline styles */
+/* Custom editor - hide native caret, use custom block cursor */
 .custom-editor {
-  /* caret-color set via inline style */
+  caret-color: transparent;
 }
 
-/* Make caret thicker and block-like */
-.custom-editor:focus {
-  /* caret-color set via inline style */
+/* Block cursor - positioned dynamically via inline styles */
+.block-cursor {
+  position: absolute;
+  width: 0.6em;
+  pointer-events: none;
+  animation: cursor-blink 1s step-end infinite;
 }
 
-/* Try to make it blocky in supporting browsers */
-@supports (caret-shape: block) {
-  .custom-editor {
-    caret-shape: block;
-  }
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* When typing, don't blink - stay solid */
+.block-cursor.typing {
+  animation: none;
+  opacity: 1;
 }
 
 /* Timestamp separator styling */

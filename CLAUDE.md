@@ -132,12 +132,13 @@ When importing, entries are **merged** (not replaced). If an imported entry's da
 1. **Same content**: Skip (no change)
 2. **Different content**: Append imported content below existing with a separator
 
-The conflict separator format:
+The conflict separator format (one blank line above `---`):
 
 ```
 [existing content]
+
 ---
-from Jan 30, 2026, 10:30 AM backup:
+from Jan 30, 2026, 10:30:45 AM backup:
 
 [imported content]
 ```
@@ -145,14 +146,24 @@ from Jan 30, 2026, 10:30 AM backup:
 Code location: `src/features/export/utils/parseBackup.ts`
 
 ```typescript
-const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
+const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
   hour: 'numeric',
-  minute: '2-digit'
+  minute: '2-digit',
+  second: '2-digit'
 })} backup:\n\n`;
 ```
+
+### Exact Match Handling
+
+When importing, entries with **identical content** are skipped entirely (not merged). The comparison:
+- Strips HTML from existing entry
+- Trims whitespace from both sides
+- Case-sensitive string comparison
+
+This prevents duplicate content from being appended during repeated imports.
 
 ### Key Behaviors
 
@@ -171,6 +182,37 @@ const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
+## Scramble Mode
+
+Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
+
+### Behaviors
+
+- **Persists across entries** - Scramble stays on when navigating between dates
+- **Persists across refresh** - Stored in localStorage as `isScrambled`
+- **Hotkey** - Option+S (Mac) / Alt+S (Windows) toggles scramble when hotkey is activated
+
+### Scramble Hotkey
+
+The scramble hotkey is a power user feature, only available in **powerstat mode** (settings + about panels both open).
+
+| State | Button Text | On Hover |
+|-------|-------------|----------|
+| Deactivated | "scramble hotkey deactivated" | "option/alt + s" |
+| Activated | "scramble hotkey activated" | "option/alt + s" |
+
+When activated, Option/Alt+S toggles scramble from anywhere in the app.
+
+Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
+
+## Panel Dimensions
+
+| Panel | Width | Resizable |
+|-------|-------|-----------|
+| Sidebar | 320px (`w-80`) | No |
+| Settings | 320px (`w-80`) | No |
+| About | 675px | No |
+
 ## Font Sizes
 
 | Size | Elements |
@@ -178,7 +220,7 @@ const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
 | **24px** (`text-2xl`) | "good days" title, lock screen corners |
 | **18px** (`text-lg`) | Date header ("jan 30, 2025") |
 | **16px** (`text-base`) | Editor/draft text, placeholder, about panel text |
-| **14px** | "started at" time, word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
+| **14px** | "started at" time (hours:minutes only, no seconds), word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
 | **12px** (`text-xs`) | Stats display, settings controls, password inputs, preset grid |
 
 ## Layout Modes & Focus States
@@ -343,10 +385,14 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | Current State | Action | Next State | What Changes |
 |---------------|--------|------------|--------------|
 | Default (no sidebar) | header click | Sidebar Visible | Sidebar overlay appears |
+| Default (no sidebar) | ESC | Sidebar Visible | Sidebar overlay appears |
 | Default (no sidebar) | footer click | Zen | Header + footer hide, save "default" |
 | Sidebar Visible | header click | Default | Sidebar hides |
-| Sidebar Visible | footer click | Zen | Sidebar + header + footer hide, save "visible" |
+| Sidebar Visible | click editor | Default | Sidebar hides, focus editor |
+| Sidebar Visible | start typing | Default | Sidebar hides, focus editor |
 | Sidebar Visible | click overlay | Default | Sidebar hides |
+| Sidebar Visible | footer click | Zen | Sidebar + header + footer hide, save "visible" |
+| Sidebar Visible | ESC | Lock | Locks app |
 | Zen (from Default) | ESC/click | Default | Restore default (no sidebar) |
 | Zen (from Visible) | ESC/click | Sidebar Visible | Restore sidebar overlay |
 
@@ -558,6 +604,13 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 | "password" (set) | `true` | `false` | Blur input (show placeholder) |
 | "one more time" (set-confirm) | `true` | `false` | → "type here" |
 | "password saved" | `true` | `true` | Lock (handler skips) |
+
+### Click-to-Dismiss Behavior
+
+Password flows can also be dismissed by clicking anywhere:
+
+- **After "password saved"** - Click anywhere dismisses message and returns to split buttons
+- **During "change password" flow** - Click anywhere outside the input returns to split buttons (same as ESC)
 
 ### Implementation Details
 
