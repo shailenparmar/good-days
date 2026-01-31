@@ -220,11 +220,11 @@ The cursor is styled using CSS with the `caret-color` property set dynamically v
 
 | Browser | Cursor Appearance |
 |---------|-------------------|
+| Chrome 144+ | Block cursor (via `caret-shape: block`) |
 | Firefox | Block cursor (via `caret-shape: block`) |
-| Chrome | Thin line cursor (no block cursor support) |
-| Safari | Thin line cursor (no block cursor support) |
+| Safari | Thin line cursor (no block cursor support yet) |
 
-**Note**: `caret-shape: block` is a CSS property only supported in Firefox. Chrome and Safari do not support this property and will show the default thin line cursor.
+**Note**: `caret-shape: block` shipped in Chrome 144 (January 2026) and has been in Firefox for longer. Safari does not yet support this property.
 
 ### Why Not Use a Custom JavaScript Cursor?
 
