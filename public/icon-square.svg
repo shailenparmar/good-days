@@ -1,5 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <!-- Square icon for dock (OS rounds corners automatically) -->
-  <rect x="0" y="0" width="1024" height="1024" fill="#6C64E7" />
-  <rect x="200" y="200" width="624" height="624" fill="#C2FD80" />
+  <rect x="0" y="0" width="1024" height="1024" fill="#000000" />
+  <rect x="200" y="200" width="624" height="624" fill="#1FFF0F" />
 </svg>
