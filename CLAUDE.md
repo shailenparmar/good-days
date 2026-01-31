@@ -425,22 +425,34 @@ These are intentionally NOT tied to presets so the error screen always displays 
 
 ## Font Sizes
 
-| Tier | Size | Class | Elements |
+| Name | Size | Class | Elements |
 |------|------|-------|----------|
-| **XL** | 24px | `text-2xl` | "good days" title, lock screen corners |
-| **L** | 18px | `text-lg` | Date header ("jan 30, 2025") |
-| **M** | 16px | `text-base` | Editor/draft text, placeholder, about panel text |
-| **S** | 14px | inline style | Sidebar buttons, entry dates, footer word count, "started at" time |
-| **XS** | 12px | `text-xs` | Stats display, settings controls, password inputs, preset grid |
+| **title** | 24px | `text-2xl font-extrabold` | "good days" title, lock screen corners |
+| **heading** | 18px | `text-lg font-extrabold` | Date header ("jan 30, 2025") |
+| **body** | 16px | `text-base font-bold` | Editor text, placeholder, about panel |
+| **label** | 14px | inline `fontSize: '14px'` | Sidebar buttons, entry dates, footer, "started at" |
+| **caption** | 12px | `text-xs font-bold` | Stats, settings controls, password inputs, presets |
 
 ## Button Sizes
 
-| Tier | Size Prop | Font | Weight | Usage |
+| Name | Size Prop | Font | Weight | Usage |
 |------|-----------|------|--------|-------|
-| **Default** | (none) | 14px | `font-extrabold` | Sidebar buttons (scramble, settings, about) |
-| **Small** | `size="sm"` | 12px | `font-bold` | Settings panel controls, password buttons |
+| **button-primary** | (none) | 14px | `font-extrabold` | Sidebar buttons (scramble, settings, about) |
+| **button-secondary** | `size="sm"` | 12px | `font-bold` | Settings panel controls, password buttons |
 
 All buttons use `px-3 py-2` padding and `font-mono`.
+
+### Quick Reference
+
+```
+"Make this title size"       → 24px, text-2xl, font-extrabold
+"Make this heading size"     → 18px, text-lg, font-extrabold
+"Make this body size"        → 16px, text-base, font-bold
+"Make this label size"       → 14px, inline style, font-extrabold
+"Make this caption size"     → 12px, text-xs, font-bold
+"Use button-primary"         → FunctionButton (default)
+"Use button-secondary"       → FunctionButton size="sm"
+```
 
 ## Layout Modes & Focus States
 
