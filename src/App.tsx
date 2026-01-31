@@ -14,7 +14,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.21';
+const VERSION = '1.5.22';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -85,16 +85,21 @@ function AppContent() {
       const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
       const wasNarrow = isNarrow;
       setIsNarrow(narrow);
-      // Reset sidebar visibility states when transitioning between modes
-      // Panels (settings/about) stay open - they're independent of layout mode
+
+      // Mode transition handling
       if (narrow !== wasNarrow) {
+        if (narrow && !wasNarrow) {
+          // Wide → Narrow: close panels (no room for them)
+          closePanels();
+        }
+        // Both directions: reset sidebar/zen state
         setShowSidebarInNarrow(false);
         setZenMode(false);
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isNarrow]);
+  }, [isNarrow, closePanels]);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway } = theme;
 
@@ -113,21 +118,30 @@ function AppContent() {
   }, [isScrambled]);
 
 
-  // ESC key to lock
-  // DON'T lock when:
-  // 1. User is in an input field
-  // 2. ESC was already handled by another component (via e.defaultPrevented)
+  // ESC key behavior:
+  // 1. In zen mode (wide): exit zen mode
+  // 2. Otherwise: lock the app
+  // DON'T act when:
+  // - User is in an input field
+  // - ESC was already handled by another component (via e.defaultPrevented)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
-        // Don't lock if ESC was already handled (e.g., by password settings)
+        // Don't act if ESC was already handled (e.g., by password settings)
         if (e.defaultPrevented) return;
 
-        // Don't lock if user is in an input field
+        // Don't act if user is in an input field
         const activeEl = document.activeElement;
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input' || tagName === 'textarea') return;
 
+        // In zen mode (wide only): exit zen instead of locking
+        if (!isNarrow && zenMode) {
+          setZenMode(false);
+          return;
+        }
+
+        // Otherwise: save and lock
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.innerHTML || '', Date.now());
         }
@@ -136,7 +150,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal]);
+  }, [auth, journal, isNarrow, zenMode, setZenMode]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
   // Only works when viewing today's entry (past entries are read-only)
