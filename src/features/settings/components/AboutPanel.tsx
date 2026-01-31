@@ -6,16 +6,16 @@ interface AboutPanelProps {
   isOpen: boolean;
   onCloseSettings: () => void;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scrambleSeed }: AboutPanelProps) {
+export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
   if (!isOpen) return null;

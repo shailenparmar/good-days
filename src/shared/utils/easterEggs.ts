@@ -1,10 +1,11 @@
 // Easter egg tracking
-// 13 total easter eggs to discover
+// 14 total easter eggs to discover
 
 export const EASTER_EGGS = [
   'scrambleTyping',      // typing in scramble mode
   'powerstatMode',       // settings + about open
-  'supermode',           // settings + about + scramble open
+  'superscramble',       // settings + about + scramble open
+  'superscrambleTyping', // typing while in superscramble (theme randomizes)
   'scrambleHotkeyOn',    // scramble hotkey activated
   'minizenMode',         // minizen mode used
   'zenMode',             // zen mode used

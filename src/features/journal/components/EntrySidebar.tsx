@@ -10,16 +10,16 @@ interface EntrySidebarProps {
   onSelectDate: (date: string) => void;
   settingsOpen?: boolean;
   stacked?: boolean;
-  supermode?: boolean;
+  superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen, stacked, supermode, scrambleSeed }: EntrySidebarProps) {
+export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen, stacked, superscramble, scrambleSeed }: EntrySidebarProps) {
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
 
-  // Helper to scramble text in supermode
-  const s = (text: string) => supermode ? scrambleText(text) : text;
+  // Helper to scramble text in superscramble
+  const s = (text: string) => superscramble ? scrambleText(text) : text;
   const { getColor, hue, saturation, lightness } = useTheme();
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);

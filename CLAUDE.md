@@ -226,6 +226,11 @@ The cursor is styled using CSS with the `caret-color` property set dynamically v
 
 **Note**: `caret-shape: block` shipped in Chrome 144 (January 2026) and has been in Firefox for longer. Safari does not yet support this property.
 
+**TODO**: Periodically check if Safari has implemented `caret-shape: block`:
+- Check https://caniuse.com/mdn-css_properties_caret-shape
+- Check Safari release notes / WebKit blog
+- Once supported, Safari users will automatically get block cursor (CSS already in place)
+
 ### Why Not Use a Custom JavaScript Cursor?
 
 A custom JavaScript-based block cursor was attempted (v1.5.30) but had issues:
@@ -354,7 +359,7 @@ The app has special modes that activate when multiple panels are open.
 
 ### Powerscramble Mode
 
-**Trigger**: Scramble ON + Settings + About all active together (internally called `isSupermode`)
+**Trigger**: Scramble ON + Settings + About all active together (internally called `isSuperscramble`)
 
 Includes all powerstat features, plus:
 
@@ -364,9 +369,9 @@ Includes all powerstat features, plus:
 | Global re-scramble on keystroke | All scrambled text re-randomizes on input |
 | Time tracking paused | Stats timer pauses to prevent jitter |
 | All UI text scrambled | Title, buttons, stats, sidebar entries all scramble |
-| Easter egg tracking | `supermode` is marked as found |
+| Easter egg tracking | `superscramble` is marked as found |
 
-Code location: `src/App.tsx` (isSupermode definition, line ~110)
+Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 
 ## Panel Dimensions
 
