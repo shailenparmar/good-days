@@ -147,7 +147,15 @@ export function SettingsPanel({
       {/* Reset App - only in powerstat mode */}
       {stacked && (
         <div className="p-4">
-          <div onMouseLeave={() => setResetStep(0)}>
+          {/* Blackout overlay for final confirmation */}
+          {resetStep === 2 && (
+            <div
+              className="fixed inset-0 bg-black z-40"
+              style={{ opacity: 0.95 }}
+              onClick={() => setResetStep(0)}
+            />
+          )}
+          <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative z-50' : ''}>
             <FunctionButton onClick={handleResetApp} size="sm">
               <span>
                 {superscramble ? scrambleText(getResetButtonText()) : getResetButtonText()}
