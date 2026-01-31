@@ -484,7 +484,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           {/* Saved message with clickable overlay */}
           {isSaving && (
             <div
-              className="absolute inset-0 flex items-center cursor-pointer"
+              className="absolute inset-0 flex items-center"
               onClick={() => {
                 setIsSaving(false);
                 setShowInput(false);
