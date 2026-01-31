@@ -254,16 +254,11 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
         setNewPasswordTemp('');
         setStep('old');
       } else {
-        // "Set password" flow: same as ESC behavior
-        if (step === 'set-confirm') {
-          // Go back to first step
-          setStep('set');
-          setInput('');
-          setNewPasswordTemp('');
-        } else {
-          // At 'set' step: just clear input (placeholder shows while focused)
-          setInput('');
-        }
+        // "Set password" flow: reset and blur
+        setStep('set');
+        setInput('');
+        setNewPasswordTemp('');
+        inputRef.current?.blur();
       }
     };
 
