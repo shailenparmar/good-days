@@ -732,6 +732,13 @@ When creating or modifying app icons, follow these rules to prevent macOS/iOS fr
 | `icon-512.png` | Android/PWA | **Square** |
 | `og-image.png` | Social sharing | Icon on white background |
 
+### Current Icon Colors
+
+| Element | Color | HEX |
+|---------|-------|-----|
+| Inner square | Green | `#1FFF0F` |
+| Border/background | Black | `#000000` |
+
 ### PNG Icon Requirements (Critical)
 
 To prevent macOS from adding dark shading to icons:
