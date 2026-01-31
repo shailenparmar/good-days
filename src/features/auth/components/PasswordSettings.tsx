@@ -238,22 +238,36 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     };
   }, [isSaving]);
 
-  // Click outside input to dismiss change password flow (same as ESC)
+  // Click outside input to dismiss password flow (same as ESC)
+  // Works for both "change password" and "set password" flows
   useEffect(() => {
-    if (!hasPassword || !showInput || isSaving) return;
+    if (!showInput || isSaving) return;
 
     const handleClickOutside = (e: MouseEvent) => {
       // If click is on the input, ignore
       if (inputRef.current && inputRef.current.contains(e.target as Node)) return;
 
-      // Reset to split buttons
-      setShowInput(false);
-      setInput('');
-      setNewPasswordTemp('');
-      setStep('old');
+      if (hasPassword) {
+        // "Change password" flow: reset to split buttons
+        setShowInput(false);
+        setInput('');
+        setNewPasswordTemp('');
+        setStep('old');
+      } else {
+        // "Set password" flow: same as ESC behavior
+        if (step === 'set-confirm') {
+          // Go back to first step
+          setStep('set');
+          setInput('');
+          setNewPasswordTemp('');
+        } else {
+          // At 'set' step: just clear input (placeholder shows while focused)
+          setInput('');
+        }
+      }
     };
 
-    // Small delay to avoid the "change password" button click from immediately dismissing
+    // Small delay to avoid button clicks from immediately dismissing
     const timer = setTimeout(() => {
       window.addEventListener('click', handleClickOutside);
     }, 100);
