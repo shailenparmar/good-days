@@ -471,7 +471,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
             disabled={isDisabled}
-            className="w-full px-3 py-2 font-mono font-extrabold rounded"
+            className="w-full px-3 py-3 font-mono font-extrabold rounded"
             style={{
               fontSize: '14px',
               backgroundColor: getBackgroundColor(),
