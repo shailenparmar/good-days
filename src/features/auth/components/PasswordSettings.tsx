@@ -478,7 +478,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
               color: getBorderColor(),
               caretColor: textColor,
               outline: 'none',
-              cursor: isDisabled ? 'not-allowed' : 'text',
             }}
           />
 
