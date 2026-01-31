@@ -106,7 +106,8 @@ export function mergeEntries(
           day: 'numeric',
           year: 'numeric',
           hour: 'numeric',
-          minute: '2-digit'
+          minute: '2-digit',
+          second: '2-digit'
         })} backup:\n\n`;
 
         // Convert imported plain text to HTML (preserve line breaks)

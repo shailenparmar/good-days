@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
-import { formatEntriesAsText } from '../utils/formatEntries';
+import { formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
 import { parseBackupText, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
@@ -80,7 +80,7 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
   };
 
   const handleCopyToClipboard = async () => {
-    const textContent = formatEntriesAsText(entries);
+    const textContent = formatEntriesForClipboard(entries);
     if (!textContent) return;
 
     try {

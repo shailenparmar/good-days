@@ -10,21 +10,8 @@ interface StatsDisplayProps {
   stacked?: boolean;
 }
 
-// Convert HSL to HEX
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked }: StatsDisplayProps) {
-  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  const { getColor, uniqueColorways } = useTheme();
 
   const calculateStreak = () => {
     if (entries.length === 0) return 0;
@@ -70,12 +57,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const daysSinceFirst = firstEntryDate
     ? Math.floor((Date.now() - new Date(firstEntryDate).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
-
-  // Color codes
-  const textHsl = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  const textHex = hslToHex(hue, saturation, lightness);
-  const bgHsl = `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`;
-  const bgHex = hslToHex(bgHue, bgSaturation, bgLightness);
 
   if (horizontal) {
     return (
@@ -135,22 +116,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       {/* Stacked mode: extra nerdy stats */}
       {stacked && (
         <div className="mt-3 pt-3 space-y-1" style={{ borderTop: `2px solid ${getColor()}` }}>
-          {/* Color codes */}
           <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-            {textHsl}
-          </div>
-          <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-            {textHex}
-          </div>
-          <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-            {bgHsl}
-          </div>
-          <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-            {bgHex}
-          </div>
-
-          {/* Extra stats */}
-          <div className="text-xs font-mono font-bold text-center pt-2" style={{ color: getColor() }}>
             {avgWordsPerEntry} avg words/entry
           </div>
           {longestEntry && longestEntry.words > 0 && (
