@@ -144,9 +144,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
           onMouseDown={() => setIsPressed(true)}
           onMouseUp={() => setIsPressed(false)}
           disabled={isSubmitting}
-          className="w-full px-3 py-3 font-mono font-extrabold rounded"
+          className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
           style={{
-            fontSize: '14px',
             backgroundColor: getBackgroundColor(),
             border: `3px solid ${getBorderColor()}`,
             color: getBorderColor(),
@@ -158,8 +157,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
         />
         {showPlaceholder && (
           <div
-            className="absolute top-1/2 -translate-y-1/2 font-mono pointer-events-none"
-            style={{ fontSize: '14px', color: getColor(), opacity: 0.9, left: '14px' }}
+            className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
+            style={{ color: getColor(), opacity: 0.9, left: '14px' }}
           >
             {animPhase === 'bold' ? (
               <>
