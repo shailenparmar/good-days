@@ -2,9 +2,10 @@ import { useTheme } from '@features/theme';
 
 interface EntryFooterProps {
   currentContent: string;
+  onClick?: () => void;
 }
 
-export function EntryFooter({ currentContent }: EntryFooterProps) {
+export function EntryFooter({ currentContent, onClick }: EntryFooterProps) {
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
   const wordCount = currentContent.split(/\s+/).filter(Boolean).length;
@@ -19,6 +20,7 @@ export function EntryFooter({ currentContent }: EntryFooterProps) {
         borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
         color: getColor()
       }}
+      onClick={onClick}
     >
       <span>{wordCount} words | {charCount} chars</span>
     </div>

@@ -181,183 +181,333 @@ const importLabel = `\n---\nfrom ${importDate.toLocaleDateString('en-US', {
 | **14px** | "started at" time, word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
 | **12px** (`text-xs`) | Stats display, settings controls, password inputs, preset grid |
 
-## Layout Modes & Sidebar Visibility
+## Layout Modes & Focus States
 
-The app has two layout modes with different sidebar behavior.
+The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
+
+### Concepts
+
+| Term | Meaning |
+|------|---------|
+| **Full** | Everything visible: sidebar + header + editor + footer |
+| **Minizen** | Sidebar hidden, header + editor + footer visible (focused but oriented) |
+| **Zen** | Just editor. Pure writing, no distractions |
 
 ### State Variables (in App.tsx)
 
 | Variable | Purpose | Persisted | Default |
 |----------|---------|-----------|---------|
 | `isNarrow` | `true` when window < 711px | No (computed) | — |
-| `showSidebarInNarrow` | Show sidebar when narrow | No | `false` |
-| `zenMode` | Hide sidebar+header+footer when wide | Yes | `false` |
+| `zenMode` | Full zen: just editor, hide everything else | Yes | `false` |
+| `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | Yes | `false` |
+| `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` |
+| `preZenState` | Saved state before entering zen (for restore) | No | `null` |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
 
-### Visual Layout by State
+### Visual States
 
-**Wide mode (`isNarrow = false`):**
+#### Wide Mode - Full (default)
 ```
 ┌─────────────┬──────────────────────┐
-│  Sidebar    │  Header (date)       │  ← visible when !zenMode
+│  Sidebar    │  Header (date)       │ ← click header → minizen
 │  - stats    │──────────────────────│
 │  - entries  │                      │
 │  - buttons  │  Editor              │
 │             │                      │
 │             │──────────────────────│
-│             │  Footer (word count) │  ← visible when !zenMode
+│             │  Footer (word count) │ ← click footer → zen
 └─────────────┴──────────────────────┘
 ```
 
-**Wide + Zen mode:**
+#### Wide Mode - Minizen (sidebar hidden)
 ```
 ┌────────────────────────────────────┐
-│                                    │
-│              Editor                │  ← just editor, nothing else
-│                                    │
-└────────────────────────────────────┘
-```
-
-**Narrow mode (`isNarrow = true`):**
-```
-┌────────────────────────────────────┐
-│  Header (date) ← tap to show sidebar
+│  Header (date)                     │ ← click header → full
 │────────────────────────────────────│
 │                                    │
 │              Editor                │
 │                                    │
 │────────────────────────────────────│
-│  Footer (word count)               │
+│  Footer (word count)               │ ← click footer → zen
 └────────────────────────────────────┘
 ```
 
-### Sidebar Visibility Formula
-
-```tsx
-const showSidebar = isNarrow ? showSidebarInNarrow : !zenMode;
+#### Wide Mode - Zen (just editor)
+```
+┌────────────────────────────────────┐
+│                                    │
+│              Editor                │ ← ESC → restore previous state
+│                                    │
+└────────────────────────────────────┘
 ```
 
-### Resize Transitions (Edge Cases)
+#### Narrow Mode - Default (sidebar hidden)
+```
+┌────────────────────────────────────┐
+│  Header (date)                     │ ← click header → show sidebar
+│────────────────────────────────────│
+│                                    │
+│              Editor                │
+│                                    │
+│────────────────────────────────────│
+│  Footer (word count)               │ ← click footer → zen
+└────────────────────────────────────┘
+```
 
-When the window crosses the 711px breakpoint, state resets to prevent broken UI:
+#### Narrow Mode - Sidebar Visible
+```
+┌─────────────┬──────────────────────┐
+│  Sidebar    │  Header (date)       │ ← click header → hide sidebar
+│  (overlay)  │──────────────────────│
+│             │                      │
+│             │  Editor              │
+│             │                      │
+│             │──────────────────────│
+│             │  Footer (word count) │ ← click footer → zen
+└─────────────┴──────────────────────┘
+```
 
-#### Wide → Narrow (shrinking window)
+#### Narrow Mode - Zen (just editor)
+```
+┌────────────────────────────────────┐
+│                                    │
+│              Editor                │ ← ESC → restore previous state
+│                                    │
+└────────────────────────────────────┘
+```
 
-| Before State | After State | Why |
-|--------------|-------------|-----|
-| `zenMode = true` | `zenMode = false` | Zen is wide-only concept |
-| `zenMode = false` | `zenMode = false` | No change needed |
-| `showDebugMenu = true` | `showDebugMenu = false` | No room for panel |
-| `showAboutPanel = true` | `showAboutPanel = false` | No room for panel |
-| `showSidebarInNarrow = *` | `showSidebarInNarrow = false` | Start with sidebar hidden |
+### State Machine - Wide Mode
 
-**Result**: User sees editor + header + footer. Sidebar hidden. Panels closed.
+```
+                    ┌─────────────────┐
+       header click │                 │ header click
+            ┌───────┤      FULL       ├───────┐
+            │       │                 │       │
+            ▼       └────────┬────────┘       │
+    ┌───────────────┐        │                │
+    │    MINIZEN    │        │ footer click   │
+    │               │        │   (save: full) │
+    └───────┬───────┘        │                │
+            │                ▼                │
+            │ footer    ┌─────────┐           │
+            │ click     │   ZEN   │───────────┘
+            │(save:mini)│         │  ESC/click = restore saved state
+            └──────────►└─────────┘
+```
 
-#### Narrow → Wide (expanding window)
+**Zen remembers where you came from:**
 
-| Before State | After State | Why |
-|--------------|-------------|-----|
-| `showSidebarInNarrow = true` | `showSidebarInNarrow = false` | Reset for next narrow visit |
-| `showSidebarInNarrow = false` | `showSidebarInNarrow = false` | No change |
-| `zenMode = *` | `zenMode = false` | Show sidebar on return to wide |
-| `showDebugMenu = *` | (unchanged) | Keep panel state |
-| `showAboutPanel = *` | (unchanged) | Keep panel state |
+| Current State | Action | Next State | `preZenState` |
+|---------------|--------|------------|---------------|
+| Full | footer click | Zen | saves "full" |
+| Minizen | footer click | Zen | saves "minizen" |
+| Zen | ESC/click | (restore) | restores saved state |
 
-**Result**: User sees full layout with sidebar. Panels preserved.
+| Current State | Action | Next State | What Changes |
+|---------------|--------|------------|--------------|
+| Full | header click | Minizen | Sidebar hides |
+| Full | footer click | Zen | Sidebar + header + footer hide, save "full" |
+| Minizen | header click | Full | Sidebar shows |
+| Minizen | footer click | Zen | Header + footer hide, save "minizen" |
+| Zen (from Full) | ESC/click | Full | Restore full layout |
+| Zen (from Minizen) | ESC/click | Minizen | Restore minizen layout |
 
-### Specific Edge Case Scenarios
+### State Machine - Narrow Mode
 
-| Starting State | User Action | Result |
-|----------------|-------------|--------|
-| Wide + settings open | Drag to narrow | Settings closes, sidebar hidden |
-| Wide + about open | Drag to narrow | About closes, sidebar hidden |
-| Wide + both panels open | Drag to narrow | Both close, sidebar hidden |
-| Wide + zen mode | Drag to narrow | Zen off, sidebar hidden, header/footer show |
-| Narrow + sidebar open | Drag to wide | Sidebar stays (zenMode=false), sidebar visible |
-| Narrow + sidebar hidden | Drag to wide | zenMode=false, sidebar visible |
+```
+                    ┌──────────────────┐
+       header click │     SIDEBAR      │ header click
+            ┌───────┤     VISIBLE      ├───────┐
+            │       │                  │       │
+            ▼       └────────┬─────────┘       │
+    ┌────────────────┐       │                 │
+    │    DEFAULT     │       │ footer click    │
+    │ (sidebar hidden)       │ (save: visible) │
+    └───────┬────────┘       │                 │
+            │                ▼                 │
+            │ footer    ┌─────────┐            │
+            │ click     │   ZEN   │────────────┘
+            │(save:def) │         │  ESC/click = restore saved state
+            └──────────►└─────────┘
+```
 
-### User Interactions
+**Zen remembers where you came from:**
 
-#### Click Behaviors
+| Current State | Action | Next State | `preZenState` |
+|---------------|--------|------------|---------------|
+| Default | footer click | Zen | saves "default" |
+| Sidebar Visible | footer click | Zen | saves "sidebar-visible" |
+| Zen | ESC/click | (restore) | restores saved state |
 
-| Click Location | Wide Mode | Narrow Mode |
-|----------------|-----------|-------------|
-| EntryHeader | Toggle zen + close panels | Toggle sidebar visibility |
-| Editor area | — | Close panels only |
-| Sidebar area | Close panels | Close panels |
-| Sidebar overlay | N/A | Close sidebar + panels |
-| Entry in list | Close panels | Close panels |
-| Typing starts | Close panels (narrow only) | Close panels |
+| Current State | Action | Next State | What Changes |
+|---------------|--------|------------|--------------|
+| Default (no sidebar) | header click | Sidebar Visible | Sidebar overlay appears |
+| Default (no sidebar) | footer click | Zen | Header + footer hide, save "default" |
+| Sidebar Visible | header click | Default | Sidebar hides |
+| Sidebar Visible | footer click | Zen | Sidebar + header + footer hide, save "visible" |
+| Sidebar Visible | click overlay | Default | Sidebar hides |
+| Zen (from Default) | ESC/click | Default | Restore default (no sidebar) |
+| Zen (from Visible) | ESC/click | Sidebar Visible | Restore sidebar overlay |
 
-#### ESC Key Behavior
+### ESC Key Priority
+
+ESC escapes through focus states before locking:
 
 | Current State | ESC Result |
 |---------------|------------|
-| In input field | Nothing (don't interrupt typing) |
-| Password flow active | Back one step (handled by PasswordSettings) |
-| Wide + zen mode | Exit zen mode (show sidebar/header/footer) |
-| Wide + not zen | Lock app |
-| Narrow (any state) | Lock app |
+| In input field | Nothing |
+| Password flow active | Back one step |
+| Zen (any mode) | Restore pre-zen state |
+| Wide + Minizen | Exit minizen (show sidebar) |
+| Wide + Full | Lock app |
+| Narrow + Sidebar Visible | Lock app |
+| Narrow + Default | Lock app |
 
-### Panel Opening Behavior
-
-Opening settings or about has special zen interaction:
-
-```tsx
-// When opening a panel in wide mode
-if (opening) setZenMode(false); // Auto-exit zen so sidebar is visible
+**ESC flow in wide mode:**
+```
+Zen → ESC → (previous state)
+Minizen → ESC → Full
+Full → ESC → Lock
 ```
 
-| Before | User clicks settings/about | Result |
-|--------|---------------------------|--------|
-| Wide + zen | Open panel | Zen exits, sidebar appears, panel opens |
-| Wide + no zen | Open panel | Panel opens in sidebar |
-| Narrow + sidebar hidden | Open panel | Sidebar appears, panel opens |
-| Narrow + sidebar visible | Open panel | Panel opens in sidebar |
+### Resize Transitions
 
-### Code: closePanels()
+#### Wide → Narrow
 
-**ALWAYS use `closePanels()`** - never call setters separately.
+| Before | After | Reason |
+|--------|-------|--------|
+| Full | Default | Sidebar becomes overlay-style in narrow |
+| Minizen | Default | Same visual (no sidebar, has header+footer) |
+| Zen | Zen | Stay in zen |
+| Panels open | Panels closed | No room |
+
+**State changes:**
+- `minizen = false` (reset)
+- `showSidebarInNarrow = false` (reset)
+- `closePanels()` (close settings/about)
+- `zenMode` preserved (if in zen, stay in zen)
+
+#### Narrow → Wide
+
+| Before | After | Reason |
+|--------|-------|--------|
+| Default | Full | Show sidebar by default in wide |
+| Sidebar Visible | Full | Sidebar is normal in wide |
+| Zen | Zen | Stay in zen |
+
+**State changes:**
+- `minizen = false` (reset to show sidebar)
+- `showSidebarInNarrow = false` (reset)
+- `zenMode` preserved (if in zen, stay in zen)
+- Panels preserved
+
+### Panel Behavior
+
+Opening settings or about requires the sidebar:
+
+| Before | Click settings/about | Result |
+|--------|---------------------|--------|
+| Wide + Full | Panel opens | Normal |
+| Wide + Minizen | Exit minizen, panel opens | Sidebar appears |
+| Wide + Zen | Exit zen to minizen, exit minizen, panel opens | Full state |
+| Narrow + Default | Sidebar + panel appear | Sidebar overlay |
+| Narrow + Sidebar Visible | Panel opens | Normal |
+| Narrow + Zen | Exit zen, sidebar + panel appear | Sidebar overlay |
+
+### Visibility Formulas
 
 ```tsx
-const closePanels = useCallback(() => {
-  setShowDebugMenu(false);
-  setShowAboutPanel(false);
-}, []);
+// Sidebar visible?
+const showSidebar = isNarrow
+  ? showSidebarInNarrow
+  : (!zenMode && !minizen);
+
+// Header visible?
+const showHeader = !zenMode;
+
+// Footer visible?
+const showFooter = !zenMode;
 ```
 
-### Code: Resize Handler
+### Click Handlers Summary
+
+| Element | Wide Mode | Narrow Mode |
+|---------|-----------|-------------|
+| Header | Toggle minizen | Toggle sidebar |
+| Footer | Toggle zen | Toggle zen |
+| Editor (in zen) | Exit to minizen | Exit to default |
+| Sidebar area | Close panels | Close panels |
+| Sidebar overlay | N/A | Close sidebar + panels |
+
+### Code: State Transitions
 
 ```tsx
-useEffect(() => {
-  const handleResize = () => {
-    const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
-    const wasNarrow = isNarrow;
-    setIsNarrow(narrow);
+// State to remember where user was before zen
+const [preZenState, setPreZenState] = useState<{
+  minizen: boolean;
+  showSidebarInNarrow: boolean;
+} | null>(null);
 
-    if (narrow !== wasNarrow) {
-      if (narrow && !wasNarrow) {
-        // Wide → Narrow: close panels (no room)
-        closePanels();
-      }
-      // Both directions: reset sidebar/zen state
-      setShowSidebarInNarrow(false);
-      setZenMode(false);
-    }
-  };
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [isNarrow, closePanels]);
+// Header click - toggle sidebar/minizen
+const handleHeaderClick = () => {
+  closePanels();
+  if (isNarrow) {
+    setShowSidebarInNarrow(!showSidebarInNarrow);
+  } else {
+    setMinizen(!minizen);
+  }
+};
+
+// Footer click - toggle zen
+const handleFooterClick = () => {
+  closePanels();
+  if (!zenMode) {
+    // Entering zen: save current state
+    setPreZenState({ minizen, showSidebarInNarrow });
+    setZenMode(true);
+  } else {
+    // Exiting zen: restore saved state
+    exitZen();
+  }
+};
+
+// Exit zen - restore previous state
+const exitZen = () => {
+  setZenMode(false);
+  if (preZenState) {
+    setMinizen(preZenState.minizen);
+    setShowSidebarInNarrow(preZenState.showSidebarInNarrow);
+    setPreZenState(null);
+  }
+};
+
+// ESC key
+const handleEsc = () => {
+  if (zenMode) {
+    exitZen();
+    return;
+  }
+  // Otherwise lock app
+  auth.lock();
+};
+
+// Click in editor while in zen
+const handleEditorClickInZen = () => {
+  if (zenMode) {
+    exitZen();
+  }
+};
 ```
 
 ### Key Principles
 
-1. **Zen is wide-only** - Narrow mode has no zen concept; header/footer always show
-2. **Panels need sidebar** - Opening panel auto-exits zen so sidebar is accessible
-3. **Going narrow closes panels** - No room in narrow layout for settings/about
-4. **Going wide shows sidebar** - Reset zenMode=false so user sees full UI
-5. **ESC escapes zen first** - In zen, ESC exits zen instead of locking
+1. **Zen remembers origin** - Exiting zen restores whatever state you were in before
+2. **Footer = zen toggle** - Footer click enters/exits zen in both modes
+3. **Header = sidebar toggle** - Header click toggles sidebar visibility (minizen in wide, overlay in narrow)
+4. **Panels need sidebar** - Opening panel exits zen/minizen to show sidebar
+5. **Zen survives resize** - If in zen, stay in zen across breakpoint
+6. **preZenState captures full context** - Both `minizen` and `showSidebarInNarrow` are saved/restored
 
 ## ESC Key Behavior (IMPORTANT)
 

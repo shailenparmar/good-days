@@ -67,7 +67,7 @@ export function TimeDisplay() {
   });
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 10);
     return () => clearInterval(interval);
   }, []);
 
@@ -76,13 +76,18 @@ export function TimeDisplay() {
     setItem('timeFormat', is24Hour ? '24h' : '12h');
   };
 
-  const format12 = currentTime.toLocaleTimeString('en-US', {
+  const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 2);
+  const time12 = currentTime.toLocaleTimeString('en-US', {
     hour12: true,
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit'
   });
-  const format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
+  // Move AM/PM to after milliseconds: "11:30:45 AM" -> "11:30:45.12 AM"
+  const ampm = time12.slice(-2);
+  const time12Base = time12.slice(0, -3);
+  const format12 = `${time12Base}.${ms} ${ampm}`;
+  const format24 = currentTime.toLocaleTimeString('en-US', { hour12: false }) + `.${ms}`;
 
   return (
     <div className="flex justify-center overflow-hidden">

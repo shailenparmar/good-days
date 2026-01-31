@@ -6,9 +6,10 @@ import { getItem, setItem } from '@shared/storage';
 interface AboutPanelProps {
   isOpen: boolean;
   onCloseSettings: () => void;
+  stacked?: boolean;
 }
 
-export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
+export function AboutPanel({ isOpen, onCloseSettings, stacked }: AboutPanelProps) {
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [width, setWidth] = useState(() => {
     const saved = getItem('aboutPanelWidth');
@@ -53,13 +54,11 @@ export function AboutPanel({ isOpen, onCloseSettings }: AboutPanelProps) {
   return (
     <div className="relative flex" style={{ width: `${width}px` }}>
       <div
-        className="flex-1 flex flex-col h-screen overflow-y-auto scrollbar-hide outline-none"
-        contentEditable
-        suppressContentEditableWarning
+        className="flex-1 flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         }}
-        onClick={onCloseSettings}
+        onClick={stacked ? undefined : onCloseSettings}
       >
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>
