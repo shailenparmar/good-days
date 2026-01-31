@@ -1,5 +1,5 @@
 // Easter egg tracking
-// 14 total easter eggs to discover
+// 15 total easter eggs to discover
 
 export const EASTER_EGGS = [
   'scrambleTyping',      // typing in scramble mode
@@ -16,6 +16,7 @@ export const EASTER_EGGS = [
   'copyMarkdown',        // copy markdown format in powerstat
   'selectColorText',     // selected color HSL/HEX text
   'mobileRand',          // rand button pressed in mobile mode
+  'resetBlackout',       // saw the blackout screen on reset confirmation
 ] as const;
 
 export type EasterEgg = typeof EASTER_EGGS[number];

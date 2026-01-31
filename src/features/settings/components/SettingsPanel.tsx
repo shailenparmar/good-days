@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
 import { TimeDisplay } from './TimeDisplay';
 import { FunctionButton } from '@shared/components';
 import { scrambleText } from '@shared/utils/scramble';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '@features/journal';
 
 interface SettingsPanelProps {
@@ -43,6 +44,11 @@ export function SettingsPanel({
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
+
+  // Easter egg: saw the blackout screen
+  useEffect(() => {
+    if (resetStep === 2) markEasterEggFound('resetBlackout');
+  }, [resetStep]);
 
   const handleResetApp = () => {
     if (resetStep < 2) {
