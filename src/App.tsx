@@ -14,7 +14,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.20';
+const VERSION = '1.5.21';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -405,6 +405,7 @@ function AppContent() {
           setItem('journalEntries', JSON.stringify(entries));
         }}
         onCloseAbout={() => setShowAboutPanel(false)}
+        stacked={showDebugMenu && showAboutPanel}
       />
 
       {/* About Panel */}
@@ -416,24 +417,27 @@ function AppContent() {
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
         onClick={() => { if (isNarrow) closePanels(); }}
       >
-        <EntryHeader
-          selectedDate={journal.selectedDate}
-          entries={journal.entries}
-          paddingBottom={20}
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent bubbling to container
-            if (isNarrow) {
-              setShowSidebarInNarrow(!showSidebarInNarrow);
-              closePanels();
-            } else {
-              // Wide mode: toggle zen mode
-              const enteringZen = !zenMode;
-              setZenMode(enteringZen);
-              if (enteringZen) closePanels();
-            }
-          }}
-          onHeightChange={setEntryHeaderHeight}
-        />
+        {/* Hide header in zen mode (wide only) */}
+        {(isNarrow || !zenMode) && (
+          <EntryHeader
+            selectedDate={journal.selectedDate}
+            entries={journal.entries}
+            paddingBottom={20}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent bubbling to container
+              if (isNarrow) {
+                setShowSidebarInNarrow(!showSidebarInNarrow);
+                closePanels();
+              } else {
+                // Wide mode: toggle zen mode
+                const enteringZen = !zenMode;
+                setZenMode(enteringZen);
+                if (enteringZen) closePanels();
+              }
+            }}
+            onHeightChange={setEntryHeaderHeight}
+          />
+        )}
 
         <JournalEditor
           entries={journal.entries}
@@ -443,7 +447,10 @@ function AppContent() {
           editorRef={editorRef}
         />
 
-        <EntryFooter currentContent={journal.currentContent} />
+        {/* Hide footer in zen mode (wide only) */}
+        {(isNarrow || !zenMode) && (
+          <EntryFooter currentContent={journal.currentContent} />
+        )}
       </div>
     </div>
   );

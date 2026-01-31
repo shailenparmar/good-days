@@ -13,6 +13,7 @@ interface SettingsPanelProps {
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
   onCloseAbout: () => void;
+  stacked?: boolean;
 }
 
 export function SettingsPanel({
@@ -24,6 +25,7 @@ export function SettingsPanel({
   entries,
   onImport,
   onCloseAbout,
+  stacked,
 }: SettingsPanelProps) {
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
@@ -45,8 +47,8 @@ export function SettingsPanel({
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} />
-          <ColorPicker type="text" />
-          <ColorPicker type="background" />
+          <ColorPicker type="text" stacked={stacked} />
+          <ColorPicker type="background" stacked={stacked} />
         </div>
       </div>
 
