@@ -139,8 +139,12 @@ export function JournalEditor({
       // Batch using requestAnimationFrame to avoid mid-keystroke checks
       rafId = requestAnimationFrame(() => {
         if (!editorRef.current) return;
-        // If editor is completely empty, add <br> for consistent caret
-        if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
+        const html = editorRef.current.innerHTML;
+        // Check for truly empty OR empty structures like <div></div> that have no <br>
+        // These cause inconsistent caret rendering (narrow instead of block)
+        const hasNoBr = !html.includes('<br');
+        const hasNoText = !editorRef.current.textContent?.trim();
+        if (!html || html === '' || (hasNoText && hasNoBr)) {
           editorRef.current.innerHTML = '<br>';
         }
         rafId = null;

@@ -285,6 +285,26 @@ useEffect(() => {
 | No cursor visible | `caret-color: transparent` without custom cursor | Remove `caret-color: transparent` from CSS |
 | Cursor wrong color | Inline style not applied | Check `.dynamic-editor` class and inline `<style>` tag |
 | Cursor blinks on delete | Not using `execCommand` approach | Use `execCommand('insertText', '')` in `handleKeyDown` |
+| Cursor narrow after Enter+Delete | Empty `<div></div>` without `<br>` | `ensureBr` must check for empty structures, not just `innerHTML === ''` |
+
+### The Enter+Delete Bug
+
+When user presses Enter then Delete in empty editor:
+1. Empty editor starts with `<br>` (correct)
+2. Enter creates `<div><br></div>` (browser behavior)
+3. Backspace deletes, leaving `<div></div>` (empty div, no `<br>`)
+4. MutationObserver's `ensureBr` only checked `innerHTML === ''`
+5. `<div></div>` is not empty string, so no `<br>` was added
+6. Empty div without `<br>` = inconsistent caret (narrow instead of block)
+
+**Fix:** Check for "no text content AND no `<br>`":
+```tsx
+const hasNoBr = !html.includes('<br');
+const hasNoText = !editorRef.current.textContent?.trim();
+if (!html || html === '' || (hasNoText && hasNoBr)) {
+  editorRef.current.innerHTML = '<br>';
+}
+```
 | Cursor jumps to end | `\time` replacement or other HTML manipulation | Restore cursor position after manipulation |
 
 ### Key Files
