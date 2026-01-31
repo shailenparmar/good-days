@@ -7,9 +7,14 @@ interface AboutPanelProps {
   isOpen: boolean;
   onCloseSettings: () => void;
   stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
-export function AboutPanel({ isOpen, onCloseSettings, stacked }: AboutPanelProps) {
+export function AboutPanel({ isOpen, onCloseSettings, stacked, supermode, scrambleSeed }: AboutPanelProps) {
+  // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
+  void scrambleSeed;
+  void supermode;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [width, setWidth] = useState(() => {
     const saved = getItem('aboutPanelWidth');

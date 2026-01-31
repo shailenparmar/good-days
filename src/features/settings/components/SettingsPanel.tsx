@@ -14,6 +14,8 @@ interface SettingsPanelProps {
   onImport: (entries: JournalEntry[]) => void;
   onCloseAbout: () => void;
   stacked?: boolean;
+  supermode?: boolean;
+  scrambleSeed?: number;
 }
 
 export function SettingsPanel({
@@ -26,7 +28,12 @@ export function SettingsPanel({
   onImport,
   onCloseAbout,
   stacked,
+  supermode,
+  scrambleSeed,
 }: SettingsPanelProps) {
+  // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
+  void scrambleSeed;
+  void supermode;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
   if (!showDebugMenu) return null;
