@@ -341,8 +341,10 @@ export function JournalEditor({
           // Text is selected - delete selection
           document.execCommand('insertText', false, '');
         } else {
-          // No selection - delete char before cursor
-          selection.modify('extend', 'backward', 'character');
+          // Determine granularity based on modifier keys
+          // ⌘+Backspace = delete to line start, ⌥+Backspace = delete word
+          const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
+          selection.modify('extend', 'backward', granularity);
           document.execCommand('insertText', false, '');
         }
       }
@@ -354,8 +356,10 @@ export function JournalEditor({
           // Text is selected - delete selection
           document.execCommand('insertText', false, '');
         } else {
-          // No selection - delete char after cursor
-          selection.modify('extend', 'forward', 'character');
+          // Determine granularity based on modifier keys
+          // ⌥+Delete = delete word forward
+          const granularity = e.altKey ? 'word' : 'character';
+          selection.modify('extend', 'forward', granularity);
           document.execCommand('insertText', false, '');
         }
       }

@@ -43,15 +43,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return saved ? Number(saved) : DEFAULT_PRESETS[0].bgLight;
   });
 
-  // Preset state
+  // Preset state - persist exactly as saved (including deletions)
   const [presets, setPresets] = useState<ColorPreset[]>(() => {
     const savedPresets = getItem('colorPresets');
     if (savedPresets) {
-      const parsed = JSON.parse(savedPresets);
-      while (parsed.length < 5) {
-        parsed.push(DEFAULT_PRESETS[parsed.length]);
-      }
-      return parsed;
+      return JSON.parse(savedPresets);
     }
     return DEFAULT_PRESETS;
   });
