@@ -5,6 +5,7 @@ import { formatEntriesAsText } from '../utils/formatEntries';
 import { parseBackupText, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
+import { getItem } from '@shared/storage';
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
@@ -59,7 +60,8 @@ export function ExportButtons({ entries, onImport }: ExportButtonsProps) {
     try {
       // Encrypt the content
       const encrypted = await encryptText(textContent);
-      const fileContent = formatEncryptedBackup(encrypted);
+      const use24Hour = getItem('timeFormat') === '24h';
+      const fileContent = formatEncryptedBackup(encrypted, use24Hour);
 
       const blob = new Blob([fileContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
