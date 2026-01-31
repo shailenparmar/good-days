@@ -208,11 +208,16 @@ The app has two layout modes with different sidebar behavior.
 
 ### Mode Transitions
 
-| Transition | Behavior |
-|------------|----------|
-| Wide → Narrow | `showSidebarInNarrow` stays false (sidebar hidden) |
-| Narrow → Wide | `showSidebarInNarrow` reset, `zenMode` reset (sidebar visible) |
-| Open settings/about | `zenMode` auto-exits (sidebar appears) |
+| Transition | Sidebar | Panels | Zen | Header/Footer |
+|------------|---------|--------|-----|---------------|
+| Wide → Narrow | Hidden | **Close** | Reset | Show (zen N/A) |
+| Narrow → Wide | Show | Keep | Reset | Show |
+| Enter zen (wide) | Hide | Close | On | **Hide** |
+| Exit zen (wide) | Show | Keep | Off | Show |
+| Open panel (wide+zen) | Show | Open | Auto-exit | Show |
+| Open panel (narrow) | Show | Open | N/A | Show |
+
+**Key insight**: Going narrow closes panels because there's no room. Zen mode is a wide-only concept.
 
 ### Click Behaviors
 
@@ -245,24 +250,32 @@ const closePanels = useCallback(() => {
 
 ## ESC Key Behavior (IMPORTANT)
 
-ESC key locks the app, but NOT in certain situations. Two handlers coordinate this:
+ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### Handler Architecture
 
 | Handler | Location | Phase | Purpose |
 |---------|----------|-------|---------|
 | Password flow | `PasswordSettings.tsx` | Capture (runs first) | Reset password flow, call `preventDefault()` |
-| App lock | `App.tsx` | Bubble (runs second) | Lock app if not prevented |
+| App handler | `App.tsx` | Bubble (runs second) | Exit zen or lock app |
+
+### ESC Priority (checked in order)
+
+1. **Password flow active** → Reset flow (handled by PasswordSettings)
+2. **User in input field** → Do nothing
+3. **Zen mode active (wide)** → Exit zen mode
+4. **Otherwise** → Lock app
 
 ### When ESC Should NOT Lock
 
 1. **User is in an input field** - Check `document.activeElement.tagName`
 2. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
 3. **ESC was already handled** - Check `e.defaultPrevented`
+4. **In zen mode (wide)** - Exit zen instead of locking
 
 ### When ESC SHOULD Lock
 
-1. **Main editor view** - No panels open, not in input
+1. **Main editor view** - No panels open, not in input, not in zen
 2. **After password saved** - Label says "esc to lock", `isSaving=true`
 3. **Split buttons visible** - No password flow in progress
 
