@@ -92,6 +92,12 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked
         borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
       onClick={onClick}
+      onMouseDown={(e) => {
+        // Prevent double/triple click from selecting text in editor
+        if (e.detail >= 2) {
+          e.preventDefault();
+        }
+      }}
     >
       <div className="flex justify-between items-baseline select-none">
         <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>

@@ -30,6 +30,12 @@ export function EntryFooter({ currentContent, supermode, scrambleSeed, onClick }
         color: getColor()
       }}
       onClick={onClick}
+      onMouseDown={(e) => {
+        // Prevent double/triple click from selecting text in editor
+        if (e.detail >= 2) {
+          e.preventDefault();
+        }
+      }}
     >
       <span>{s(`${wordCount} words | ${charCount} chars`)}</span>
     </div>

@@ -101,11 +101,14 @@ export function SettingsPanel({
           >
             <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
               <span>
-                {hotkeyButtonHovered
-                  ? (supermode ? scrambleText('option/alt + s') : 'option/alt + s')
-                  : (supermode
-                      ? scrambleText(scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated')
-                      : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated'))}
+                {(() => {
+                  // Only show shortcut on hover when activated
+                  const showShortcut = hotkeyButtonHovered && scrambleHotkeyActive;
+                  const text = showShortcut
+                    ? 'option/alt + s'
+                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated');
+                  return supermode ? scrambleText(text) : text;
+                })()}
               </span>
             </FunctionButton>
           </div>
