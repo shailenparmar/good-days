@@ -471,8 +471,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
             disabled={isDisabled}
-            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+            className="w-full px-3 py-2 font-mono font-extrabold rounded"
             style={{
+              fontSize: '14px',
               backgroundColor: getBackgroundColor(),
               border: `3px solid ${getBorderColor()}`,
               color: getBorderColor(),
@@ -485,8 +486,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           {/* Saved message */}
           {isSaving && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono font-bold pointer-events-none select-none"
-              style={{ color: '#00ff00' }}
+              className="absolute top-1/2 -translate-y-1/2 left-3.5 font-mono font-extrabold pointer-events-none select-none"
+              style={{ fontSize: '14px', color: '#00ff00' }}
             >
               {s('password saved')}
             </div>
@@ -495,10 +496,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           {/* Animated placeholder */}
           {showPlaceholder && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono pointer-events-none select-none"
-              style={{ color: textColor, opacity: 0.9 }}
+              className="absolute top-1/2 -translate-y-1/2 left-3.5 font-mono pointer-events-none select-none"
+              style={{ fontSize: '14px', color: textColor, opacity: 0.9 }}
             >
-              {superscramble ? <span className="font-bold">{s(placeholderText)}</span> : renderAnimatedText(placeholderText, boldCount, animPhase)}
+              {superscramble ? <span className="font-extrabold">{s(placeholderText)}</span> : renderAnimatedText(placeholderText, boldCount, animPhase)}
             </div>
           )}
         </div>
