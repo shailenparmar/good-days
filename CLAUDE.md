@@ -425,13 +425,22 @@ These are intentionally NOT tied to presets so the error screen always displays 
 
 ## Font Sizes
 
-| Size | Elements |
-|------|----------|
-| **24px** (`text-2xl`) | "good days" title, lock screen corners |
-| **18px** (`text-lg`) | Date header ("jan 30, 2025") |
-| **16px** (`text-base`) | Editor/draft text, placeholder, about panel text |
-| **14px** | "started at" time (hours:minutes only, no seconds), word/char count, sidebar buttons (scramble, settings, about), sidebar entry dates |
-| **12px** (`text-xs`) | Stats display, settings controls, password inputs, preset grid |
+| Tier | Size | Class | Elements |
+|------|------|-------|----------|
+| **XL** | 24px | `text-2xl` | "good days" title, lock screen corners |
+| **L** | 18px | `text-lg` | Date header ("jan 30, 2025") |
+| **M** | 16px | `text-base` | Editor/draft text, placeholder, about panel text |
+| **S** | 14px | inline style | Sidebar buttons, entry dates, footer word count, "started at" time |
+| **XS** | 12px | `text-xs` | Stats display, settings controls, password inputs, preset grid |
+
+## Button Sizes
+
+| Tier | Size Prop | Font | Weight | Usage |
+|------|-----------|------|--------|-------|
+| **Default** | (none) | 14px | `font-extrabold` | Sidebar buttons (scramble, settings, about) |
+| **Small** | `size="sm"` | 12px | `font-bold` | Settings panel controls, password buttons |
+
+All buttons use `px-3 py-2` padding and `font-mono`.
 
 ## Layout Modes & Focus States
 
