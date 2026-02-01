@@ -43,6 +43,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [colorPasteValue, setColorPasteValue] = useState('');
   const colorInputRef = useRef<HTMLInputElement>(null);
 
+  // Bold sweep animation for paste placeholder
+  const [pasteBoldCount, setPasteBoldCount] = useState(0);
+  const [pasteAnimPhase, setPasteAnimPhase] = useState<'bold' | 'unbold'>('bold');
+
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   // Suppress unused variable warnings
@@ -112,6 +116,28 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const timer = setTimeout(() => setEggBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
   }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
+
+  // Bold sweep animation for paste placeholder
+  useEffect(() => {
+    // Only animate when paste mode is active and input is empty
+    if (!colorPasteMode || colorPasteValue.length > 0) {
+      // Reset animation when entering paste mode or typing
+      setPasteBoldCount(0);
+      setPasteAnimPhase('bold');
+      return;
+    }
+
+    const pasteText = 'paste';
+    if (pasteBoldCount >= pasteText.length) {
+      // Flip phase and reset count
+      setPasteAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setPasteBoldCount(0);
+      return;
+    }
+
+    const timer = setTimeout(() => setPasteBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [colorPasteMode, colorPasteValue, pasteAnimPhase, pasteBoldCount]);
 
   // Handle click on easter eggs text - the secret 15th egg!
   // When user has all 14 regular eggs, shows "13.5/14" - clicking it completes the collection
@@ -499,13 +525,23 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   autoComplete="off"
                   spellCheck={false}
                 />
-                {/* Static placeholder */}
+                {/* Animated placeholder with bold sweep */}
                 {colorPasteValue.length === 0 && (
                   <div
-                    className="absolute inset-0 flex items-center justify-center text-xs font-mono font-bold pointer-events-none"
+                    className="absolute inset-0 flex items-center justify-center text-xs font-mono pointer-events-none"
                     style={{ color: getColor(), opacity: 0.85 }}
                   >
-                    paste
+                    {pasteAnimPhase === 'bold' ? (
+                      <>
+                        <span className="font-bold">{'paste'.slice(0, pasteBoldCount)}</span>
+                        <span>{'paste'.slice(pasteBoldCount)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{'paste'.slice(0, pasteBoldCount)}</span>
+                        <span className="font-bold">{'paste'.slice(pasteBoldCount)}</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
