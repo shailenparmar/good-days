@@ -106,16 +106,18 @@ function MobileScreen() {
           animation: mobile-pulse 1s steps(12) infinite;
         }
       `}</style>
-      <div style={{ flex: 0.75, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ marginTop: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {words.map((word, i) => (
           <p key={i} style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>{word}</p>
         ))}
       </div>
+
       <button
         key={pulseKey}
         onClick={randomize}
         className={isPulsing ? 'mobile-rand-pulse' : ''}
         style={{
+          marginTop: '60px',
           marginBottom: '48px',
           padding: '8px 40px',
           fontFamily: 'monospace',

@@ -549,6 +549,57 @@ The stats display in powerstat mode uses these specific spacing values:
 
 Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
+## Mobile Screen
+
+On mobile devices, the app shows a simple screen with "good days is not supported on mobile yet" and a rand button.
+
+### Layout
+
+```
+┌────────────────────────────────┐
+│                                │
+│        ← 60px marginTop        │
+│                                │
+│            good                │
+│            days                │
+│             is                 │
+│            not                 │  ← 4px between words
+│         supported              │
+│             on                 │
+│           mobile               │
+│            yet                 │
+│                                │
+│        ← 60px gap              │
+│                                │
+│         ┌──────────┐           │
+│         │   rand   │           │  ← 8px border
+│         └──────────┘           │
+│                                │
+│        ← 48px marginBottom     │
+│                                │
+└────────────────────────────────┘
+```
+
+### Spacing Values
+
+| Element | Property | Value |
+|---------|----------|-------|
+| Text from top | `marginTop` | 60px |
+| Between words | `margin` | 4px 0 |
+| Text to button | `marginTop` on button | 60px |
+| Button to bottom | `marginBottom` | 48px |
+| Button border | `border` | 8px solid |
+| Button border radius | `borderRadius` | 12px |
+| Button padding | `padding` | 8px 40px |
+
+### Why Fixed Pixels?
+
+The layout uses fixed pixel values instead of flex-based positioning because:
+- `flex` values render differently across browsers (Chrome vs Safari)
+- Fixed pixels ensure consistent appearance on all devices
+
+Code location: `src/main.tsx`
+
 ## Color Presets
 
 Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
