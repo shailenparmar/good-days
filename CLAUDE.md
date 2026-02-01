@@ -179,12 +179,13 @@ This prevents duplicate content from being appended during repeated imports.
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
 - Theme colors are HSL-based and managed via ThemeContext
 - For borders, lines, and opacity values, see **Opacity Standards**, **Line Styles**, and **Powerstat Spacing** sections below
-- **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere. This is enforced globally in `src/index.css`:
+- **Cursor styles** - Default arrow cursor everywhere except selectable text. Enforced in `src/index.css`:
   ```css
-  a, button {
-    cursor: default;
-  }
+  *, *::before, *::after { cursor: inherit; }
+  html { cursor: default; }
+  [contenteditable="true"], .cursor-text { cursor: text; }
   ```
+  Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
 ## Editor Cursor (IMPORTANT)
