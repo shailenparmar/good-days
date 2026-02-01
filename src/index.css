@@ -9,7 +9,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: hsl(84, 100%, 94%);
+  background-color: hsl(84, 100%, 88%);
 }
 
 /* No cursor changes - keep default arrow everywhere except text areas */
