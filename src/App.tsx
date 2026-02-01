@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.71';
+const VERSION = '1.5.72';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -378,11 +378,11 @@ function AppContent() {
       // Skip modifier keys
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-      // When settings open (but not powerstat mode), protect Space/Backspace for preset controls
-      // Enter is always blocked when settings is open (even in powerstat mode)
+      // When settings open, protect Enter/Backspace for preset controls (always)
+      // Space is only protected in non-powerstat mode (powerstat allows Space for superscramble typing)
       const isPowerstatMode = showDebugMenu && showAboutPanel;
-      if (showDebugMenu && e.key === 'Enter') return;
-      if (showDebugMenu && !isPowerstatMode && (e.key === ' ' || e.key === 'Backspace')) return;
+      if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace')) return;
+      if (showDebugMenu && !isPowerstatMode && e.key === ' ') return;
 
       // Handle printable characters, Enter, and Backspace
       const isPrintable = e.key.length === 1;
