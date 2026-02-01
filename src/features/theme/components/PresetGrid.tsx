@@ -293,6 +293,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
     if (wasActive) {
       // Already pulsing - save current colors to this preset
+      setPulseKey(k => k + 1);
       const newPresets = [...presets];
       newPresets[index] = {
         hue,
@@ -318,6 +319,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const wasActive = activePresetIndex === (presets.length + index);
 
     if (wasActive) {
+      setPulseKey(k => k + 1);
       const newCustomPresets = [...customPresets];
       newCustomPresets[index] = {
         hue,
