@@ -28,6 +28,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   } = useTheme();
 
   const [clickedIndex, setClickedIndex] = useState<number | null>(null);
+  const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Track preset mouse clicks for first-time user hint
@@ -195,10 +196,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           setSelectedPreset(null);
           setSelectedCustomPreset(null);
         }
-      } else if (e.key === ' ' && activePresetIndex !== null) {
-        // Space = click behavior (save current colors to preset)
+      } else if ((e.key === ' ' || e.key === 'Enter') && activePresetIndex !== null) {
+        // Space/Enter = click behavior (save current colors to preset)
         e.preventDefault();
         setKeyboardUseCount(c => c + 1);
+        setPulseKey(k => k + 1);
 
         if (activePresetIndex < presets.length) {
           // Default preset - save current colors to it
@@ -353,7 +355,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
           return (
             <button
-              key={`default-${index}`}
+              key={`default-${index}-${isActive ? pulseKey : 0}`}
               data-preset-index={index}
               onClick={(e) => {
                 e.preventDefault();
@@ -393,7 +395,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
           return (
             <button
-              key={`custom-${index}`}
+              key={`custom-${index}-${isActive ? pulseKey : 0}`}
               data-preset-index={globalIndex}
               onClick={(e) => {
                 e.preventDefault();
@@ -429,6 +431,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
           return (
             <button
+              key={`rand-${activePresetIndex === randIndex ? pulseKey : 0}`}
               data-preset-index={randIndex}
               onClick={() => {
                 setPresetClickCount(c => c + 1);
@@ -464,6 +467,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
           return (
             <button
+              key={`save-${activePresetIndex === saveIndex ? pulseKey : 0}`}
               data-preset-index={saveIndex}
               onClick={() => {
                 setPresetClickCount(c => c + 1);
@@ -494,7 +498,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
       {showKeyboardHint && (
         <div
           className="text-xs font-mono mt-1"
-          style={{ color: getColor(), opacity: 0.9 }}
+          style={{ color: getColor(), opacity: 0.85 }}
         >
           {(() => {
             const line1Bold = Math.min(boldCount, hintLine1.length);

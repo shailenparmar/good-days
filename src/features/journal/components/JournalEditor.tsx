@@ -529,7 +529,7 @@ export function JournalEditor({
       {showPlaceholder && (
         <div
           className="absolute top-8 left-8 text-base leading-relaxed font-mono pointer-events-none select-none"
-          style={{ color: getColor(), opacity: 0.9 }}
+          style={{ color: getColor(), opacity: 0.85 }}
         >
           {animPhase === 'bold' ? (
             <>

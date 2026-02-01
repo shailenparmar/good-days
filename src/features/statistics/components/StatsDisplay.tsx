@@ -259,7 +259,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   return (
     <div className="select-none">
-      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+      <div className="grid grid-cols-2 gap-x-0 gap-y-1">
         <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
           {s(`${streak} day ${streak === 1 ? 'streak' : 'streak'}`)}
         </div>
@@ -282,9 +282,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
       {/* Powerstat mode: technical stats + color codes */}
       {stacked && techStats && (
-        <div className="mt-3 pt-3" style={{ borderTop: `2px solid ${getColor()}` }}>
+        <div className="mt-3 pt-3" style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}>
           {/* Technical stats - not copy-pastable */}
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+          <div className="grid grid-cols-2 gap-x-0 gap-y-1">
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.maxStreak} day maxstreak`)}
             </div>
@@ -319,8 +319,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           </div>
           {/* Color stats - copy-pastable */}
           <div
-            className="grid grid-cols-2 gap-x-2 gap-y-1 mt-3 pt-3 select-text"
-            style={{ borderTop: `2px solid ${getColor()}` }}
+            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text"
+            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => {
               e.stopPropagation();
