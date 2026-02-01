@@ -427,7 +427,7 @@ export function JournalEditor({
 
       // For line breaks and structural elements (div, br), let browser handle natively
     }
-  }, []);
+  }, [editorRef]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
