@@ -178,6 +178,40 @@ export function JournalEditor({
     };
   }, [isScrambled, editorRef]);
 
+  // Check if cursor is at/past the right edge and wrap to next line if needed
+  // This handles whitespace that CSS can't break (runs of spaces/tabs)
+  const wrapIfAtEdge = useCallback(() => {
+    if (!editorRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
+
+    const range = selection.getRangeAt(0);
+
+    // Create a temporary span to measure cursor position
+    const marker = document.createElement('span');
+    marker.textContent = '\u200B'; // zero-width space
+    range.insertNode(marker);
+
+    const markerRect = marker.getBoundingClientRect();
+    const editorRect = editorRef.current.getBoundingClientRect();
+    const rightPadding = 32; // p-8 = 2rem = 32px
+    const rightEdge = editorRect.right - rightPadding;
+
+    // Remove marker and restore cursor position
+    const parent = marker.parentNode;
+    if (parent) {
+      parent.removeChild(marker);
+      // Normalize to merge adjacent text nodes
+      parent.normalize();
+    }
+
+    // If cursor is at or past the right edge, insert a line break
+    if (markerRect.right >= rightEdge - 2) {
+      document.execCommand('insertLineBreak');
+    }
+  }, [editorRef]);
+
   // Sync scroll position during user scrolling and persist to storage
   const handleEditorScroll = useCallback(() => {
     if (!editorRef.current) return;
@@ -365,13 +399,16 @@ export function JournalEditor({
       } else {
         // Tab: insert 4 spaces (tab characters cause browser tab-stop issues)
         document.execCommand('insertText', false, '    ');
-        // Prevent horizontal scroll after inserting spaces
+        // Check if cursor is at edge and wrap to next line if needed
         requestAnimationFrame(() => {
-          if (editorRef.current && editorRef.current.scrollLeft !== 0) {
-            editorRef.current.scrollLeft = 0;
-          }
+          wrapIfAtEdge();
         });
       }
+    } else if (e.key === ' ') {
+      // Space: let browser handle insertion, then check if we need to wrap
+      requestAnimationFrame(() => {
+        wrapIfAtEdge();
+      });
     } else if (e.key === 'Backspace') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
@@ -427,7 +464,7 @@ export function JournalEditor({
 
       // For line breaks and structural elements (div, br), let browser handle natively
     }
-  }, [editorRef]);
+  }, [editorRef, wrapIfAtEdge]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
