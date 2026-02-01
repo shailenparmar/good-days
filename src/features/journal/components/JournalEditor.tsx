@@ -92,6 +92,9 @@ export function JournalEditor({
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
   const scrollSaveTimeout = useRef<number | null>(null);
 
+  // Flag to prevent re-entry during whitespace wrap
+  const isWrappingRef = useRef(false);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -178,37 +181,20 @@ export function JournalEditor({
     };
   }, [isScrambled, editorRef]);
 
-  // Check if cursor is at/past the right edge and wrap to next line if needed
-  // This handles whitespace that CSS can't break (runs of spaces/tabs)
-  const wrapIfAtEdge = useCallback(() => {
+  // Check if content has overflowed and wrap if needed
+  // Uses scrollLeft > 0 as indicator that browser tried to scroll to show cursor
+  const wrapIfOverflowing = useCallback(() => {
     if (!editorRef.current) return;
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
+    const editor = editorRef.current;
 
-    const range = selection.getRangeAt(0);
-
-    // Create a temporary span to measure cursor position
-    const marker = document.createElement('span');
-    marker.textContent = '\u200B'; // zero-width space
-    range.insertNode(marker);
-
-    const markerRect = marker.getBoundingClientRect();
-    const editorRect = editorRef.current.getBoundingClientRect();
-    const rightPadding = 32; // p-8 = 2rem = 32px
-    const rightEdge = editorRect.right - rightPadding;
-
-    // Remove marker and restore cursor position
-    const parent = marker.parentNode;
-    if (parent) {
-      parent.removeChild(marker);
-      // Normalize to merge adjacent text nodes
-      parent.normalize();
-    }
-
-    // If cursor is at or past the right edge, insert a line break
-    if (markerRect.right >= rightEdge - 2) {
+    // If browser tried to scroll right (scrollLeft > 0), content has overflowed
+    // Insert line break and reset scroll
+    if (editor.scrollLeft > 0 && !isWrappingRef.current) {
+      isWrappingRef.current = true;
       document.execCommand('insertLineBreak');
+      editor.scrollLeft = 0;
+      setTimeout(() => { isWrappingRef.current = false; }, 10);
     }
   }, [editorRef]);
 
@@ -216,10 +202,13 @@ export function JournalEditor({
   const handleEditorScroll = useCallback(() => {
     if (!editorRef.current) return;
 
-    // Prevent horizontal scrolling (can happen with long runs of spaces/tabs)
-    // Reset scrollLeft to 0 immediately to keep cursor visible
-    if (editorRef.current.scrollLeft !== 0) {
+    // If horizontal scroll detected and not already wrapping, wrap whitespace and reset
+    if (editorRef.current.scrollLeft > 0 && !isWrappingRef.current) {
+      isWrappingRef.current = true;
+      document.execCommand('insertLineBreak');
       editorRef.current.scrollLeft = 0;
+      // Reset flag after a short delay to allow DOM to settle
+      setTimeout(() => { isWrappingRef.current = false; }, 10);
     }
 
     // Sync scrambled overlay position via transform (overlay uses overflow:hidden)
@@ -305,10 +294,7 @@ export function JournalEditor({
     const content = editorRef.current.innerHTML || '';
     onInput(content);
 
-    // Prevent horizontal scroll (cursor going off-screen from spaces/tabs)
-    if (editorRef.current.scrollLeft !== 0) {
-      editorRef.current.scrollLeft = 0;
-    }
+    // Note: horizontal scroll/wrap is handled by wrapIfOverflowing for whitespace
 
     // Ensure block caret if content was deleted to empty
     if (!content || content === '' || content === '<br>') {
@@ -370,44 +356,15 @@ export function JournalEditor({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Tab') {
       e.preventDefault();
-      if (e.shiftKey) {
-        // Shift+Tab: remove up to 4 spaces before cursor
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          if (range.startOffset > 0 && range.startContainer.nodeType === Node.TEXT_NODE) {
-            const text = range.startContainer.textContent || '';
-            const offset = range.startOffset;
-            // Count how many spaces are immediately before cursor (up to 4)
-            let spacesToRemove = 0;
-            for (let i = 1; i <= 4 && i <= offset; i++) {
-              if (text[offset - i] === ' ') {
-                spacesToRemove++;
-              } else {
-                break;
-              }
-            }
-            if (spacesToRemove > 0) {
-              // Select the spaces, then delete them
-              for (let i = 0; i < spacesToRemove; i++) {
-                selection.modify('extend', 'backward', 'character');
-              }
-              document.execCommand('insertText', false, '');
-            }
-          }
-        }
-      } else {
+      if (!e.shiftKey) {
         // Tab: insert 4 spaces (tab characters cause browser tab-stop issues)
         document.execCommand('insertText', false, '    ');
-        // Check if cursor is at edge and wrap to next line if needed
-        requestAnimationFrame(() => {
-          wrapIfAtEdge();
-        });
       }
+      // Shift+Tab: do nothing (just prevent default)
     } else if (e.key === ' ') {
       // Space: let browser handle insertion, then check if we need to wrap
       requestAnimationFrame(() => {
-        wrapIfAtEdge();
+        wrapIfOverflowing();
       });
     } else if (e.key === 'Backspace') {
       const selection = window.getSelection();
@@ -464,7 +421,7 @@ export function JournalEditor({
 
       // For line breaks and structural elements (div, br), let browser handle natively
     }
-  }, [editorRef, wrapIfAtEdge]);
+  }, [editorRef, wrapIfOverflowing]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
@@ -542,8 +499,8 @@ export function JournalEditor({
         onKeyDown={isToday ? handleKeyDown : undefined}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
-        style={{ color: isScrambled ? 'transparent' : getColor(), overflowX: 'hidden', overflowWrap: 'anywhere', wordBreak: 'break-all' }}
+        className="absolute inset-0 p-8 overflow-y-auto overflow-x-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+        style={{ color: isScrambled ? 'transparent' : getColor(), overflowWrap: 'anywhere', wordBreak: 'break-all' }}
         spellCheck={false}
         suppressContentEditableWarning
         role={isToday ? 'textbox' : 'article'}
