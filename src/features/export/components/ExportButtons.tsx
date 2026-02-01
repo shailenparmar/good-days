@@ -128,11 +128,11 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
         <Upload className="w-3 h-3" />
-        <span>{s(stacked ? 'AES-GCM encrypted backup' : 'backup')}</span>
+        <span>{s(stacked ? 'AES-GCM backup' : 'backup')}</span>
       </FunctionButton>
       <FunctionButton onClick={handleImport} size="sm">
         <Download className="w-3 h-3" />
-        <span>{s(stacked ? 'import AES-GCM backup' : 'import')}</span>
+        <span>{s(stacked ? 'import AES-GCM' : 'import')}</span>
       </FunctionButton>
     </div>
   );
