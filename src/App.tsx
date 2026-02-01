@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.91';
+const VERSION = '1.5.92';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -114,7 +114,12 @@ function AppContent() {
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
-  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(false);
+  // If in narrow mode and panels are open on load, show sidebar
+  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(() => {
+    const narrow = window.innerWidth < 711;
+    const panelsOpen = getItem('showSettings') === 'true' || getItem('showAbout') === 'true';
+    return narrow && panelsOpen;
+  });
   const [zenMode, setZenMode] = usePersisted('zenMode', false); // Full zen: just editor, hide everything
   const [minizen, setMinizen] = usePersisted('minizen', false); // Minizen: hide sidebar, keep header+footer (wide only)
   // Unified state saved before entering any focus mode (zen or minizen)
