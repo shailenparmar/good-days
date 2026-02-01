@@ -1181,6 +1181,27 @@ Password flows can also be dismissed by clicking outside the input:
 - **During "change password" flow** - Click outside input returns to split buttons
 - **During "set password" flow** - Click outside input resets to first step and blurs
 
+### Password Confirm Colors
+
+The password input flashes a confirm color on successful entry. To maintain contrast:
+
+| Theme Color | Confirm Color | Hex |
+|-------------|---------------|-----|
+| Green (hue 80-160) | Cyan | `#00e6da` |
+| Any other color | Green | `#00ff00` |
+
+This affects:
+- **Border** - flashes confirm color on success
+- **Input text** - changes to confirm color during flash
+- **"password saved" text** - displays in confirm color
+
+Code location: `src/features/auth/components/PasswordSettings.tsx`
+
+```tsx
+const isThemeGreen = hue >= 80 && hue <= 160;
+const confirmColor = isThemeGreen ? '#00e6da' : '#00ff00';
+```
+
 ### ESC vs Click-Outside (Smart Difference)
 
 Both reset the password flow, but with one key UX difference:
