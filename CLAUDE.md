@@ -643,15 +643,14 @@ When settings is open, presets can be controlled with the keyboard:
 
 The app has a "type anywhere to focus editor" feature. When you press a key, it auto-focuses the editor so you can start typing.
 
-When settings is open, Space/Enter/Backspace must NOT trigger this auto-focus (or it would steal focus from preset navigation). This is handled in `App.tsx`:
+When settings is open (whether just settings, powerstat, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
 
 ```tsx
-// When settings open, protect Space/Backspace/Enter for preset controls
-if (showDebugMenu && e.key === 'Enter') return;
-if (showDebugMenu && !isPowerstatMode && (e.key === ' ' || e.key === 'Backspace')) return;
+// When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
+if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) return;
 ```
 
-In powerstat mode, Space/Backspace are allowed through (for superscramble typing effect), but Enter is always protected.
+**Important distinction:** This protection only prevents these keys from *focusing* the editor. Once you're already focused in the editor, all keys work normally (Backspace deletes characters, Space adds spaces, Enter adds newlines).
 
 #### Pulse Animation Reset
 
