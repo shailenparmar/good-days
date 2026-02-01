@@ -104,7 +104,7 @@ function ColorButton({
 }
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
-  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness } = useTheme();
+  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);
@@ -404,36 +404,66 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
-  // Handle paste button click - read from clipboard and apply
+  // Handle paste button click - read from clipboard, apply, and create new preset
   const handleColorPaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
+      // Collect parsed values
+      let txtH = hue, txtS = saturation, txtL = lightness;
+      let bgH = bgHue, bgS = bgSaturation, bgL = bgLightness;
+      let foundAny = false;
+
       // Try to parse each line
       const lines = text.split('\n');
       for (const line of lines) {
         const parsed = parseColorInput(line);
         if (parsed) {
+          foundAny = true;
           if (parsed.type === 'txt') {
-            setHue(parsed.h);
-            setSaturation(parsed.s);
-            setLightness(parsed.l);
+            txtH = parsed.h;
+            txtS = parsed.s;
+            txtL = parsed.l;
           } else if (parsed.type === 'bg') {
-            setBgHue(parsed.h);
-            setBgSaturation(parsed.s);
-            setBgLightness(parsed.l);
+            bgH = parsed.h;
+            bgS = parsed.s;
+            bgL = parsed.l;
           } else {
             // Just HSL or HEX - apply to text by default
-            setHue(parsed.h);
-            setSaturation(parsed.s);
-            setLightness(parsed.l);
+            txtH = parsed.h;
+            txtS = parsed.s;
+            txtL = parsed.l;
           }
         }
+      }
+
+      if (foundAny) {
+        // Apply the colors
+        setHue(txtH);
+        setSaturation(txtS);
+        setLightness(txtL);
+        setBgHue(bgH);
+        setBgSaturation(bgS);
+        setBgLightness(bgL);
+
+        // Create a new custom preset
+        const newPreset = {
+          hue: txtH,
+          sat: txtS,
+          light: txtL,
+          bgHue: bgH,
+          bgSat: bgS,
+          bgLight: bgL,
+        };
+        setCustomPresets([...customPresets, newPreset]);
+        // Select the new preset
+        setSelectedPreset(null);
+        setSelectedCustomPreset(customPresets.length);
       }
     } catch {
       // Clipboard access denied or empty
     }
     setColorAreaHovered(false);
-  }, [parseColorInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness]);
+  }, [parseColorInput, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset]);
 
   if (horizontal) {
     return (
