@@ -382,6 +382,21 @@ export function JournalEditor({
       // Check if we're in a text node with content before cursor - use custom handling
       if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
         e.preventDefault();
+
+        // Smart Tab deletion: if 4 spaces before cursor, delete all 4
+        if (!e.metaKey && !e.altKey && range.startOffset >= 4) {
+          const text = range.startContainer.textContent || '';
+          const beforeCursor = text.substring(range.startOffset - 4, range.startOffset);
+          if (beforeCursor === '    ') {
+            // Delete all 4 spaces
+            for (let i = 0; i < 4; i++) {
+              selection.modify('extend', 'backward', 'character');
+            }
+            document.execCommand('insertText', false, '');
+            return;
+          }
+        }
+
         // Determine granularity based on modifier keys
         // ⌘+Backspace = delete to line start, ⌥+Backspace = delete word
         const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
