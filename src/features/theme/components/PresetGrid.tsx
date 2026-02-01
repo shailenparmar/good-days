@@ -39,9 +39,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [keyboardUseCount, setKeyboardUseCount] = useState(0);
 
   // Hint animation state
-  const hintLine1 = 'navigate presets with arrow keys.';
-  const hintLine2 = 'delete a preset with backspace.';
-  const hintFullText = hintLine1 + hintLine2;
+  const hintLine1 = 'navigate with arrow keys.';
+  const hintLine2 = 'select with spacebar.';
+  const hintLine3 = 'delete with backspace.';
+  const hintFullText = hintLine1 + hintLine2 + hintLine3;
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
 
@@ -474,7 +475,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         >
           {(() => {
             const line1Bold = Math.min(boldCount, hintLine1.length);
-            const line2Bold = Math.max(0, boldCount - hintLine1.length);
+            const line2Bold = Math.min(Math.max(0, boldCount - hintLine1.length), hintLine2.length);
+            const line3Bold = Math.max(0, boldCount - hintLine1.length - hintLine2.length);
 
             if (animPhase === 'bold') {
               return (
@@ -486,6 +488,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                   <div>
                     <span className="font-bold">{hintLine2.slice(0, line2Bold)}</span>
                     <span>{hintLine2.slice(line2Bold)}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold">{hintLine3.slice(0, line3Bold)}</span>
+                    <span>{hintLine3.slice(line3Bold)}</span>
                   </div>
                 </>
               );
@@ -499,6 +505,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                   <div>
                     <span>{hintLine2.slice(0, line2Bold)}</span>
                     <span className="font-bold">{hintLine2.slice(line2Bold)}</span>
+                  </div>
+                  <div>
+                    <span>{hintLine3.slice(0, line3Bold)}</span>
+                    <span className="font-bold">{hintLine3.slice(line3Bold)}</span>
                   </div>
                 </>
               );
