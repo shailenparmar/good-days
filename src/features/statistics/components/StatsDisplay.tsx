@@ -29,7 +29,7 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
-  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);
@@ -37,6 +37,11 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Bold sweep animation for easter eggs text
   const [eggBoldCount, setEggBoldCount] = useState(0);
   const [eggAnimPhase, setEggAnimPhase] = useState<'bold' | 'unbold' | 'idle'>('idle');
+
+  // Color paste mode
+  const [colorPasteMode, setColorPasteMode] = useState(false);
+  const [colorPasteValue, setColorPasteValue] = useState('');
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -266,6 +271,105 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     markEasterEggFound('selectColorText');
   }, []);
 
+  // Parse color values from pasted text
+  // Supports: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or "120, 50%, 60%" or "#ff0000"
+  const parseColorInput = useCallback((input: string) => {
+    const trimmed = input.trim().toLowerCase();
+
+    // Try HEX format: #rrggbb
+    const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
+    if (hexMatch) {
+      const hex = hexMatch[1];
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      let h = 0, s = 0;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+
+      return {
+        type: 'hsl' as const,
+        h: Math.round(h * 360),
+        s: Math.round(s * 100),
+        l: Math.round(l * 100)
+      };
+    }
+
+    // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
+    const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
+    if (hslMatch) {
+      const type = hslMatch[1] as 'txt' | 'bg' | undefined;
+      return {
+        type: type || 'hsl' as const,
+        h: parseInt(hslMatch[2]),
+        s: parseInt(hslMatch[3]),
+        l: parseInt(hslMatch[4])
+      };
+    }
+
+    return null;
+  }, []);
+
+  // Handle double-click to enter paste mode
+  const handleColorDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setColorPasteMode(true);
+    setColorPasteValue('');
+    // Focus input after render
+    setTimeout(() => colorInputRef.current?.focus(), 0);
+  }, []);
+
+  // Handle paste input submission
+  const handleColorPasteSubmit = useCallback(() => {
+    const parsed = parseColorInput(colorPasteValue);
+    if (parsed) {
+      if (parsed.type === 'txt') {
+        setHue(parsed.h);
+        setSaturation(parsed.s);
+        setLightness(parsed.l);
+      } else if (parsed.type === 'bg') {
+        setBgHue(parsed.h);
+        setBgSaturation(parsed.s);
+        setBgLightness(parsed.l);
+      } else {
+        // Just HSL - apply to text by default
+        setHue(parsed.h);
+        setSaturation(parsed.s);
+        setLightness(parsed.l);
+      }
+    }
+    setColorPasteMode(false);
+    setColorPasteValue('');
+  }, [colorPasteValue, parseColorInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness]);
+
+  // Handle input blur or escape
+  const handleColorPasteBlur = useCallback(() => {
+    setColorPasteMode(false);
+    setColorPasteValue('');
+  }, []);
+
+  const handleColorPasteKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleColorPasteSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleColorPasteBlur();
+    }
+  }, [handleColorPasteSubmit, handleColorPasteBlur]);
+
   if (horizontal) {
     return (
       <div className="flex justify-center gap-6 flex-wrap select-none">
@@ -370,28 +474,57 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.entriesPerWeek} entries/week`)}
             </div>
           </div>
-          {/* Color stats - copy-pastable */}
+          {/* Color stats - copy-pastable, double-click to paste */}
           <div
             className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text"
             style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`, cursor: 'text' }}
             onClick={(e) => e.stopPropagation()}
+            onDoubleClick={handleColorDoubleClick}
             onMouseDown={(e) => {
               e.stopPropagation();
               handleColorTextClick();
             }}
           >
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
-              txt: {hue}, {saturation}%, {lightness}%
-            </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
-              {hslToHex(hue, saturation, lightness)}
-            </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
-              bg: {bgHue}, {bgSaturation}%, {bgLightness}%
-            </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
-              {hslToHex(bgHue, bgSaturation, bgLightness)}
-            </div>
+            {colorPasteMode ? (
+              <div className="col-span-2 relative">
+                <input
+                  ref={colorInputRef}
+                  type="text"
+                  value={colorPasteValue}
+                  onChange={(e) => setColorPasteValue(e.target.value)}
+                  onKeyDown={handleColorPasteKeyDown}
+                  onBlur={handleColorPasteBlur}
+                  className="w-full text-xs font-mono font-bold text-center bg-transparent border-none outline-none relative z-10"
+                  style={{ color: getColor() }}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {/* Static placeholder */}
+                {colorPasteValue.length === 0 && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-xs font-mono font-bold pointer-events-none"
+                    style={{ color: getColor(), opacity: 0.85 }}
+                  >
+                    paste
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                  txt: {hue}, {saturation}%, {lightness}%
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                  {hslToHex(hue, saturation, lightness)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                  bg: {bgHue}, {bgSaturation}%, {bgLightness}%
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                  {hslToHex(bgHue, bgSaturation, bgLightness)}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

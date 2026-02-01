@@ -92,9 +92,6 @@ export function JournalEditor({
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
   const scrollSaveTimeout = useRef<number | null>(null);
 
-  // Flag to prevent re-entry during whitespace wrap
-  const isWrappingRef = useRef(false);
-
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -181,91 +178,64 @@ export function JournalEditor({
     };
   }, [isScrambled, editorRef]);
 
-  // Check if cursor is at right edge and wrap if needed
-  const wrapIfOverflowing = useCallback(() => {
-    if (!editorRef.current || isWrappingRef.current) return;
+  // Calculate width of spaces using canvas (cached)
+  const spaceWidthRef = useRef<number | null>(null);
+  const getSpaceWidth = useCallback(() => {
+    if (spaceWidthRef.current !== null) return spaceWidthRef.current;
+    if (!editorRef.current) return 10; // fallback
+
+    const style = window.getComputedStyle(editorRef.current);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return 10;
+
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    spaceWidthRef.current = ctx.measureText(' ').width;
+    return spaceWidthRef.current;
+  }, [editorRef]);
+
+  // Check if adding spaces would overflow, and if so, wrap first
+  // Returns true if we handled it (caller should preventDefault)
+  const wrapBeforeSpaces = useCallback((numSpaces: number): boolean => {
+    if (!editorRef.current) return false;
 
     const editor = editorRef.current;
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return false;
 
     const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
 
-    // Save cursor position before marker insertion
-    const cursorNode = range.startContainer;
-    const cursorOffset = range.startOffset;
+    // If rect has no position (empty line), no need to wrap
+    if (rect.left === 0 && rect.right === 0) return false;
 
-    // Insert temporary marker to get cursor position
-    const marker = document.createElement('span');
-    marker.textContent = '|';
-    marker.style.cssText = 'visibility:hidden;font-size:inherit;';
-    range.insertNode(marker);
-
-    const markerRect = marker.getBoundingClientRect();
     const editorRect = editor.getBoundingClientRect();
     const rightEdge = editorRect.right - 32; // 32px padding
+    const spaceWidth = getSpaceWidth();
+    const neededWidth = spaceWidth * numSpaces;
 
-    // Remove marker
-    const parent = marker.parentNode;
-    marker.remove();
-
-    // Normalize to merge split text nodes
-    if (parent) parent.normalize();
-
-    // Restore cursor position
-    try {
-      const newRange = document.createRange();
-      // After normalize, the node might have changed, so find the right position
-      if (cursorNode.nodeType === Node.TEXT_NODE && cursorNode.parentNode) {
-        const textContent = cursorNode.textContent || '';
-        if (cursorOffset <= textContent.length) {
-          newRange.setStart(cursorNode, cursorOffset);
-          newRange.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(newRange);
-        }
-      }
-    } catch (e) {
-      // If restoration fails, just continue
-    }
-
-    // DEBUG
-    console.log('wrap check:', { markerRight: Math.round(markerRect.right), rightEdge: Math.round(rightEdge) });
-
-    // If cursor is at or past right edge, wrap
-    if (markerRect.right >= rightEdge - 10) {
-      isWrappingRef.current = true;
+    // If cursor + spaces would overflow, wrap first
+    if (rect.right + neededWidth >= rightEdge) {
       document.execCommand('insertLineBreak');
-      editor.scrollLeft = 0;
 
-      // Scroll cursor into view after wrapping
-      requestAnimationFrame(() => {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          const r = sel.getRangeAt(0);
-          const rect = r.getBoundingClientRect();
-          const eRect = editor.getBoundingClientRect();
-          if (rect.bottom > eRect.bottom) {
-            editor.scrollTop += rect.bottom - eRect.bottom + 20;
-          }
-        }
-      });
-
-      setTimeout(() => { isWrappingRef.current = false; }, 10);
+      // Scroll into view if needed
+      const newRect = selection.getRangeAt(0).getBoundingClientRect();
+      if (newRect.bottom > editorRect.bottom) {
+        editor.scrollTop += newRect.bottom - editorRect.bottom + 20;
+      }
+      return true; // We handled wrapping, but caller still needs to insert spaces
     }
-  }, [editorRef]);
+
+    return false;
+  }, [editorRef, getSpaceWidth]);
 
   // Sync scroll position during user scrolling and persist to storage
   const handleEditorScroll = useCallback(() => {
     if (!editorRef.current) return;
 
-    // If horizontal scroll detected and not already wrapping, wrap whitespace and reset
-    if (editorRef.current.scrollLeft > 0 && !isWrappingRef.current) {
-      isWrappingRef.current = true;
-      document.execCommand('insertLineBreak');
+    // Reset any accidental horizontal scroll (shouldn't happen with proactive wrapping)
+    if (editorRef.current.scrollLeft > 0) {
       editorRef.current.scrollLeft = 0;
-      // Reset flag after a short delay to allow DOM to settle
-      setTimeout(() => { isWrappingRef.current = false; }, 10);
     }
 
     // Sync scrambled overlay position via transform (overlay uses overflow:hidden)
@@ -351,7 +321,7 @@ export function JournalEditor({
     const content = editorRef.current.innerHTML || '';
     onInput(content);
 
-    // Note: horizontal scroll/wrap is handled by wrapIfOverflowing for whitespace
+    // Note: whitespace wrapping is handled proactively by wrapBeforeSpaces
 
     // Ensure block caret if content was deleted to empty
     if (!content || content === '' || content === '<br>') {
@@ -414,19 +384,19 @@ export function JournalEditor({
     if (e.key === 'Tab') {
       e.preventDefault();
       if (!e.shiftKey) {
-        // Tab: insert 4 spaces (tab characters cause browser tab-stop issues)
+        // Tab: check if would overflow, wrap first if needed, then insert 4 spaces
+        wrapBeforeSpaces(4);
         document.execCommand('insertText', false, '    ');
-        // Check if we need to wrap
-        requestAnimationFrame(() => {
-          wrapIfOverflowing();
-        });
       }
       // Shift+Tab: do nothing (just prevent default)
     } else if (e.key === ' ') {
-      // Space: let browser handle insertion, then check if we need to wrap
-      requestAnimationFrame(() => {
-        wrapIfOverflowing();
-      });
+      // Space: check if would overflow, wrap first if needed
+      if (wrapBeforeSpaces(1)) {
+        // We wrapped, now insert the space
+        e.preventDefault();
+        document.execCommand('insertText', false, ' ');
+      }
+      // else let browser handle normally
     } else if (e.key === 'Backspace') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
@@ -497,7 +467,7 @@ export function JournalEditor({
 
       // For line breaks and structural elements (div, br), let browser handle natively
     }
-  }, [editorRef, wrapIfOverflowing]);
+  }, [editorRef, wrapBeforeSpaces]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
@@ -576,7 +546,7 @@ export function JournalEditor({
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         className="absolute inset-0 p-8 overflow-y-auto overflow-x-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
-        style={{ color: isScrambled ? 'transparent' : getColor() }}
+        style={{ color: isScrambled ? 'transparent' : getColor(), overflowWrap: 'break-word' }}
         spellCheck={false}
         suppressContentEditableWarning
         role={isToday ? 'textbox' : 'article'}
