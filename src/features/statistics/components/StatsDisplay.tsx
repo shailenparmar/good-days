@@ -34,6 +34,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);
 
+  // Bold sweep animation for easter eggs text
+  const [eggBoldCount, setEggBoldCount] = useState(0);
+  const [eggAnimPhase, setEggAnimPhase] = useState<'bold' | 'unbold' | 'idle'>('idle');
+
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   // Suppress unused variable warnings
@@ -73,6 +77,36 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       window.removeEventListener('keydown', stopRainbow, true);
     };
   }, [isRainbowMode]);
+
+  // Bold sweep animation for easter eggs text - loops while rainbow mode is active
+  useEffect(() => {
+    if (!isRainbowMode) {
+      // Reset to idle when rainbow stops
+      if (eggAnimPhase !== 'idle') {
+        setEggAnimPhase('idle');
+        setEggBoldCount(0);
+      }
+      return;
+    }
+
+    // Start animation when rainbow mode begins
+    if (eggAnimPhase === 'idle') {
+      setEggAnimPhase('bold');
+      setEggBoldCount(0);
+      return;
+    }
+
+    const eggText = '14/14 easter eggs';
+    if (eggBoldCount >= eggText.length) {
+      // Flip phase and reset count - keeps looping
+      setEggAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setEggBoldCount(0);
+      return;
+    }
+
+    const timer = setTimeout(() => setEggBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
 
   // Handle click on easter eggs text - the secret 15th egg!
   // When user has all 14 regular eggs, shows "13.5/14" - clicking it completes the collection
@@ -298,7 +332,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.lexicon} word lexicon`)}
             </div>
             <div
-              className="text-xs font-mono font-bold text-center"
+              className="text-xs font-mono text-center"
               style={{ color: isRainbowMode ? `hsl(${rainbowHue}, 100%, 50%)` : getColor() }}
               onClick={handleEasterEggsClick}
               onMouseDown={(e) => e.stopPropagation()}
@@ -310,7 +344,26 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 const displayFound = (eggCount.found === eggCount.total && !hasSecretEgg)
                   ? '13.5'
                   : String(eggCount.found);
-                return s(`${displayFound}/${eggCount.total} easter eggs`);
+                const eggText = s(`${displayFound}/${eggCount.total} easter eggs`);
+
+                // Bold sweep animation
+                if (eggAnimPhase === 'bold') {
+                  return (
+                    <>
+                      <span className="font-bold">{eggText.slice(0, eggBoldCount)}</span>
+                      <span>{eggText.slice(eggBoldCount)}</span>
+                    </>
+                  );
+                } else if (eggAnimPhase === 'unbold') {
+                  return (
+                    <>
+                      <span>{eggText.slice(0, eggBoldCount)}</span>
+                      <span className="font-bold">{eggText.slice(eggBoldCount)}</span>
+                    </>
+                  );
+                }
+                // Idle - show all bold
+                return <span className="font-bold">{eggText}</span>;
               })()}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
