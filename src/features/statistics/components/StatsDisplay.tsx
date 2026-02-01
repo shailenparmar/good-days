@@ -28,6 +28,72 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
+// Split button component for copy/paste
+function ColorButton({
+  onClick,
+  children,
+  position,
+  getColor,
+  hue,
+  saturation,
+  lightness
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  position: 'left' | 'right';
+  getColor: () => string;
+  hue: number;
+  saturation: number;
+  lightness: number;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+
+  const textColor = getColor();
+  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
+  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
+  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+
+  const getCurrentBorder = () => {
+    if (isClicked) return activeColor;
+    if (isHovered) return textColor;
+    return borderColor;
+  };
+
+  const currentBorder = getCurrentBorder();
+
+  const getBackground = () => {
+    if (isHovered) return hoverBg;
+    return 'transparent';
+  };
+
+  const borderStyle = position === 'left'
+    ? { borderTop: `3px solid ${currentBorder}`, borderBottom: `3px solid ${currentBorder}`, borderLeft: `3px solid ${currentBorder}`, borderRight: `1px solid ${currentBorder}` }
+    : { borderTop: `3px solid ${currentBorder}`, borderBottom: `3px solid ${currentBorder}`, borderRight: `3px solid ${currentBorder}`, borderLeft: `1px solid ${currentBorder}` };
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      tabIndex={-1}
+      className={`flex-1 px-3 py-2 text-xs font-mono font-bold outline-none focus:outline-none select-none ${position === 'left' ? 'rounded-l' : 'rounded-r'}`}
+      style={{
+        color: textColor,
+        backgroundColor: getBackground(),
+        ...borderStyle,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setIsClicked(false); }}
+      onMouseDown={() => setIsClicked(true)}
+      onMouseUp={() => setIsClicked(false)}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
@@ -348,12 +414,21 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return null;
   }, []);
 
-  // Handle double-click to enter paste mode
-  const handleColorDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  // Handle copy button click - copies color values to clipboard
+  const handleColorCopy = useCallback(() => {
+    const textHsl = `txt: ${hue}, ${saturation}%, ${lightness}%`;
+    const bgHsl = `bg: ${bgHue}, ${bgSaturation}%, ${bgLightness}%`;
+    const copyText = `${textHsl}\n${bgHsl}`;
+    navigator.clipboard.writeText(copyText);
+    markEasterEggFound('copyMarkdown');
+    setColorAreaHovered(false);
+  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
+
+  // Handle paste button click - enter paste mode
+  const handleColorPaste = useCallback(() => {
     setColorPasteMode(true);
     setColorPasteValue('');
+    setColorAreaHovered(false);
     // Focus input after render
     setTimeout(() => colorInputRef.current?.focus(), 0);
   }, []);
@@ -501,19 +576,21 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.entriesPerWeek} entries/week`)}
             </div>
           </div>
-          {/* Color stats - copy-pastable, double-click to paste */}
+          {/* Color stats - hover to show copy/paste buttons */}
           <div
-            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text"
-            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`, cursor: 'text' }}
+            className="mt-3 pt-3"
+            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(e) => e.stopPropagation()}
-            onDoubleClick={handleColorDoubleClick}
+            onMouseEnter={() => !colorPasteMode && setColorAreaHovered(true)}
+            onMouseLeave={() => setColorAreaHovered(false)}
             onMouseDown={(e) => {
               e.stopPropagation();
               handleColorTextClick();
             }}
           >
             {colorPasteMode ? (
-              <div className="col-span-2 relative">
+              /* Paste input mode */
+              <div className="relative">
                 <input
                   ref={colorInputRef}
                   type="text"
@@ -546,8 +623,33 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   </div>
                 )}
               </div>
+            ) : colorAreaHovered ? (
+              /* Split buttons on hover */
+              <div className="flex">
+                <ColorButton
+                  onClick={handleColorCopy}
+                  position="left"
+                  getColor={getColor}
+                  hue={hue}
+                  saturation={saturation}
+                  lightness={lightness}
+                >
+                  {s('copy')}
+                </ColorButton>
+                <ColorButton
+                  onClick={handleColorPaste}
+                  position="right"
+                  getColor={getColor}
+                  hue={hue}
+                  saturation={saturation}
+                  lightness={lightness}
+                >
+                  {s('paste')}
+                </ColorButton>
+              </div>
             ) : (
-              <>
+              /* Normal color stats display */
+              <div className="grid grid-cols-2 gap-x-0 gap-y-1 select-text" style={{ cursor: 'text' }}>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
                   txt: {hue}, {saturation}%, {lightness}%
                 </div>
@@ -560,7 +662,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
                   {hslToHex(bgHue, bgSaturation, bgLightness)}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
