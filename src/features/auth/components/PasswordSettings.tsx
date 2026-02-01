@@ -303,9 +303,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
-  // Use dark color for confirm/success when theme is green (hue 80-160)
+  // Use cyan for confirm/success when theme is green (hue 80-160), otherwise green
   const isThemeGreen = hue >= 80 && hue <= 160;
-  const confirmColor = isThemeGreen ? '#030202' : '#00ff00';
+  const confirmColor = isThemeGreen ? '#00e6da' : '#00ff00';
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;
