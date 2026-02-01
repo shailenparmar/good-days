@@ -46,8 +46,16 @@ function ColorButton({
   saturation: number;
   lightness: number;
 }) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+
+  // Check if mouse is already over button when it mounts
+  useEffect(() => {
+    if (buttonRef.current?.matches(':hover')) {
+      setIsHovered(true);
+    }
+  }, []);
 
   const textColor = getColor();
   const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
@@ -73,6 +81,7 @@ function ColorButton({
 
   return (
     <button
+      ref={buttonRef}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
