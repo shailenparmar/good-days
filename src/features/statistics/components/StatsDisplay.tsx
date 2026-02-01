@@ -569,7 +569,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           </div>
           {/* Color stats - hover to show copy/paste buttons */}
           <div
-            className="mt-3 pt-3"
+            className="mt-3 pt-3 pb-3 -mb-3"
             style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setColorAreaHovered(true)}
