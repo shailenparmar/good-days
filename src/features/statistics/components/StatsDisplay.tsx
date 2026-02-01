@@ -372,7 +372,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           </div>
           {/* Color stats - copy-pastable */}
           <div
-            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text"
+            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text cursor-text"
             style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => {
