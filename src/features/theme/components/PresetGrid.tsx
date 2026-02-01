@@ -27,7 +27,6 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     getColor,
   } = useTheme();
 
-  const [clickedIndex, setClickedIndex] = useState<number | null>(null);
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -346,11 +345,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         {presets.map((preset, index) => {
           const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
           const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
-          const borderActive = `hsl(${preset.hue}, ${preset.sat}%, ${Math.max(0, preset.light * 0.65)}%)`;
           const isActive = activePresetIndex === index;
-          const isClicked = clickedIndex === index;
-
-          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -361,13 +356,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 e.stopPropagation();
                 handlePresetClick(index, preset);
               }}
-              onMouseLeave={() => setClickedIndex(null)}
-              onMouseDown={() => setClickedIndex(index)}
-              onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: bgColor,
-                borderColor: currentBorder,
+                borderColor: textColor,
                 borderWidth: '3px',
                 borderStyle: 'solid',
                 color: textColor,
@@ -386,11 +378,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           const globalIndex = presets.length + index;
           const textColor = `hsl(${preset.hue}, ${preset.sat}%, ${preset.light}%)`;
           const bgColor = `hsl(${preset.bgHue}, ${preset.bgSat}%, ${preset.bgLight}%)`;
-          const borderActive = `hsl(${preset.hue}, ${preset.sat}%, ${Math.max(0, preset.light * 0.65)}%)`;
           const isActive = activePresetIndex === globalIndex;
-          const isClicked = clickedIndex === globalIndex;
-
-          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -401,13 +389,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 e.stopPropagation();
                 handleCustomPresetClick(index, preset);
               }}
-              onMouseLeave={() => setClickedIndex(null)}
-              onMouseDown={() => setClickedIndex(globalIndex)}
-              onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: bgColor,
-                borderColor: currentBorder,
+                borderColor: textColor,
                 borderWidth: '3px',
                 borderStyle: 'solid',
                 color: textColor,
@@ -424,9 +409,6 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         {(() => {
           const randIndex = presets.length + customPresets.length;
           const textColor = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`;
-          const borderActive = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${Math.max(0, randomPreview.light * 0.65)}%)`;
-          const isClicked = clickedIndex === randIndex;
-          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -437,13 +419,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
               }}
-              onMouseLeave={() => setClickedIndex(null)}
-              onMouseDown={() => setClickedIndex(randIndex)}
-              onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === randIndex ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: `hsl(${randomPreview.bgHue}, ${randomPreview.bgSat}%, ${randomPreview.bgLight}%)`,
-                borderColor: currentBorder,
+                borderColor: textColor,
                 borderWidth: '3px',
                 borderStyle: 'solid',
                 color: textColor,
@@ -460,9 +439,6 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         {(() => {
           const saveIndex = presets.length + customPresets.length + 1;
           const textColor = getColor();
-          const borderActive = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-          const isClicked = clickedIndex === saveIndex;
-          const currentBorder = isClicked ? borderActive : textColor;
 
           return (
             <button
@@ -473,13 +449,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 saveCustomPreset();
                 setActivePresetIndex(saveIndex);
               }}
-              onMouseLeave={() => setClickedIndex(null)}
-              onMouseDown={() => setClickedIndex(saveIndex)}
-              onMouseUp={() => setClickedIndex(null)}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
               style={{
                 backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`,
-                borderColor: currentBorder,
+                borderColor: textColor,
                 borderWidth: '3px',
                 borderStyle: 'solid',
                 color: textColor,
