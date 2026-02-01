@@ -12,6 +12,11 @@ html, body {
   background-color: hsl(84, 100%, 94%);
 }
 
+/* No cursor changes on clickable elements - keep default arrow everywhere */
+a, button {
+  cursor: default;
+}
+
 #root {
   height: 100%;
 }
