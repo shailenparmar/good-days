@@ -38,7 +38,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [eggBoldCount, setEggBoldCount] = useState(0);
   const [eggAnimPhase, setEggAnimPhase] = useState<'bold' | 'unbold' | 'idle'>('idle');
 
-  // Color paste mode
+  // Color stats hover/paste state
+  const [colorAreaHovered, setColorAreaHovered] = useState(false);
   const [colorPasteMode, setColorPasteMode] = useState(false);
   const [colorPasteValue, setColorPasteValue] = useState('');
   const colorInputRef = useRef<HTMLInputElement>(null);
