@@ -253,20 +253,44 @@ export function JournalEditor({
         second: '2-digit'
       });
 
-      // Replace \time or \TIME in the HTML content
-      const selection = window.getSelection();
-      const savedRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+      // Find where \time is in the text, so we can position cursor after replacement
+      const timeIndex = textContent.toLowerCase().indexOf('\\time');
+      const timestampText = `[${timestamp}]`;
+      const cursorTargetOffset = timeIndex + timestampText.length;
 
-      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/gi, `[${timestamp}]`);
+      // Replace only the FIRST \time occurrence (matches our cursor calculation)
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/i, timestampText);
       markEasterEggFound('timeCommand');
 
-      // Restore cursor to end
-      if (savedRange && selection) {
-        const range = document.createRange();
-        range.selectNodeContents(editorRef.current);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
+      // Position cursor right after the inserted timestamp
+      const selection = window.getSelection();
+      if (selection) {
+        // Walk through text nodes to find the correct cursor position
+        let currentOffset = 0;
+        let cursorSet = false;
+        const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
+        let node: Text | null;
+        while ((node = walker.nextNode() as Text | null)) {
+          const nodeLength = node.textContent?.length || 0;
+          if (currentOffset + nodeLength >= cursorTargetOffset) {
+            const range = document.createRange();
+            range.setStart(node, cursorTargetOffset - currentOffset);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            cursorSet = true;
+            break;
+          }
+          currentOffset += nodeLength;
+        }
+        // Fallback: if no text node found at target offset, put cursor at end
+        if (!cursorSet) {
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
       }
     }
 

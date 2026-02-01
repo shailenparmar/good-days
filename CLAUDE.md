@@ -312,6 +312,61 @@ if (!html || html === '' || (hasNoText && hasNoBr)) {
 ```
 | Cursor jumps to end | `\time` replacement or other HTML manipulation | Restore cursor position after manipulation |
 
+### The `\time` Cursor Position Fix
+
+When `\time` is replaced with a timestamp, the cursor must stay where the user was typing (right after the inserted timestamp), not jump to the end of the document.
+
+**The problem:**
+1. User types `\time` anywhere in document (e.g., at top of long entry)
+2. `innerHTML.replace()` changes the DOM, invalidating any saved selection ranges
+3. Naive fix: put cursor at end → user loses their place and view scrolls
+
+**The solution:**
+1. Get character offset of `\time` in plain text before replacement
+2. Calculate target: `offset + timestampLength`
+3. After replacement, walk text nodes with TreeWalker counting characters
+4. Position cursor at the target character offset
+
+```tsx
+// Find where \time is in the text
+const timeIndex = textContent.toLowerCase().indexOf('\\time');
+const timestampText = `[${timestamp}]`;
+const cursorTargetOffset = timeIndex + timestampText.length;
+
+// Replace only the FIRST occurrence (matches cursor calculation)
+editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/i, timestampText);
+
+// Walk text nodes to find correct cursor position
+let currentOffset = 0;
+let cursorSet = false;
+const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
+let node: Text | null;
+while ((node = walker.nextNode() as Text | null)) {
+  const nodeLength = node.textContent?.length || 0;
+  if (currentOffset + nodeLength >= cursorTargetOffset) {
+    const range = document.createRange();
+    range.setStart(node, cursorTargetOffset - currentOffset);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    cursorSet = true;
+    break;
+  }
+  currentOffset += nodeLength;
+}
+// Fallback: put cursor at end if target not found
+if (!cursorSet) {
+  range.selectNodeContents(editorRef.current);
+  range.collapse(false);
+}
+```
+
+**Key design decisions:**
+- **Replace first occurrence only** (`/\\time/i` not `/\\time/gi`): If user pastes multiple `\time`, we replace one at a time. Each keystroke that completes a `\time` replaces just that one.
+- **Character offset approach**: DOM node references become invalid after innerHTML change, but character positions remain consistent.
+- **Fallback to end**: If TreeWalker can't find target (edge case: timestamp at very end with only `<br>` after), cursor goes to end rather than nowhere.
+- **Compatible with scramble mode**: Fix only touches `editorRef`, not the scramble overlay. MutationObserver updates overlay automatically.
+
 ### Key Files
 
 | File | Purpose |
