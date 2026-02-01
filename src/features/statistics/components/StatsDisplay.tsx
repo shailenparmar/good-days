@@ -259,7 +259,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   return (
     <div className="select-none">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
         <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
           {s(`${streak} day ${streak === 1 ? 'streak' : 'streak'}`)}
         </div>
@@ -284,7 +284,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       {stacked && techStats && (
         <div className="mt-3 pt-3" style={{ borderTop: `2px solid ${getColor()}` }}>
           {/* Technical stats - not copy-pastable */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.maxStreak} day maxstreak`)}
             </div>
