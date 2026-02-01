@@ -52,7 +52,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
             {s("all data added lives on your hard drive in a file called localStorage. the website pulls from it to display your text, but entries never leave the hardware on your device.")}
           </p>
           <p>
-            {s("as a safety guarantee, the entire product is open-source.")}{' '}
+            {s("as a safety guarantee, all the code is open source.")}{' '}
             <a
               href="https://github.com/shailenparmar/good-days"
               target="_blank"
