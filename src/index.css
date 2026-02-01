@@ -24,7 +24,7 @@ html {
 /* Only editable/selectable text should have text cursor */
 [contenteditable="true"],
 .cursor-text {
-  cursor: text;
+  cursor: text !important;
 }
 
 #root {
