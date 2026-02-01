@@ -570,14 +570,17 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           {/* Color stats - hover to show copy/paste buttons */}
           <div
             className="mt-3 pt-3"
-            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            style={{
+              borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+              minHeight: '40px'  // Fixed height prevents layout shift on hover
+            }}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setColorAreaHovered(true)}
             onMouseLeave={() => setColorAreaHovered(false)}
           >
             {colorAreaHovered ? (
               /* Split buttons on hover */
-              <div className="flex">
+              <div className="flex h-full items-center">
                 <ColorButton
                   onClick={handleColorCopy}
                   position="left"
