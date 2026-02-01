@@ -1122,6 +1122,56 @@ rsvg-convert -w 512 -h 512 icon-source.svg -o icon-512.png
 
 Original working icons backed up at `public/icon-backup/` for reference.
 
+## Easter Eggs
+
+The app has 14 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
+
+### Easter Egg List
+
+| # | ID | How to Trigger |
+|---|-----|----------------|
+| 1 | `scrambleTyping` | Type while in scramble mode |
+| 2 | `powerstatMode` | Open settings + about panels together |
+| 3 | `superscramble` | Settings + about + scramble all active |
+| 4 | `superscrambleTyping` | Type while in superscramble (theme randomizes) |
+| 5 | `scrambleHotkeyOn` | Activate the scramble hotkey in powerstat |
+| 6 | `minizenMode` | Enter minizen mode (click header in wide mode) |
+| 7 | `zenMode` | Enter zen mode (click footer) |
+| 8 | `timeCommand` | Use `\time` in the editor |
+| 9 | `scrambleHotkeyUsed` | Actually use the scramble hotkey (Option/Alt+S) |
+| 10 | `spacebarRand` | Press spacebar while on rand button in preset grid |
+| 11 | `arrowKeyPresets` | Navigate presets with arrow keys |
+| 12 | `copyMarkdown` | Copy markdown format in powerstat mode |
+| 13 | `selectColorText` | Click on the color stats area (HSL/HEX values) |
+| 14 | `resetBlackout` | See the blackout screen on reset confirmation |
+| SECRET | `clickedEggCounter` | Click on "13.5/14" to complete (see below) |
+
+### The 13.5/14 Gag
+
+When the user finds all 14 regular eggs, the counter shows **"13.5/14 easter eggs"** instead of "14/14". The final egg is clicking on this incomplete counter:
+
+1. User finds all 14 regular eggs → shows "13.5/14"
+2. User clicks "13.5/14" → marks secret egg + rainbow animation plays
+3. Counter now shows "14/14"
+
+**The gag**: The 14th egg IS clicking on the counter. You can't complete the collection without clicking it.
+
+After completing, clicking "14/14" replays the rainbow animation. Click anywhere or press any key to stop it.
+
+### Code Location
+
+| File | Purpose |
+|------|---------|
+| `src/shared/utils/easterEggs.ts` | Egg definitions, tracking, count logic |
+| `src/features/statistics/components/StatsDisplay.tsx` | Display logic, 13.5 gag, rainbow animation |
+
+### Implementation Notes
+
+- `getEasterEggCount()` returns `total: 14` (hides the secret 15th egg)
+- `isEasterEggFound('clickedEggCounter')` checks if secret is found
+- Display shows "13.5" when `found === total && !hasSecretEgg`
+- Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress
+
 ## Versioning
 
 **CRITICAL**: EVERY push to main MUST increment the version number. No exceptions. This allows the user to verify they're seeing the latest deployed build.
