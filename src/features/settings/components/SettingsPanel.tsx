@@ -81,10 +81,11 @@ export function SettingsPanel({
       }}
       onClick={stacked ? undefined : onCloseAbout}
     >
-      {/* Color Picker Section */}
+      {/* Color Picker Section - clicks here don't close about panel */}
       <div
         className="p-4"
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
