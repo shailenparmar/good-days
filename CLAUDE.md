@@ -689,6 +689,76 @@ All buttons use `px-3 py-2` padding and `font-mono`.
 "Use button-secondary"       → FunctionButton size="sm"
 ```
 
+## Bold Sweep Animation
+
+The signature placeholder animation where text sweeps bold left-to-right, then unbolds left-to-right.
+
+### Visual Effect
+
+```
+Phase 1 (bold):     Phase 2 (unbold):
+s                   start typing        (all bold)
+st                  start typing        (s normal, rest bold)
+sta                 start typing        (st normal, rest bold)
+star                start typing
+start               start typing
+start               start typing
+start t             start typing
+start ty            start typing
+start typ           start typing
+start typi          start typing
+start typin         start typing
+start typing        start typing        (all normal)
+```
+
+### Implementation
+
+Two state variables drive the animation:
+
+```tsx
+const [boldCount, setBoldCount] = useState(0);
+const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
+```
+
+**Timer:** Increments `boldCount` every **83ms** (~12 characters/second)
+
+**Phase flip:** When `boldCount` reaches text length, phase toggles and count resets
+
+**Rendering:**
+```tsx
+{animPhase === 'bold' ? (
+  <>
+    <span className="font-bold">{text.slice(0, boldCount)}</span>
+    <span>{text.slice(boldCount)}</span>
+  </>
+) : (
+  <>
+    <span>{text.slice(0, boldCount)}</span>
+    <span className="font-bold">{text.slice(boldCount)}</span>
+  </>
+)}
+```
+
+### Where It's Used
+
+| Location | Text | File |
+|----------|------|------|
+| Editor placeholder | "start typing" | `JournalEditor.tsx` |
+| Lock screen | "password" | `LockScreen.tsx` |
+| Password settings | varies ("password", "old password", etc.) | `PasswordSettings.tsx` |
+| Preset keyboard hint | "use arrow keys..." | `PresetGrid.tsx` |
+
+### Timing
+
+- **83ms per character** = ~12 chars/second
+- Full cycle for "start typing" (12 chars): ~2 seconds (1s bold sweep + 1s unbold sweep)
+
+### Reset Behavior
+
+Animation resets (`boldCount = 0`, `animPhase = 'bold'`) when:
+- Placeholder becomes visible (e.g., input cleared)
+- Component mounts
+
 ## Layout Modes & Focus States
 
 The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
@@ -1331,12 +1401,26 @@ The app has 14 discoverable easter eggs + 1 secret final egg. The count displays
 When the user finds all 14 regular eggs, the counter shows **"13.5/14 easter eggs"** instead of "14/14". The final egg is clicking on this incomplete counter:
 
 1. User finds all 14 regular eggs → shows "13.5/14"
-2. User clicks "13.5/14" → marks secret egg + rainbow animation plays
+2. User clicks "13.5/14" → marks secret egg + rainbow animation + bold sweep animation
 3. Counter now shows "14/14"
 
 **The gag**: The 14th egg IS clicking on the counter. You can't complete the collection without clicking it.
 
-After completing, clicking "14/14" replays the rainbow animation. Click anywhere or press any key to stop it.
+After completing, clicking "14/14" replays both animations. Click anywhere or press any key to stop.
+
+### Easter Egg Click Animation
+
+When clicking "14/14 easter eggs", two animations play simultaneously:
+
+1. **Rainbow mode**: Text color cycles through hue 0-360° (5 second full cycle)
+2. **Bold sweep**: Text does the signature bold left→right, unbold left→right animation (loops continuously)
+
+Both animations run while rainbow mode is active and stop together when user clicks or presses a key.
+
+The bold sweep is tied to `isRainbowMode`:
+- When `isRainbowMode` becomes true → animation starts
+- Animation loops (bold phase → unbold phase → bold phase → ...)
+- When `isRainbowMode` becomes false → animation stops and resets to idle
 
 ### Code Location
 
