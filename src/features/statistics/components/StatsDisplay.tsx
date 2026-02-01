@@ -372,24 +372,24 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           </div>
           {/* Color stats - copy-pastable */}
           <div
-            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text cursor-text"
-            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            className="grid grid-cols-2 gap-x-0 gap-y-1 mt-3 pt-3 select-text"
+            style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`, cursor: 'text' }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => {
               e.stopPropagation();
               handleColorTextClick();
             }}
           >
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
               txt: {hue}, {saturation}%, {lightness}%
             </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
               {hslToHex(hue, saturation, lightness)}
             </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
               bg: {bgHue}, {bgSaturation}%, {bgLightness}%
             </div>
-            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+            <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
               {hslToHex(bgHue, bgSaturation, bgLightness)}
             </div>
           </div>
