@@ -580,7 +580,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           >
             {colorAreaHovered ? (
               /* Split buttons on hover */
-              <div className="flex h-full items-center">
+              <div
+                className="flex h-full items-center"
+                onMouseLeave={() => setColorAreaHovered(false)}
+              >
                 <ColorButton
                   onClick={handleColorCopy}
                   position="left"
