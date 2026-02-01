@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
-import { getEasterEggCount, markEasterEggFound } from '@shared/utils/easterEggs';
+import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
 
 interface StatsDisplayProps {
@@ -74,12 +74,21 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     };
   }, [isRainbowMode]);
 
-  // Handle click on easter eggs text when all found
+  // Handle click on easter eggs text - the secret 15th egg!
+  // When user has all 14 regular eggs, shows "13.5/14" - clicking it completes the collection
   const handleEasterEggsClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const eggCount = getEasterEggCount();
-    if (eggCount.found === eggCount.total && !isRainbowMode) {
+    const hasSecretEgg = isEasterEggFound('clickedEggCounter');
+
+    // If at 14/14 regular eggs but haven't clicked yet (showing 13.5/14)
+    if (eggCount.found === eggCount.total && !hasSecretEgg && !isRainbowMode) {
+      markEasterEggFound('clickedEggCounter');
+      setIsRainbowMode(true);
+    }
+    // If already completed (14/14), can still trigger rainbow mode again
+    else if (eggCount.found === eggCount.total && hasSecretEgg && !isRainbowMode) {
       setIsRainbowMode(true);
     }
   }, [isRainbowMode]);
@@ -218,12 +227,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   const techStats = stacked ? calculateTechnicalStats() : null;
 
-  // Track when user selects color text
-  const handleColorTextSelect = useCallback(() => {
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim().length > 0) {
-      markEasterEggFound('selectColorText');
-    }
+  // Track when user clicks color text area (any click counts)
+  const handleColorTextClick = useCallback(() => {
+    markEasterEggFound('selectColorText');
   }, []);
 
   if (horizontal) {
@@ -297,7 +303,15 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               onClick={handleEasterEggsClick}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              {s(`${getEasterEggCount().found}/${getEasterEggCount().total} easter eggs`)}
+              {(() => {
+                const eggCount = getEasterEggCount();
+                const hasSecretEgg = isEasterEggFound('clickedEggCounter');
+                // Show 13.5/14 when all regular eggs found but secret not yet clicked
+                const displayFound = (eggCount.found === eggCount.total && !hasSecretEgg)
+                  ? '13.5'
+                  : String(eggCount.found);
+                return s(`${displayFound}/${eggCount.total} easter eggs`);
+              })()}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.entriesPerWeek} entries/week`)}
@@ -308,10 +322,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             className="grid grid-cols-2 gap-x-2 gap-y-1 mt-3 pt-3 select-text"
             style={{ borderTop: `2px solid ${getColor()}` }}
             onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => {
+            onMouseDown={(e) => {
               e.stopPropagation();
-              handleColorTextSelect();
+              handleColorTextClick();
             }}
           >
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
