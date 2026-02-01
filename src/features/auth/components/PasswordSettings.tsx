@@ -303,9 +303,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+  // Use dark color for confirm/success when theme is green (hue 80-160)
+  const isThemeGreen = hue >= 80 && hue <= 160;
+  const confirmColor = isThemeGreen ? '#030202' : '#00ff00';
 
   const getBorderColor = () => {
-    if (flashState === 'green' || isSaving) return '#00ff00';
+    if (flashState === 'green' || isSaving) return confirmColor;
     if (flashState === 'red') return '#ff0000';
     if (isPressed) return activeColor;
     if (isFocused || isHovered || input) return textColor;
@@ -490,7 +493,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
                 setShowInput(false);
               }}
             >
-              <span className="ml-3.5 text-xs font-mono font-bold select-none" style={{ color: '#00ff00' }}>
+              <span className="ml-3.5 text-xs font-mono font-bold select-none" style={{ color: confirmColor }}>
                 {s('password saved')}
               </span>
             </div>

@@ -181,19 +181,76 @@ export function JournalEditor({
     };
   }, [isScrambled, editorRef]);
 
-  // Check if content has overflowed and wrap if needed
-  // Uses scrollLeft > 0 as indicator that browser tried to scroll to show cursor
+  // Check if cursor is at right edge and wrap if needed
   const wrapIfOverflowing = useCallback(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || isWrappingRef.current) return;
 
     const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
 
-    // If browser tried to scroll right (scrollLeft > 0), content has overflowed
-    // Insert line break and reset scroll
-    if (editor.scrollLeft > 0 && !isWrappingRef.current) {
+    const range = selection.getRangeAt(0);
+
+    // Save cursor position before marker insertion
+    const cursorNode = range.startContainer;
+    const cursorOffset = range.startOffset;
+
+    // Insert temporary marker to get cursor position
+    const marker = document.createElement('span');
+    marker.textContent = '|';
+    marker.style.cssText = 'visibility:hidden;font-size:inherit;';
+    range.insertNode(marker);
+
+    const markerRect = marker.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const rightEdge = editorRect.right - 32; // 32px padding
+
+    // Remove marker
+    const parent = marker.parentNode;
+    marker.remove();
+
+    // Normalize to merge split text nodes
+    if (parent) parent.normalize();
+
+    // Restore cursor position
+    try {
+      const newRange = document.createRange();
+      // After normalize, the node might have changed, so find the right position
+      if (cursorNode.nodeType === Node.TEXT_NODE && cursorNode.parentNode) {
+        const textContent = cursorNode.textContent || '';
+        if (cursorOffset <= textContent.length) {
+          newRange.setStart(cursorNode, cursorOffset);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    } catch (e) {
+      // If restoration fails, just continue
+    }
+
+    // DEBUG
+    console.log('wrap check:', { markerRight: Math.round(markerRect.right), rightEdge: Math.round(rightEdge) });
+
+    // If cursor is at or past right edge, wrap
+    if (markerRect.right >= rightEdge - 10) {
       isWrappingRef.current = true;
       document.execCommand('insertLineBreak');
       editor.scrollLeft = 0;
+
+      // Scroll cursor into view after wrapping
+      requestAnimationFrame(() => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const r = sel.getRangeAt(0);
+          const rect = r.getBoundingClientRect();
+          const eRect = editor.getBoundingClientRect();
+          if (rect.bottom > eRect.bottom) {
+            editor.scrollTop += rect.bottom - eRect.bottom + 20;
+          }
+        }
+      });
+
       setTimeout(() => { isWrappingRef.current = false; }, 10);
     }
   }, [editorRef]);
@@ -359,6 +416,10 @@ export function JournalEditor({
       if (!e.shiftKey) {
         // Tab: insert 4 spaces (tab characters cause browser tab-stop issues)
         document.execCommand('insertText', false, '    ');
+        // Check if we need to wrap
+        requestAnimationFrame(() => {
+          wrapIfOverflowing();
+        });
       }
       // Shift+Tab: do nothing (just prevent default)
     } else if (e.key === ' ') {
@@ -515,7 +576,7 @@ export function JournalEditor({
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         className="absolute inset-0 p-8 overflow-y-auto overflow-x-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
-        style={{ color: isScrambled ? 'transparent' : getColor(), overflowWrap: 'anywhere', wordBreak: 'break-all' }}
+        style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
         suppressContentEditableWarning
         role={isToday ? 'textbox' : 'article'}
@@ -530,7 +591,7 @@ export function JournalEditor({
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
             ref={overlayRef}
-            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-all"
+            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap"
             style={{ color: getColor() }}
           />
         </div>
