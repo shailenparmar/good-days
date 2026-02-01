@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.63';
+const VERSION = '1.5.69';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -553,7 +553,7 @@ function AppContent() {
 
           {/* Stats - in powerstat mode, clicks here don't close panels (for selecting color text) */}
           <div
-            className="p-4 overflow-hidden"
+            className="p-3 overflow-hidden"
             style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(showDebugMenu && showAboutPanel) ? (e) => e.stopPropagation() : undefined}
           >

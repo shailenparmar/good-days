@@ -500,7 +500,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
           {showPlaceholder && (
             <div
               className="absolute top-1/2 -translate-y-1/2 left-3.5 text-xs font-mono pointer-events-none select-none"
-              style={{ color: textColor, opacity: 0.9 }}
+              style={{ color: textColor, opacity: 0.85 }}
             >
               {superscramble ? <span className="font-bold">{s(placeholderText)}</span> : renderAnimatedText(placeholderText, boldCount, animPhase)}
             </div>

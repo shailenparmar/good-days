@@ -158,7 +158,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
         {showPlaceholder && (
           <div
             className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
-            style={{ color: getColor(), opacity: 0.9, left: '14px' }}
+            style={{ color: getColor(), opacity: 0.85, left: '14px' }}
           >
             {animPhase === 'bold' ? (
               <>

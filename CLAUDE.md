@@ -178,7 +178,7 @@ This prevents duplicate content from being appended during repeated imports.
 
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
 - Theme colors are HSL-based and managed via ThemeContext
-- Borders use 6px solid with theme color at 0.85 opacity
+- For borders, lines, and opacity values, see **Opacity Standards**, **Line Styles**, and **Powerstat Spacing** sections below
 - **NEVER change cursor styles** - no `cursor: pointer` or other cursor changes on clickable elements. Keep the default cursor everywhere.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
@@ -449,6 +449,106 @@ Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 | Settings | 320px (`w-80`) | No |
 | About | 675px (400px in powerstat/powerscramble) | No |
 
+## Opacity Standards
+
+All opacities in the app follow this hierarchy:
+
+| Tier | Opacity | Use |
+|------|---------|-----|
+| **Full** | 100% | Text content, active states |
+| **Strong** | 85% | Panel lines, dividers, placeholders, link hover |
+| **Medium** | 60% | Resting borders (buttons/inputs) |
+| **Muted** | 50% | Disabled states |
+| **Subtle** | 20% | Hover backgrounds |
+
+### Where Each Opacity Appears
+
+**85% opacity:**
+- Panel lines (6px borders): `hsla(..., 0.85)`
+- Dividers (2px borders): `hsla(..., 0.85)`
+- Placeholder text: `opacity: 0.85`
+- Link hover: `hover:opacity-85`
+
+**60% opacity:**
+- FunctionButton border default
+- TimeDisplay border
+- EntrySidebar border
+- LockScreen border
+- PasswordSettings border/divider
+
+**20% opacity:**
+- Hover backgrounds on all interactive elements: `hsla(..., 0.2)`
+
+## Line Styles
+
+### Panel Lines
+
+Thick structural borders used to separate major UI sections.
+
+| Property | Value |
+|----------|-------|
+| Thickness | 6px |
+| Style | solid |
+| Opacity | 0.85 |
+| Format | `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` |
+
+Used on: sidebar right edge, header bottom, footer top, settings/about panel edges.
+
+### Dividers
+
+Thin lines used to separate content within a section.
+
+| Property | Value |
+|----------|-------|
+| Thickness | 2px |
+| Style | solid |
+| Opacity | 0.85 |
+| Format | `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` |
+
+Used on: stats section separators in powerstat mode.
+
+## Powerstat Spacing
+
+The stats display in powerstat mode uses these specific spacing values:
+
+```
+═══════════════════════════════════════════  ← 6px panel line
+│                                         │
+│←────────── p-3 (12px padding) ─────────→│
+│                                         │
+│  ┌────────────┐      ┌────────────┐     │
+│  │  stat 1    │ 0px  │  stat 2    │     │
+│  └────────────┘ gap  └────────────┘     │
+│        │                                │
+│        │ 4px (gap-y-1)                  │
+│        ▼                                │
+│  ┌────────────┐      ┌────────────┐     │
+│  │  stat 3    │      │  stat 4    │     │
+│  └────────────┘      └────────────┘     │
+│        │                                │
+│        │ 12px (mt-3)                    │
+│        ▼                                │
+│  ──────────────────────────────────     │  ← 2px divider
+│        │                                │
+│        │ 12px (pt-3)                    │
+│        ▼                                │
+│  ┌────────────┐      ┌────────────┐     │
+│  │  stat 5    │      │  stat 6    │     │
+│  └────────────┘      └────────────┘     │
+```
+
+| Element | Class/Value | Pixels |
+|---------|-------------|--------|
+| Outer padding | `p-3` | 12px |
+| Column gap | `gap-x-0` | 0px |
+| Row gap | `gap-y-1` | 4px |
+| Space above divider | `mt-3` | 12px |
+| Space below divider | `pt-3` | 12px |
+| Panel line thickness | | 6px |
+| Divider thickness | | 2px |
+
+Code location: `src/features/statistics/components/StatsDisplay.tsx`
+
 ## Color Presets
 
 Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
@@ -477,6 +577,36 @@ The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded co
 - Background: `hsl(0, 0%, 0%)` - black (#000000)
 
 These are intentionally NOT tied to presets so the error screen always displays consistently.
+
+### Preset Keyboard Navigation
+
+When settings is open, presets can be controlled with the keyboard:
+
+| Key | Action |
+|-----|--------|
+| Arrow keys | Navigate between presets (auto-applies on move) |
+| Space / Enter | Save current colors to the active preset |
+| Backspace / Delete | Delete the active preset |
+
+#### Editor Auto-Focus Protection
+
+The app has a "type anywhere to focus editor" feature. When you press a key, it auto-focuses the editor so you can start typing.
+
+When settings is open, Space/Enter/Backspace must NOT trigger this auto-focus (or it would steal focus from preset navigation). This is handled in `App.tsx`:
+
+```tsx
+// When settings open, protect Space/Backspace/Enter for preset controls
+if (showDebugMenu && e.key === 'Enter') return;
+if (showDebugMenu && !isPowerstatMode && (e.key === ' ' || e.key === 'Backspace')) return;
+```
+
+In powerstat mode, Space/Backspace are allowed through (for superscramble typing effect), but Enter is always protected.
+
+#### Pulse Animation Reset
+
+Active presets show a pulsing border animation (`preset-pulse` class). When you press Space/Enter to save colors to a preset, the animation resets to give visual feedback. This is done by incrementing a `pulseKey` state that's part of each button's React key.
+
+Code location: `src/features/theme/components/PresetGrid.tsx`
 
 ## Font Sizes
 
