@@ -568,7 +568,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             </div>
           </div>
           {/* Color stats - hover to show copy/paste buttons */}
-          {/* pb-3 extends hover area to panel line, -mb-3 cancels layout effect */}
+          {/* pb-3 extends hover ENTER area to panel line, -mb-3 cancels layout effect */}
+          {/* EXIT area is just the buttons themselves */}
           <div
             className="mt-3 pt-3 pb-3 -mb-3"
             style={{
@@ -576,11 +577,13 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             }}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setColorAreaHovered(true)}
-            onMouseLeave={() => setColorAreaHovered(false)}
           >
             {colorAreaHovered ? (
-              /* Split buttons on hover */
-              <div className="flex items-center">
+              /* Split buttons on hover - mouseLeave here for precise exit */
+              <div
+                className="flex items-center"
+                onMouseLeave={() => setColorAreaHovered(false)}
+              >
                 <ColorButton
                   onClick={handleColorCopy}
                   position="left"
