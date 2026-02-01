@@ -73,7 +73,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>{s("features:")}</p>
           <p>{s("a new page spawns at midnight; old logs are set in stone.")}</p>
-          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. about and settings join forces for powerstat mode.")}</p>
+          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about megazord for powerstats.")}</p>
           <p>{s("write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.")}</p>
         </div>
       </div>
