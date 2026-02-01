@@ -379,7 +379,11 @@ function AppContent() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       // When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
-      if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) return;
+      // Also preventDefault to stop browser default (e.g., Space scrolls page)
+      if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) {
+        e.preventDefault();
+        return;
+      }
 
       // Handle printable characters, Enter, and Backspace
       const isPrintable = e.key.length === 1;

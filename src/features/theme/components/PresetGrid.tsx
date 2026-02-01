@@ -101,12 +101,9 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     }
   }, [showKeyboardHint, boldCount, animPhase]);
 
-  // Set/clear active preset when settings menu is opened/closed
-  useEffect(() => {
-    if (!showDebugMenu) {
-      setActivePresetIndex(null);
-    }
-  }, [showDebugMenu, setActivePresetIndex]);
+  // Note: activePresetIndex persists across settings open/close because PresetGrid
+  // unmounts when settings closes, so any clearing code here never runs.
+  // This is intentional - user expects their selection to persist.
 
   // Keyboard navigation for presets
   useEffect(() => {

@@ -12,9 +12,19 @@ html, body {
   background-color: hsl(84, 100%, 94%);
 }
 
-/* No cursor changes on clickable elements - keep default arrow everywhere */
-a, button {
+/* No cursor changes - keep default arrow everywhere except text areas */
+*, *::before, *::after {
+  cursor: inherit;
+}
+
+html {
   cursor: default;
+}
+
+/* Only editable/selectable text should have text cursor */
+[contenteditable="true"],
+.cursor-text {
+  cursor: text;
 }
 
 #root {

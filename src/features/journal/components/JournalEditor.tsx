@@ -123,47 +123,15 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition]);
 
-  // MutationObserver to ensure <br> exists for consistent caret rendering
-  // This catches ALL changes: typing, paste, cut, undo, select-all+delete, etc.
-  useEffect(() => {
+  // Ensure <br> exists for consistent block caret rendering when editor is empty
+  // Only check on blur, not during typing (MutationObserver during typing causes bugs)
+  const ensureBrIfEmpty = useCallback(() => {
     if (!editorRef.current) return;
-
-    let rafId: number | null = null;
-
-    const ensureBr = () => {
-      // Cancel any pending check to avoid race conditions during fast typing
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-
-      // Batch using requestAnimationFrame to avoid mid-keystroke checks
-      rafId = requestAnimationFrame(() => {
-        if (!editorRef.current) return;
-        const html = editorRef.current.innerHTML;
-        // Check for truly empty OR empty structures like <div></div> that have no <br>
-        // These cause inconsistent caret rendering (narrow instead of block)
-        const hasNoBr = !html.includes('<br');
-        const hasNoText = !editorRef.current.textContent?.trim();
-        if (!html || html === '' || (hasNoText && hasNoBr)) {
-          editorRef.current.innerHTML = '<br>';
-        }
-        rafId = null;
-      });
-    };
-
-    const observer = new MutationObserver(ensureBr);
-    observer.observe(editorRef.current, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-    };
+    const html = editorRef.current.innerHTML;
+    // Only reset to <br> if truly empty - no text content AND no br tag
+    if (!html || html === '' || (html === '<div></div>' || html === '<p></p>')) {
+      editorRef.current.innerHTML = '<br>';
+    }
   }, [editorRef]);
 
   // MutationObserver to sync scrambled overlay with editor content
@@ -213,6 +181,12 @@ export function JournalEditor({
   // Sync scroll position during user scrolling and persist to storage
   const handleEditorScroll = useCallback(() => {
     if (!editorRef.current) return;
+
+    // Prevent horizontal scrolling (can happen with long runs of spaces/tabs)
+    // Reset scrollLeft to 0 immediately to keep cursor visible
+    if (editorRef.current.scrollLeft !== 0) {
+      editorRef.current.scrollLeft = 0;
+    }
 
     // Sync scrambled overlay position via transform (overlay uses overflow:hidden)
     if (overlayRef.current) {
@@ -296,11 +270,22 @@ export function JournalEditor({
 
     const content = editorRef.current.innerHTML || '';
     onInput(content);
-  }, [editorRef, onInput, isScrambled]);
+
+    // Prevent horizontal scroll (cursor going off-screen from spaces/tabs)
+    if (editorRef.current.scrollLeft !== 0) {
+      editorRef.current.scrollLeft = 0;
+    }
+
+    // Ensure block caret if content was deleted to empty
+    if (!content || content === '' || content === '<br>') {
+      ensureBrIfEmpty();
+    }
+  }, [editorRef, onInput, isScrambled, ensureBrIfEmpty]);
 
   // Clean up empty timestamps on blur (not during typing)
   const handleBlur = useCallback(() => {
     setIsFocused(false);
+    ensureBrIfEmpty(); // Ensure block caret on next focus
 
     if (!editorRef.current) return;
 
@@ -343,7 +328,7 @@ export function JournalEditor({
         timestampNode.remove();
       }
     });
-  }, [editorRef]);
+  }, [editorRef, ensureBrIfEmpty]);
 
   // Handle Tab and Backspace/Delete keys
   // Using execCommand('insertText', '') keeps caret solid (no blink)
@@ -352,23 +337,40 @@ export function JournalEditor({
     if (e.key === 'Tab') {
       e.preventDefault();
       if (e.shiftKey) {
-        // Shift+Tab: remove tab before cursor if present
+        // Shift+Tab: remove up to 4 spaces before cursor
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
           if (range.startOffset > 0 && range.startContainer.nodeType === Node.TEXT_NODE) {
             const text = range.startContainer.textContent || '';
-            const charBefore = text[range.startOffset - 1];
-            if (charBefore === '\t') {
-              // Select the tab character, then replace with empty string
-              selection.modify('extend', 'backward', 'character');
+            const offset = range.startOffset;
+            // Count how many spaces are immediately before cursor (up to 4)
+            let spacesToRemove = 0;
+            for (let i = 1; i <= 4 && i <= offset; i++) {
+              if (text[offset - i] === ' ') {
+                spacesToRemove++;
+              } else {
+                break;
+              }
+            }
+            if (spacesToRemove > 0) {
+              // Select the spaces, then delete them
+              for (let i = 0; i < spacesToRemove; i++) {
+                selection.modify('extend', 'backward', 'character');
+              }
               document.execCommand('insertText', false, '');
             }
           }
         }
       } else {
-        // Tab: insert tab character
-        document.execCommand('insertText', false, '\t');
+        // Tab: insert 4 spaces (tab characters cause browser tab-stop issues)
+        document.execCommand('insertText', false, '    ');
+        // Prevent horizontal scroll after inserting spaces
+        requestAnimationFrame(() => {
+          if (editorRef.current && editorRef.current.scrollLeft !== 0) {
+            editorRef.current.scrollLeft = 0;
+          }
+        });
       }
     } else if (e.key === 'Backspace') {
       const selection = window.getSelection();
@@ -503,8 +505,8 @@ export function JournalEditor({
         onKeyDown={isToday ? handleKeyDown : undefined}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
-        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words custom-editor dynamic-editor"
-        style={{ color: isScrambled ? 'transparent' : getColor() }}
+        className="absolute inset-0 p-8 overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
+        style={{ color: isScrambled ? 'transparent' : getColor(), overflowX: 'hidden', overflowWrap: 'anywhere', wordBreak: 'break-all' }}
         spellCheck={false}
         suppressContentEditableWarning
         role={isToday ? 'textbox' : 'article'}
@@ -519,7 +521,7 @@ export function JournalEditor({
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
             ref={overlayRef}
-            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-all"
             style={{ color: getColor() }}
           />
         </div>
