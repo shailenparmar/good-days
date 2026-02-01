@@ -305,7 +305,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
   // Use cyan for confirm/success when theme is green (hue 80-160), otherwise green
   const isThemeGreen = hue >= 80 && hue <= 160;
-  const confirmColor = isThemeGreen ? '#00e6da' : '#00ff00';
+  const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;
@@ -451,7 +451,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   return (
     <div className="space-y-2">
       {/* Label */}
-      <div className="text-xs font-mono select-none" style={{ color: textColor }}>
+      <div className="text-xs font-mono select-none" style={{ color: isSaving ? confirmColor : textColor }}>
         {isSaving ? (
           superscramble ? <span className="font-bold">{s(labelText)}</span> : renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
         ) : (

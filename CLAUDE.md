@@ -1187,19 +1187,20 @@ The password input flashes a confirm color on successful entry. To maintain cont
 
 | Theme Color | Confirm Color | Hex |
 |-------------|---------------|-----|
-| Green (hue 80-160) | Cyan | `#00e6da` |
+| Green (hue 80-160) | Cyan | `#0ffffb` |
 | Any other color | Green | `#00ff00` |
 
 This affects:
 - **Border** - flashes confirm color on success
 - **Input text** - changes to confirm color during flash
 - **"password saved" text** - displays in confirm color
+- **"lock with esc" label** - displays in confirm color after save
 
 Code location: `src/features/auth/components/PasswordSettings.tsx`
 
 ```tsx
 const isThemeGreen = hue >= 80 && hue <= 160;
-const confirmColor = isThemeGreen ? '#00e6da' : '#00ff00';
+const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
 ```
 
 ### ESC vs Click-Outside (Smart Difference)
