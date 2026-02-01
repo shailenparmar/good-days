@@ -113,15 +113,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [eggBoldCount, setEggBoldCount] = useState(0);
   const [eggAnimPhase, setEggAnimPhase] = useState<'bold' | 'unbold' | 'idle'>('idle');
 
-  // Color stats hover/paste state
+  // Color stats hover state
   const [colorAreaHovered, setColorAreaHovered] = useState(false);
-  const [colorPasteMode, setColorPasteMode] = useState(false);
-  const [colorPasteValue, setColorPasteValue] = useState('');
-  const colorInputRef = useRef<HTMLInputElement>(null);
-
-  // Bold sweep animation for paste placeholder
-  const [pasteBoldCount, setPasteBoldCount] = useState(0);
-  const [pasteAnimPhase, setPasteAnimPhase] = useState<'bold' | 'unbold'>('bold');
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -192,28 +185,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const timer = setTimeout(() => setEggBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
   }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
-
-  // Bold sweep animation for paste placeholder
-  useEffect(() => {
-    // Only animate when paste mode is active and input is empty
-    if (!colorPasteMode || colorPasteValue.length > 0) {
-      // Reset animation when entering paste mode or typing
-      setPasteBoldCount(0);
-      setPasteAnimPhase('bold');
-      return;
-    }
-
-    const pasteText = 'paste';
-    if (pasteBoldCount >= pasteText.length) {
-      // Flip phase and reset count
-      setPasteAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
-      setPasteBoldCount(0);
-      return;
-    }
-
-    const timer = setTimeout(() => setPasteBoldCount(c => c + 1), 83);
-    return () => clearTimeout(timer);
-  }, [colorPasteMode, colorPasteValue, pasteAnimPhase, pasteBoldCount]);
 
   // Handle click on easter eggs text - the secret 15th egg!
   // When user has all 14 regular eggs, shows "13.5/14" - clicking it completes the collection
@@ -433,53 +404,36 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
-  // Handle paste button click - enter paste mode
-  const handleColorPaste = useCallback(() => {
-    setColorPasteMode(true);
-    setColorPasteValue('');
-    setColorAreaHovered(false);
-    // Focus input after render
-    setTimeout(() => colorInputRef.current?.focus(), 0);
-  }, []);
-
-  // Handle paste input submission
-  const handleColorPasteSubmit = useCallback(() => {
-    const parsed = parseColorInput(colorPasteValue);
-    if (parsed) {
-      if (parsed.type === 'txt') {
-        setHue(parsed.h);
-        setSaturation(parsed.s);
-        setLightness(parsed.l);
-      } else if (parsed.type === 'bg') {
-        setBgHue(parsed.h);
-        setBgSaturation(parsed.s);
-        setBgLightness(parsed.l);
-      } else {
-        // Just HSL - apply to text by default
-        setHue(parsed.h);
-        setSaturation(parsed.s);
-        setLightness(parsed.l);
+  // Handle paste button click - read from clipboard and apply
+  const handleColorPaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      // Try to parse each line
+      const lines = text.split('\n');
+      for (const line of lines) {
+        const parsed = parseColorInput(line);
+        if (parsed) {
+          if (parsed.type === 'txt') {
+            setHue(parsed.h);
+            setSaturation(parsed.s);
+            setLightness(parsed.l);
+          } else if (parsed.type === 'bg') {
+            setBgHue(parsed.h);
+            setBgSaturation(parsed.s);
+            setBgLightness(parsed.l);
+          } else {
+            // Just HSL or HEX - apply to text by default
+            setHue(parsed.h);
+            setSaturation(parsed.s);
+            setLightness(parsed.l);
+          }
+        }
       }
+    } catch {
+      // Clipboard access denied or empty
     }
-    setColorPasteMode(false);
-    setColorPasteValue('');
-  }, [colorPasteValue, parseColorInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness]);
-
-  // Handle input blur or escape
-  const handleColorPasteBlur = useCallback(() => {
-    setColorPasteMode(false);
-    setColorPasteValue('');
-  }, []);
-
-  const handleColorPasteKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleColorPasteSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleColorPasteBlur();
-    }
-  }, [handleColorPasteSubmit, handleColorPasteBlur]);
+    setColorAreaHovered(false);
+  }, [parseColorInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness]);
 
   if (horizontal) {
     return (
@@ -590,49 +544,14 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             className="mt-3 pt-3"
             style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => !colorPasteMode && setColorAreaHovered(true)}
+            onMouseEnter={() => setColorAreaHovered(true)}
             onMouseLeave={() => setColorAreaHovered(false)}
             onMouseDown={(e) => {
               e.stopPropagation();
               handleColorTextClick();
             }}
           >
-            {colorPasteMode ? (
-              /* Paste input mode */
-              <div className="relative">
-                <input
-                  ref={colorInputRef}
-                  type="text"
-                  value={colorPasteValue}
-                  onChange={(e) => setColorPasteValue(e.target.value)}
-                  onKeyDown={handleColorPasteKeyDown}
-                  onBlur={handleColorPasteBlur}
-                  className="w-full text-xs font-mono font-bold text-center bg-transparent border-none outline-none relative z-10"
-                  style={{ color: getColor() }}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {/* Animated placeholder with bold sweep */}
-                {colorPasteValue.length === 0 && (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center text-xs font-mono pointer-events-none"
-                    style={{ color: getColor(), opacity: 0.85 }}
-                  >
-                    {pasteAnimPhase === 'bold' ? (
-                      <>
-                        <span className="font-bold">{'paste'.slice(0, pasteBoldCount)}</span>
-                        <span>{'paste'.slice(pasteBoldCount)}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{'paste'.slice(0, pasteBoldCount)}</span>
-                        <span className="font-bold">{'paste'.slice(pasteBoldCount)}</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : colorAreaHovered ? (
+            {colorAreaHovered ? (
               /* Split buttons on hover */
               <div className="flex">
                 <ColorButton
