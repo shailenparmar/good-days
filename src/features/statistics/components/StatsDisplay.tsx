@@ -200,7 +200,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     }
 
     // localStorage limit is ~5MB in most browsers
-    const usedStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(2);
+    const usedStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(4);
 
     // First entry date for "age"
     const firstEntryDate = entries.length > 0 ? entries[entries.length - 1].date : null;
