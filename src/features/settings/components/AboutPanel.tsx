@@ -58,7 +58,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
-              className="inline-flex items-center gap-1 transition-opacity hover:opacity-85 outline-none cursor-default"
+              className="inline-flex items-center gap-1 transition-opacity hover:opacity-85 outline-none"
               style={{ color: getColor() }}
             >
               <ExternalLink className="w-4 h-4" />
