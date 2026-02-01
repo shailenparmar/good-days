@@ -339,11 +339,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   const techStats = stacked ? calculateTechnicalStats() : null;
 
-  // Track when user clicks color text area (any click counts)
-  const handleColorTextClick = useCallback(() => {
-    markEasterEggFound('selectColorText');
-  }, []);
-
   // Parse color values from pasted text
   // Supports: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or "120, 50%, 60%" or "#ff0000"
   const parseColorInput = useCallback((input: string) => {
@@ -458,6 +453,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         // Select the new preset
         setSelectedPreset(null);
         setSelectedCustomPreset(customPresets.length);
+
+        // Easter egg for successfully pasting a colorway
+        markEasterEggFound('selectColorText');
       }
     } catch {
       // Clipboard access denied or empty
@@ -576,10 +574,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setColorAreaHovered(true)}
             onMouseLeave={() => setColorAreaHovered(false)}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              handleColorTextClick();
-            }}
           >
             {colorAreaHovered ? (
               /* Split buttons on hover */
