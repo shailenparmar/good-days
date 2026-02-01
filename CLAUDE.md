@@ -558,7 +558,7 @@ On mobile devices, the app shows a simple screen with "good days is not supporte
 ```
 ┌────────────────────────────────┐
 │                                │
-│        ← 45px marginTop        │
+│        ← 120px marginTop       │
 │                                │
 │            good                │
 │            days                │
@@ -584,7 +584,7 @@ On mobile devices, the app shows a simple screen with "good days is not supporte
 
 | Element | Property | Value |
 |---------|----------|-------|
-| Text from top | `marginTop` | 45px |
+| Text from top | `marginTop` | 120px |
 | Between words | `margin` | 4px 0 |
 | Text to button | `marginTop` on button | 60px |
 | Button to bottom | `marginBottom` | 48px |
