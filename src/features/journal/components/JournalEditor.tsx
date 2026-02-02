@@ -178,47 +178,6 @@ export function JournalEditor({
       return;
     }
 
-    // Handle plain Backspace to keep cursor solid (no blink reset)
-    // Let browser handle Alt/Cmd variants natively
-    if (e.key === 'Backspace' && !e.metaKey && !e.altKey && !e.ctrlKey) {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-
-      if (start !== end) {
-        // Selection - delete selected text
-        textarea.setRangeText('', start, end, 'end');
-      } else if (start > 0) {
-        // No selection - delete char before cursor
-        textarea.setRangeText('', start - 1, start, 'end');
-      }
-
-      // Sync state
-      setValue(textarea.value);
-      onInput(textarea.value);
-      return;
-    }
-
-    // Handle plain Delete key similarly
-    if (e.key === 'Delete' && !e.metaKey && !e.altKey && !e.ctrlKey) {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-
-      if (start !== end) {
-        // Selection - delete selected text
-        textarea.setRangeText('', start, end, 'start');
-      } else if (start < textarea.value.length) {
-        // No selection - delete char after cursor
-        textarea.setRangeText('', start, start + 1, 'start');
-      }
-
-      // Sync state
-      setValue(textarea.value);
-      onInput(textarea.value);
-    }
   }, [onInput]);
 
   // Focus the editor and notify parent
