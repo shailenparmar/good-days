@@ -184,13 +184,29 @@ export function JournalEditor({
       const textarea = e.currentTarget;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
+      const text = textarea.value;
 
-      if (start === end && start > 0) {
-        // No selection - delete char before cursor
-        textarea.setRangeText('', start - 1, start, 'end');
-      } else if (start !== end) {
+      if (start !== end) {
         // Selection - delete selected text
         textarea.setRangeText('', start, end, 'end');
+      } else if (start > 0) {
+        let deleteFrom = start - 1;
+
+        if (e.metaKey) {
+          // Cmd+Backspace: delete to line start
+          const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+          deleteFrom = lineStart;
+        } else if (e.altKey) {
+          // Alt+Backspace: delete word
+          let pos = start - 1;
+          // Skip trailing spaces
+          while (pos > 0 && text[pos] === ' ') pos--;
+          // Skip word characters
+          while (pos > 0 && text[pos - 1] !== ' ' && text[pos - 1] !== '\n') pos--;
+          deleteFrom = pos;
+        }
+
+        textarea.setRangeText('', deleteFrom, start, 'end');
       }
 
       // Sync state
@@ -205,13 +221,29 @@ export function JournalEditor({
       const textarea = e.currentTarget;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
+      const text = textarea.value;
 
-      if (start === end && start < textarea.value.length) {
-        // No selection - delete char after cursor
-        textarea.setRangeText('', start, start + 1, 'start');
-      } else if (start !== end) {
+      if (start !== end) {
         // Selection - delete selected text
         textarea.setRangeText('', start, end, 'start');
+      } else if (start < text.length) {
+        let deleteTo = start + 1;
+
+        if (e.metaKey) {
+          // Cmd+Delete: delete to line end
+          const lineEnd = text.indexOf('\n', start);
+          deleteTo = lineEnd === -1 ? text.length : lineEnd;
+        } else if (e.altKey) {
+          // Alt+Delete: delete word forward
+          let pos = start;
+          // Skip leading spaces
+          while (pos < text.length && text[pos] === ' ') pos++;
+          // Skip word characters
+          while (pos < text.length && text[pos] !== ' ' && text[pos] !== '\n') pos++;
+          deleteTo = pos;
+        }
+
+        textarea.setRangeText('', start, deleteTo, 'start');
       }
 
       // Sync state
