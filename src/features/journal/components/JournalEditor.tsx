@@ -170,6 +170,13 @@ export function JournalEditor({
     onInput(newValue);
   }, [editorRef, isScrambled, onInput]);
 
+  // Block Tab from leaving editor (just prevent default, don't insert anything)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+    }
+  }, []);
+
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
@@ -234,6 +241,7 @@ export function JournalEditor({
         ref={editorRef}
         value={value}
         onChange={isToday ? handleChange : undefined}
+        onKeyDown={handleKeyDown}
         onScroll={handleScroll}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
