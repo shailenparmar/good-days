@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
@@ -7,6 +7,7 @@ import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup }
 import { FunctionButton } from '@shared/components';
 import { getItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
+import { useTheme } from '@features/theme';
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
@@ -23,6 +24,31 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Import feedback state
+  const [importFeedback, setImportFeedback] = useState<{ count: number } | null>(null);
+  const { hue } = useTheme();
+  const isThemeGreen = hue >= 80 && hue <= 160;
+  const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+
+  // Dismiss import feedback on click or key anywhere
+  useEffect(() => {
+    if (!importFeedback) return;
+
+    const dismiss = () => setImportFeedback(null);
+
+    // Small delay to avoid the import click from immediately dismissing
+    const timer = setTimeout(() => {
+      window.addEventListener('click', dismiss);
+      window.addEventListener('keydown', dismiss);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('keydown', dismiss);
+    };
+  }, [importFeedback]);
 
   const handleImport = () => {
     fileInputRef.current?.click();
@@ -55,11 +81,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const parsed = parseBackupText(decrypted);
         console.log('4. Parsed entries:', parsed);
 
-        const merged = mergeEntries(entries, parsed, Date.now());
-        console.log('5. Merged entries:', merged);
+        const { entries: merged, importedCount } = mergeEntries(entries, parsed, Date.now());
+        console.log('5. Merged entries:', merged, 'importedCount:', importedCount);
 
         onImport(merged);
         console.log('6. Import called');
+
+        // Show feedback with count of actually imported entries
+        setImportFeedback({ count: importedCount });
       } catch (err) {
         console.error('Failed to decrypt backup:', err);
       }
@@ -125,9 +154,17 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <Upload className="w-3 h-3" />
         <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
       </FunctionButton>
-      <FunctionButton onClick={handleImport} size="sm">
+      <FunctionButton
+        onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
+        size="sm"
+        overrideColor={importFeedback ? confirmColor : undefined}
+      >
         <Download className="w-3 h-3" />
-        <span>{s(stacked ? 'import AES-256-GCM backup' : 'import')}</span>
+        <span>
+          {importFeedback
+            ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+            : s(stacked ? 'import AES-256-GCM backup' : 'import')}
+        </span>
       </FunctionButton>
     </div>
   );

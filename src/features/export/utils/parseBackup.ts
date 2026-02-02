@@ -79,14 +79,20 @@ function parseEnglishDate(dateStr: string): string | null {
   return `${yearNum}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
 }
 
+export interface MergeResult {
+  entries: JournalEntry[];
+  importedCount: number;
+}
+
 // Merge imported entries with existing entries
 export function mergeEntries(
   existingEntries: JournalEntry[],
   importedEntries: ParsedEntry[],
   importTimestamp: number
-): JournalEntry[] {
+): MergeResult {
   const result = [...existingEntries];
   const existingDates = new Set(existingEntries.map(e => e.date));
+  let importedCount = 0;
 
   for (const imported of importedEntries) {
     if (existingDates.has(imported.date)) {
@@ -126,6 +132,7 @@ export function mergeEntries(
             : existing.startedAt,
           lastModified: importTimestamp,
         };
+        importedCount++;
       }
     } else {
       // No conflict - add as new entry
@@ -141,13 +148,14 @@ export function mergeEntries(
         lastModified: importTimestamp,
       });
       existingDates.add(imported.date);
+      importedCount++;
     }
   }
 
   // Sort by date descending (newest first)
   result.sort((a, b) => b.date.localeCompare(a.date));
 
-  return result;
+  return { entries: result, importedCount };
 }
 
 // Strip HTML tags to get plain text
