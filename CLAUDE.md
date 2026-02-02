@@ -700,9 +700,20 @@ if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' 
 
 #### Pulse Animation Reset
 
-Active presets show a pulsing border animation (`preset-pulse` class). When you press Space/Enter to save colors to a preset, the animation resets to give visual feedback. This is done by incrementing a `pulseKey` state that's part of each button's React key.
+Active presets show a pulsing border animation (`preset-pulse` class). When you save colors to a preset (via Space/Enter or clicking an already-active preset), the animation resets to give visual feedback. This is done by incrementing a `pulseKey` state that's part of each button's React key.
 
 Code location: `src/features/theme/components/PresetGrid.tsx`
+
+#### Keyboard Hint Text
+
+When the hint appears (after clicking presets a few times), it shows:
+```
+navigate with arrow keys.
+select with spacebar.
+delete with backspace.
+```
+
+The bold sweep animation runs across all three lines sequentially.
 
 ## Font Sizes
 
@@ -824,7 +835,7 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | `isNarrow` | `true` when window < 711px | No (computed) | — |
 | `zenMode` | Full zen: just editor, hide everything else | Yes | `false` |
 | `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | Yes | `false` |
-| `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` |
+| `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` (but `true` on load if panels are open) |
 | `preFocusState` | Saved state before entering zen/minizen (for restore) | No | `null` |
 | `preNarrowState` | Saved panel state before narrowing (for restore on widen) | No | `null` |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
@@ -1220,6 +1231,8 @@ Password flows can also be dismissed by clicking outside the input:
 - **After "password saved"** - Click anywhere dismisses message and returns to split buttons
 - **During "change password" flow** - Click outside input returns to split buttons
 - **During "set password" flow** - Click outside input resets to first step and blurs
+
+**Implementation note:** The click handler uses capture phase (`addEventListener(..., true)`) so it runs before `stopPropagation()` calls in buttons/pickers. This ensures clicking *anywhere* outside the input triggers the dismiss.
 
 ### Password Confirm Colors
 
