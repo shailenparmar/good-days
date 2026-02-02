@@ -157,9 +157,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
         setShowInput(false);
         setInput('');
       } else if (step === 'set' && !hasPassword) {
-        // First step of set password: clear input, placeholder shows while focused
-        e.preventDefault();
-        setInput('');
+        // First step of set password: only capture ESC if input has content or is focused
+        if (input || document.activeElement === inputRef.current) {
+          e.preventDefault();
+          setInput('');
+        }
+        // Otherwise let ESC through to lock the app
       }
     };
 
