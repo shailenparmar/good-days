@@ -105,8 +105,12 @@ export function mergeEntries(
       const existingText = stripHtml(existing.content).trim();
       const importedText = imported.content.trim();
 
+      // Normalize for comparison (collapse whitespace differences from HTML conversion)
+      const existingNormalized = normalizeForComparison(existingText);
+      const importedNormalized = normalizeForComparison(importedText);
+
       // Skip if: same content, empty import, or existing already contains imported text
-      if (existingText !== importedText && importedText !== '' && !existingText.includes(importedText)) {
+      if (existingNormalized !== importedNormalized && importedNormalized !== '' && !existingNormalized.includes(importedNormalized)) {
         // Different content - append imported content with label above it
         const importDate = new Date(importTimestamp);
         const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
@@ -164,4 +168,9 @@ function stripHtml(html: string): string {
   const div = document.createElement('div');
   div.innerHTML = html;
   return div.textContent || '';
+}
+
+// Normalize text for comparison (collapse all whitespace)
+function normalizeForComparison(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
 }
