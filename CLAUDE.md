@@ -174,6 +174,32 @@ This prevents duplicate content from being appended during repeated imports.
 - Entries are re-sorted by date after import
 - "Copy to clipboard" still copies plain text (not encrypted)
 
+### Import Feedback
+
+After successful import, the import button shows confirmation feedback:
+
+| Element | Behavior |
+|---------|----------|
+| Text | "X entry imported" or "X entries imported" (actual count of added/modified) |
+| Color | Confirm color on border + text |
+| Dismiss | Click button, click anywhere, or press any key |
+
+**Confirm color logic** (same as password saved):
+```typescript
+const isThemeGreen = hue >= 80 && hue <= 160;
+const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+```
+
+- Green theme (hue 80-160) → cyan `#0ffffb`
+- Any other theme → green `#00ff00`
+
+**Count reflects actual changes:**
+- Importing same backup twice → "0 entries imported" (nothing changed)
+- New entries + modified entries are counted
+- Skipped (identical content) entries are not counted
+
+Code location: `src/features/export/components/ExportButtons.tsx`
+
 ## UI Conventions
 
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
