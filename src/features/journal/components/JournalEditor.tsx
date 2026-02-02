@@ -206,7 +206,7 @@ export function JournalEditor({
 
   return (
     <div
-      className="flex-1 relative cursor-text"
+      className="flex-1 relative"
       style={{ backgroundColor: getBgColor() }}
       onClick={handleContainerClick}
     >
@@ -232,7 +232,8 @@ export function JournalEditor({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         readOnly={!isToday}
-        className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea"
+        wrap="soft"
+        className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
         style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
         aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}
