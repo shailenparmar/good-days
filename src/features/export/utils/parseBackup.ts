@@ -101,11 +101,12 @@ export function mergeEntries(
       const existingIndex = result.findIndex(e => e.date === imported.date);
       const existing = result[existingIndex];
 
-      // Check if content is actually different
+      // Check if content is actually different and not already contained
       const existingText = stripHtml(existing.content).trim();
       const importedText = imported.content.trim();
 
-      if (existingText !== importedText && importedText !== '') {
+      // Skip if: same content, empty import, or existing already contains imported text
+      if (existingText !== importedText && importedText !== '' && !existingText.includes(importedText)) {
         // Different content - append imported content with label above it
         const importDate = new Date(importTimestamp);
         const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
