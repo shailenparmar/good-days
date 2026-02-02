@@ -1,6 +1,8 @@
+import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { ExternalLink } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
+import { getItem, setItem } from '@shared/storage';
 
 interface AboutPanelProps {
   isOpen: boolean;
@@ -18,6 +20,32 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
+  // Scroll position persistence
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollSaveTimeout = useRef<number | null>(null);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const savedScroll = getItem('aboutScrollTop');
+    if (savedScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = parseFloat(savedScroll);
+    }
+  }, []);
+
+  // Save scroll position (debounced)
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    if (scrollSaveTimeout.current !== null) {
+      clearTimeout(scrollSaveTimeout.current);
+    }
+    scrollSaveTimeout.current = window.setTimeout(() => {
+      if (scrollRef.current) {
+        setItem('aboutScrollTop', String(scrollRef.current.scrollTop));
+      }
+      scrollSaveTimeout.current = null;
+    }, 100);
+  }, []);
+
   if (!isOpen) return null;
 
   const sectionStyle = {
@@ -26,6 +54,8 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
 
   return (
     <div
+      ref={scrollRef}
+      onScroll={handleScroll}
       className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
         width: stacked ? '400px' : '720px',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -6,6 +6,7 @@ import { TimeDisplay } from './TimeDisplay';
 import { FunctionButton } from '@shared/components';
 import { scrambleText } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
+import { getItem, setItem } from '@shared/storage';
 import type { JournalEntry } from '@features/journal';
 
 interface SettingsPanelProps {
@@ -45,6 +46,32 @@ export function SettingsPanel({
   const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
+  // Scroll position persistence
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollSaveTimeout = useRef<number | null>(null);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const savedScroll = getItem('settingsScrollTop');
+    if (savedScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = parseFloat(savedScroll);
+    }
+  }, []);
+
+  // Save scroll position (debounced)
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    if (scrollSaveTimeout.current !== null) {
+      clearTimeout(scrollSaveTimeout.current);
+    }
+    scrollSaveTimeout.current = window.setTimeout(() => {
+      if (scrollRef.current) {
+        setItem('settingsScrollTop', String(scrollRef.current.scrollTop));
+      }
+      scrollSaveTimeout.current = null;
+    }, 100);
+  }, []);
+
   // Easter egg: saw the blackout screen
   useEffect(() => {
     if (resetStep === 2) markEasterEggFound('resetBlackout');
@@ -74,6 +101,8 @@ export function SettingsPanel({
 
   return (
     <div
+      ref={scrollRef}
+      onScroll={handleScroll}
       className="w-80 flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,

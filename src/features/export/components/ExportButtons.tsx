@@ -27,6 +27,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
+  const [importHovered, setImportHovered] = useState(false);
   const { hue } = useTheme();
   const isThemeGreen = hue >= 80 && hue <= 160;
   const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
@@ -171,21 +172,27 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <Upload className="w-3 h-3" />
         <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
       </FunctionButton>
-      <FunctionButton
-        onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
-        size="sm"
-        overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
-        title={stacked && !importFeedback ? 'multiple files accepted' : undefined}
+      <div
+        onMouseEnter={() => setImportHovered(true)}
+        onMouseLeave={() => setImportHovered(false)}
       >
-        {!importFeedback && <Download className="w-3 h-3" />}
-        <span>
-          {importFeedback
-            ? importFeedback.type === 'success'
-              ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
-              : s('import failed')
-            : s(stacked ? 'import AES-256-GCM backup' : 'import')}
-        </span>
-      </FunctionButton>
+        <FunctionButton
+          onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
+          size="sm"
+          overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
+        >
+          {!importFeedback && !importHovered && <Download className="w-3 h-3" />}
+          <span>
+            {importFeedback
+              ? importFeedback.type === 'success'
+                ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+                : s('import failed')
+              : stacked && importHovered
+                ? s('multiple files accepted')
+                : s(stacked ? 'import AES-256-GCM backup' : 'import')}
+          </span>
+        </FunctionButton>
+      </div>
     </div>
   );
 }
