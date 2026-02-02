@@ -1442,7 +1442,7 @@ Original working icons backed up at `public/icon-backup/` for reference.
 
 ## Easter Eggs
 
-The app has 14 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
+The app has 13 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
 
 ### Easter Egg List
 
@@ -1459,26 +1459,25 @@ The app has 14 discoverable easter eggs + 1 secret final egg. The count displays
 | 9 | `scrambleHotkeyUsed` | Actually use the scramble hotkey (Option/Alt+S) |
 | 10 | `spacebarRand` | Press spacebar while on rand button in preset grid |
 | 11 | `arrowKeyPresets` | Navigate presets with arrow keys |
-| 12 | `copyMarkdown` | Copy markdown format in powerstat mode |
-| 13 | `selectColorText` | Click on the color stats area (HSL/HEX values) |
-| 14 | `resetBlackout` | See the blackout screen on reset confirmation |
-| SECRET | `clickedEggCounter` | Click on "13.5/14" to complete (see below) |
+| 12 | `selectColorText` | Click on the color stats area (HSL/HEX values) |
+| 13 | `resetBlackout` | See the blackout screen on reset confirmation |
+| SECRET | `clickedEggCounter` | Click on "12.5/13" to complete (see below) |
 
-### The 13.5/14 Gag
+### The 12.5/13 Gag
 
-When the user finds all 14 regular eggs, the counter shows **"13.5/14 easter eggs"** instead of "14/14". The final egg is clicking on this incomplete counter:
+When the user finds all 13 regular eggs, the counter shows **"12.5/13 easter eggs"** instead of "13/13". The final egg is clicking on this incomplete counter:
 
-1. User finds all 14 regular eggs → shows "13.5/14"
-2. User clicks "13.5/14" → marks secret egg + rainbow animation + bold sweep animation
-3. Counter now shows "14/14"
+1. User finds all 13 regular eggs → shows "12.5/13"
+2. User clicks "12.5/13" → marks secret egg + rainbow animation + bold sweep animation
+3. Counter now shows "13/13"
 
-**The gag**: The 14th egg IS clicking on the counter. You can't complete the collection without clicking it.
+**The gag**: The 13th egg IS clicking on the counter. You can't complete the collection without clicking it.
 
-After completing, clicking "14/14" replays both animations. Click anywhere or press any key to stop.
+After completing, clicking "13/13" replays both animations. Click anywhere or press any key to stop.
 
 ### Easter Egg Click Animation
 
-When clicking "14/14 easter eggs", two animations play simultaneously:
+When clicking "13/13 easter eggs", two animations play simultaneously:
 
 1. **Rainbow mode**: Text color cycles through hue 0-360° (5 second full cycle)
 2. **Bold sweep**: Text does the signature bold left→right, unbold left→right animation (loops continuously)
@@ -1495,13 +1494,13 @@ The bold sweep is tied to `isRainbowMode`:
 | File | Purpose |
 |------|---------|
 | `src/shared/utils/easterEggs.ts` | Egg definitions, tracking, count logic |
-| `src/features/statistics/components/StatsDisplay.tsx` | Display logic, 13.5 gag, rainbow animation |
+| `src/features/statistics/components/StatsDisplay.tsx` | Display logic, 12.5 gag, rainbow animation |
 
 ### Implementation Notes
 
-- `getEasterEggCount()` returns `total: 14` (hides the secret 15th egg)
+- `getEasterEggCount()` returns `total: 13` (hides the secret 14th egg)
 - `isEasterEggFound('clickedEggCounter')` checks if secret is found
-- Display shows "13.5" when `found === total && !hasSecretEgg`
+- Display shows "12.5" when `found === total && !hasSecretEgg`
 - Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress
 
 ## Versioning
