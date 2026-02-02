@@ -175,6 +175,20 @@ This prevents duplicate content from being appended during repeated imports.
 - Entries are re-sorted by date after import
 - "Copy to clipboard" still copies plain text (not encrypted)
 
+### Fearless Import Philosophy
+
+**Import should require zero mental overhead.** Users should be able to select an entire folder of backups - from different dates, different devices, with overlapping content - and just import them all. The app figures it out.
+
+No duplicate content. No corruption. No "did I already import this?" No thinking required.
+
+**Safeguards:**
+1. Same date + identical content → skip entirely
+2. Same date + existing already contains imported text → skip (prevents re-appending)
+3. Same date in multiple files → handled (Set tracks what's been added)
+4. Multi-file import → all merge cleanly into one result
+
+**Result:** User can import the same backup 10 times, import overlapping backups, import their entire backup folder - it just works.
+
 ### Import Feedback
 
 After import, the import button shows feedback:
