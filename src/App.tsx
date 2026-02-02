@@ -613,6 +613,7 @@ function AppContent() {
             if (opening) {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
+              if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
             }
             // Interacting with panels in narrow mode = commit to narrow, clear wide state
             if (isNarrow) setPreNarrowState(null);
