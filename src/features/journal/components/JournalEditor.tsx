@@ -59,6 +59,9 @@ export function JournalEditor({
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
   const scrollSaveTimeout = useRef<number | null>(null);
 
+  // Track scroll for scramble overlay sync
+  const [scrollTop, setScrollTop] = useState(0);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -103,9 +106,12 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition]);
 
-  // Handle scroll - persist position
+  // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
     if (!editorRef.current) return;
+
+    // Immediately sync overlay scroll (no debounce for smooth visual)
+    setScrollTop(editorRef.current.scrollTop);
 
     // Debounce scroll position save (100ms)
     if (scrollSaveTimeout.current !== null) {
@@ -163,6 +169,30 @@ export function JournalEditor({
     setValue(newValue);
     onInput(newValue);
   }, [editorRef, isScrambled, onInput]);
+
+  // Handle Tab key - insert 4 spaces instead of moving focus
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const spaces = '    ';
+
+      // Insert 4 spaces at cursor position
+      const newValue = value.substring(0, start) + spaces + value.substring(end);
+      setValue(newValue);
+      onInput(newValue);
+
+      // Move cursor after the inserted spaces
+      requestAnimationFrame(() => {
+        if (editorRef.current) {
+          editorRef.current.selectionStart = start + spaces.length;
+          editorRef.current.selectionEnd = start + spaces.length;
+        }
+      });
+    }
+  }, [value, onInput, editorRef]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
@@ -228,6 +258,7 @@ export function JournalEditor({
         ref={editorRef}
         value={value}
         onChange={isToday ? handleChange : undefined}
+        onKeyDown={isToday ? handleKeyDown : undefined}
         onScroll={handleScroll}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -241,11 +272,13 @@ export function JournalEditor({
 
       {/* Scrambled overlay - shows scrambled text when in scramble mode */}
       {isScrambled && (
-        <div
-          className="absolute inset-0 p-8 overflow-hidden pointer-events-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap"
-          style={{ color: getColor() }}
-        >
-          {scrambledValue}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+            style={{ color: getColor(), transform: `translateY(-${scrollTop}px)` }}
+          >
+            {scrambledValue}
+          </div>
         </div>
       )}
 
