@@ -653,6 +653,12 @@ On mobile devices, the app shows a simple screen with "good days is not supporte
 │         │   rand   │           │  ← 8px border
 │         └──────────┘           │
 │                                │
+│        ← 16px gap              │
+│                                │
+│         ┌──────────┐           │
+│         │  paste   │           │  ← 8px border
+│         └──────────┘           │
+│                                │
 │        ← 48px marginBottom     │
 │                                │
 └────────────────────────────────┘
@@ -664,11 +670,34 @@ On mobile devices, the app shows a simple screen with "good days is not supporte
 |---------|----------|-------|
 | Text from top | `marginTop` | 120px |
 | Between words | `margin` | 4px 0 |
-| Text to button | `marginTop` on button | 60px |
-| Button to bottom | `marginBottom` | 48px |
+| Text to rand button | `marginTop` on button | 60px |
+| Rand to paste gap | `marginTop` on paste | 16px |
+| Paste to bottom | `marginBottom` | 48px |
 | Button border | `border` | 8px solid |
 | Button border radius | `borderRadius` | 12px |
 | Button padding | `padding` | 8px 40px |
+
+### Paste Button
+
+The paste button reads color stats from the clipboard using the same format as powerstat mode:
+
+```
+txt: 120, 50%, 60%
+bg: 200, 80%, 90%
+```
+
+**Supported formats:**
+- `txt: h, s%, l%` - text color HSL
+- `bg: h, s%, l%` - background color HSL
+- `h, s%, l%` - plain HSL (applies to text)
+- `#rrggbb` - HEX (converts to HSL, applies to text)
+
+**Behavior:**
+- Reads clipboard on tap
+- Parses each line for color values
+- Applies found colors (keeps existing if line not found)
+- Triggers pulse animation on success
+- Haptic feedback on supported devices
 
 ### Why Fixed Pixels?
 
