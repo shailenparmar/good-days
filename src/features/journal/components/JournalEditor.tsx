@@ -93,15 +93,16 @@ export function JournalEditor({
     setValue(textContent);
 
     // Restore scroll position after content loads
-    if (editorRef.current) {
-      const savedScrollTop = scrollPosition.get(selectedDate);
-      if (savedScrollTop > 0) {
+    // Use double requestAnimationFrame to ensure content is fully rendered
+    const savedScrollTop = scrollPosition.get(selectedDate);
+    if (savedScrollTop > 0) {
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (editorRef.current) {
             editorRef.current.scrollTop = savedScrollTop;
           }
         });
-      }
+      });
     }
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition]);
