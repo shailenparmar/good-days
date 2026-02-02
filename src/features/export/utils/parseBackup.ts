@@ -11,7 +11,8 @@ export function parseBackupText(text: string): ParsedEntry[] {
   const entries: ParsedEntry[] = [];
 
   // Split by date headers (## Day, Month Date, Year)
-  const dateHeaderRegex = /^## (.+)$/gm;
+  // Strict pattern to avoid matching user content that starts with "## "
+  const dateHeaderRegex = /^## ([A-Za-z]+, [A-Za-z]+ \d{1,2}, \d{4})$/gm;
   const parts = text.split(dateHeaderRegex);
 
   // parts[0] is the header before first date
