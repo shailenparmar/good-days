@@ -56,49 +56,62 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const fileContent = event.target?.result as string;
-      console.log('1. File content loaded:', fileContent?.substring(0, 100));
-      if (!fileContent) return;
+    // Helper to read a file as text
+    const readFile = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    };
 
-      // Check if this is an encrypted backup
-      const encryptedContent = parseEncryptedBackup(fileContent);
-      console.log('2. Encrypted content extracted:', encryptedContent?.substring(0, 50));
-      if (!encryptedContent) {
-        console.error('Invalid backup file: not an encrypted backup');
-        setImportFeedback({ type: 'error' });
-        return;
-      }
+    let currentEntries = entries;
+    let totalImported = 0;
+    let hasError = false;
 
+    // Process all files sequentially
+    for (const file of Array.from(files)) {
       try {
+        const fileContent = await readFile(file);
+        if (!fileContent) continue;
+
+        // Check if this is an encrypted backup
+        const encryptedContent = parseEncryptedBackup(fileContent);
+        if (!encryptedContent) {
+          console.error(`Invalid backup file: ${file.name}`);
+          hasError = true;
+          continue;
+        }
+
         // Decrypt the content
         const decrypted = await decryptText(encryptedContent);
-        console.log('3. Decrypted content:', decrypted?.substring(0, 200));
 
         // Parse the decrypted backup text
         const parsed = parseBackupText(decrypted);
-        console.log('4. Parsed entries:', parsed);
 
-        const { entries: merged, importedCount } = mergeEntries(entries, parsed, Date.now());
-        console.log('5. Merged entries:', merged, 'importedCount:', importedCount);
-
-        onImport(merged);
-        console.log('6. Import called');
-
-        // Show feedback with count of actually imported entries
-        setImportFeedback({ type: 'success', count: importedCount });
+        // Merge into running total
+        const { entries: merged, importedCount } = mergeEntries(currentEntries, parsed, Date.now());
+        currentEntries = merged;
+        totalImported += importedCount;
       } catch (err) {
-        console.error('Failed to decrypt backup:', err);
-        setImportFeedback({ type: 'error' });
+        console.error(`Failed to process ${file.name}:`, err);
+        hasError = true;
       }
-    };
-    reader.readAsText(file);
+    }
 
-    // Reset input so same file can be selected again
+    // Update state once with final merged result
+    if (totalImported > 0 || !hasError) {
+      onImport(currentEntries);
+      setImportFeedback({ type: 'success', count: totalImported });
+    } else {
+      setImportFeedback({ type: 'error' });
+    }
+
+    // Reset input so same files can be selected again
     e.target.value = '';
   };
 
@@ -146,6 +159,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         ref={fileInputRef}
         type="file"
         accept=".txt"
+        multiple
         onChange={handleFileChange}
         className="hidden"
       />
