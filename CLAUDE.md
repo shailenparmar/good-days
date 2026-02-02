@@ -14,6 +14,14 @@ git commit -m "Description of changes"
 git push origin main
 ```
 
+**DOCUMENT WITH EVERY PUSH**: Update this CLAUDE.md file whenever making changes that affect:
+- UI behavior or styling
+- Keyboard shortcuts or interactions
+- State management patterns
+- Any logic that future development should know about
+
+Don't wait to be asked - document proactively with each push.
+
 ## Domain & Hosting
 
 The production site is hosted on **GitHub Pages** with a custom domain managed by **Cloudflare**.
@@ -237,14 +245,16 @@ After import, the import button shows feedback:
 - No hover shading when feedback is showing
 - Dismiss by: clicking button, clicking anywhere, or pressing any key
 
-**Confirm color logic** (same as password saved):
+**Confirm color logic** (based on BACKGROUND color for visibility):
 ```typescript
-const isThemeGreen = hue >= 80 && hue <= 160;
-const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+const isBgGreen = bgHue >= 80 && bgHue <= 160;
+const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
 ```
 
-- Green theme (hue 80-160) → cyan `#0ffffb`
-- Any other theme → green `#00ff00`
+- Green background (bgHue 80-160) → cyan `#0ffffb`
+- Other background colors → green `#00ff00`
+
+**IMPORTANT:** Uses `bgHue` (background), not `hue` (text). The confirm color appears ON the background, so we check background hue for visibility.
 
 **Count reflects actual changes:**
 - Importing same backup twice → "0 entries imported" (nothing changed)
@@ -1288,24 +1298,28 @@ Password flows can also be dismissed by clicking outside the input:
 
 ### Password Confirm Colors
 
-The password input flashes a confirm color on successful entry. To maintain contrast:
+The password input flashes a confirm color on successful entry. To maintain contrast against the BACKGROUND:
 
-| Theme Color | Confirm Color | Hex |
-|-------------|---------------|-----|
-| Green (hue 80-160) | Cyan | `#0ffffb` |
+| Background Color | Confirm Color | Hex |
+|------------------|---------------|-----|
+| Green (bgHue 80-160) | Cyan | `#0ffffb` |
 | Any other color | Green | `#00ff00` |
 
 This affects:
 - **Border** - flashes confirm color on success
 - **Input text** - changes to confirm color during flash
-- **"password saved" text** - displays in confirm color
-- **"lock with esc" label** - displays in confirm color after save
+- **"saved. lock with esc"** - animated text displays in confirm color after save
+
+**No title labels:** Password flows have no labels above the input. The placeholder text indicates the current step:
+- "set password" → "one more time" (new password flow)
+- "old password" → "new password" → "new password again" (change flow)
+- "saved. lock with esc" (after successful save, with bold sweep animation)
 
 Code location: `src/features/auth/components/PasswordSettings.tsx`
 
 ```tsx
-const isThemeGreen = hue >= 80 && hue <= 160;
-const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+const isBgGreen = bgHue >= 80 && bgHue <= 160;
+const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
 ```
 
 ### Password Input Styling
