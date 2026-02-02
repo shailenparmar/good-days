@@ -90,7 +90,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
 
-  const { getColor, hue, saturation, lightness } = useTheme();
+  const { getColor, hue, saturation, lightness, bgHue } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Core state
@@ -112,10 +112,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
 
-  // Label animation state (for "esc to lock" after save)
-  const [labelBoldCount, setLabelBoldCount] = useState(0);
-  const [labelAnimPhase, setLabelAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const labelText = 'lock with esc';
+  // Saved message animation state
+  const [savedBoldCount, setSavedBoldCount] = useState(0);
+  const [savedAnimPhase, setSavedAnimPhase] = useState<'bold' | 'unbold'>('bold');
+  const savedText = 'saved. lock with esc';
 
   // Derived state
   const placeholderText = getPlaceholderText(step);
@@ -131,6 +131,13 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
       setShowInput(!hasPassword);
     }
   }, [hasPassword, isSaving]);
+
+  // Autofocus input when showInput becomes true
+  useEffect(() => {
+    if (showInput && !isSaving) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [showInput, isSaving]);
 
   // Window-level ESC handler to reset password flow (without requiring input focus)
   // Always attached to avoid race conditions, but checks state inside handler
@@ -196,28 +203,28 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     }
   }, [showPlaceholder, showInput, superscramble]);
 
-  // Label animation - runs when saving (disabled in superscramble)
+  // Saved message animation - runs when saving (disabled in superscramble)
   useEffect(() => {
     if (superscramble) return; // Disable animation in superscramble
     if (!isSaving) return;
 
-    const maxCount = labelText.length;
-    if (labelBoldCount >= maxCount) {
-      setLabelAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
-      setLabelBoldCount(0);
+    const maxCount = savedText.length;
+    if (savedBoldCount >= maxCount) {
+      setSavedAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setSavedBoldCount(0);
       return;
     }
 
-    const timer = setTimeout(() => setLabelBoldCount(c => c + 1), 83);
+    const timer = setTimeout(() => setSavedBoldCount(c => c + 1), 83);
     return () => clearTimeout(timer);
-  }, [isSaving, labelBoldCount, labelAnimPhase, superscramble]);
+  }, [isSaving, savedBoldCount, savedAnimPhase, superscramble]);
 
-  // Reset label animation when saving starts
+  // Reset saved animation when saving starts
   useEffect(() => {
     if (superscramble) return; // Disable animation in superscramble
     if (isSaving) {
-      setLabelBoldCount(0);
-      setLabelAnimPhase('bold');
+      setSavedBoldCount(0);
+      setSavedAnimPhase('bold');
     }
   }, [isSaving, superscramble]);
 
@@ -309,9 +316,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
-  // Use cyan for confirm/success when theme is green (hue 80-160), otherwise green
-  const isThemeGreen = hue >= 80 && hue <= 160;
-  const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+  // Use cyan for confirm/success when background is green (bgHue 80-160), otherwise green
+  const isBgGreen = bgHue >= 80 && bgHue <= 160;
+  const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;
@@ -456,17 +463,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Show input flow (either "set password" or "change password")
   return (
     <div className="space-y-2">
-      {/* Label - only show when changing password or after save */}
-      {(hasPassword || isSaving) && (
-        <div className="text-xs font-mono select-none" style={{ color: isSaving ? confirmColor : textColor }}>
-          {isSaving ? (
-            superscramble ? <span className="font-bold">{s(labelText)}</span> : renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
-          ) : (
-            <span className="font-bold">{s('change password')}</span>
-          )}
-        </div>
-      )}
-
       {/* Input */}
       <form onSubmit={handleSubmit}>
         <div className="relative">
@@ -501,8 +497,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
                 setShowInput(false);
               }}
             >
-              <span className="ml-3.5 text-xs font-mono font-bold select-none" style={{ color: confirmColor }}>
-                {s('password saved')}
+              <span className="ml-3.5 text-xs font-mono select-none" style={{ color: confirmColor }}>
+                {superscramble ? <span className="font-bold">{s(savedText)}</span> : renderAnimatedText(savedText, savedBoldCount, savedAnimPhase)}
               </span>
             </div>
           )}

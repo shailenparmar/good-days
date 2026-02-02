@@ -28,9 +28,9 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
   const [importHovered, setImportHovered] = useState(false);
-  const { hue } = useTheme();
-  const isThemeGreen = hue >= 80 && hue <= 160;
-  const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+  const { bgHue } = useTheme();
+  const isBgGreen = bgHue >= 80 && bgHue <= 160;
+  const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
   const errorColor = '#ff0000';
 
   // Dismiss import feedback on click or key anywhere
