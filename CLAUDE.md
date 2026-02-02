@@ -158,10 +158,32 @@ const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
 
 ### Exact Match Handling
 
-When importing, entries with **identical content** are skipped entirely (not merged). The comparison:
-- Strips HTML from existing entry
-- Trims whitespace from both sides
-- Case-sensitive string comparison
+When importing, entries with **identical content** are skipped entirely (not merged). The comparison uses whitespace normalization to handle HTML/plaintext differences:
+
+```typescript
+// Strip HTML preserving line breaks (</div> and <br> become \n)
+function stripHtml(html: string): string {
+  const withLineBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/p>/gi, '\n');
+  const div = document.createElement('div');
+  div.innerHTML = withLineBreaks;
+  return div.textContent || '';
+}
+
+// Normalize whitespace for comparison (collapse all \s+ to single space)
+function normalizeForComparison(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+```
+
+**Why this matters:** HTML `<div>Hello</div><div>World</div>` and plain text `Hello\nWorld` must match. Without line break preservation, `textContent` produces `HelloWorld` (no space), which doesn't match `Hello World` after normalization.
+
+**Comparison flow:**
+1. Strip HTML from existing entry (preserving line breaks as `\n`)
+2. Normalize both existing and imported text (collapse whitespace)
+3. Check: same content? → skip. Contains imported? → skip. Otherwise → append.
 
 This prevents duplicate content from being appended during repeated imports.
 
@@ -174,6 +196,19 @@ This prevents duplicate content from being appended during repeated imports.
 - `startedAt` is preserved (uses older timestamp if imported entry is older)
 - Entries are re-sorted by date after import
 - "Copy to clipboard" still copies plain text (not encrypted)
+
+### Button Text
+
+| Mode | Button | Default Text | On Hover |
+|------|--------|--------------|----------|
+| Normal | Copy | "copy to clipboard" | — |
+| Normal | Backup | "backup" | — |
+| Normal | Import | "import backup" | — |
+| Powerstat | Copy | "copy markdown format" | — |
+| Powerstat | Backup | "AES-256-GCM backup" | — |
+| Powerstat | Import | "import AES-256-GCM backup" | "multiple files accepted" |
+
+The import button hover text change in powerstat mode is a literal string change (not a tooltip - we don't use tooltips).
 
 ### Fearless Import Philosophy
 
@@ -236,6 +271,37 @@ Code location: `src/features/export/components/ExportButtons.tsx`
   ```
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
+
+### Scroll Position Persistence
+
+Scroll positions persist across page refresh for all scrollable panels:
+
+| Panel | Storage Key | Restore Timing |
+|-------|-------------|----------------|
+| Settings | `settingsScrollTop` | On mount |
+| About | `aboutScrollTop` | On mount |
+| Editor | `scrollPosition:{date}` | After content loads (double rAF) |
+
+**Implementation:**
+- Settings/About: Direct localStorage read/write with debounced save (100ms)
+- Editor: Uses `useKeyedPersisted` hook for per-date scroll positions
+- Editor needs double `requestAnimationFrame` to ensure content is rendered before restoring scroll
+
+```typescript
+// Editor scroll restore (after content loads)
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    if (editorRef.current) {
+      editorRef.current.scrollTop = savedScrollTop;
+    }
+  });
+});
+```
+
+Code locations:
+- `src/features/settings/components/SettingsPanel.tsx`
+- `src/features/settings/components/AboutPanel.tsx`
+- `src/features/journal/components/JournalEditor.tsx`
 
 ## Editor Implementation
 
