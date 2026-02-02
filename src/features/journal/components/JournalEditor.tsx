@@ -175,24 +175,16 @@ export function JournalEditor({
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
       const spaces = '    ';
 
-      // Insert 4 spaces at cursor position
-      const newValue = value.substring(0, start) + spaces + value.substring(end);
-      setValue(newValue);
-      onInput(newValue);
+      // Use setRangeText for native insertion with cursor handling
+      textarea.setRangeText(spaces, textarea.selectionStart, textarea.selectionEnd, 'end');
 
-      // Move cursor after the inserted spaces
-      requestAnimationFrame(() => {
-        if (editorRef.current) {
-          editorRef.current.selectionStart = start + spaces.length;
-          editorRef.current.selectionEnd = start + spaces.length;
-        }
-      });
+      // Sync React state with the new value
+      setValue(textarea.value);
+      onInput(textarea.value);
     }
-  }, [value, onInput, editorRef]);
+  }, [onInput]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
