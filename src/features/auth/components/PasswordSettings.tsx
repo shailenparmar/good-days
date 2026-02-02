@@ -20,7 +20,7 @@ function getPlaceholderText(step: PasswordStep): string {
     case 'old': return 'old password';
     case 'new': return 'new password';
     case 'confirm': return 'new password again';
-    case 'set': return 'password';
+    case 'set': return 'set password';
     case 'set-confirm': return 'one more time';
   }
 }
@@ -456,14 +456,16 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Show input flow (either "set password" or "change password")
   return (
     <div className="space-y-2">
-      {/* Label */}
-      <div className="text-xs font-mono select-none" style={{ color: isSaving ? confirmColor : textColor }}>
-        {isSaving ? (
-          superscramble ? <span className="font-bold">{s(labelText)}</span> : renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
-        ) : (
-          <span className="font-bold">{s(hasPassword ? 'change password' : 'set password')}</span>
-        )}
-      </div>
+      {/* Label - only show when changing password or after save */}
+      {(hasPassword || isSaving) && (
+        <div className="text-xs font-mono select-none" style={{ color: isSaving ? confirmColor : textColor }}>
+          {isSaving ? (
+            superscramble ? <span className="font-bold">{s(labelText)}</span> : renderAnimatedText(labelText, labelBoldCount, labelAnimPhase)
+          ) : (
+            <span className="font-bold">{s('change password')}</span>
+          )}
+        </div>
+      )}
 
       {/* Input */}
       <form onSubmit={handleSubmit}>
