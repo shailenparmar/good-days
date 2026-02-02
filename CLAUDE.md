@@ -168,6 +168,7 @@ This prevents duplicate content from being appended during repeated imports.
 ### Key Behaviors
 
 - **Import only accepts encrypted backups** (files must start with `good days encrypted backup`)
+- **Multi-file import** - Select multiple backup files at once, all processed and merged
 - Import button is always enabled (can import into empty app)
 - New dates from import are added as new entries
 - `startedAt` is preserved (uses older timestamp if imported entry is older)
@@ -200,6 +201,7 @@ const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
 - Importing same backup twice → "0 entries imported" (nothing changed)
 - New entries + modified entries are counted
 - Skipped (identical content) entries are not counted
+- Multi-file import shows combined total across all files
 
 **Failure triggers:**
 - File doesn't start with `good days encrypted backup` header
