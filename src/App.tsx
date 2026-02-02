@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -322,47 +322,35 @@ function AppContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
-        console.log('ESC pressed', { defaultPrevented: e.defaultPrevented, activeElement: document.activeElement?.tagName, isNarrow, showSidebarInNarrow, zenMode, minizen });
-
         // Don't act if ESC was already handled (e.g., by password settings)
-        if (e.defaultPrevented) {
-          console.log('ESC: defaultPrevented, returning');
-          return;
-        }
+        if (e.defaultPrevented) return;
 
         // Don't act if user is in an input field
         const activeEl = document.activeElement;
         const tagName = activeEl?.tagName?.toLowerCase();
-        if (tagName === 'input' || tagName === 'textarea') {
-          console.log('ESC: in input field, returning');
-          return;
-        }
+        if (tagName === 'input' || tagName === 'textarea') return;
 
         // In zen mode: exit zen and restore previous state
         if (zenMode) {
-          console.log('ESC: exiting zen');
           exitZen();
           return;
         }
 
         // In minizen (wide only): exit minizen and restore panels
         if (!isNarrow && minizen) {
-          console.log('ESC: exiting minizen');
           exitMinizen();
           return;
         }
 
         // In narrow mode with sidebar hidden: show sidebar
         if (isNarrow && !showSidebarInNarrow) {
-          console.log('ESC: showing sidebar');
           setShowSidebarInNarrow(true);
           return;
         }
 
         // Otherwise: save and lock
-        console.log('ESC: locking');
         if (editorRef.current) {
-          journal.saveEntry(editorRef.current.innerHTML || '', Date.now());
+          journal.saveEntry(editorRef.current.value || '', Date.now());
         }
         auth.lock();
       }
@@ -416,13 +404,10 @@ function AppContent() {
       // Focus the editor and move cursor to end
       if (editorRef.current) {
         editorRef.current.focus();
-        // Move cursor to end of content
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editorRef.current);
-        range.collapse(false); // false = collapse to end
-        selection?.removeAllRanges();
-        selection?.addRange(range);
+        // Move cursor to end of content (textarea uses selectionStart/End)
+        const len = editorRef.current.value.length;
+        editorRef.current.selectionStart = len;
+        editorRef.current.selectionEnd = len;
       }
     };
 
@@ -445,16 +430,15 @@ function AppContent() {
       return setTimeout(() => {
         // Save current content
         if (editorRef.current) {
-          const content = editorRef.current.innerHTML || '';
-          const textContent = editorRef.current.textContent || '';
-          if (textContent.trim()) {
+          const content = editorRef.current.value || '';
+          if (content.trim()) {
             journal.saveEntry(content, Date.now());
           }
         }
         // Switch to new day
         journal.setSelectedDate(getTodayDate());
         if (editorRef.current) {
-          editorRef.current.innerHTML = '';
+          editorRef.current.value = '';
         }
         scheduleNextMidnight();
       }, msUntilMidnight);
@@ -469,10 +453,7 @@ function AppContent() {
     const success = await auth.handlePasswordSubmit(e);
     if (success) {
       journal.reloadEntries();
-      if (editorRef.current) {
-        const entry = journal.entries.find(e => e.date === journal.selectedDate);
-        editorRef.current.innerHTML = entry?.content || '';
-      }
+      // Editor content will be loaded by JournalEditor's useEffect when entries change
     }
     return success;
   };

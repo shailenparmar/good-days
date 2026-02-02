@@ -169,7 +169,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     // Use capture phase so this runs BEFORE App.tsx's handler
     window.addEventListener('keydown', handleWindowKeyDown, true);
     return () => window.removeEventListener('keydown', handleWindowKeyDown, true);
-  }, [showInput, isSaving, step, hasPassword]);
+  }, [showInput, isSaving, step, hasPassword, input]);
 
   // Placeholder animation - runs when placeholder is visible (disabled in superscramble)
   useEffect(() => {
@@ -266,13 +266,14 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     };
 
     // Small delay to avoid button clicks from immediately dismissing
+    // Use capture phase so this runs BEFORE stopPropagation in buttons
     const timer = setTimeout(() => {
-      window.addEventListener('click', handleClickOutside);
+      window.addEventListener('click', handleClickOutside, true);
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('click', handleClickOutside, true);
     };
   }, [hasPassword, showInput, isSaving]);
 

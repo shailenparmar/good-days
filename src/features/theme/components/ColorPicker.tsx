@@ -66,7 +66,6 @@ export function ColorPicker({ type }: ColorPickerProps) {
               border-radius: 50%;
               background: ${getColor()};
               border: 2px solid ${getColor()};
-              box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
             }
             .hue-slider-${type}::-moz-range-thumb {
               width: 16px;
@@ -74,7 +73,6 @@ export function ColorPicker({ type }: ColorPickerProps) {
               border-radius: 50%;
               background: ${getColor()};
               border: 2px solid ${getColor()};
-              box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
             }
           `}
         </style>
