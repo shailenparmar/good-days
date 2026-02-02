@@ -188,9 +188,49 @@ This prevents duplicate content from being appended during repeated imports.
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
 
+## Editor Implementation
+
+### Backup Branch
+
+**IMPORTANT**: The contentEditable implementation is preserved in branch `backup/contenteditable-editor-v1.5.107`.
+
+To restore if textarea implementation has issues:
+```bash
+git checkout backup/contenteditable-editor-v1.5.107 -- src/features/journal/components/JournalEditor.tsx
+```
+
+### Why Textarea Over ContentEditable
+
+The original contentEditable implementation had persistent issues:
+- Cursor jumping to start of document on backspace
+- Inconsistent DOM structures (`<div>`, `<br>`, text nodes)
+- `document.execCommand` is deprecated and browser-inconsistent
+- `selection.modify` unreliable across line breaks
+- Each fix created new edge cases
+
+Textarea advantages:
+- `value` is just a string, no DOM traversal
+- Cursor position is simple numbers (`selectionStart`/`selectionEnd`)
+- No line break structure issues
+- `caret-shape: block` works on textarea (Chrome 144+, Firefox)
+
+### Features Preserved in Textarea
+
+All these work with textarea:
+- `\time` command (pattern match on value string)
+- Auto-focus on keypress (focus textarea on window keydown)
+- Block keys when settings open (same preventDefault logic)
+- Block cursor (`caret-shape: block` CSS)
+- Scramble mode (overlay div over textarea)
+
+### Features Removed
+
+- Custom tab/space wrapping (was causing bugs anyway)
+- Smart 4-space backspace deletion
+
 ## Editor Cursor (IMPORTANT)
 
-The editor uses a `contentEditable` div with custom cursor styling.
+The editor uses a `<textarea>` with custom cursor styling.
 
 ### Current Implementation
 
