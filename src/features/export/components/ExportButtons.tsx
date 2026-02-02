@@ -162,7 +162,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         size="sm"
         overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
       >
-        <Download className="w-3 h-3" />
+        {!importFeedback && <Download className="w-3 h-3" />}
         <span>
           {importFeedback
             ? importFeedback.type === 'success'
