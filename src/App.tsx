@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.40';
+const VERSION = '1.6.41';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -122,6 +122,10 @@ function AppContent() {
   });
   const [zenMode, setZenMode] = usePersisted('zenMode', false); // Full zen: just editor, hide everything
   const [minizen, setMinizen] = usePersisted('minizen', false); // Minizen: hide sidebar, keep header+footer (wide only)
+
+  // Ref to track zenMode for ESC handler (avoids stale closure issues)
+  const zenModeRef = useRef(zenMode);
+  useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
   // Unified state saved before entering any focus mode (zen or minizen)
   const [preFocusState, setPreFocusState] = useState<{
     minizen: boolean;
@@ -327,7 +331,8 @@ function AppContent() {
 
         // In zen mode: exit zen and restore previous state
         // This check comes FIRST so ESC works even when focused in the editor
-        if (zenMode) {
+        // Use ref to avoid stale closure issues
+        if (zenModeRef.current) {
           exitZen();
           return;
         }
