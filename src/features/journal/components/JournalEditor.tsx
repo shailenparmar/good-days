@@ -170,12 +170,55 @@ export function JournalEditor({
     onInput(newValue);
   }, [editorRef, isScrambled, onInput]);
 
-  // Block Tab from leaving editor (just prevent default, don't insert anything)
+  // Handle special keys
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Block Tab from leaving editor
     if (e.key === 'Tab') {
       e.preventDefault();
+      return;
     }
-  }, []);
+
+    // Handle Backspace to keep cursor solid (no blink reset)
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+
+      if (start === end && start > 0) {
+        // No selection - delete char before cursor
+        textarea.setRangeText('', start - 1, start, 'end');
+      } else if (start !== end) {
+        // Selection - delete selected text
+        textarea.setRangeText('', start, end, 'end');
+      }
+
+      // Sync state
+      setValue(textarea.value);
+      onInput(textarea.value);
+      return;
+    }
+
+    // Handle Delete key similarly
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+
+      if (start === end && start < textarea.value.length) {
+        // No selection - delete char after cursor
+        textarea.setRangeText('', start, start + 1, 'start');
+      } else if (start !== end) {
+        // Selection - delete selected text
+        textarea.setRangeText('', start, end, 'start');
+      }
+
+      // Sync state
+      setValue(textarea.value);
+      onInput(textarea.value);
+    }
+  }, [onInput]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
