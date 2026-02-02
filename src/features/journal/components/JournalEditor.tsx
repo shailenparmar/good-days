@@ -232,6 +232,9 @@ export function JournalEditor({
   // Memoize scrambled text so it doesn't re-scramble on every render
   const scrambledValue = useMemo(() => scrambleText(value), [value]);
 
+  // Show spaces as visible dots (·)
+  const valueWithVisibleSpaces = useMemo(() => value.replace(/ /g, '·'), [value]);
+
   // Placeholder visibility
   const showPlaceholder = isToday && !value && !isFocused;
 
@@ -291,22 +294,20 @@ export function JournalEditor({
         readOnly={!isToday}
         wrap="soft"
         className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
-        style={{ color: isScrambled ? 'transparent' : getColor() }}
+        style={{ color: 'transparent' }}
         spellCheck={false}
         aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}
       />
 
-      {/* Scrambled overlay - shows scrambled text when in scramble mode */}
-      {isScrambled && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
-            style={{ color: getColor(), transform: `translateY(-${scrollTop}px)` }}
-          >
-            {scrambledValue}
-          </div>
+      {/* Text overlay - shows text with visible space dots, or scrambled text */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+          style={{ color: getColor(), transform: `translateY(-${scrollTop}px)` }}
+        >
+          {isScrambled ? scrambledValue : valueWithVisibleSpaces}
         </div>
-      )}
+      </div>
 
       {/* Placeholder */}
       {showPlaceholder && (
