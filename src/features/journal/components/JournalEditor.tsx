@@ -1,32 +1,10 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import DOMPurify from 'dompurify';
 import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
 import { useKeyedPersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
-
-// Sanitize HTML - allow basic formatting tags, strip all attributes
-const sanitizeHtml = (html: string): string => {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['br', 'div', 'span', 'p', 'b', 'i', 'u', 'strong', 'em'],
-    ALLOWED_ATTR: [],
-  });
-};
-
-// Extract text content from HTML using DOM (robust, handles all edge cases)
-const getTextContent = (html: string): string => {
-  if (!html) return '';
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || '';
-};
-
-// Check if HTML has actual text content (not just tags like <br>)
-const hasActualContent = (html: string): boolean => {
-  return getTextContent(html).trim().length > 0;
-};
 
 // Scramble text characters for privacy overlay
 function scrambleChar(char: string): string {
@@ -41,23 +19,12 @@ function scrambleChar(char: string): string {
   return char;
 }
 
-function scrambleHtml(html: string): string {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-  const textNodes: Text[] = [];
-  while (walker.nextNode()) {
-    textNodes.push(walker.currentNode as Text);
+function scrambleText(text: string): string {
+  let scrambled = '';
+  for (const char of text) {
+    scrambled += scrambleChar(char);
   }
-  textNodes.forEach(node => {
-    const text = node.textContent || '';
-    let scrambled = '';
-    for (const char of text) {
-      scrambled += scrambleChar(char);
-    }
-    node.textContent = scrambled;
-  });
-  return div.innerHTML;
+  return scrambled;
 }
 
 interface JournalEditorProps {
@@ -65,7 +32,7 @@ interface JournalEditorProps {
   selectedDate: string;
   isScrambled: boolean;
   onInput: (content: string) => void;
-  editorRef: React.RefObject<HTMLDivElement | null>;
+  editorRef: React.RefObject<HTMLTextAreaElement | null>;
   onClick?: () => void;
 }
 
@@ -85,8 +52,8 @@ export function JournalEditor({
   // Track which date we've loaded to prevent re-loading same content
   const loadedDateRef = useRef<string | null>(null);
 
-  // Ref for scrambled overlay (content managed via MutationObserver, not state)
-  const overlayRef = useRef<HTMLDivElement>(null);
+  // Local state for textarea value (synced with entries)
+  const [value, setValue] = useState('');
 
   // Scroll position persistence
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
@@ -97,22 +64,35 @@ export function JournalEditor({
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
   const placeholderText = 'start typing';
 
+  // Strip HTML tags from content (for migration from contentEditable)
+  const stripHtml = (html: string): string => {
+    if (!html) return '';
+    // Replace <br> and </div><div> with newlines, then strip remaining tags
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>\s*<div>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"');
+  };
+
   // Load content when date changes
   useEffect(() => {
     if (loadedDateRef.current === selectedDate) return;
 
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
-    const sanitized = sanitizeHtml(content);
+    // Strip HTML in case we're loading old contentEditable content
+    const textContent = stripHtml(content);
+    setValue(textContent);
 
+    // Restore scroll position after content loads
     if (editorRef.current) {
-      // Always have at least a <br> for consistent caret rendering
-      editorRef.current.innerHTML = sanitized || '<br>';
-
-      // Restore scroll position after content loads
       const savedScrollTop = scrollPosition.get(selectedDate);
       if (savedScrollTop > 0) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (editorRef.current) {
             editorRef.current.scrollTop = savedScrollTop;
@@ -123,125 +103,9 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition]);
 
-  // Ensure <br> exists for consistent block caret rendering when editor is empty
-  // Only check on blur, not during typing (MutationObserver during typing causes bugs)
-  const ensureBrIfEmpty = useCallback(() => {
+  // Handle scroll - persist position
+  const handleScroll = useCallback(() => {
     if (!editorRef.current) return;
-    const html = editorRef.current.innerHTML;
-    // Only reset to <br> if truly empty - no text content AND no br tag
-    if (!html || html === '' || (html === '<div></div>' || html === '<p></p>')) {
-      editorRef.current.innerHTML = '<br>';
-    }
-  }, [editorRef]);
-
-  // MutationObserver to sync scrambled overlay with editor content
-  // This handles ALL changes: typing, paste, cut, undo, tab, date changes, etc.
-  useEffect(() => {
-    if (!isScrambled || !editorRef.current) return;
-
-    let rafId: number | null = null;
-
-    const updateOverlay = () => {
-      // Cancel any pending update to avoid race conditions during fast typing
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-
-      // Batch updates using requestAnimationFrame
-      rafId = requestAnimationFrame(() => {
-        if (!overlayRef.current || !editorRef.current) return;
-        const content = editorRef.current.innerHTML || '';
-        overlayRef.current.innerHTML = sanitizeHtml(scrambleHtml(content));
-        // Sync scroll position via transform (overlay uses overflow:hidden)
-        overlayRef.current.style.transform = `translateY(-${editorRef.current.scrollTop}px)`;
-        rafId = null;
-      });
-    };
-
-    // Initial sync when scramble mode turns on
-    updateOverlay();
-
-    // Watch for ANY DOM changes in the editor
-    const observer = new MutationObserver(updateOverlay);
-    observer.observe(editorRef.current, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      characterDataOldValue: true
-    });
-
-    return () => {
-      observer.disconnect();
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-    };
-  }, [isScrambled, editorRef]);
-
-  // Calculate width of spaces using canvas (cached)
-  const spaceWidthRef = useRef<number | null>(null);
-  const getSpaceWidth = useCallback(() => {
-    if (spaceWidthRef.current !== null) return spaceWidthRef.current;
-    if (!editorRef.current) return 10; // fallback
-
-    const style = window.getComputedStyle(editorRef.current);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return 10;
-
-    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    spaceWidthRef.current = ctx.measureText(' ').width;
-    return spaceWidthRef.current;
-  }, [editorRef]);
-
-  // Check if adding spaces would overflow, and if so, wrap first
-  // Returns true if we handled it (caller should preventDefault)
-  const wrapBeforeSpaces = useCallback((numSpaces: number): boolean => {
-    if (!editorRef.current) return false;
-
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return false;
-
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-
-    // If rect has no position (empty line), no need to wrap
-    if (rect.left === 0 && rect.right === 0) return false;
-
-    const editorRect = editor.getBoundingClientRect();
-    const rightEdge = editorRect.right - 32; // 32px padding
-    const spaceWidth = getSpaceWidth();
-    const neededWidth = spaceWidth * numSpaces;
-
-    // If cursor + spaces would overflow, wrap first
-    if (rect.right + neededWidth >= rightEdge) {
-      document.execCommand('insertLineBreak');
-
-      // Scroll into view if needed
-      const newRect = selection.getRangeAt(0).getBoundingClientRect();
-      if (newRect.bottom > editorRect.bottom) {
-        editor.scrollTop += newRect.bottom - editorRect.bottom + 20;
-      }
-      return true; // We handled wrapping, but caller still needs to insert spaces
-    }
-
-    return false;
-  }, [editorRef, getSpaceWidth]);
-
-  // Sync scroll position during user scrolling and persist to storage
-  const handleEditorScroll = useCallback(() => {
-    if (!editorRef.current) return;
-
-    // Reset any accidental horizontal scroll (shouldn't happen with proactive wrapping)
-    if (editorRef.current.scrollLeft > 0) {
-      editorRef.current.scrollLeft = 0;
-    }
-
-    // Sync scrambled overlay position via transform (overlay uses overflow:hidden)
-    if (overlayRef.current) {
-      overlayRef.current.style.transform = `translateY(-${editorRef.current.scrollTop}px)`;
-    }
 
     // Debounce scroll position save (100ms)
     if (scrollSaveTimeout.current !== null) {
@@ -255,19 +119,20 @@ export function JournalEditor({
     }, 100);
   }, [editorRef, selectedDate, scrollPosition]);
 
-  // Handle user input (scrambled overlay is updated via MutationObserver)
-  // Note: <br> maintenance is handled by the MutationObserver above
-  const handleInput = useCallback(() => {
-    if (!editorRef.current) return;
+  // Handle input changes
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    let newValue = e.target.value;
+    let cursorPosition = e.target.selectionStart;
 
     // Track typing while scrambled
     if (isScrambled) {
       markEasterEggFound('scrambleTyping');
     }
 
-    // Check for \time or \TIME and replace with timestamp
-    const textContent = editorRef.current.textContent || '';
-    if (textContent.toLowerCase().includes('\\time')) {
+    // Check for \time command and replace with timestamp
+    const lowerValue = newValue.toLowerCase();
+    const timeIndex = lowerValue.indexOf('\\time');
+    if (timeIndex !== -1) {
       const now = new Date();
       const use24Hour = getItem('timeFormat') === '24h';
       const timestamp = now.toLocaleTimeString('en-US', {
@@ -276,214 +141,28 @@ export function JournalEditor({
         minute: '2-digit',
         second: '2-digit'
       });
-
-      // Find where \time is in the text, so we can position cursor after replacement
-      const timeIndex = textContent.toLowerCase().indexOf('\\time');
       const timestampText = `[${timestamp}]`;
-      const cursorTargetOffset = timeIndex + timestampText.length;
 
-      // Replace only the FIRST \time occurrence (matches our cursor calculation)
-      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/i, timestampText);
+      // Replace \time with timestamp
+      newValue = newValue.substring(0, timeIndex) + timestampText + newValue.substring(timeIndex + 5);
+
+      // Adjust cursor position to be after the timestamp
+      cursorPosition = timeIndex + timestampText.length;
+
       markEasterEggFound('timeCommand');
 
-      // Position cursor right after the inserted timestamp
-      const selection = window.getSelection();
-      if (selection) {
-        // Walk through text nodes to find the correct cursor position
-        let currentOffset = 0;
-        let cursorSet = false;
-        const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
-        let node: Text | null;
-        while ((node = walker.nextNode() as Text | null)) {
-          const nodeLength = node.textContent?.length || 0;
-          if (currentOffset + nodeLength >= cursorTargetOffset) {
-            const range = document.createRange();
-            range.setStart(node, cursorTargetOffset - currentOffset);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            cursorSet = true;
-            break;
-          }
-          currentOffset += nodeLength;
+      // Set cursor position after React updates the value
+      requestAnimationFrame(() => {
+        if (editorRef.current) {
+          editorRef.current.selectionStart = cursorPosition;
+          editorRef.current.selectionEnd = cursorPosition;
         }
-        // Fallback: if no text node found at target offset, put cursor at end
-        if (!cursorSet) {
-          const range = document.createRange();
-          range.selectNodeContents(editorRef.current);
-          range.collapse(false);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
+      });
     }
 
-    const content = editorRef.current.innerHTML || '';
-    onInput(content);
-
-    // Note: whitespace wrapping is handled proactively by wrapBeforeSpaces
-
-    // Ensure block caret if content was deleted to empty
-    if (!content || content === '' || content === '<br>') {
-      ensureBrIfEmpty();
-    }
-  }, [editorRef, onInput, isScrambled, ensureBrIfEmpty]);
-
-  // Clean up empty timestamps on blur (not during typing)
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
-    ensureBrIfEmpty(); // Ensure block caret on next focus
-
-    if (!editorRef.current) return;
-
-    const timestamps = editorRef.current.querySelectorAll('.timestamp-separator');
-    timestamps.forEach((timestamp, index) => {
-      if (index !== timestamps.length - 1) return;
-
-      const timestampNode = timestamp as HTMLElement;
-      let hasContentAfter = false;
-      let node = timestampNode.nextSibling;
-
-      while (node) {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-          hasContentAfter = true;
-          break;
-        }
-        if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).textContent?.trim()) {
-          hasContentAfter = true;
-          break;
-        }
-        node = node.nextSibling;
-      }
-
-      if (!hasContentAfter) {
-        let prev = timestampNode.previousSibling;
-        let next = timestampNode.nextSibling;
-
-        while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && !prev.textContent?.trim()))) {
-          const toRemove = prev;
-          prev = prev.previousSibling;
-          toRemove.remove();
-        }
-
-        while (next && (next.nodeName === 'BR' || (next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()))) {
-          const toRemove = next;
-          next = next.nextSibling;
-          toRemove.remove();
-        }
-
-        timestampNode.remove();
-      }
-    });
-  }, [editorRef, ensureBrIfEmpty]);
-
-  // Handle Tab and Backspace/Delete keys
-  // Using execCommand('insertText', '') keeps caret solid (no blink)
-  // Native deletion causes caret to blink; insertText treats it as input
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      if (!e.shiftKey) {
-        // Tab: check if would overflow, wrap first if needed, then insert 4 spaces
-        wrapBeforeSpaces(4);
-        document.execCommand('insertText', false, '    ');
-      }
-      // Shift+Tab: do nothing (just prevent default)
-    } else if (e.key === ' ') {
-      // Space: check if would overflow, wrap first if needed
-      if (wrapBeforeSpaces(1)) {
-        // We wrapped, now insert the space
-        e.preventDefault();
-        document.execCommand('insertText', false, ' ');
-      }
-      // else let browser handle normally
-    } else if (e.key === 'Backspace') {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
-
-      const range = selection.getRangeAt(0);
-
-      // If text is selected, handle with execCommand to keep cursor solid
-      if (!selection.isCollapsed) {
-        e.preventDefault();
-        document.execCommand('insertText', false, '');
-        return;
-      }
-
-      // At start of line (offset 0) - check if there's content before to delete
-      // Only handle if we're not at the very beginning of the editor
-      if (range.startOffset === 0) {
-        const container = range.startContainer;
-        const hasContentBefore = container.previousSibling ||
-          (container.parentNode && container.parentNode !== editorRef.current && container.parentNode.previousSibling);
-
-        if (hasContentBefore) {
-          e.preventDefault();
-          selection.modify('extend', 'backward', 'character');
-          document.execCommand('insertText', false, '');
-          return;
-        }
-        // At very start of editor - do nothing
-        return;
-      }
-
-      // Check if we're in a text node with content before cursor - use custom handling
-      if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
-        e.preventDefault();
-
-        // Smart Tab deletion: if 4 spaces before cursor, delete all 4
-        if (!e.metaKey && !e.altKey && range.startOffset >= 4) {
-          const text = range.startContainer.textContent || '';
-          const beforeCursor = text.substring(range.startOffset - 4, range.startOffset);
-          if (beforeCursor === '    ') {
-            // Delete all 4 spaces
-            for (let i = 0; i < 4; i++) {
-              selection.modify('extend', 'backward', 'character');
-            }
-            document.execCommand('insertText', false, '');
-            return;
-          }
-        }
-
-        // Determine granularity based on modifier keys
-        // ⌘+Backspace = delete to line start, ⌥+Backspace = delete word
-        const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
-        selection.modify('extend', 'backward', granularity);
-        document.execCommand('insertText', false, '');
-        return;
-      }
-
-      // For other structural elements, let browser handle natively
-    } else if (e.key === 'Delete') {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
-
-      const range = selection.getRangeAt(0);
-
-      // If text is selected, handle with execCommand to keep cursor solid
-      if (!selection.isCollapsed) {
-        e.preventDefault();
-        document.execCommand('insertText', false, '');
-        return;
-      }
-
-      // Check if we're in a text node with content after cursor - use custom handling
-      if (range.startContainer.nodeType === Node.TEXT_NODE) {
-        const textNode = range.startContainer as Text;
-        if (range.startOffset < textNode.length) {
-          e.preventDefault();
-          // Determine granularity based on modifier keys
-          // ⌥+Delete = delete word forward
-          const granularity = e.altKey ? 'word' : 'character';
-          selection.modify('extend', 'forward', granularity);
-          document.execCommand('insertText', false, '');
-          return;
-        }
-      }
-
-      // For line breaks and structural elements (div, br), let browser handle natively
-    }
-  }, [editorRef, wrapBeforeSpaces]);
+    setValue(newValue);
+    onInput(newValue);
+  }, [editorRef, isScrambled, onInput]);
 
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
@@ -494,13 +173,10 @@ export function JournalEditor({
   // Check if this is today's entry (the only editable entry)
   const isToday = selectedDate === getTodayDate();
 
-  // Placeholder - derived from actual data using DOM-based text extraction
-  // This correctly handles <br>, <div><br></div>, and all HTML edge cases
-  const currentEntry = entries.find(e => e.date === selectedDate);
-  const hasContent = hasActualContent(currentEntry?.content || '');
-  // Only show placeholder for today's entry when empty and not focused
-  const showPlaceholder = isToday && !hasContent && !isFocused;
+  // Placeholder visibility
+  const showPlaceholder = isToday && !value && !isFocused;
 
+  // Placeholder animation
   useEffect(() => {
     if (!showPlaceholder) return;
 
@@ -533,53 +209,39 @@ export function JournalEditor({
     >
       <style>
         {`
-          .dynamic-editor {
+          .journal-textarea {
             caret-color: ${getColor()};
           }
-          .timestamp-line {
-            background: repeating-linear-gradient(
-              to right,
-              ${getColor().replace('hsl', 'hsla').replace(')', ', 0.5)')} 0px,
-              ${getColor().replace('hsl', 'hsla').replace(')', ', 0.5)')} 8px,
-              transparent 8px,
-              transparent 12px
-            ) !important;
-          }
-          .timestamp-text {
-            color: ${getColor().replace('hsl', 'hsla').replace(')', ', 0.65)')} !important;
+          @supports (caret-shape: block) {
+            .journal-textarea {
+              caret-shape: block;
+            }
           }
         `}
       </style>
 
-      {/* Editor - absolutely positioned to fill container */}
-      {/* Only today's entry is editable; past entries are read-only */}
-      <div
+      {/* Textarea editor */}
+      <textarea
         ref={editorRef}
-        contentEditable={isToday}
-        onInput={isToday ? handleInput : undefined}
-        onScroll={handleEditorScroll}
-        onKeyDown={isToday ? handleKeyDown : undefined}
+        value={value}
+        onChange={isToday ? handleChange : undefined}
+        onScroll={handleScroll}
         onFocus={() => setIsFocused(true)}
-        onBlur={handleBlur}
-        className="absolute inset-0 p-8 overflow-y-auto overflow-x-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap custom-editor dynamic-editor"
-        style={{ color: isScrambled ? 'transparent' : getColor(), overflowWrap: 'break-word' }}
+        onBlur={() => setIsFocused(false)}
+        readOnly={!isToday}
+        className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea"
+        style={{ color: isScrambled ? 'transparent' : getColor() }}
         spellCheck={false}
-        suppressContentEditableWarning
-        role={isToday ? 'textbox' : 'article'}
         aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}
-        aria-multiline="true"
-        aria-readonly={!isToday}
       />
 
-      {/* Scrambled overlay - mirrors editor content with scrambled text */}
-      {/* Outer container clips overflow; inner content flows naturally and shifts via transform */}
+      {/* Scrambled overlay - shows scrambled text when in scramble mode */}
       {isScrambled && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            ref={overlayRef}
-            className="w-full p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap"
-            style={{ color: getColor() }}
-          />
+        <div
+          className="absolute inset-0 p-8 overflow-hidden pointer-events-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap"
+          style={{ color: getColor() }}
+        >
+          {scrambleText(value)}
         </div>
       )}
 

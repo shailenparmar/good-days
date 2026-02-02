@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.108';
+const VERSION = '1.6.0';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -84,7 +84,7 @@ function MobileNotSupported() {
 }
 
 function AppContent() {
-  const editorRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
   // Feature hooks
   const theme = useTheme();
@@ -322,33 +322,45 @@ function AppContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
+        console.log('ESC pressed', { defaultPrevented: e.defaultPrevented, activeElement: document.activeElement?.tagName, isNarrow, showSidebarInNarrow, zenMode, minizen });
+
         // Don't act if ESC was already handled (e.g., by password settings)
-        if (e.defaultPrevented) return;
+        if (e.defaultPrevented) {
+          console.log('ESC: defaultPrevented, returning');
+          return;
+        }
 
         // Don't act if user is in an input field
         const activeEl = document.activeElement;
         const tagName = activeEl?.tagName?.toLowerCase();
-        if (tagName === 'input' || tagName === 'textarea') return;
+        if (tagName === 'input' || tagName === 'textarea') {
+          console.log('ESC: in input field, returning');
+          return;
+        }
 
         // In zen mode: exit zen and restore previous state
         if (zenMode) {
+          console.log('ESC: exiting zen');
           exitZen();
           return;
         }
 
         // In minizen (wide only): exit minizen and restore panels
         if (!isNarrow && minizen) {
+          console.log('ESC: exiting minizen');
           exitMinizen();
           return;
         }
 
         // In narrow mode with sidebar hidden: show sidebar
         if (isNarrow && !showSidebarInNarrow) {
+          console.log('ESC: showing sidebar');
           setShowSidebarInNarrow(true);
           return;
         }
 
         // Otherwise: save and lock
+        console.log('ESC: locking');
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.innerHTML || '', Date.now());
         }
