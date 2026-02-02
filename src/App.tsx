@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.41';
+const VERSION = '1.6.42';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -364,7 +364,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal, zenMode, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow]);
+  }, [auth, journal, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
   // Only works when viewing today's entry (past entries are read-only)
