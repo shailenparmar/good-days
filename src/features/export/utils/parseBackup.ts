@@ -139,6 +139,7 @@ export function mergeEntries(
         startedAt: imported.startedAt || importTimestamp,
         lastModified: importTimestamp,
       });
+      existingDates.add(imported.date);
     }
   }
 
