@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { useTheme } from '@features/theme';
 import { getItem } from '@shared/storage';
 import { useKeyedPersisted } from '@shared/hooks';
@@ -173,6 +173,9 @@ export function JournalEditor({
   // Check if this is today's entry (the only editable entry)
   const isToday = selectedDate === getTodayDate();
 
+  // Memoize scrambled text so it doesn't re-scramble on every render
+  const scrambledValue = useMemo(() => scrambleText(value), [value]);
+
   // Placeholder visibility
   const showPlaceholder = isToday && !value && !isFocused;
 
@@ -241,7 +244,7 @@ export function JournalEditor({
           className="absolute inset-0 p-8 overflow-hidden pointer-events-none text-base leading-relaxed font-mono font-bold whitespace-pre-wrap"
           style={{ color: getColor() }}
         >
-          {scrambleText(value)}
+          {scrambledValue}
         </div>
       )}
 
