@@ -221,42 +221,76 @@ All these work with textarea:
 - Auto-focus on keypress (focus textarea on window keydown)
 - Block keys when settings open (same preventDefault logic)
 - Block cursor (`caret-shape: block` CSS)
-- Scramble mode (overlay div over textarea)
+- Scramble mode (overlay div over textarea, scroll-synced)
+- Alt/Cmd+Backspace (delete word/line) - browser native
+- Cmd+Z undo/redo - browser native
 
 ### Features Removed
 
-- Custom tab/space wrapping (was causing bugs anyway)
+- Custom tab/space wrapping (was causing bugs)
 - Smart 4-space backspace deletion
+- Solid cursor on delete (tradeoff: blinks but undo works)
 
-## Editor Cursor (IMPORTANT)
+### Key Tradeoffs
 
-The editor uses a `<textarea>` with custom cursor styling.
+| Feature | Before (contentEditable) | Now (textarea) |
+|---------|-------------------------|----------------|
+| Cursor on delete | Solid (custom handling) | Blinks (native) |
+| Undo/Redo | Broken | Works (native) |
+| Tab key | Inserted 4 spaces | Does nothing (blocked) |
+| Complexity | 607 lines, many edge cases | 270 lines, simple |
 
-### Current Implementation
+### Current Behavior
 
-The cursor is styled using CSS with the `caret-color` property set dynamically via inline styles to match the theme color.
+**Browser handles natively:**
+- All text input and deletion
+- Alt+Backspace (delete word)
+- Cmd+Backspace (delete to line start)
+- Cmd+Z / Cmd+Shift+Z (undo/redo)
+- Selection, copy/paste
 
-**CSS (src/index.css):**
-```css
-/* Custom editor with thick caret - color is set dynamically via inline styles */
-.custom-editor {
-  /* caret-color set via inline style */
-}
+**We intercept:**
+- Tab key only (preventDefault, does nothing - prevents focus leaving editor)
 
-/* Try to make it blocky in supporting browsers */
-@supports (caret-shape: block) {
-  .custom-editor {
-    caret-shape: block;
-  }
-}
+### Scramble Mode
+
+When `isScrambled` is true:
+1. Textarea text color is transparent
+2. Overlay div shows scrambled text
+3. Scroll position synced via `translateY(-${scrollTop}px)`
+4. Scrambled text is memoized (`useMemo`) to prevent re-scrambling on every render
+
+### HTML Migration
+
+Old contentEditable entries stored HTML (`<br>`, `<div>`, etc.). On load, `stripHtml()` converts to plain text:
+```typescript
+const stripHtml = (html: string): string => {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>\s*<div>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    // ... entity decoding
+};
 ```
 
-**Inline style (JournalEditor.tsx):**
+## Editor Cursor
+
+The editor uses a `<textarea>` with CSS cursor styling.
+
+### Cursor Styling
+
 ```tsx
+// In JournalEditor.tsx
 <style>
   {`
-    .dynamic-editor {
+    .journal-textarea {
       caret-color: ${getColor()};
+    }
+    @supports (caret-shape: block) {
+      .journal-textarea {
+        caret-shape: block;
+      }
     }
   `}
 </style>
@@ -266,159 +300,32 @@ The cursor is styled using CSS with the `caret-color` property set dynamically v
 
 | Browser | Cursor Appearance |
 |---------|-------------------|
-| Chrome 144+ | Block cursor (via `caret-shape: block`) |
-| Firefox | Block cursor (via `caret-shape: block`) |
-| Safari | Thin line cursor (no block cursor support yet) |
+| Chrome 144+ | Block cursor |
+| Firefox | Block cursor |
+| Safari | Thin line (no `caret-shape` support yet) |
 
-**Note**: `caret-shape: block` shipped in Chrome 144 (January 2026) and has been in Firefox for longer. Safari does not yet support this property.
+### Cursor Blink on Delete
 
-**TODO**: Periodically check if Safari has implemented `caret-shape: block`:
-- Check https://caniuse.com/mdn-css_properties_caret-shape
-- Check Safari release notes / WebKit blog
-- Once supported, Safari users will automatically get block cursor (CSS already in place)
+The cursor blinks when deleting text. This is intentional - we let the browser handle deletion natively so that:
+- Cmd+Z undo works correctly
+- Alt+Backspace (delete word) works
+- Cmd+Backspace (delete to line start) works
 
-### Why Not Use a Custom JavaScript Cursor?
-
-A custom JavaScript-based block cursor was attempted (v1.5.30) but had issues:
-
-1. **Position tracking complexity**: Tracking cursor position in `contentEditable` requires `selectionchange` events and `getClientRects()` which can be unreliable
-2. **Performance**: Requires hiding the native cursor (`caret-color: transparent`) and rendering a separate `<div>` that follows the cursor position
-3. **Edge cases**: Empty editors, line breaks, text selection all need special handling
-4. **Blinking behavior**: Requires managing `isTyping` state to make cursor solid while typing
-
-If a custom cursor is needed in the future, the v1.5.30 commit has a working (but buggy) implementation that can be referenced.
-
-### Keeping the Cursor Solid During Delete
-
-The native browser behavior causes the cursor to blink after deletion. To keep it solid, we intercept `Backspace` and `Delete` keys and use `execCommand('insertText', '')` instead of native deletion:
-
-```tsx
-const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-  if (e.key === 'Backspace') {
-    e.preventDefault();
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      if (!selection.isCollapsed) {
-        document.execCommand('insertText', false, '');
-      } else {
-        const granularity = e.metaKey ? 'lineboundary' : e.altKey ? 'word' : 'character';
-        selection.modify('extend', 'backward', granularity);
-        document.execCommand('insertText', false, '');
-      }
-    }
-  }
-  // Similar for Delete key...
-}, []);
-```
-
-### Ensuring Consistent Caret Rendering
-
-An empty `contentEditable` div can have inconsistent caret rendering. A MutationObserver ensures there's always a `<br>` element:
-
-```tsx
-useEffect(() => {
-  if (!editorRef.current) return;
-  const ensureBr = () => {
-    if (!editorRef.current.innerHTML || editorRef.current.innerHTML === '') {
-      editorRef.current.innerHTML = '<br>';
-    }
-  };
-  const observer = new MutationObserver(ensureBr);
-  observer.observe(editorRef.current, { childList: true, subtree: true, characterData: true });
-  return () => observer.disconnect();
-}, [editorRef]);
-```
+**Previously attempted:** Intercepting Backspace/Delete with `setRangeText()` kept cursor solid but broke undo. Tradeoff: blink is acceptable, working undo is essential.
 
 ### Troubleshooting
 
-| Issue | Likely Cause | Fix |
-|-------|--------------|-----|
-| No cursor visible | `caret-color: transparent` without custom cursor | Remove `caret-color: transparent` from CSS |
-| Cursor wrong color | Inline style not applied | Check `.dynamic-editor` class and inline `<style>` tag |
-| Cursor blinks on delete | Not using `execCommand` approach | Use `execCommand('insertText', '')` in `handleKeyDown` |
-| Cursor narrow after Enter+Delete | Empty `<div></div>` without `<br>` | `ensureBr` must check for empty structures, not just `innerHTML === ''` |
-
-### The Enter+Delete Bug
-
-When user presses Enter then Delete in empty editor:
-1. Empty editor starts with `<br>` (correct)
-2. Enter creates `<div><br></div>` (browser behavior)
-3. Backspace deletes, leaving `<div></div>` (empty div, no `<br>`)
-4. MutationObserver's `ensureBr` only checked `innerHTML === ''`
-5. `<div></div>` is not empty string, so no `<br>` was added
-6. Empty div without `<br>` = inconsistent caret (narrow instead of block)
-
-**Fix:** Check for "no text content AND no `<br>`":
-```tsx
-const hasNoBr = !html.includes('<br');
-const hasNoText = !editorRef.current.textContent?.trim();
-if (!html || html === '' || (hasNoText && hasNoBr)) {
-  editorRef.current.innerHTML = '<br>';
-}
-```
-| Cursor jumps to end | `\time` replacement or other HTML manipulation | Restore cursor position after manipulation |
-
-### The `\time` Cursor Position Fix
-
-When `\time` is replaced with a timestamp, the cursor must stay where the user was typing (right after the inserted timestamp), not jump to the end of the document.
-
-**The problem:**
-1. User types `\time` anywhere in document (e.g., at top of long entry)
-2. `innerHTML.replace()` changes the DOM, invalidating any saved selection ranges
-3. Naive fix: put cursor at end → user loses their place and view scrolls
-
-**The solution:**
-1. Get character offset of `\time` in plain text before replacement
-2. Calculate target: `offset + timestampLength`
-3. After replacement, walk text nodes with TreeWalker counting characters
-4. Position cursor at the target character offset
-
-```tsx
-// Find where \time is in the text
-const timeIndex = textContent.toLowerCase().indexOf('\\time');
-const timestampText = `[${timestamp}]`;
-const cursorTargetOffset = timeIndex + timestampText.length;
-
-// Replace only the FIRST occurrence (matches cursor calculation)
-editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/\\time/i, timestampText);
-
-// Walk text nodes to find correct cursor position
-let currentOffset = 0;
-let cursorSet = false;
-const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
-let node: Text | null;
-while ((node = walker.nextNode() as Text | null)) {
-  const nodeLength = node.textContent?.length || 0;
-  if (currentOffset + nodeLength >= cursorTargetOffset) {
-    const range = document.createRange();
-    range.setStart(node, cursorTargetOffset - currentOffset);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    cursorSet = true;
-    break;
-  }
-  currentOffset += nodeLength;
-}
-// Fallback: put cursor at end if target not found
-if (!cursorSet) {
-  range.selectNodeContents(editorRef.current);
-  range.collapse(false);
-}
-```
-
-**Key design decisions:**
-- **Replace first occurrence only** (`/\\time/i` not `/\\time/gi`): If user pastes multiple `\time`, we replace one at a time. Each keystroke that completes a `\time` replaces just that one.
-- **Character offset approach**: DOM node references become invalid after innerHTML change, but character positions remain consistent.
-- **Fallback to end**: If TreeWalker can't find target (edge case: timestamp at very end with only `<br>` after), cursor goes to end rather than nowhere.
-- **Compatible with scramble mode**: Fix only touches `editorRef`, not the scramble overlay. MutationObserver updates overlay automatically.
+| Issue | Fix |
+|-------|-----|
+| Cursor wrong color | Check inline `<style>` tag in JournalEditor |
+| No block cursor | Browser may not support `caret-shape: block` (Safari) |
+| Cursor blinks on delete | Expected behavior (tradeoff for working undo) |
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/index.css` | CSS for `.custom-editor` including `caret-shape: block` |
-| `src/features/journal/components/JournalEditor.tsx` | Editor component with cursor handling |
+| `src/features/journal/components/JournalEditor.tsx` | Textarea editor, scramble overlay, `\time` command |
 
 ## Scramble Mode
 

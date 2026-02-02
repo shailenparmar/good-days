@@ -567,20 +567,21 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             </div>
           </div>
           {/* Color stats - hover to show copy/paste buttons */}
-          {/* Both elements rendered, one hidden - wrapper uses larger height */}
+          {/* Grid overlay: both elements in same cell, container = max(both heights) */}
           <div
-            className="mt-3 pt-3 relative"
+            className="mt-3 pt-3"
             style={{
-              borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+              borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+              display: 'grid',
             }}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setColorAreaHovered(true)}
             onMouseLeave={() => setColorAreaHovered(false)}
           >
-            {/* Buttons - visible when hovered */}
+            {/* Both elements in same grid cell - container sizes to larger one */}
             <div
               className="flex items-center"
-              style={{ visibility: colorAreaHovered ? 'visible' : 'hidden', position: colorAreaHovered ? 'relative' : 'absolute', top: 0, left: 0, right: 0 }}
+              style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'visible' : 'hidden' }}
             >
               <ColorButton
                 onClick={handleColorCopy}
@@ -603,10 +604,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 {s('paste')}
               </ColorButton>
             </div>
-            {/* Color stats - visible when not hovered */}
             <div
               className="grid grid-cols-2 gap-x-0 gap-y-1"
-              style={{ visibility: colorAreaHovered ? 'hidden' : 'visible', position: colorAreaHovered ? 'absolute' : 'relative', top: 0, left: 0, right: 0 }}
+              style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'hidden' : 'visible' }}
             >
               <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                 txt: {hue}, {saturation}%, {lightness}%
