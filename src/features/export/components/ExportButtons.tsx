@@ -175,6 +175,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
         size="sm"
         overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
+        title={stacked && !importFeedback ? 'multiple files accepted' : undefined}
       >
         {!importFeedback && <Download className="w-3 h-3" />}
         <span>
