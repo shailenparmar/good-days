@@ -221,23 +221,25 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     }
   }, [isSaving, superscramble]);
 
-  // Click anywhere to dismiss "password saved" and return to split buttons
+  // Click or keypress anywhere to dismiss "password saved" and return to split buttons
   useEffect(() => {
     if (!isSaving) return;
 
-    const handleClickAnywhere = () => {
+    const dismiss = () => {
       setIsSaving(false);
       setShowInput(false);
     };
 
     // Use a small delay to avoid the same click that triggered save from dismissing it
     const timer = setTimeout(() => {
-      window.addEventListener('click', handleClickAnywhere);
+      window.addEventListener('click', dismiss);
+      window.addEventListener('keydown', dismiss);
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('click', handleClickAnywhere);
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('keydown', dismiss);
     };
   }, [isSaving]);
 
