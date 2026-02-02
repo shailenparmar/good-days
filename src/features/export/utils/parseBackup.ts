@@ -163,10 +163,15 @@ export function mergeEntries(
   return { entries: result, importedCount };
 }
 
-// Strip HTML tags to get plain text
+// Strip HTML tags to get plain text, preserving line breaks
 function stripHtml(html: string): string {
+  // Replace block elements and <br> with newlines before extracting text
+  const withLineBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/p>/gi, '\n');
   const div = document.createElement('div');
-  div.innerHTML = html;
+  div.innerHTML = withLineBreaks;
   return div.textContent || '';
 }
 
