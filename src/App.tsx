@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.5.106';
+const VERSION = '1.5.107';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -628,6 +628,7 @@ function AppContent() {
             if (opening) {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
+              if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
             }
             // Interacting with panels in narrow mode = commit to narrow, clear wide state
             if (isNarrow) setPreNarrowState(null);
