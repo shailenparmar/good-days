@@ -170,22 +170,6 @@ export function JournalEditor({
     onInput(newValue);
   }, [editorRef, isScrambled, onInput]);
 
-  // Handle Tab key - insert 4 spaces instead of moving focus
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const spaces = '    ';
-
-      // Use setRangeText for native insertion with cursor handling
-      textarea.setRangeText(spaces, textarea.selectionStart, textarea.selectionEnd, 'end');
-
-      // Sync React state with the new value
-      setValue(textarea.value);
-      onInput(textarea.value);
-    }
-  }, [onInput]);
-
   // Focus the editor and notify parent
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
@@ -250,7 +234,6 @@ export function JournalEditor({
         ref={editorRef}
         value={value}
         onChange={isToday ? handleChange : undefined}
-        onKeyDown={isToday ? handleKeyDown : undefined}
         onScroll={handleScroll}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}

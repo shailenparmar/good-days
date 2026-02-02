@@ -1,0 +1,46 @@
+# good days
+
+---
+
+## Monday, January 20, 2025
+
+*Started at 09:15:30*
+
+This is an old imported entry from before the app existed. Testing the import feature to see if it merges correctly.
+
+Had a great morning walk today. The weather was perfect.
+
+## Wednesday, January 22, 2025
+
+*Started at 14:22:00*
+
+Mid-week check in. Things are going well. Testing another imported entry.
+
+Working on some new features for the journal app.
+
+## Friday, January 24, 2025
+
+*Started at 08:00:00*
+
+End of the week reflection. This entry might conflict with an existing one - let's see how the merge handles it!
+
+Goals for next week:
+- Finish the import feature
+- Test edge cases
+- Deploy to production
+
+## Sunday, January 26, 2025
+
+*Started at 20:30:45*
+
+Weekend notes from the backup. Another test entry to verify the import is working properly.
+
+Relaxing Sunday evening. Read a good book.
+
+## Tuesday, January 28, 2025
+
+*Started at 11:00:00*
+
+Today's imported entry - this should conflict with any existing entry for today and show the merge behavior with the "imported on" label.
+
+Testing the conflict resolution!
