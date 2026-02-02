@@ -1216,17 +1216,47 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### ESC Priority (checked in order)
 
-1. **Password flow active** → Reset flow (handled by PasswordSettings)
-2. **User in input field** → Do nothing
-3. **Zen mode active (wide)** → Exit zen mode
-4. **Otherwise** → Lock app
+1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
+2. **Zen mode** → Exit zen (FIRST check in App.tsx - works even when typing in editor!)
+3. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
+4. **Minizen mode** → Exit minizen
+5. **Narrow + sidebar hidden** → Show sidebar
+6. **Otherwise** → Lock app
+
+**IMPORTANT:** Zen mode check comes BEFORE the input check. This ensures ESC exits zen even when the user is focused in the editor textarea.
+
+### Ref Pattern for Zen Mode
+
+The ESC handler uses a ref to track `zenMode` to avoid stale closure issues:
+
+```tsx
+// Ref to track zenMode (always current)
+const zenModeRef = useRef(zenMode);
+useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
+
+// ESC handler uses ref, not closure variable
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (zenModeRef.current) {  // ← always current value
+      exitZen();
+      return;
+    }
+    // ... rest of handler
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [/* zenMode NOT in deps - we use ref instead */]);
+```
+
+This pattern ensures the handler always sees the current zenMode value without re-registering on every state change.
 
 ### When ESC Should NOT Lock
 
-1. **User is in an input field** - Check `document.activeElement.tagName`
-2. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
-3. **ESC was already handled** - Check `e.defaultPrevented`
-4. **In zen mode (wide)** - Exit zen instead of locking
+1. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
+2. **ESC was already handled** - Check `e.defaultPrevented`
+3. **In zen mode** - Exit zen instead of locking
+4. **In minizen mode** - Exit minizen instead of locking
+5. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
 
 ### When ESC SHOULD Lock
 
@@ -1278,6 +1308,33 @@ const isThemeGreen = hue >= 80 && hue <= 160;
 const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
 ```
 
+### Password Input Styling
+
+Both LockScreen and PasswordSettings inputs use **identical styling** for consistency:
+
+```tsx
+className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+style={{
+  backgroundColor: getBackgroundColor(),
+  border: `3px solid ${getBorderColor()}`,
+  color: getBorderColor(),
+  caretColor: textColor,
+  outline: 'none',
+}}
+```
+
+| Property | Value |
+|----------|-------|
+| Border | `3px solid` |
+| Padding | `px-3 py-2` (12px horizontal, 8px vertical) |
+| Font | `text-xs` (12px), `font-mono`, `font-bold` |
+| Border radius | `rounded` (4px) |
+| Width | `w-full` (100%) |
+
+Code locations:
+- `src/features/auth/components/LockScreen.tsx` (line ~147)
+- `src/features/auth/components/PasswordSettings.tsx` (line ~483)
+
 ### ESC vs Click-Outside (Smart Difference)
 
 Both reset the password flow, but with one key UX difference:
@@ -1298,7 +1355,9 @@ This is intentional: ESC means "clear and retry", click-outside means "I'm done 
 
 **App.tsx handler (bubble phase):**
 - Checks `e.defaultPrevented` first
-- Checks if user is in input/textarea
+- Checks zen mode via `zenModeRef.current` (exits zen if true)
+- Checks if user is in `<input>` (NOT textarea - editor ESC should lock)
+- Checks minizen/narrow states
 - Otherwise locks the app
 
 ### Testing Checklist
