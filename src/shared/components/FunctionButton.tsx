@@ -32,6 +32,7 @@ export function FunctionButton({ onClick, disabled, isActive, children, dataAttr
   };
 
   const getBackgroundColor = () => {
+    if (overrideColor) return 'transparent';
     if (isHovered || isActive) return hoverBg;
     return 'transparent';
   };

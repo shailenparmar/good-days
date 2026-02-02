@@ -176,13 +176,16 @@ This prevents duplicate content from being appended during repeated imports.
 
 ### Import Feedback
 
-After successful import, the import button shows confirmation feedback:
+After import, the import button shows feedback:
 
-| Element | Behavior |
-|---------|----------|
-| Text | "X entry imported" or "X entries imported" (actual count of added/modified) |
-| Color | Confirm color on border + text |
-| Dismiss | Click button, click anywhere, or press any key |
+| State | Text | Color |
+|-------|------|-------|
+| Success | "X entry/entries imported" | Confirm color (cyan/green) |
+| Failure | "import failed" | Red `#ff0000` |
+
+**Behaviors:**
+- No hover shading when feedback is showing
+- Dismiss by: clicking button, clicking anywhere, or pressing any key
 
 **Confirm color logic** (same as password saved):
 ```typescript
@@ -197,6 +200,10 @@ const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
 - Importing same backup twice → "0 entries imported" (nothing changed)
 - New entries + modified entries are counted
 - Skipped (identical content) entries are not counted
+
+**Failure triggers:**
+- File doesn't start with `good days encrypted backup` header
+- Decryption fails (corrupted or wrong format)
 
 Code location: `src/features/export/components/ExportButtons.tsx`
 

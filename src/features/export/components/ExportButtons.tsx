@@ -25,11 +25,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Import feedback state
-  const [importFeedback, setImportFeedback] = useState<{ count: number } | null>(null);
+  // Import feedback state: success (count) or failure
+  const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
   const { hue } = useTheme();
   const isThemeGreen = hue >= 80 && hue <= 160;
   const confirmColor = isThemeGreen ? '#0ffffb' : '#00ff00';
+  const errorColor = '#ff0000';
 
   // Dismiss import feedback on click or key anywhere
   useEffect(() => {
@@ -69,6 +70,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       console.log('2. Encrypted content extracted:', encryptedContent?.substring(0, 50));
       if (!encryptedContent) {
         console.error('Invalid backup file: not an encrypted backup');
+        setImportFeedback({ type: 'error' });
         return;
       }
 
@@ -88,9 +90,10 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         console.log('6. Import called');
 
         // Show feedback with count of actually imported entries
-        setImportFeedback({ count: importedCount });
+        setImportFeedback({ type: 'success', count: importedCount });
       } catch (err) {
         console.error('Failed to decrypt backup:', err);
+        setImportFeedback({ type: 'error' });
       }
     };
     reader.readAsText(file);
@@ -157,12 +160,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       <FunctionButton
         onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
         size="sm"
-        overrideColor={importFeedback ? confirmColor : undefined}
+        overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
       >
         <Download className="w-3 h-3" />
         <span>
           {importFeedback
-            ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+            ? importFeedback.type === 'success'
+              ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+              : s('import failed')
             : s(stacked ? 'import AES-256-GCM backup' : 'import')}
         </span>
       </FunctionButton>
