@@ -174,7 +174,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       return;
     }
 
-    const eggText = '14/14 easter eggs';
+    const eggText = '13/13 easter eggs';
     if (eggBoldCount >= eggText.length) {
       // Flip phase and reset count - keeps looping
       setEggAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
@@ -187,19 +187,19 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
 
   // Handle click on easter eggs text - the secret 15th egg!
-  // When user has all 14 regular eggs, shows "13.5/14" - clicking it completes the collection
+  // When user has all 13 regular eggs, shows "12.5/13" - clicking it completes the collection
   const handleEasterEggsClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const eggCount = getEasterEggCount();
     const hasSecretEgg = isEasterEggFound('clickedEggCounter');
 
-    // If at 14/14 regular eggs but haven't clicked yet (showing 13.5/14)
+    // If at 13/13 regular eggs but haven't clicked yet (showing 12.5/13)
     if (eggCount.found === eggCount.total && !hasSecretEgg && !isRainbowMode) {
       markEasterEggFound('clickedEggCounter');
       setIsRainbowMode(true);
     }
-    // If already completed (14/14), can still trigger rainbow mode again
+    // If already completed (13/13), can still trigger rainbow mode again
     else if (eggCount.found === eggCount.total && hasSecretEgg && !isRainbowMode) {
       setIsRainbowMode(true);
     }
@@ -395,7 +395,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const bgHsl = `bg: ${bgHue}, ${bgSaturation}%, ${bgLightness}%`;
     const copyText = `${textHsl}\n${bgHsl}`;
     navigator.clipboard.writeText(copyText);
-    markEasterEggFound('copyMarkdown');
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
@@ -537,9 +536,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {(() => {
                 const eggCount = getEasterEggCount();
                 const hasSecretEgg = isEasterEggFound('clickedEggCounter');
-                // Show 13.5/14 when all regular eggs found but secret not yet clicked
+                // Show 12.5/13 when all regular eggs found but secret not yet clicked
                 const displayFound = (eggCount.found === eggCount.total && !hasSecretEgg)
-                  ? '13.5'
+                  ? '12.5'
                   : String(eggCount.found);
                 const eggText = s(`${displayFound}/${eggCount.total} easter eggs`);
 
@@ -568,18 +567,14 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             </div>
           </div>
           {/* Color stats - hover to show copy/paste buttons */}
-          {/* pb-3 extends hover ENTER area to panel line, -mb-3 cancels layout effect */}
-          {/* EXIT area is just the buttons themselves */}
           <div
-            className="mt-3 pt-3 pb-3 -mb-3"
+            className="mt-3 pt-3"
             style={{
               borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
             }}
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setColorAreaHovered(true)}
           >
             {colorAreaHovered ? (
-              /* Split buttons on hover - mouseLeave here for precise exit */
               <div
                 className="flex items-center"
                 onMouseLeave={() => setColorAreaHovered(false)}
@@ -607,17 +602,20 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               </div>
             ) : (
               /* Normal color stats display */
-              <div className="grid grid-cols-2 gap-x-0 gap-y-1 select-text" style={{ cursor: 'text' }}>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+              <div
+                className="grid grid-cols-2 gap-x-0 gap-y-1"
+                onMouseEnter={() => setColorAreaHovered(true)}
+              >
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   txt: {hue}, {saturation}%, {lightness}%
                 </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   {hslToHex(hue, saturation, lightness)}
                 </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   bg: {bgHue}, {bgSaturation}%, {bgLightness}%
                 </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor(), cursor: 'text' }}>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   {hslToHex(bgHue, bgSaturation, bgLightness)}
                 </div>
               </div>

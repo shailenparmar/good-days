@@ -1,5 +1,5 @@
 // Easter egg tracking
-// 14 visible easter eggs + 1 secret (clicking the counter when at 13.5/14)
+// 13 visible easter eggs + 1 secret (clicking the counter when at 12.5/13)
 
 export const EASTER_EGGS = [
   'scrambleTyping',      // typing in scramble mode
@@ -13,10 +13,9 @@ export const EASTER_EGGS = [
   'scrambleHotkeyUsed',  // scramble hotkey actually used to toggle
   'spacebarRand',        // spacebar held on rand
   'arrowKeyPresets',     // arrow keys to navigate presets
-  'copyMarkdown',        // copy markdown format in powerstat
   'selectColorText',     // selected color HSL/HEX text
   'resetBlackout',       // saw the blackout screen on reset confirmation
-  'clickedEggCounter',   // SECRET: clicked on "13.5/14" to complete collection
+  'clickedEggCounter',   // SECRET: clicked on "12.5/13" to complete collection
 ] as const;
 
 export type EasterEgg = typeof EASTER_EGGS[number];

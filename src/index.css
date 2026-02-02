@@ -21,9 +21,8 @@ html {
   cursor: default;
 }
 
-/* Only editable/selectable text should have text cursor */
-[contenteditable="true"],
-.cursor-text {
+/* Only editable text should have text cursor */
+[contenteditable="true"] {
   cursor: text !important;
 }
 

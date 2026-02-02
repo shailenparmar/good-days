@@ -25,7 +25,6 @@ describe('easterEggs', () => {
         'scrambleHotkeyUsed',
         'spacebarRand',
         'arrowKeyPresets',
-        'copyMarkdown',
         'selectColorText',
         'resetBlackout',
       ];
@@ -42,10 +41,10 @@ describe('easterEggs', () => {
   });
 
   describe('getEasterEggCount', () => {
-    it('should return 0 found and 14 total when no eggs found', () => {
+    it('should return 0 found and 13 total when no eggs found', () => {
       const count = getEasterEggCount();
       expect(count.found).toBe(0);
-      expect(count.total).toBe(14);
+      expect(count.total).toBe(13);
     });
 
     it('should return correct count after finding eggs', () => {
@@ -54,7 +53,7 @@ describe('easterEggs', () => {
 
       const count = getEasterEggCount();
       expect(count.found).toBe(2);
-      expect(count.total).toBe(14);
+      expect(count.total).toBe(13);
     });
   });
 
@@ -83,8 +82,8 @@ describe('easterEggs', () => {
       });
 
       const count = getEasterEggCount();
-      expect(count.found).toBe(14);
-      expect(count.total).toBe(14);
+      expect(count.found).toBe(13);
+      expect(count.total).toBe(13);
     });
 
     it('should persist across multiple calls', () => {
@@ -110,7 +109,7 @@ describe('easterEggs', () => {
     it('should handle empty localStorage', () => {
       const count = getEasterEggCount();
       expect(count.found).toBe(0);
-      expect(count.total).toBe(14);
+      expect(count.total).toBe(13);
     });
   });
 });
