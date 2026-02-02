@@ -410,12 +410,20 @@ export function JournalEditor({
         return;
       }
 
-      // At start of line (offset 0) - use selection.modify to delete backward
-      // This handles line breaks created by tab wrapping or Enter
+      // At start of line (offset 0) - check if there's content before to delete
+      // Only handle if we're not at the very beginning of the editor
       if (range.startOffset === 0) {
-        e.preventDefault();
-        selection.modify('extend', 'backward', 'character');
-        document.execCommand('insertText', false, '');
+        const container = range.startContainer;
+        const hasContentBefore = container.previousSibling ||
+          (container.parentNode && container.parentNode !== editorRef.current && container.parentNode.previousSibling);
+
+        if (hasContentBefore) {
+          e.preventDefault();
+          selection.modify('extend', 'backward', 'character');
+          document.execCommand('insertText', false, '');
+          return;
+        }
+        // At very start of editor - do nothing
         return;
       }
 
