@@ -410,6 +410,15 @@ export function JournalEditor({
         return;
       }
 
+      // At start of line (offset 0) - use selection.modify to delete backward
+      // This handles line breaks created by tab wrapping or Enter
+      if (range.startOffset === 0) {
+        e.preventDefault();
+        selection.modify('extend', 'backward', 'character');
+        document.execCommand('insertText', false, '');
+        return;
+      }
+
       // Check if we're in a text node with content before cursor - use custom handling
       if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
         e.preventDefault();
@@ -436,8 +445,7 @@ export function JournalEditor({
         return;
       }
 
-      // For line breaks and structural elements (div, br), let browser handle natively
-      // This ensures correct behavior with Enter-created line breaks
+      // For other structural elements, let browser handle natively
     } else if (e.key === 'Delete') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
