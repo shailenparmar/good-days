@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.39';
+const VERSION = '1.6.40';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -312,12 +312,12 @@ function AppContent() {
 
 
   // ESC key behavior (priority order):
-  // 1. In zen mode: exit zen and restore previous state
+  // 1. In zen mode: exit zen and restore previous state (even if in textarea!)
   // 2. In minizen (wide): exit minizen (show sidebar)
   // 3. In narrow mode with sidebar hidden: show sidebar
   // 4. Otherwise: lock the app
   // DON'T act when:
-  // - User is in an input field
+  // - User is in an input field (EXCEPT in zen mode - ESC should always exit zen)
   // - ESC was already handled by another component (via e.defaultPrevented)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -325,16 +325,18 @@ function AppContent() {
         // Don't act if ESC was already handled (e.g., by password settings)
         if (e.defaultPrevented) return;
 
-        // Don't act if user is in an input field
-        const activeEl = document.activeElement;
-        const tagName = activeEl?.tagName?.toLowerCase();
-        if (tagName === 'input' || tagName === 'textarea') return;
-
         // In zen mode: exit zen and restore previous state
+        // This check comes FIRST so ESC works even when focused in the editor
         if (zenMode) {
           exitZen();
           return;
         }
+
+        // Don't act if user is in an input field (password inputs, etc.)
+        // But DO allow ESC from the journal textarea (editor) - it should lock
+        const activeEl = document.activeElement;
+        const tagName = activeEl?.tagName?.toLowerCase();
+        if (tagName === 'input') return;
 
         // In minizen (wide only): exit minizen and restore panels
         if (!isNarrow && minizen) {
