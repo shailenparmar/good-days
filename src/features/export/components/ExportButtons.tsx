@@ -189,7 +189,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
                 : s('import failed')
               : stacked && importHovered
                 ? s('multiple files accepted')
-                : s(stacked ? 'import AES-256-GCM backup' : 'import')}
+                : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
           </span>
         </FunctionButton>
       </div>
