@@ -1168,7 +1168,7 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 Password flows can also be dismissed by clicking outside the input:
 
-- **After "password saved"** - Click anywhere dismisses message and returns to split buttons
+- **After "password saved"** - Click anywhere or press any key dismisses message and returns to split buttons
 - **During "change password" flow** - Click outside input returns to split buttons
 - **During "set password" flow** - Click outside input resets to first step and blurs
 
