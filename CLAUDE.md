@@ -1564,7 +1564,7 @@ Password flows can be dismissed by clicking outside the input:
 
 ### Keystroke to Dismiss Pattern (IMPORTANT)
 
-Status messages (like "saved. lock with esc" or "3 entries imported") dismiss on **keystroke only**, not clicks. Clicks are intentional actions — the user might be clicking to do something else, not to dismiss the status.
+Status messages (like "saved. lock with esc." or "3 entries imported") dismiss on **keystroke only**, not clicks. Clicks are intentional actions — the user might be clicking to do something else, not to dismiss the status.
 
 ```tsx
 useEffect(() => {
@@ -1591,7 +1591,7 @@ useEffect(() => {
 - If the panel closes, the status naturally disappears with it
 
 **Where this pattern is used:**
-- Password "saved. lock with esc" dismiss (`PasswordSettings.tsx`)
+- Password "saved. lock with esc." dismiss (`PasswordSettings.tsx`)
 - Import feedback dismiss (`ExportButtons.tsx`)
 
 ### Click Outside to Dismiss (Different Pattern)
@@ -1665,7 +1665,7 @@ const { confirm: confirmColor, error: errorColor } = getStatusColors(
 **No title labels:** Password flows have no labels above the input. The placeholder text indicates the current step:
 - "set password" → "one more time" (new password flow)
 - "old password" → "new password" → "new password again" (change flow)
-- "saved. lock with esc" (after successful save, with bold sweep animation)
+- "saved. lock with esc." (after successful save, with bold sweep animation)
 
 ### Password Input Styling
 
