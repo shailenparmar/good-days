@@ -28,6 +28,45 @@ type ColorState = {
   bgLight: number;
 };
 
+// Parse color values from pasted text (same format as powerstat)
+function parseColorInput(input: string) {
+  const trimmed = input.trim().toLowerCase();
+
+  // Try HEX format: #rrggbb
+  const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0, s = 0;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+
+    return { type: 'hsl' as const, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+
+  // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
+  const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
+  if (hslMatch) {
+    const type = hslMatch[1] as 'txt' | 'bg' | undefined;
+    return { type: type || 'hsl' as const, h: parseInt(hslMatch[2]), s: parseInt(hslMatch[3]), l: parseInt(hslMatch[4]) };
+  }
+
+  return null;
+}
+
 // Simple mobile component with accelerometer color picker
 function MobileScreen() {
   const [colors, setColors] = useState<ColorState>(() => {
@@ -228,6 +267,50 @@ function MobileScreen() {
   // Current hue being edited (for indicator position)
   const currentHue = editing === 'text' ? colors.hue : colors.bgHue;
 
+  // Copy colors to clipboard
+  const handleCopy = async () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard access denied
+    }
+  };
+
+  // Paste colors from clipboard
+  const handlePaste = async () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    try {
+      const text = await navigator.clipboard.readText();
+      let txtH = colors.hue, txtS = colors.sat, txtL = colors.light;
+      let bgH = colors.bgHue, bgS = colors.bgSat, bgL = colors.bgLight;
+      let foundAny = false;
+
+      const lines = text.split('\n');
+      for (const line of lines) {
+        const parsed = parseColorInput(line);
+        if (parsed) {
+          foundAny = true;
+          if (parsed.type === 'txt') {
+            txtH = parsed.h; txtS = parsed.s; txtL = parsed.l;
+          } else if (parsed.type === 'bg') {
+            bgH = parsed.h; bgS = parsed.s; bgL = parsed.l;
+          } else {
+            // Plain HSL - apply to text by default
+            txtH = parsed.h; txtS = parsed.s; txtL = parsed.l;
+          }
+        }
+      }
+
+      if (foundAny) {
+        setColors({ hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL });
+      }
+    } catch {
+      // Clipboard access denied or empty
+    }
+  };
+
   return (
     <div
       style={{
@@ -274,6 +357,46 @@ function MobileScreen() {
         }}>
           days
         </p>
+        {/* Copy/Paste split button - only visible when not editing */}
+        {!editing && (
+          <div style={{
+            display: 'flex',
+            marginTop: '32px',
+          }}>
+            <button
+              onClick={handleCopy}
+              style={{
+                padding: '8px 20px',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '14px',
+                backgroundColor: 'transparent',
+                border: `3px solid ${textColor}`,
+                borderRight: `1px solid ${textColor}`,
+                borderRadius: '8px 0 0 8px',
+                color: textColor,
+              }}
+            >
+              copy
+            </button>
+            <button
+              onClick={handlePaste}
+              style={{
+                padding: '8px 20px',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '14px',
+                backgroundColor: 'transparent',
+                border: `3px solid ${textColor}`,
+                borderLeft: `1px solid ${textColor}`,
+                borderRadius: '0 8px 8px 0',
+                color: textColor,
+              }}
+            >
+              paste
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom section: either split button or hue slider */}

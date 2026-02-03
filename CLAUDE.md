@@ -778,81 +778,94 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
 ## Mobile Screen
 
-On mobile devices, the app shows a simple screen with "good days is not supported on mobile yet" and a rand button.
+On mobile devices, the app shows a color picker using touch + accelerometer controls.
 
 ### Layout
 
 ```
 ┌────────────────────────────────┐
 │                                │
-│        ← 120px marginTop       │
-│                                │
-│            good                │
+│            good                │  ← Centered vertically
 │            days                │
-│             is                 │
-│            not                 │  ← 4px between words
-│         supported              │
-│             on                 │
-│           mobile               │
-│            yet                 │
 │                                │
-│        ← 60px gap              │
+│        ┌────────────────┐      │
+│        │ copy  │ paste  │      │  ← Split button (copy/paste colors)
+│        └────────────────┘      │
 │                                │
-│         ┌──────────┐           │
-│         │   rand   │           │  ← 8px border
-│         └──────────┘           │
-│                                │
-│        ← 16px gap              │
-│                                │
-│         ┌──────────┐           │
-│         │  paste   │           │  ← 8px border
-│         └──────────┘           │
-│                                │
-│        ← 48px marginBottom     │
-│                                │
+│  ┌───────────────────────────┐ │
+│  │ text       │   background │ │  ← Split button (edit text or bg)
+│  └───────────────────────────┘ │
+└────────────────────────────────┘
+
+When editing (press and hold text or background):
+
+┌────────────────────────────────┐
+│            good                │  ← Top 50%
+│            days                │
+├────────────────────────────────┤
+│  ┌────────────────────────┐    │
+│  │ text: h120 s50 l60     │    │  ← Current values label
+│  └────────────────────────┘    │
+│ ════════════════════════════   │  ← Horizontal indicator line
+│     (hue spectrum gradient)    │  ← Bottom 50%: vertical hue picker
+│  ┌────────────────────────┐    │
+│  │ drag ↕ hue • tilt...   │    │  ← Tilt hint
+│  └────────────────────────┘    │
 └────────────────────────────────┘
 ```
 
-### Spacing Values
+### Interaction Model
 
-| Element | Property | Value |
-|---------|----------|-------|
-| Text from top | `marginTop` | 120px |
-| Between words | `margin` | 4px 0 |
-| Text to rand button | `marginTop` on button | 60px |
-| Rand to paste gap | `marginTop` on paste | 16px |
-| Paste to bottom | `marginBottom` | 48px |
-| Button border | `border` | 8px solid |
-| Button border radius | `borderRadius` | 12px |
-| Button padding | `padding` | 8px 40px |
+**Press and hold** either `text` or `background` button:
+1. Bottom 50% becomes vertical hue spectrum (red → yellow → green → cyan → blue → magenta → red)
+2. Horizontal white indicator line shows current hue position
+3. **Drag vertically** to change hue (0-360°)
+4. **Tilt phone left/right** to change saturation (0-100%)
+5. **Tilt phone forward/back** to change lightness (5-95%)
+6. **Release** to lock in the color (haptic feedback)
 
-### Paste Button
+The "good days" text at top updates live to show color changes.
 
-The paste button reads color stats from the clipboard using the same format as powerstat mode:
+### Accelerometer Controls
 
-```
-txt: 120, 50%, 60%
-bg: 200, 80%, 90%
-```
+| Axis | Controls | Range | Mapping |
+|------|----------|-------|---------|
+| Gamma (left-right tilt) | Saturation | 0-100% | ±45° = full range |
+| Beta (front-back tilt) | Lightness | 5-95% | ±45° = full range |
 
-**Supported formats:**
+**Baseline capture**: When you start editing, the current phone orientation becomes the "neutral" position. Tilting from there adjusts values proportionally.
+
+**iOS 13+ permission**: First touch prompts for device orientation permission. If denied, falls back to random color on tap.
+
+### Copy/Paste Buttons
+
+Split button under "good days" for sharing colors with desktop:
+
+| Button | Action |
+|--------|--------|
+| `copy` | Copies `txt: h, s%, l%\nbg: h, s%, l%` to clipboard |
+| `paste` | Reads clipboard, parses color values, applies them |
+
+**Supported paste formats:**
 - `txt: h, s%, l%` - text color HSL
 - `bg: h, s%, l%` - background color HSL
 - `h, s%, l%` - plain HSL (applies to text)
 - `#rrggbb` - HEX (converts to HSL, applies to text)
 
-**Behavior:**
-- Reads clipboard on tap
-- Parses each line for color values
-- Applies found colors (keeps existing if line not found)
-- Triggers pulse animation on success
-- Haptic feedback on supported devices
+### Persistence
 
-### Why Fixed Pixels?
+Colors persist to `localStorage` key `mobileColors` as JSON:
+```json
+{ "hue": 175, "sat": 100, "light": 21, "bgHue": 84, "bgSat": 100, "bgLight": 88 }
+```
 
-The layout uses fixed pixel values instead of flex-based positioning because:
-- `flex` values render differently across browsers (Chrome vs Safari)
-- Fixed pixels ensure consistent appearance on all devices
+### Haptic Feedback
+
+| Event | Pattern |
+|-------|---------|
+| Touch start (begin editing) | Single 10ms vibration |
+| Touch end (lock color) | 5ms, 30ms pause, 5ms |
+| Copy/paste button tap | Single 10ms vibration |
 
 Code location: `src/main.tsx`
 
