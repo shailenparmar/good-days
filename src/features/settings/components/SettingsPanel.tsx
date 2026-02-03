@@ -157,16 +157,19 @@ export function SettingsPanel({
             onMouseLeave={() => setHotkeyButtonHovered(false)}
           >
             <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
-              <span>
-                {(() => {
-                  // Only show shortcut on hover when activated
-                  const showShortcut = hotkeyButtonHovered && scrambleHotkeyActive;
-                  const text = showShortcut
-                    ? 'option/alt + s'
-                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated');
-                  return superscramble ? scrambleText(text) : text;
-                })()}
-              </span>
+              {scrambleHotkeyActive ? (
+                // Grid overlay to prevent hover flicker (hover text "option/alt + s" is shorter than default)
+                <span style={{ display: 'grid' }}>
+                  <span style={{ gridRow: 1, gridColumn: 1, visibility: hotkeyButtonHovered ? 'visible' : 'hidden' }}>
+                    {superscramble ? scrambleText('option/alt + s') : 'option/alt + s'}
+                  </span>
+                  <span style={{ gridRow: 1, gridColumn: 1, visibility: hotkeyButtonHovered ? 'hidden' : 'visible' }}>
+                    {superscramble ? scrambleText('scramble hotkey activated') : 'scramble hotkey activated'}
+                  </span>
+                </span>
+              ) : (
+                <span>{superscramble ? scrambleText('scramble hotkey deactivated') : 'scramble hotkey deactivated'}</span>
+              )}
             </FunctionButton>
           </div>
         </div>

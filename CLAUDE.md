@@ -503,10 +503,12 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 | State | Button Text | On Hover |
 |-------|-------------|----------|
-| Deactivated | "scramble hotkey deactivated" | "option/alt + s" |
+| Deactivated | "scramble hotkey deactivated" | (no change) |
 | Activated | "scramble hotkey activated" | "option/alt + s" |
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
+
+**Hover Flicker Fix:** The activated state uses the grid overlay solution (see "The Hover Flicker Problem") because hover text "option/alt + s" (14 chars) is shorter than default "scramble hotkey activated" (26 chars).
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
