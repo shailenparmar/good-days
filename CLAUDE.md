@@ -627,6 +627,47 @@ The stats display in powerstat mode uses these specific spacing values:
 
 Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
+## Color Stats Copy/Paste
+
+In powerstat mode, the color stats area (txt/bg HSL and HEX values) shows copy/paste buttons on hover.
+
+### Hover Region Structure
+
+The hover region must only cover the text content, not the spacing above it. This is achieved with nested divs:
+
+```tsx
+{/* Outer div: spacing and border (NOT part of hover region) */}
+<div className="mt-3 pt-3" style={{ borderTop: '2px solid ...' }}>
+  {/* Inner div: hover detection (ONLY this is the hover region) */}
+  <div
+    style={{ display: 'grid' }}
+    onMouseEnter={() => setColorAreaHovered(true)}
+    onMouseLeave={() => setColorAreaHovered(false)}
+  >
+    {/* Copy/paste buttons and color stats grid */}
+  </div>
+</div>
+```
+
+**Why this matters:** If `onMouseEnter`/`onMouseLeave` are on the outer div, the hover region extends into the `pt-3` padding above the text, triggering the buttons prematurely.
+
+### Behavior
+
+| State | Display |
+|-------|---------|
+| Not hovered | Color stats: `txt: H, S%, L%` and HEX values |
+| Hovered | Split buttons: `copy` (left) / `paste` (right) |
+
+**Copy**: Copies both colors to clipboard in format:
+```
+txt: 120, 50%, 60%
+bg: 200, 80%, 90%
+```
+
+**Paste**: Reads clipboard, parses color values, applies them, creates new preset.
+
+Code location: `src/features/statistics/components/StatsDisplay.tsx`
+
 ## Mobile Screen
 
 On mobile devices, the app shows a simple screen with "good days is not supported on mobile yet" and a rand button.
