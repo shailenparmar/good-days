@@ -1960,6 +1960,18 @@ Journal entries are stored in IndexedDB for effectively unlimited storage (local
 
 **Code location**: `src/shared/storage/journalStorage.ts`
 
+### Loading State
+
+The app shows a brief "loading..." screen while IndexedDB initializes. This is handled in `App.tsx`:
+
+```tsx
+if (journal.isLoading) {
+  return <div>loading...</div>;
+}
+```
+
+The `useJournalEntries` hook exposes `isLoading` which is `true` until `initJournalStorage()` completes.
+
 ### Migration Behavior
 
 On app startup, the storage module checks for existing localStorage data:
@@ -1968,11 +1980,23 @@ On app startup, the storage module checks for existing localStorage data:
 App starts
     ↓
 localStorage has 'journalEntries'?
-    ├── YES → Open IndexedDB → Write entries → Verify count → Delete localStorage key
-    └── NO  → Load from IndexedDB directly
+    ├── YES (not migrated) → Write to IndexedDB → Verify count → Delete localStorage
+    ├── YES (already migrated) → Merge with IndexedDB (see below)
+    └── NO → Load from IndexedDB directly
 ```
 
 **Safety**: localStorage is only deleted AFTER IndexedDB write is verified (count matches).
+
+### Merge Logic (beforeunload Backup)
+
+The `beforeunload` event writes entries to localStorage as a backup (IndexedDB async writes may not complete before tab closes). On next load, if localStorage has data AND migration already happened:
+
+1. Compare `lastModified` timestamps for each entry
+2. Keep the newer version of each entry
+3. Write merged result to IndexedDB
+4. Clear localStorage
+
+This prevents data loss when the user closes the tab quickly after typing.
 
 ### Fallback Mode
 
@@ -1981,6 +2005,12 @@ If IndexedDB fails (e.g., private browsing mode), the app falls back to localSto
 - `isInFallbackMode()` returns `true` when in fallback
 - All operations work the same, just using localStorage
 - Users won't notice any difference except the 5MB limit
+
+### Browser-Specific Behavior
+
+**Safari/iOS**: Deletes all browser storage after 7 days of inactivity (Intelligent Tracking Prevention). This is documented in the About panel with a recommendation to backup regularly.
+
+**Chrome/Firefox/Edge**: Only delete data under storage pressure (low disk space), not based on inactivity.
 
 ### What Stays in localStorage
 
@@ -1999,15 +2029,16 @@ Small settings that benefit from synchronous access:
 
 In powerstat mode, storage usage shows IndexedDB quota via `navigator.storage.estimate()`:
 
-- Format: `{used}/{quota} MB used`
-- Large quotas (>1GB) display as `∞` (effectively unlimited)
+- Format: `{used} MB / {quota}` (e.g., "0.15 MB / 2.5 GB")
+- Large quotas shown in GB, small in MB
+- Fetched once when powerstat opens (not live-updating)
 - Fallback: calculates localStorage usage if Storage API unavailable
 
 ### Functions
 
 | Function | Purpose |
 |----------|---------|
-| `initJournalStorage()` | Opens DB, migrates if needed, returns all entries |
+| `initJournalStorage()` | Opens DB, migrates if needed, merges backup, returns entries |
 | `saveAllJournalEntries(entries)` | Bulk save (fire-and-forget async) |
 | `getStorageEstimate()` | Returns `{ used, quota }` in bytes |
 | `isInFallbackMode()` | True if using localStorage instead of IndexedDB |
