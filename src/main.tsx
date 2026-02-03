@@ -372,37 +372,57 @@ function MobileScreen() {
           inset: 0,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
           backgroundColor: bgColor,
-          gap: '4px',
         }}
       >
-        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
-          good
-        </span>
-        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
-          days
-        </span>
-        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', marginTop: '40px' }}>
-          hold your phone flat
-        </span>
-        <button
-          onClick={requestPermission}
+        {/* Top 3/4: big "good days" */}
+        <div
           style={{
-            marginTop: '16px',
-            padding: '16px 32px',
-            fontFamily: 'monospace',
-            fontWeight: 800,
-            fontSize: '16px',
-            backgroundColor: 'transparent',
-            border: `4px solid ${textColor}`,
-            borderRadius: '12px',
-            color: textColor,
+            flex: '0 0 75%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0px',
           }}
         >
-          enable accelerometer
-        </button>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '64px', lineHeight: 1 }}>
+            good
+          </span>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '64px', lineHeight: 1 }}>
+            days
+          </span>
+        </div>
+        {/* Bottom 1/4: instruction + button */}
+        <div
+          style={{
+            flex: '0 0 25%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: '16px',
+          }}
+        >
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>
+            hold your phone flat
+          </span>
+          <button
+            onClick={requestPermission}
+            style={{
+              padding: '16px 32px',
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              fontSize: '16px',
+              backgroundColor: 'transparent',
+              border: `4px solid ${textColor}`,
+              borderRadius: '12px',
+              color: textColor,
+            }}
+          >
+            enable accelerometer
+          </button>
+        </div>
       </div>
     );
   }
