@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.9.3';
+const VERSION = '1.9.4';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -236,7 +236,8 @@ function AppContent() {
           setShowSidebarInNarrow(false);
         } else if (!narrow && wasNarrow) {
           // Narrow → Wide: restore state (panels + minizen) if not committed to narrow
-          if (preNarrowState) {
+          // BUT NOT if in zen mode - zen should be pure, no panels
+          if (preNarrowState && !zenMode) {
             setShowDebugMenu(preNarrowState.showDebugMenu);
             setShowAboutPanel(preNarrowState.showAboutPanel);
             setMinizen(preNarrowState.minizen);
@@ -249,7 +250,7 @@ function AppContent() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isNarrow, closePanels, showDebugMenu, showAboutPanel, preNarrowState, preFocusState]);
+  }, [isNarrow, closePanels, showDebugMenu, showAboutPanel, preNarrowState, preFocusState, zenMode]);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
 

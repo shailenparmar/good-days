@@ -1380,6 +1380,36 @@ const stateToSave = preFocusState
 
 **The invariant:** Saved state must always satisfy: `(showDebugMenu || showAboutPanel) → !minizen`
 
+#### Zen Mode Purity on Resize (IMPORTANT)
+
+When restoring from `preNarrowState` on narrow→wide resize, we must NOT restore panels if currently in zen mode. Zen should be pure - just the editor, no panels.
+
+**Bug scenario (fixed in v1.9.4):**
+1. Wide mode, settings open
+2. Resize to narrow → `preNarrowState = { showDebugMenu: true, ... }`, panels close
+3. Enter zen in narrow (click footer)
+4. Resize back to wide → if we restored `preNarrowState`, settings panel would appear while in zen!
+5. Result: zen mode with floating settings panel (should be just editor)
+
+**The fix:**
+
+Only restore from `preNarrowState` if NOT in zen mode:
+
+```tsx
+} else if (!narrow && wasNarrow) {
+  // Narrow → Wide: restore state if not committed AND not in zen
+  if (preNarrowState && !zenMode) {
+    setShowDebugMenu(preNarrowState.showDebugMenu);
+    setShowAboutPanel(preNarrowState.showAboutPanel);
+    setMinizen(preNarrowState.minizen);
+    setPreNarrowState(null);
+  }
+  setShowSidebarInNarrow(false);
+}
+```
+
+**The invariant:** `zenMode → !showDebugMenu && !showAboutPanel` (zen is always pure)
+
 ### Panel Behavior
 
 Opening settings or about requires the sidebar:
