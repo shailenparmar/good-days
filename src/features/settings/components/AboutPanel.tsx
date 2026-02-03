@@ -12,6 +12,13 @@ interface AboutPanelProps {
   scrambleSeed?: number;
 }
 
+// Panel layout constants - ensures right edge alignment in both modes
+// Change PANEL_AREA_TOTAL if you want the About panel wider/narrower
+// The About panel's right edge will be at the same position whether stacked or not
+const PANEL_AREA_TOTAL = 726; // Total width from sidebar edge to About right edge (including borders)
+const SETTINGS_TOTAL = 326;   // Settings panel total width (320px content + 6px border)
+const BORDER_WIDTH = 6;
+
 export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
@@ -19,6 +26,13 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+
+  // Calculate About width to keep right edge aligned
+  // Not stacked: full panel area minus border
+  // Stacked: subtract Settings space (content + border) and our border
+  const aboutWidth = stacked
+    ? PANEL_AREA_TOTAL - SETTINGS_TOTAL - BORDER_WIDTH  // 394px
+    : PANEL_AREA_TOTAL - BORDER_WIDTH;                   // 720px
 
   // Scroll position persistence
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,9 +72,9 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
       onScroll={handleScroll}
       className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
-        width: stacked ? '400px' : '720px',
+        width: `${aboutWidth}px`,
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+        borderRight: `${BORDER_WIDTH}px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
       }}
       onClick={onCloseSettings}
     >
@@ -71,20 +85,33 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
         </p>
       </div>
 
-      {/* Privacy - TEMPORARILY EDITABLE */}
+      {/* Privacy */}
       <div className="p-4" style={sectionStyle}>
-        <div
-          className="text-base leading-relaxed font-mono font-bold space-y-4 cursor-text"
-          style={{ color: getColor() }}
-          contentEditable
-          suppressContentEditableWarning
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p>privacy:</p>
-          <p>entries are not sent to a server. a developer couldn't view your writing even if they wanted to.</p>
-          <p>all data added lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.</p>
-          <p>if you clear your site data, you'll lose your entries. i backup periodically. safari deletes entries after 7 days of inactivity; chromium browsers don't.</p>
-          <p>as a safety guarantee, all the code is open source. [github link]</p>
+        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+          <p>{s("privacy:")}</p>
+          <p>
+            {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
+          </p>
+          <p>
+            {s("everything added lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.")}
+          </p>
+          <p>
+            {s("however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
+          </p>
+          <p>
+            {s("as a safety guarantee, all the code is open source.")}{' '}
+            <a
+              href="https://github.com/shailenparmar/good-days"
+              target="_blank"
+              rel="noopener noreferrer"
+              tabIndex={-1}
+              className="inline-flex items-center gap-1 transition-opacity hover:opacity-85 outline-none"
+              style={{ color: getColor() }}
+            >
+              <ExternalLink className="w-4 h-4" />
+              {s("GitHub")}
+            </a>
+          </p>
         </div>
       </div>
 

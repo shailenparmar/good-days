@@ -54,7 +54,7 @@ export function FunctionButton({ onClick, disabled, isActive, children, dataAttr
       aria-label={ariaLabel}
       aria-pressed={isActive}
       title={title}
-      className={`w-full px-3 py-2 font-mono rounded flex items-center justify-center gap-2 outline-none focus:outline-none select-none ${size === 'sm' ? 'text-xs font-bold' : 'font-extrabold'} ${disabled && !overrideColor ? 'opacity-50' : ''}`}
+      className={`${fullWidth ? 'w-full' : ''} px-3 py-2 font-mono rounded flex items-center justify-center gap-2 outline-none focus:outline-none select-none ${size === 'sm' ? 'text-xs font-bold' : 'font-extrabold'} ${disabled && !overrideColor ? 'opacity-50' : ''}`}
       style={{
         fontSize: size === 'sm' ? undefined : '14px',
         color: textColor,

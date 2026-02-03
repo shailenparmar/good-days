@@ -546,11 +546,30 @@ Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 
 ## Panel Dimensions
 
-| Panel | Width | Resizable |
-|-------|-------|-----------|
-| Sidebar | 320px (`w-80`) | No |
-| Settings | 320px (`w-80`) | No |
-| About | 675px (400px in powerstat/powerscramble) | No |
+| Panel | Content Width | Border | Total |
+|-------|---------------|--------|-------|
+| Sidebar | 320px (`w-80`) | 6px right | 326px |
+| Settings | 320px (`w-80`) | 6px right | 326px |
+| About (alone) | 720px | 6px right | 726px |
+| About (stacked) | 394px | 6px right | 400px |
+
+### Right Edge Alignment (IMPORTANT)
+
+The About panel's right edge stays at the **same horizontal position** whether in About-only mode or powerstat mode. This is achieved through constants in `AboutPanel.tsx`:
+
+```tsx
+const PANEL_AREA_TOTAL = 726; // Total width from sidebar edge to About right edge
+const SETTINGS_TOTAL = 326;   // Settings panel total (320 + 6px border)
+const BORDER_WIDTH = 6;
+
+const aboutWidth = stacked
+  ? PANEL_AREA_TOTAL - SETTINGS_TOTAL - BORDER_WIDTH  // 394px
+  : PANEL_AREA_TOTAL - BORDER_WIDTH;                   // 720px
+```
+
+**Why this matters:** Without this calculation, the Settings panel's 6px border would push the About panel's right edge 6px further in powerstat mode.
+
+**To change panel widths:** Update the constants at the top of `AboutPanel.tsx`. The math automatically keeps the right edge aligned.
 
 ## Opacity Standards
 

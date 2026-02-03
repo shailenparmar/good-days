@@ -47,7 +47,9 @@ function getLuminanceForHsl(h: number, s: number, l: number): number {
 
 /**
  * Find lightness that achieves target contrast ratio with background.
- * Prefers lightness closer to 50% (more vibrant) when multiple solutions exist.
+ * Starts at 50% (most vibrant) and searches outward toward the extreme
+ * that provides more contrast. Returns the LEAST extreme lightness that
+ * still achieves the target contrast.
  */
 function findLightnessForContrast(
   hue: number,
@@ -55,39 +57,24 @@ function findLightnessForContrast(
   bgLuminance: number,
   targetRatio: number
 ): number {
-  // Determine if we need to go lighter or darker than background
+  // Determine which direction increases contrast
+  // Light background → darker colors have more contrast (search toward 0)
+  // Dark background → lighter colors have more contrast (search toward 100)
   const bgIsLight = bgLuminance > 0.179; // ~45% gray
 
-  // Search from the extreme that contrasts with background toward middle
-  // This finds the LEAST extreme lightness that still achieves target contrast
-  const start = bgIsLight ? 0 : 100;
-  const end = bgIsLight ? 50 : 50;
-  const step = bgIsLight ? 1 : -1;
-
-  let bestL = start;
-
-  for (let l = start; bgIsLight ? l <= end : l >= end; l += step) {
+  // Start at 50% and search outward toward the contrasting extreme
+  for (let offset = 0; offset <= 50; offset++) {
+    const l = bgIsLight ? (50 - offset) : (50 + offset);
     const lum = getLuminanceForHsl(hue, sat, l);
     const ratio = getContrastRatio(lum, bgLuminance);
 
     if (ratio >= targetRatio) {
-      bestL = l;
-      break;
+      return l;
     }
-    bestL = l;
   }
 
-  // If we didn't find sufficient contrast going toward 50%,
-  // the extreme value is our best option
-  const bestLum = getLuminanceForHsl(hue, sat, bestL);
-  const bestRatio = getContrastRatio(bestLum, bgLuminance);
-
-  if (bestRatio < targetRatio) {
-    // Need to go more extreme
-    bestL = bgIsLight ? 0 : 100;
-  }
-
-  return bestL;
+  // If 50% offset wasn't enough, return the extreme
+  return bgIsLight ? 0 : 100;
 }
 
 /**
