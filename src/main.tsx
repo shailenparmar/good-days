@@ -375,7 +375,7 @@ function MobileScreen() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: bgColor,
-          gap: '20px',
+          gap: '4px',
         }}
       >
         <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
@@ -384,10 +384,13 @@ function MobileScreen() {
         <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
           days
         </span>
+        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', marginTop: '40px' }}>
+          hold your phone flat
+        </span>
         <button
           onClick={requestPermission}
           style={{
-            marginTop: '40px',
+            marginTop: '16px',
             padding: '16px 32px',
             fontFamily: 'monospace',
             fontWeight: 800,
@@ -398,11 +401,8 @@ function MobileScreen() {
             color: textColor,
           }}
         >
-          enable motion
+          enable accelerometer
         </button>
-        <span style={{ color: textColor, fontFamily: 'monospace', fontSize: '12px', opacity: 0.7, textAlign: 'center', padding: '0 40px' }}>
-          tilt controls require motion permission
-        </span>
       </div>
     );
   }
