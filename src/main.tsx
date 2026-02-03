@@ -368,15 +368,16 @@ function MobileScreen() {
         WebkitTouchCallout: 'none',
       } as React.CSSProperties}
     >
-      {/* Top half: good days */}
+      {/* Top: good days */}
       <div
         style={{
-          flex: editing ? '0 0 50%' : '1',
+          flex: editing ? '0 0 auto' : '1',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '4px',
+          paddingTop: editing ? '60px' : '0',
         }}
       >
         <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
@@ -386,6 +387,28 @@ function MobileScreen() {
           days
         </span>
       </div>
+
+      {/* Middle: stats panel - only when editing */}
+      {editing && (
+        <div
+          style={{
+            flex: '0 0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px 0',
+            gap: '8px',
+          }}
+        >
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '14px' }}>
+            {editing}: h{currentHue} s{currentSat} l{currentLight}
+          </span>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontSize: '12px' }}>
+            drag ↕ hue • tilt for sat/light
+          </span>
+        </div>
+      )}
 
       {/* Bottom: text/bg buttons, copy/paste buttons, or hue slider */}
       {!editing && !showCopyPaste ? (
@@ -499,43 +522,6 @@ function MobileScreen() {
               imageRendering: 'pixelated',
             } as React.CSSProperties}
           />
-          {/* Current values */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontFamily: 'monospace',
-              fontWeight: 'bold',
-              fontSize: '14px',
-              pointerEvents: 'none',
-            }}
-          >
-            {editing}: h{currentHue} s{currentSat} l{currentLight}
-          </div>
-          {/* Hint */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              pointerEvents: 'none',
-            }}
-          >
-            drag ↕ hue • tilt for sat/light
-          </div>
         </div>
       )}
     </div>
