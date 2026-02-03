@@ -475,6 +475,30 @@ When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
+## Function Menus
+
+**Function menus** are the panels that open from the sidebar buttons: **Settings**, **About**, and **Scramble** (toggle). Any combination of these can be open at once.
+
+### Click-to-Close Behavior
+
+Clicking outside function menus closes them. The clickable regions:
+
+| Area | Closes function menus? |
+|------|------------------------|
+| Sidebar (entries list, empty space) | Yes |
+| Settings panel body | Yes |
+| About panel body | Yes |
+| Main editor area | Yes (narrow mode only) |
+| Colorstats area (HSL/HEX values) | **No** - protected for text selection |
+| Title area ("good days") | **No** - protected for minizen toggle |
+
+The colorstats area is the only protected region in powerstat mode. This allows copy/paste of color values while still letting users click anywhere else to dismiss panels.
+
+Code locations:
+- Sidebar container: `src/App.tsx` (line ~522, `onClick={closePanels}`)
+- Colorstats protection: `src/features/statistics/components/StatsDisplay.tsx` (inner grid div with `stopPropagation`)
+- Panel click handlers: `SettingsPanel.tsx` and `AboutPanel.tsx` (`onClick={onCloseAbout/onCloseSettings}`)
+
 ## Power Modes
 
 The app has special modes that activate when multiple panels are open.
