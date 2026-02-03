@@ -68,9 +68,6 @@ function MobileScreen() {
   // Which color is being edited (null = not editing)
   const [editing, setEditing] = useState<'text' | 'bg' | null>(null);
 
-  // Show copy/paste buttons after releasing from editing
-  const [showCopyPaste, setShowCopyPaste] = useState(false);
-
   // Track if we need to request orientation permission (iOS)
   const [needsPermission, setNeedsPermission] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -210,7 +207,6 @@ function MobileScreen() {
     const handleEnd = () => {
       if (navigator.vibrate) navigator.vibrate([5, 30, 5]);
       setEditing(null);
-      setShowCopyPaste(true); // Show copy/paste after releasing
       // Reset baseline for next edit
       baseline.current = { beta: 0, gamma: 0, sat: 50, light: 50 };
     };
@@ -229,7 +225,6 @@ function MobileScreen() {
   // Start editing - called on touchstart of text/bg buttons
   const startEditing = (which: 'text' | 'bg') => {
     if (navigator.vibrate) navigator.vibrate(10);
-    setShowCopyPaste(false); // Hide copy/paste when starting to edit
 
     // Capture current sat/light as baseline
     if (which === 'text') {
@@ -251,7 +246,6 @@ function MobileScreen() {
     if (navigator.vibrate) navigator.vibrate(10);
     const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
     navigator.clipboard.writeText(text).catch(() => {});
-    setShowCopyPaste(false);
   };
 
   // Paste handler - instant, no async/await blocking
@@ -271,8 +265,7 @@ function MobileScreen() {
         }
       }
       if (found) setColors({ hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL });
-      setShowCopyPaste(false);
-    }).catch(() => { setShowCopyPaste(false); });
+    }).catch(() => {});
   };
 
   const currentHue = editing === 'text' ? colors.hue : colors.bgHue;
@@ -407,11 +400,46 @@ function MobileScreen() {
           <span style={{ color: textColor, fontFamily: 'monospace', fontSize: '12px' }}>
             drag ↕ hue • tilt for sat/light
           </span>
+          {/* Copy/paste buttons - smaller */}
+          <div style={{ display: 'flex', marginTop: '8px' }}>
+            <div
+              onTouchStart={(e) => { e.preventDefault(); handleCopy(); }}
+              style={{
+                padding: '8px 16px',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '12px',
+                backgroundColor: 'transparent',
+                border: `2px solid ${textColor}`,
+                borderRight: `1px solid ${textColor}`,
+                borderRadius: '8px 0 0 8px',
+                color: textColor,
+              }}
+            >
+              copy
+            </div>
+            <div
+              onTouchStart={(e) => { e.preventDefault(); handlePaste(); }}
+              style={{
+                padding: '8px 16px',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '12px',
+                backgroundColor: 'transparent',
+                border: `2px solid ${textColor}`,
+                borderLeft: `1px solid ${textColor}`,
+                borderRadius: '0 8px 8px 0',
+                color: textColor,
+              }}
+            >
+              paste
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Bottom: text/bg buttons, copy/paste buttons, or hue slider */}
-      {!editing && !showCopyPaste ? (
+      {/* Bottom: text/bg buttons or hue slider */}
+      {!editing ? (
         <div style={{ padding: '0 40px 60px', display: 'flex' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); startEditing('text'); }}
@@ -452,49 +480,6 @@ function MobileScreen() {
             }}
           >
             background
-          </div>
-        </div>
-      ) : !editing && showCopyPaste ? (
-        <div style={{ padding: '0 40px 60px', display: 'flex' }}>
-          <div
-            onTouchStart={(e) => { e.preventDefault(); handleCopy(); }}
-            style={{
-              flex: 1,
-              padding: '16px 0',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '18px',
-              backgroundColor: 'transparent',
-              border: `4px solid ${textColor}`,
-              borderRight: `2px solid ${textColor}`,
-              borderRadius: '12px 0 0 12px',
-              color: textColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            copy
-          </div>
-          <div
-            onTouchStart={(e) => { e.preventDefault(); handlePaste(); }}
-            style={{
-              flex: 1,
-              padding: '16px 0',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '18px',
-              backgroundColor: 'transparent',
-              border: `4px solid ${textColor}`,
-              borderLeft: `2px solid ${textColor}`,
-              borderRadius: '0 12px 12px 0',
-              color: textColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            paste
           </div>
         </div>
       ) : (
