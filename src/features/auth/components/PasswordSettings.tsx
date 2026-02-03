@@ -133,12 +133,13 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     }
   }, [hasPassword, isSaving]);
 
-  // Autofocus input when showInput becomes true
-  useEffect(() => {
-    if (showInput && !isSaving) {
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [showInput, isSaving]);
+  // NOTE: We intentionally do NOT auto-focus when showInput becomes true on mount.
+  // When settings opens (no password set), typing should go to the editor, not the password input.
+  // The user must click the input to start the password flow.
+  // Auto-focus DOES happen:
+  // 1. After clicking "change password" button (explicit in handleChangePasswordClick)
+  // 2. After step transitions within a flow (explicit in flashGreen with refocusAfter=true)
+  // 3. After error flash (explicit requestAnimationFrame calls)
 
   // Window-level ESC handler to reset password flow (without requiring input focus)
   // Always attached to avoid race conditions, but checks state inside handler
@@ -313,8 +314,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
-  // Dynamic status colors: as close to red/green as possible, only avoiding chromatic conflicts
-  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, bgHue, bgSaturation, bgLightness);
+  // Dynamic status colors using WCAG contrast ratios
+  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;

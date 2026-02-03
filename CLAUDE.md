@@ -1445,6 +1445,57 @@ This pattern ensures the handler always sees the current zenMode value without r
 2. **Narrow + sidebar visible** - No panels open
 3. **After password saved** - Label says "esc to lock", `isSaving=true`
 
+### Password Focus Behavior (IMPORTANT)
+
+The password input has specific focus rules to avoid stealing keystrokes from the editor.
+
+**Core principle:** When settings opens, typing should go to the editor (the main writing experience). The password input only captures keystrokes when the user explicitly engages with it.
+
+#### When Settings Opens (No Password Set)
+
+| What happens | Why |
+|--------------|-----|
+| Password input is **visible** | User can see "set password" placeholder |
+| Password input is **NOT focused** | Typing goes to editor, not password input |
+| User must **click** the input | Explicitly starts the password flow |
+
+This is intentional. The "type anywhere to focus editor" feature in App.tsx skips if already in an `<input>`, so:
+- Input NOT focused → typing goes to editor
+- Input IS focused → typing goes to password input
+
+#### When Password Flow Is Active
+
+Once the user clicks the input or "change password" button, auto-focus IS used:
+
+| Scenario | Auto-focus? | How |
+|----------|-------------|-----|
+| Click "change password" button | Yes | `requestAnimationFrame(() => inputRef.current?.focus())` |
+| After green flash (step complete) | Yes | `flashGreen(..., true)` with `refocusAfter` |
+| After red flash (wrong password) | Yes | `requestAnimationFrame(() => inputRef.current?.focus())` |
+| After ESC within flow | Yes | Keeps focus (ready to retype) |
+| Click outside input | No | Blurs (user clicked away) |
+
+#### State Variables
+
+```tsx
+// Whether to show the input at all
+const [showInput, setShowInput] = useState(!hasPassword);
+
+// Key distinction:
+// - hasPassword=false: showInput=true on mount, but NOT auto-focused
+// - hasPassword=true: showInput=false until "change password" clicked
+```
+
+#### Code Location
+
+`src/features/auth/components/PasswordSettings.tsx`
+
+The component has a comment explaining why we DON'T auto-focus on mount:
+```tsx
+// NOTE: We intentionally do NOT auto-focus when showInput becomes true on mount.
+// When settings opens (no password set), typing should go to the editor, not the password input.
+```
+
 ### Password Flow ESC Behavior
 
 | State | `showInput` | `isSaving` | ESC Result |
@@ -1453,8 +1504,8 @@ This pattern ensures the handler always sees the current zenMode value without r
 | "old password" step | `true` | `false` | → Split buttons |
 | "new password" step | `true` | `false` | → "old password" |
 | "confirm" step | `true` | `false` | → "old password" |
-| "password" (set) | `true` | `false` | Blur input (show placeholder) |
-| "one more time" (set-confirm) | `true` | `false` | → "type here" |
+| "set password" (set) | `true` | `false` | Clear input, keep focus (if focused/has content), else pass through to lock |
+| "one more time" (set-confirm) | `true` | `false` | → "set password" |
 | "password saved" | `true` | `true` | Lock (handler skips, already at base) |
 
 ### Click-to-Dismiss Behavior
@@ -1507,52 +1558,55 @@ This uses capture phase to run before `stopPropagation()` calls.
 
 ### Dynamic Status Colors (Confirm & Error)
 
-Status colors are **as close to semantic red/green as possible**, only deviating when there's actual chromatic conflict.
-
-**Key insight:** If a color is achromatic (low saturation), its hue is meaningless. Black text, white text, gray backgrounds — their hues shouldn't constrain us.
+Status colors use **WCAG contrast ratios** to guarantee readability, while preserving semantic meaning (red=error, green=success) when possible.
 
 **Algorithm:**
-1. **Identify chromatic constraints** — only avoid hues with saturation > 30%
-2. **Error:** Start at RED (0°), expand outward until ≥45° from all chromatic constraints
-3. **Confirm:** Start at GREEN (120°), expand outward until ≥45° from constraints AND error
-4. **Lightness:** Contrast with background (dark bg → 60%, light bg → 45%)
+1. **Hue:** Start with ideal (red=0° for error, green=120° for confirm)
+2. **Lightness:** Find the lightness that achieves **4.5:1 contrast ratio** with background (WCAG AA standard)
+3. **Hue adjustment:** If text is chromatic and hue conflicts (within 60°), shift hue minimally
+
+**Key insight:** Lightness is the primary lever for readability, not hue. The WCAG contrast ratio uses relative luminance (derived from RGB), which accounts for how humans actually perceive brightness.
 
 ```
-Example: Black text (sat=0), Olive green background (hue=75°, sat=80%)
+Example: Black text, Light background (bgL=88%)
 
-Constraints: only bgHue=75° (text is achromatic, ignored)
+Background luminance is high → need dark status colors for contrast
+Error:  RED at lightness ~35% achieves 4.5:1 contrast
+Confirm: GREEN at lightness ~32% achieves 4.5:1 contrast
 
-Error:  RED (0°) is 75° from olive green → SAFE! Use red.
-Confirm: GREEN (120°) is 45° from olive green → SAFE! Use green.
-
-Result: Actual red and green — semantic colors preserved!
+Result: Dark red and dark green — readable and semantic!
 ```
 
 ```
-Example: Green text (hue=120°, sat=100%), Green background (hue=120°, sat=80%)
+Example: Red text (hue=0°, sat=100%), Dark background (bgL=10%)
 
-Constraints: textHue=120°, bgHue=120°
+Background luminance is low → need light status colors
+Error:  RED hue conflicts with text → shift to ~60° (orange-ish)
+        Find lightness for 4.5:1 contrast
+Confirm: GREEN is fine, find lightness for 4.5:1 contrast
 
-Error:  RED (0°) is 120° from both → SAFE! Use red.
-Confirm: GREEN (120°) is 0° from both → NOT safe.
-         Expand: 121°, 119°, 122°, 118°... until 165° (45° away)
-
-Result: Red for error, cyan-ish for confirm.
+Result: Light orange for error, light green for confirm
 ```
 
-**Why this works:**
-1. **Semantic colors preserved** when possible (red=error, green=success)
-2. **Only real conflicts cause deviation** — achromatic colors ignored
-3. **Symmetric expansion** — no clockwise/counterclockwise bias
-4. **Lightness contrast** — always readable against background
+**Why WCAG contrast ratios?**
+- **Perceptually grounded** — based on human vision research
+- **Guaranteed readable** — 4.5:1 is the accessibility standard
+- **No magic numbers** — the ratio is a real standard, not arbitrary
+
+**Constants:**
+| Name | Value | Purpose |
+|------|-------|---------|
+| `TARGET_CONTRAST_RATIO` | 4.5 | WCAG AA standard for readability |
+| `MIN_HUE_DISTANCE` | 60° | Minimum separation from text hue |
+| `CHROMATIC_THRESHOLD` | 30% | Below this saturation, hue is ignored |
 
 Code location: `src/shared/utils/confirmColor.ts`
 
 ```tsx
 import { getStatusColors } from '@shared/utils/confirmColor';
 const { confirm: confirmColor, error: errorColor } = getStatusColors(
-  hue, saturation,           // text color
-  bgHue, bgSaturation, bgLightness  // background color
+  hue, saturation, lightness,           // text color (full HSL)
+  bgHue, bgSaturation, bgLightness      // background color (full HSL)
 );
 ```
 

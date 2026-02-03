@@ -31,9 +31,9 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const [importHovered, setImportHovered] = useState(false);
   const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
   const importWrapperRef = useRef<HTMLDivElement>(null);
-  const { hue, saturation, bgHue, bgSaturation, bgLightness } = useTheme();
-  // Dynamic status colors: as close to red/green as possible, only avoiding chromatic conflicts
-  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, bgHue, bgSaturation, bgLightness);
+  const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  // Dynamic status colors using WCAG contrast ratios
+  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
 
   // Dismiss import feedback on keystroke (clicks are intentional actions)
   useEffect(() => {

@@ -11,9 +11,10 @@ interface FunctionButtonProps {
   ariaLabel?: string;
   title?: string;
   overrideColor?: string;
+  fullWidth?: boolean;
 }
 
-export function FunctionButton({ onClick, disabled, isActive, children, dataAttribute, size = 'default', ariaLabel, title, overrideColor }: FunctionButtonProps) {
+export function FunctionButton({ onClick, disabled, isActive, children, dataAttribute, size = 'default', ariaLabel, title, overrideColor, fullWidth = true }: FunctionButtonProps) {
   const { getColor, hue, saturation, lightness } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);

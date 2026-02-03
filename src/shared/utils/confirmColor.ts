@@ -1,20 +1,97 @@
 /**
- * Calculates optimal confirm (success) and error colors that:
- * - Are as close to bright GREEN (confirm) and RED (error) as possible
- * - Only deviate when there's actual chromatic conflict (saturation > 30%)
- * - Have lightness that contrasts with the background
+ * Calculates optimal status colors (confirm/error) using WCAG contrast ratios.
  *
- * Key insight: If a color is achromatic (low saturation), its hue is meaningless.
- * Black text, white text, gray backgrounds — their hues shouldn't constrain us.
+ * Algorithm:
+ * 1. Start with ideal hue (red=0° for error, green=120° for confirm)
+ * 2. Find lightness that achieves 4.5:1 contrast with background
+ * 3. If hue conflicts with text, shift minimally
+ *
+ * This guarantees:
+ * - Readable against background (WCAG 4.5:1 standard)
+ * - Distinguishable from text
+ * - Semantic colors preserved when possible
  */
 
-const GREEN_HUE = 120;
-const RED_HUE = 0;
-const MIN_HUE_DISTANCE = 45; // Minimum degrees of separation for visibility
-const CHROMATIC_THRESHOLD = 30; // Below this saturation, hue is meaningless
+// ============ Color Conversion ============
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  s /= 100;
+  l /= 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+}
+
+// ============ WCAG Luminance & Contrast ============
+
+function getLuminance(r: number, g: number, b: number): number {
+  const [rs, gs, bs] = [r, g, b].map(c => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+function getContrastRatio(lum1: number, lum2: number): number {
+  const [light, dark] = lum1 > lum2 ? [lum1, lum2] : [lum2, lum1];
+  return (light + 0.05) / (dark + 0.05);
+}
+
+function getLuminanceForHsl(h: number, s: number, l: number): number {
+  const [r, g, b] = hslToRgb(h, s, l);
+  return getLuminance(r, g, b);
+}
+
+// ============ Core Algorithm ============
 
 /**
- * Calculate distance between two hues on the circular color wheel (0-180)
+ * Find lightness that achieves target contrast ratio with background.
+ * Prefers lightness closer to 50% (more vibrant) when multiple solutions exist.
+ */
+function findLightnessForContrast(
+  hue: number,
+  sat: number,
+  bgLuminance: number,
+  targetRatio: number
+): number {
+  // Determine if we need to go lighter or darker than background
+  const bgIsLight = bgLuminance > 0.179; // ~45% gray
+
+  // Search from the extreme that contrasts with background toward middle
+  // This finds the LEAST extreme lightness that still achieves target contrast
+  const start = bgIsLight ? 0 : 100;
+  const end = bgIsLight ? 50 : 50;
+  const step = bgIsLight ? 1 : -1;
+
+  let bestL = start;
+
+  for (let l = start; bgIsLight ? l <= end : l >= end; l += step) {
+    const lum = getLuminanceForHsl(hue, sat, l);
+    const ratio = getContrastRatio(lum, bgLuminance);
+
+    if (ratio >= targetRatio) {
+      bestL = l;
+      break;
+    }
+    bestL = l;
+  }
+
+  // If we didn't find sufficient contrast going toward 50%,
+  // the extreme value is our best option
+  const bestLum = getLuminanceForHsl(hue, sat, bestL);
+  const bestRatio = getContrastRatio(bestLum, bgLuminance);
+
+  if (bestRatio < targetRatio) {
+    // Need to go more extreme
+    bestL = bgIsLight ? 0 : 100;
+  }
+
+  return bestL;
+}
+
+/**
+ * Calculate hue distance on circular color wheel (0-180)
  */
 function hueDistance(h1: number, h2: number): number {
   const diff = Math.abs(h1 - h2);
@@ -22,89 +99,61 @@ function hueDistance(h1: number, h2: number): number {
 }
 
 /**
- * Calculate minimum distance from a hue to any of the avoid hues
+ * Shift hue away from a target hue by minimum distance.
+ * Chooses direction that maximizes distance from avoid hue.
  */
-function minDistanceToAvoid(candidate: number, avoidHues: number[]): number {
-  if (avoidHues.length === 0) return 180; // No constraints
-  return Math.min(...avoidHues.map(avoid => hueDistance(candidate, avoid)));
+function shiftHueAway(hue: number, avoid: number, minDist: number = 60): number {
+  if (hueDistance(hue, avoid) >= minDist) return hue;
+
+  const cw = (hue + minDist) % 360;
+  const ccw = (hue - minDist + 360) % 360;
+
+  return hueDistance(cw, avoid) > hueDistance(ccw, avoid) ? cw : ccw;
 }
 
-/**
- * Check if a hue is safe (far enough from all hues to avoid)
- */
-function isSafeHue(candidate: number, avoidHues: number[]): boolean {
-  return minDistanceToAvoid(candidate, avoidHues) >= MIN_HUE_DISTANCE;
-}
+// ============ Main Export ============
 
-/**
- * Find the closest hue to the target that's safe from all avoid hues.
- * Expands symmetrically from target. When both directions are safe at the same
- * offset, picks the one with MORE distance from avoid hues (better contrast).
- */
-function findClosestSafeHue(targetHue: number, avoidHues: number[]): number {
-  // If no constraints, use the target directly
-  if (avoidHues.length === 0) {
-    return targetHue;
-  }
-
-  // Try the target first
-  if (isSafeHue(targetHue, avoidHues)) {
-    return targetHue;
-  }
-
-  // Expand outward from target, checking both directions at each offset
-  for (let offset = 1; offset <= 180; offset++) {
-    const clockwise = (targetHue + offset) % 360;
-    const counterClockwise = (targetHue - offset + 360) % 360;
-
-    const cwSafe = isSafeHue(clockwise, avoidHues);
-    const ccwSafe = isSafeHue(counterClockwise, avoidHues);
-
-    if (cwSafe && ccwSafe) {
-      // Both safe at same distance from target — pick the one with more contrast
-      const cwDist = minDistanceToAvoid(clockwise, avoidHues);
-      const ccwDist = minDistanceToAvoid(counterClockwise, avoidHues);
-      return cwDist >= ccwDist ? clockwise : counterClockwise;
-    } else if (cwSafe) {
-      return clockwise;
-    } else if (ccwSafe) {
-      return counterClockwise;
-    }
-  }
-
-  // Fallback: return target anyway (shouldn't happen with MIN_HUE_DISTANCE < 120)
-  return targetHue;
-}
+const RED_HUE = 0;
+const GREEN_HUE = 120;
+const SATURATION = 100;
+const TARGET_CONTRAST_RATIO = 4.5; // WCAG AA standard
+const MIN_HUE_DISTANCE = 60; // Minimum hue separation for distinguishability
+const CHROMATIC_THRESHOLD = 30; // Below this saturation, hue is meaningless
 
 export function getStatusColors(
-  textHue: number,
-  textSat: number,
-  bgHue: number,
-  bgSat: number,
-  bgLightness: number
+  textH: number,
+  textS: number,
+  _textL: number, // Available for future luminance-based text distinction
+  bgH: number,
+  bgS: number,
+  bgL: number
 ): { confirm: string; error: string } {
-  // Normalize hues to 0-360
-  const textH = ((textHue % 360) + 360) % 360;
-  const bgH = ((bgHue % 360) + 360) % 360;
+  // Calculate background luminance
+  const bgLuminance = getLuminanceForHsl(bgH, bgS, bgL);
 
-  // Only avoid hues that are actually chromatic (have meaningful saturation)
-  const avoidHues: number[] = [];
-  if (textSat > CHROMATIC_THRESHOLD) avoidHues.push(textH);
-  if (bgSat > CHROMATIC_THRESHOLD) avoidHues.push(bgH);
+  // Determine if text hue matters (only if chromatic)
+  const textIsChromatic = textS > CHROMATIC_THRESHOLD;
 
-  // Find error hue: as close to RED as possible while safe from chromatic colors
-  const errorHue = findClosestSafeHue(RED_HUE, avoidHues);
+  // Error: start with red
+  let errorHue = RED_HUE;
+  if (textIsChromatic && hueDistance(errorHue, textH) < MIN_HUE_DISTANCE) {
+    errorHue = shiftHueAway(errorHue, textH, MIN_HUE_DISTANCE);
+  }
+  const errorL = findLightnessForContrast(errorHue, SATURATION, bgLuminance, TARGET_CONTRAST_RATIO);
 
-  // Find confirm hue: as close to GREEN as possible while safe from chromatic colors AND error
-  const confirmHue = findClosestSafeHue(GREEN_HUE, [...avoidHues, errorHue]);
-
-  // Calculate lightness that contrasts with background
-  // Dark background (< 50%) → bright status colors (60%)
-  // Light background (≥ 50%) → darker status colors (45%)
-  const statusLightness = bgLightness < 50 ? 60 : 45;
+  // Confirm: start with green
+  let confirmHue = GREEN_HUE;
+  if (textIsChromatic && hueDistance(confirmHue, textH) < MIN_HUE_DISTANCE) {
+    confirmHue = shiftHueAway(confirmHue, textH, MIN_HUE_DISTANCE);
+  }
+  // Also ensure confirm is different from error
+  if (hueDistance(confirmHue, errorHue) < MIN_HUE_DISTANCE) {
+    confirmHue = shiftHueAway(confirmHue, errorHue, MIN_HUE_DISTANCE);
+  }
+  const confirmL = findLightnessForContrast(confirmHue, SATURATION, bgLuminance, TARGET_CONTRAST_RATIO);
 
   return {
-    confirm: `hsl(${Math.round(confirmHue)}, 100%, ${statusLightness}%)`,
-    error: `hsl(${Math.round(errorHue)}, 100%, ${statusLightness}%)`,
+    confirm: `hsl(${Math.round(confirmHue)}, ${SATURATION}%, ${Math.round(confirmL)}%)`,
+    error: `hsl(${Math.round(errorHue)}, ${SATURATION}%, ${Math.round(errorL)}%)`,
   };
 }

@@ -71,33 +71,20 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
         </p>
       </div>
 
-      {/* Privacy */}
+      {/* Privacy - TEMPORARILY EDITABLE */}
       <div className="p-4" style={sectionStyle}>
-        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
-          <p>{s("privacy:")}</p>
-          <p>
-            {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
-          </p>
-          <p>
-            {s("all data added lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.")}
-          </p>
-          <p>
-            {s("as a safety guarantee, all the code is open source.")}{' '}
-            <a
-              href="https://github.com/shailenparmar/good-days"
-              target="_blank"
-              rel="noopener noreferrer"
-              tabIndex={-1}
-              className="inline-flex items-center gap-1 transition-opacity hover:opacity-85 outline-none"
-              style={{ color: getColor() }}
-            >
-              <ExternalLink className="w-4 h-4" />
-              {s("github")}
-            </a>
-          </p>
-          <p>
-            {s("one caveat: safari wipes browser data after 7 days of inactivity. backup often if that's your window of choice.")}
-          </p>
+        <div
+          className="text-base leading-relaxed font-mono font-bold space-y-4 cursor-text"
+          style={{ color: getColor() }}
+          contentEditable
+          suppressContentEditableWarning
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p>privacy:</p>
+          <p>entries are not sent to a server. a developer couldn't view your writing even if they wanted to.</p>
+          <p>all data added lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.</p>
+          <p>if you clear your site data, you'll lose your entries. i backup periodically. safari deletes entries after 7 days of inactivity; chromium browsers don't.</p>
+          <p>as a safety guarantee, all the code is open source. [github link]</p>
         </div>
       </div>
 
