@@ -508,7 +508,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
-**Hover Flicker Fix:** The activated state uses the grid overlay solution (see "The Hover Flicker Problem") because hover text "option/alt + s" (14 chars) is shorter than default "scramble hotkey activated" (26 chars).
+**Hover Flicker Fix:** Uses the Absolute Hover Layer solution (see "The Hover Flicker Problem"). The button visually shrinks when text changes from "scramble hotkey activated" to "option/alt + s", but an invisible hover layer stays at the original height to prevent flicker. Only locks when the text actually occupies fewer lines (responsive-aware).
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
@@ -1879,57 +1879,90 @@ import { FunctionButton } from '@shared/components';
 
 ### The Hover Flicker Problem
 
-**The problem:** When button text changes on hover to something shorter, the button shrinks. If the cursor was near the edge, it's now outside the button. This triggers mouse leave, which restores the original (longer) text, the button grows, the cursor is inside again, mouse enter fires — infinite flicker loop.
+**The problem:** When button text changes on hover to something that occupies fewer lines, the button height shrinks. If the cursor was near the bottom edge, it's now outside the button. This triggers mouse leave, which restores the original text, the button grows, the cursor is inside again, mouse enter fires — infinite flicker loop.
 
-**When to apply a fix:** Only when **hover text is shorter than default text**. Longer hover text doesn't cause this because the button grows (cursor stays inside the larger area).
+**Key insight:** This is a LINE COUNT problem, not a character count problem. The same text might fit on one line when the app is wide, but wrap to two lines when narrow. You must check at runtime whether the button actually shrinks.
 
-#### Solution 1: Dimension Locking (Reactive)
+#### Solution 1: Absolute Hover Layer (Button Visually Shrinks)
 
-Lock the hover area at its current size when mouse enters. The button border shrinks inside, but the hover area stays big.
+Use when you want the button to visually shrink but need the hover hitbox to stay big. The hover layer is positioned absolute so it doesn't affect layout.
 
 ```
-┌─────────────────────────┐  ← hover area (locked, invisible)
-│  ┌──────────────┐       │
-│  │ short text   │       │  ← button border (shrunk)
-│  └──────────────┘       │
+┌─────────────────────────┐  ← invisible hover layer (locked height)
+│  ┌───────────────────┐  │
+│  │ short text        │  │  ← button (visually shrunk)
+│  └───────────────────┘  │
+│       empty space       │  ← mouse here = still hovering
 └─────────────────────────┘
 ```
 
 ```tsx
-const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
-const wrapperRef = useRef<HTMLDivElement>(null);
+const [hovered, setHovered] = useState(false);
+const hoverRef = useRef<HTMLDivElement>(null);
+const containerRef = useRef<HTMLDivElement>(null);
+const preHoverHeight = useRef<number | null>(null);
 
-<div
-  ref={wrapperRef}
-  style={lockedDimensions ? { minWidth: lockedDimensions.width, minHeight: lockedDimensions.height } : undefined}
-  onMouseEnter={() => {
-    if (wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setLockedDimensions({ width: rect.width, height: rect.height });
-    }
-    setHovered(true);
-  }}
-  onMouseLeave={() => {
-    setHovered(false);
-    setLockedDimensions(null);
-  }}
->
+// After hover state changes, check if button actually shrank
+useLayoutEffect(() => {
+  if (!hoverRef.current || !containerRef.current || preHoverHeight.current === null) return;
+
+  const currentHeight = containerRef.current.getBoundingClientRect().height;
+
+  if (hovered && currentHeight < preHoverHeight.current) {
+    // Button shrank - lock hover layer to original height
+    hoverRef.current.style.bottom = 'auto';
+    hoverRef.current.style.height = `${preHoverHeight.current}px`;
+  } else {
+    // Button didn't shrink - no locking needed
+    hoverRef.current.style.bottom = '0';
+    hoverRef.current.style.height = '';
+  }
+}, [hovered]);
+
+// In JSX:
+<div ref={containerRef} style={{ position: 'relative' }}>
+  {/* Invisible hover detection layer */}
+  <div
+    ref={hoverRef}
+    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+    onMouseEnter={() => {
+      if (containerRef.current) {
+        preHoverHeight.current = containerRef.current.getBoundingClientRect().height;
+      }
+      setHovered(true);
+    }}
+    onMouseLeave={() => {
+      if (hoverRef.current) {
+        hoverRef.current.style.bottom = '0';
+        hoverRef.current.style.height = '';
+      }
+      preHoverHeight.current = null;
+      setHovered(false);
+    }}
+  />
   <FunctionButton>
-    {hovered ? 'hover text' : 'default text'}
+    {hovered ? 'short text' : 'longer text that might wrap'}
   </FunctionButton>
 </div>
 ```
 
-Code location: `src/features/export/components/ExportButtons.tsx` (import button)
+**Key points:**
+- Hover layer is `position: absolute` so it doesn't affect layout
+- Capture height BEFORE text changes (in onMouseEnter)
+- Use `useLayoutEffect` to compare heights AFTER render
+- Only lock if button actually shrank (handles responsive case)
+- Button and its borders visually shrink, hover area stays big
 
-#### Solution 2: Grid Overlay (Structural) — Preferred
+Code location: `src/features/settings/components/SettingsPanel.tsx` (scramble hotkey button)
 
-Put BOTH versions in the same grid cell. Toggle visibility. The hover area is always sized to the larger element.
+#### Solution 2: Grid Overlay (UI Swap, No Visual Shrink)
+
+Use when swapping between two completely different UIs and you want consistent sizing (no visual shrink).
 
 ```
-┌─────────────────────────┐  ← hover area (sized to fit BOTH)
+┌─────────────────────────┐  ← container (sized to fit BOTH)
 │  copy | paste           │  ← visible when hovered
-│  txt: 120, 50%, 60%     │  ← visible when NOT hovered
+│  txt: 120, 50%, 60%     │  ← visible when NOT hovered (same space)
 └─────────────────────────┘
 ```
 
@@ -1941,30 +1974,24 @@ Put BOTH versions in the same grid cell. Toggle visibility. The hover area is al
 >
   {/* Both elements in same grid cell - container sizes to larger one */}
   <div style={{ gridRow: 1, gridColumn: 1, visibility: hovered ? 'visible' : 'hidden' }}>
-    {/* Short hover content */}
+    {/* Hover content */}
   </div>
   <div style={{ gridRow: 1, gridColumn: 1, visibility: hovered ? 'hidden' : 'visible' }}>
-    {/* Long default content */}
+    {/* Default content */}
   </div>
 </div>
 ```
 
-**Why this is better:**
-- No state for locked dimensions
-- No refs needed
-- The hover area naturally sizes to the larger element
-- Problem is structurally impossible, not reactively fixed
-
 Code location: `src/features/statistics/components/StatsDisplay.tsx` (color stats copy/paste)
 
-#### Comparison
+#### When to Use Which
 
-| Dimension Locking | Grid Overlay |
-|-------------------|--------------|
-| One element exists, prevent shrinking | Two elements exist, toggle visibility |
-| Reactive (fix when it happens) | Structural (problem can't happen) |
-| Needs state + refs | Just CSS grid |
-| Use when grid overlay isn't feasible | **Preferred approach** |
+| Scenario | Solution |
+|----------|----------|
+| Button text changes, want visual shrink | Absolute Hover Layer |
+| Swapping between different UIs, want consistent size | Grid Overlay |
+| Same button, different text lengths | Absolute Hover Layer |
+| Copy/paste buttons replacing stats display | Grid Overlay |
 
 ### Why FunctionButton?
 

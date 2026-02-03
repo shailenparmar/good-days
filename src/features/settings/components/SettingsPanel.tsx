@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -44,6 +44,9 @@ export function SettingsPanel({
   void scrambleSeed;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
+  const hotkeyHoverRef = useRef<HTMLDivElement>(null);
+  const hotkeyContainerRef = useRef<HTMLDivElement>(null);
+  const preHoverHeight = useRef<number | null>(null);
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
   // Scroll position persistence
@@ -76,6 +79,23 @@ export function SettingsPanel({
   useEffect(() => {
     if (resetStep === 2) markEasterEggFound('resetBlackout');
   }, [resetStep]);
+
+  // After hover state changes, check if button actually shrank - only lock if it did
+  useLayoutEffect(() => {
+    if (!hotkeyHoverRef.current || !hotkeyContainerRef.current || preHoverHeight.current === null) return;
+
+    const currentHeight = hotkeyContainerRef.current.getBoundingClientRect().height;
+
+    if (hotkeyButtonHovered && currentHeight < preHoverHeight.current) {
+      // Button shrank - lock hover layer to original height
+      hotkeyHoverRef.current.style.bottom = 'auto';
+      hotkeyHoverRef.current.style.height = `${preHoverHeight.current}px`;
+    } else {
+      // Button didn't shrink - no locking needed
+      hotkeyHoverRef.current.style.bottom = '0';
+      hotkeyHoverRef.current.style.height = '';
+    }
+  }, [hotkeyButtonHovered]);
 
   const handleResetApp = () => {
     if (resetStep < 2) {
@@ -152,24 +172,39 @@ export function SettingsPanel({
           className="p-4"
           style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
         >
-          <div
-            onMouseEnter={() => setHotkeyButtonHovered(true)}
-            onMouseLeave={() => setHotkeyButtonHovered(false)}
-          >
+          {/* Container for button + hover layer */}
+          <div ref={hotkeyContainerRef} style={{ position: 'relative' }}>
+            {/* Hover detection layer - only covers the button area */}
+            <div
+              ref={hotkeyHoverRef}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              onMouseEnter={() => {
+                // Capture current height before text changes
+                if (hotkeyContainerRef.current && scrambleHotkeyActive) {
+                  preHoverHeight.current = hotkeyContainerRef.current.getBoundingClientRect().height;
+                }
+                setHotkeyButtonHovered(true);
+              }}
+              onMouseLeave={() => {
+                // Reset hover layer and clear stored height
+                if (hotkeyHoverRef.current) {
+                  hotkeyHoverRef.current.style.bottom = '0';
+                  hotkeyHoverRef.current.style.height = '';
+                }
+                preHoverHeight.current = null;
+                setHotkeyButtonHovered(false);
+              }}
+            />
             <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
-              {scrambleHotkeyActive ? (
-                // Grid overlay to prevent hover flicker (hover text "option/alt + s" is shorter than default)
-                <span style={{ display: 'grid' }}>
-                  <span style={{ gridRow: 1, gridColumn: 1, visibility: hotkeyButtonHovered ? 'visible' : 'hidden' }}>
-                    {superscramble ? scrambleText('option/alt + s') : 'option/alt + s'}
-                  </span>
-                  <span style={{ gridRow: 1, gridColumn: 1, visibility: hotkeyButtonHovered ? 'hidden' : 'visible' }}>
-                    {superscramble ? scrambleText('scramble hotkey activated') : 'scramble hotkey activated'}
-                  </span>
-                </span>
-              ) : (
-                <span>{superscramble ? scrambleText('scramble hotkey deactivated') : 'scramble hotkey deactivated'}</span>
-              )}
+              <span>
+                {(() => {
+                  const showShortcut = hotkeyButtonHovered && scrambleHotkeyActive;
+                  const text = showShortcut
+                    ? 'option/alt + s'
+                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated');
+                  return superscramble ? scrambleText(text) : text;
+                })()}
+              </span>
             </FunctionButton>
           </div>
         </div>
