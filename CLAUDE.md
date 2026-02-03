@@ -1740,7 +1740,49 @@ import { FunctionButton } from '@shared/components';
 | `disabled` | `boolean` | Disables the button |
 | `isActive` | `boolean` | Shows active/selected state |
 | `size` | `'sm' \| 'default'` | `'sm'` for settings panels, `'default'` for sidebar |
+| `fullWidth` | `boolean` | Whether button fills container width (default: `true`) |
 | `children` | `ReactNode` | Button content (text, icons) |
+
+### Hover Hitbox Flicker Fix
+
+When a button's text changes on hover (e.g., "import backup" → "multiple files accepted"), the button may resize. If the new size is smaller, the cursor can end up outside the button, triggering un-hover, which restores the original text, resizing the button again — causing an infinite flicker loop.
+
+**Solution: Lock the hover zone dimensions on mouse enter.**
+
+```tsx
+const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
+const wrapperRef = useRef<HTMLDivElement>(null);
+
+<div
+  ref={wrapperRef}
+  style={lockedDimensions ? { minWidth: lockedDimensions.width, minHeight: lockedDimensions.height } : undefined}
+  onMouseEnter={() => {
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setLockedDimensions({ width: rect.width, height: rect.height });
+    }
+    setHovered(true);
+  }}
+  onMouseLeave={() => {
+    setHovered(false);
+    setLockedDimensions(null);
+  }}
+>
+  <FunctionButton>
+    {hovered ? 'hover text' : 'default text'}
+  </FunctionButton>
+</div>
+```
+
+**How it works:**
+1. On mouse enter, capture the wrapper's current dimensions
+2. Apply as `minWidth`/`minHeight` so the wrapper can't shrink
+3. Button fills the wrapper (stays same size), text changes, cursor stays inside
+4. On mouse leave, clear the lock, wrapper returns to natural size
+
+**Key insight:** The button doesn't get bigger than before — it just doesn't shrink during hover. The locked size equals the pre-hover size.
+
+Code location: `src/features/export/components/ExportButtons.tsx` (import button)
 
 ### Why FunctionButton?
 

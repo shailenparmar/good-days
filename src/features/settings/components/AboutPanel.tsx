@@ -13,11 +13,11 @@ interface AboutPanelProps {
 }
 
 // Panel layout constants - ensures right edge alignment in both modes
-// Change PANEL_AREA_TOTAL if you want the About panel wider/narrower
+// Change ABOUT_WIDTH if you want the About panel wider/narrower
 // The About panel's right edge will be at the same position whether stacked or not
-const PANEL_AREA_TOTAL = 726; // Total width from sidebar edge to About right edge (including borders)
-const SETTINGS_TOTAL = 326;   // Settings panel total width (320px content + 6px border)
-const BORDER_WIDTH = 6;
+// Note: Tailwind uses border-box, so widths INCLUDE the 6px border
+const ABOUT_WIDTH = 720;    // About panel width when alone (includes border)
+const SETTINGS_WIDTH = 320; // Settings panel width (w-80, includes border)
 
 export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
@@ -28,11 +28,10 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
 
   // Calculate About width to keep right edge aligned
-  // Not stacked: full panel area minus border
-  // Stacked: subtract Settings space (content + border) and our border
+  // With border-box, the 6px border is inside the width value
   const aboutWidth = stacked
-    ? PANEL_AREA_TOTAL - SETTINGS_TOTAL - BORDER_WIDTH  // 394px
-    : PANEL_AREA_TOTAL - BORDER_WIDTH;                   // 720px
+    ? ABOUT_WIDTH - SETTINGS_WIDTH  // 400px
+    : ABOUT_WIDTH;                   // 720px
 
   // Scroll position persistence
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -74,7 +73,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
       style={{
         width: `${aboutWidth}px`,
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderRight: `${BORDER_WIDTH}px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
       }}
       onClick={onCloseSettings}
     >
