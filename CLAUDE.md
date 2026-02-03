@@ -104,14 +104,12 @@ The app supports exporting entries to an **encrypted** `.txt` file and importing
 
 Backups are encrypted using AES-GCM with an app-embedded key.
 
-**Filename**: `good days backup 02-03-2026.txt` (MM-DD-YYYY, zero-padded)
+**Filename**: `good days backup 02-03-2026 21:12:01.txt` (MM-DD-YYYY HH:mm:ss, zero-padded, always military time for clean filenames and sorting)
 
-**File header** (just date/time):
+**File contents**: Just the encrypted base64 blob, no header.
 ```
-Feb 3 2026 10:30:45 AM
-
 U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
-[base64 encrypted content continues]
+[base64 encrypted content]
 ```
 
 **Decrypted content** (JSON format, v1+):
@@ -153,14 +151,14 @@ Import automatically detects format: tries JSON first, falls back to legacy mark
 
 ### Import Validation
 
-Validation is robust and doesn't rely on header text:
+Validation is robust and backward-compatible:
 
-1. **Find base64 content** - Skip any header lines, find first line that looks like base64 (50+ chars of `[A-Za-z0-9+/=]`)
+1. **Find base64 content** - Find first line that looks like base64 (50+ chars of `[A-Za-z0-9+/=]`), skipping any header lines from old backups
 2. **Decryption validates** - AES-GCM decryption fails on non-backup files (wrong key = error)
 3. **JSON structure check** - Valid backup has `version` number and `entries` array
 4. **Legacy fallback** - If not JSON, try markdown parser
 
-This means old backups (with `good days encrypted backup` header) still work, and we don't depend on any specific header text.
+New backups have no header (just encrypted content). Old backups with headers still import fine.
 
 ### Encryption Details
 
@@ -1821,11 +1819,23 @@ import { FunctionButton } from '@shared/components';
 | `fullWidth` | `boolean` | Whether button fills container width (default: `true`) |
 | `children` | `ReactNode` | Button content (text, icons) |
 
-### Hover Hitbox Flicker Fix
+### The Hover Flicker Problem
 
-When a button's text changes on hover (e.g., "import backup" → "multiple files accepted"), the button may resize. If the new size is smaller, the cursor can end up outside the button, triggering un-hover, which restores the original text, resizing the button again — causing an infinite flicker loop.
+**The problem:** When button text changes on hover to something shorter, the button shrinks. If the cursor was near the edge, it's now outside the button. This triggers mouse leave, which restores the original (longer) text, the button grows, the cursor is inside again, mouse enter fires — infinite flicker loop.
 
-**Solution: Lock the hover zone dimensions on mouse enter.**
+**When to apply a fix:** Only when **hover text is shorter than default text**. Longer hover text doesn't cause this because the button grows (cursor stays inside the larger area).
+
+#### Solution 1: Dimension Locking (Reactive)
+
+Lock the hover area at its current size when mouse enters. The button border shrinks inside, but the hover area stays big.
+
+```
+┌─────────────────────────┐  ← hover area (locked, invisible)
+│  ┌──────────────┐       │
+│  │ short text   │       │  ← button border (shrunk)
+│  └──────────────┘       │
+└─────────────────────────┘
+```
 
 ```tsx
 const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -1852,15 +1862,51 @@ const wrapperRef = useRef<HTMLDivElement>(null);
 </div>
 ```
 
-**How it works:**
-1. On mouse enter, capture the wrapper's current dimensions
-2. Apply as `minWidth`/`minHeight` so the wrapper can't shrink
-3. Button fills the wrapper (stays same size), text changes, cursor stays inside
-4. On mouse leave, clear the lock, wrapper returns to natural size
-
-**Key insight:** The button doesn't get bigger than before — it just doesn't shrink during hover. The locked size equals the pre-hover size.
-
 Code location: `src/features/export/components/ExportButtons.tsx` (import button)
+
+#### Solution 2: Grid Overlay (Structural) — Preferred
+
+Put BOTH versions in the same grid cell. Toggle visibility. The hover area is always sized to the larger element.
+
+```
+┌─────────────────────────┐  ← hover area (sized to fit BOTH)
+│  copy | paste           │  ← visible when hovered
+│  txt: 120, 50%, 60%     │  ← visible when NOT hovered
+└─────────────────────────┘
+```
+
+```tsx
+<div
+  style={{ display: 'grid' }}
+  onMouseEnter={() => setHovered(true)}
+  onMouseLeave={() => setHovered(false)}
+>
+  {/* Both elements in same grid cell - container sizes to larger one */}
+  <div style={{ gridRow: 1, gridColumn: 1, visibility: hovered ? 'visible' : 'hidden' }}>
+    {/* Short hover content */}
+  </div>
+  <div style={{ gridRow: 1, gridColumn: 1, visibility: hovered ? 'hidden' : 'visible' }}>
+    {/* Long default content */}
+  </div>
+</div>
+```
+
+**Why this is better:**
+- No state for locked dimensions
+- No refs needed
+- The hover area naturally sizes to the larger element
+- Problem is structurally impossible, not reactively fixed
+
+Code location: `src/features/statistics/components/StatsDisplay.tsx` (color stats copy/paste)
+
+#### Comparison
+
+| Dimension Locking | Grid Overlay |
+|-------------------|--------------|
+| One element exists, prevent shrinking | Two elements exist, toggle visibility |
+| Reactive (fix when it happens) | Structural (problem can't happen) |
+| Needs state + refs | Just CSS grid |
+| Use when grid overlay isn't feasible | **Preferred approach** |
 
 ### Why FunctionButton?
 
