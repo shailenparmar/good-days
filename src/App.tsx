@@ -16,7 +16,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.47';
+const VERSION = '1.6.48';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -561,7 +561,6 @@ function AppContent() {
           <div
             className="p-3 overflow-hidden"
             style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-            onClick={(showDebugMenu && showAboutPanel) ? (e) => e.stopPropagation() : undefined}
           >
             <StatsDisplay
               entries={journal.entries}

@@ -108,7 +108,7 @@ export function SettingsPanel({
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
-      onClick={stacked ? undefined : onCloseAbout}
+      onClick={onCloseAbout}
     >
       {/* Color Picker Section - clicks here don't close about panel */}
       <div

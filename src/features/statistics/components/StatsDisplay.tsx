@@ -572,53 +572,58 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             className="mt-3 pt-3"
             style={{
               borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
-              display: 'grid',
             }}
-            onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setColorAreaHovered(true)}
-            onMouseLeave={() => setColorAreaHovered(false)}
           >
-            {/* Both elements in same grid cell - container sizes to larger one */}
             <div
-              className="flex items-center"
-              style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'visible' : 'hidden' }}
+              style={{
+                display: 'grid',
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onMouseEnter={() => setColorAreaHovered(true)}
+              onMouseLeave={() => setColorAreaHovered(false)}
             >
-              <ColorButton
-                onClick={handleColorCopy}
-                position="left"
-                getColor={getColor}
-                hue={hue}
-                saturation={saturation}
-                lightness={lightness}
+              {/* Both elements in same grid cell - container sizes to larger one */}
+              <div
+                className="flex items-center"
+                style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'visible' : 'hidden' }}
               >
-                {s('copy')}
-              </ColorButton>
-              <ColorButton
-                onClick={handleColorPaste}
-                position="right"
-                getColor={getColor}
-                hue={hue}
-                saturation={saturation}
-                lightness={lightness}
+                <ColorButton
+                  onClick={handleColorCopy}
+                  position="left"
+                  getColor={getColor}
+                  hue={hue}
+                  saturation={saturation}
+                  lightness={lightness}
+                >
+                  {s('copy')}
+                </ColorButton>
+                <ColorButton
+                  onClick={handleColorPaste}
+                  position="right"
+                  getColor={getColor}
+                  hue={hue}
+                  saturation={saturation}
+                  lightness={lightness}
+                >
+                  {s('paste')}
+                </ColorButton>
+              </div>
+              <div
+                className="grid grid-cols-2 gap-x-0 gap-y-1"
+                style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'hidden' : 'visible' }}
               >
-                {s('paste')}
-              </ColorButton>
-            </div>
-            <div
-              className="grid grid-cols-2 gap-x-0 gap-y-1"
-              style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'hidden' : 'visible' }}
-            >
-              <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                txt: {hue}, {saturation}%, {lightness}%
-              </div>
-              <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                {hslToHex(hue, saturation, lightness)}
-              </div>
-              <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                bg: {bgHue}, {bgSaturation}%, {bgLightness}%
-              </div>
-              <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                {hslToHex(bgHue, bgSaturation, bgLightness)}
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  txt: {hue}, {saturation}%, {lightness}%
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {hslToHex(hue, saturation, lightness)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  bg: {bgHue}, {bgSaturation}%, {bgLightness}%
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {hslToHex(bgHue, bgSaturation, bgLightness)}
+                </div>
               </div>
             </div>
           </div>
