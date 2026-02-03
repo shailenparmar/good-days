@@ -2018,9 +2018,19 @@ This lets the user verify which build is deployed by opening the about panel and
 
 ## Storage Architecture
 
-### IndexedDB (Journal Entries)
+**Migration v1.7.0**: Journal entries moved from localStorage (5MB limit) to IndexedDB (effectively unlimited). Existing users migrate seamlessly on first load.
 
-Journal entries are stored in IndexedDB for effectively unlimited storage (localStorage has a 5MB limit).
+### Files Changed in Migration
+
+| File | Change |
+|------|--------|
+| `src/shared/storage/journalStorage.ts` | **NEW** - IndexedDB wrapper module |
+| `src/features/journal/hooks/useJournalEntries.ts` | Async loading, uses IndexedDB |
+| `src/features/statistics/components/StatsDisplay.tsx` | Storage display via Storage API |
+| `src/features/settings/components/AboutPanel.tsx` | Safari 7-day warning copy |
+| `src/App.tsx` | Loading screen, import uses IndexedDB |
+
+### IndexedDB Schema
 
 | Property | Value |
 |----------|-------|
@@ -2028,59 +2038,137 @@ Journal entries are stored in IndexedDB for effectively unlimited storage (local
 | Version | 1 |
 | Object stores | `entries` (keyPath: `date`), `metadata` (keyPath: `key`) |
 
+The `entries` store holds journal entries with `date` as the primary key (format: `YYYY-MM-DD`).
+
+The `metadata` store tracks migration state with a `migrated` key.
+
 **Code location**: `src/shared/storage/journalStorage.ts`
 
 ### Loading State
 
-The app shows a brief "loading..." screen while IndexedDB initializes. This is handled in `App.tsx`:
+The app shows a brief "loading..." screen while IndexedDB initializes:
 
 ```tsx
+// App.tsx
 if (journal.isLoading) {
-  return <div>loading...</div>;
+  return (
+    <div className="flex h-screen items-center justify-center" style={{ backgroundColor }}>
+      <span className="text-base font-mono font-bold" style={{ color }}>loading...</span>
+    </div>
+  );
 }
 ```
 
 The `useJournalEntries` hook exposes `isLoading` which is `true` until `initJournalStorage()` completes.
 
-### Migration Behavior
-
-On app startup, the storage module checks for existing localStorage data:
+### Migration Flow
 
 ```
 App starts
     ↓
-localStorage has 'journalEntries'?
-    ├── YES (not migrated) → Write to IndexedDB → Verify count → Delete localStorage
-    ├── YES (already migrated) → Merge with IndexedDB (see below)
-    └── NO → Load from IndexedDB directly
+Open IndexedDB 'good-days'
+    ↓
+Check metadata store for 'migrated' flag
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ localStorage has 'journalEntries'?                          │
+├─────────────────────────────────────────────────────────────┤
+│ YES + not migrated:                                         │
+│   1. Parse localStorage entries                             │
+│   2. Write all to IndexedDB entries store                   │
+│   3. Read back from IndexedDB                               │
+│   4. Verify count matches (CRITICAL - don't delete if not!) │
+│   5. Set 'migrated' flag in metadata store                  │
+│   6. Delete 'journalEntries' from localStorage              │
+│   7. Return entries                                         │
+├─────────────────────────────────────────────────────────────┤
+│ YES + already migrated:                                     │
+│   → Merge localStorage backup with IndexedDB (see below)    │
+├─────────────────────────────────────────────────────────────┤
+│ NO:                                                         │
+│   → Load directly from IndexedDB                            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Safety**: localStorage is only deleted AFTER IndexedDB write is verified (count matches).
+**Safety guarantee**: localStorage is ONLY deleted after IndexedDB write is verified by reading back and comparing entry count.
 
 ### Merge Logic (beforeunload Backup)
 
-The `beforeunload` event writes entries to localStorage as a backup (IndexedDB async writes may not complete before tab closes). On next load, if localStorage has data AND migration already happened:
+**Problem**: `saveAllJournalEntries()` is fire-and-forget async. If user closes tab quickly, the IndexedDB write may not complete.
 
-1. Compare `lastModified` timestamps for each entry
-2. Keep the newer version of each entry
+**Solution**: The `beforeunload` event writes entries to localStorage as a synchronous backup:
+
+```tsx
+// useJournalEntries.ts
+const handleBeforeUnload = () => {
+  if (entriesRef.current.length > 0) {
+    localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
+  }
+};
+```
+
+On next load, if localStorage has data AND migration already happened, we merge:
+
+```tsx
+// journalStorage.ts - mergeEntries()
+function mergeEntries(indexedDBEntries, localStorageEntries) {
+  // For each entry, keep the one with newer lastModified timestamp
+  // localStorage entries take precedence if timestamps are equal
+  // (they're from beforeunload, potentially more recent)
+}
+```
+
+**Merge steps**:
+1. Create map of IndexedDB entries by date
+2. For each localStorage entry:
+   - If date not in IndexedDB → add it
+   - If date exists → compare `lastModified`, keep newer
 3. Write merged result to IndexedDB
 4. Clear localStorage
 
-This prevents data loss when the user closes the tab quickly after typing.
-
 ### Fallback Mode
 
-If IndexedDB fails (e.g., private browsing mode), the app falls back to localStorage:
+If IndexedDB fails (private browsing, Safari quirks, quota exceeded):
+
+```tsx
+try {
+  const db = await openDatabase();
+  // ... use IndexedDB
+} catch (error) {
+  console.error('IndexedDB failed, falling back to localStorage:', error);
+  fallbackMode = true;
+  return parseLocalStorageEntries();
+}
+```
 
 - `isInFallbackMode()` returns `true` when in fallback
-- All operations work the same, just using localStorage
-- Users won't notice any difference except the 5MB limit
+- All operations work identically, just using localStorage
+- Users won't notice except the 5MB limit applies
+- Fallback is sticky for the session (doesn't retry IndexedDB)
+
+### Error Handling
+
+| Error | Behavior |
+|-------|----------|
+| IndexedDB unavailable | Fall back to localStorage |
+| Migration verification fails | Throw error → fall back to localStorage (localStorage NOT deleted) |
+| Write fails mid-session | Fall back to localStorage, log error |
+| Merge fails | Log error, continue with IndexedDB data (localStorage backup preserved) |
 
 ### Browser-Specific Behavior
 
-**Safari/iOS**: Deletes all browser storage after 7 days of inactivity (Intelligent Tracking Prevention). This is documented in the About panel with a recommendation to backup regularly.
+**Safari/iOS (Intelligent Tracking Prevention)**:
+- Deletes ALL browser storage after 7 days of inactivity
+- Applies to localStorage AND IndexedDB
+- This is documented in the About panel
 
-**Chrome/Firefox/Edge**: Only delete data under storage pressure (low disk space), not based on inactivity.
+**About panel copy**:
+> "however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure."
+
+**Chrome/Firefox/Edge**:
+- Only delete data under storage pressure (low disk space)
+- No time-based deletion
+- Effectively permanent storage
 
 ### What Stays in localStorage
 
@@ -2088,28 +2176,86 @@ Small settings that benefit from synchronous access:
 
 | Category | Keys |
 |----------|------|
-| Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, etc. |
-| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled` |
+| Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, `bgSaturation`, `bgLightness` |
+| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled`, `scrambleHotkeyActive` |
 | Auth | `passwordHash` |
 | Statistics | `totalKeystrokes`, `totalSecondsOnApp`, `totalLogins` |
 | Easter eggs | `easterEggs` |
 | Scroll positions | `settingsScrollTop`, `aboutScrollTop`, `scrollPosition:*` |
+| Presets | `customPresets`, `selectedPreset`, `selectedCustomPreset` |
+| Other | `selectedDate`, `lastTypedTime` |
+
+### Import/Export Behavior
+
+**Export**: Reads from current entries state (backed by IndexedDB).
+
+**Import**:
+```tsx
+// App.tsx
+onImport={(entries) => {
+  journal.setEntries(entries);
+  saveAllJournalEntries(entries);  // Writes to IndexedDB
+  setEditorKey(k => k + 1);
+}}
+```
+
+Import writes directly to IndexedDB via `saveAllJournalEntries()`.
+
+### Reset App Behavior
+
+The reset button (powerstat mode) clears both storage systems:
+
+```tsx
+// SettingsPanel.tsx
+localStorage.clear();
+indexedDB.deleteDatabase('good-days');
+location.reload();
+```
 
 ### Storage Display (Powerstat Mode)
 
-In powerstat mode, storage usage shows IndexedDB quota via `navigator.storage.estimate()`:
+Shows IndexedDB quota via `navigator.storage.estimate()`:
 
 - Format: `{used} MB / {quota}` (e.g., "0.15 MB / 2.5 GB")
-- Large quotas shown in GB, small in MB
+- Large quotas (≥1GB) shown in GB
 - Fetched once when powerstat opens (not live-updating)
-- Fallback: calculates localStorage usage if Storage API unavailable
+- Fallback: iterates localStorage if Storage API unavailable
 
-### Functions
+```tsx
+getStorageEstimate().then(({ used, quota }) => {
+  const usedMB = (used / (1024 * 1024)).toFixed(2);
+  const quotaGB = (quota / (1024 * 1024 * 1024)).toFixed(1);
+  // Display: "0.15 MB / 2.5 GB"
+});
+```
+
+### Functions Reference
 
 | Function | Purpose |
 |----------|---------|
 | `initJournalStorage()` | Opens DB, migrates if needed, merges backup, returns entries |
-| `saveAllJournalEntries(entries)` | Bulk save (fire-and-forget async) |
-| `getStorageEstimate()` | Returns `{ used, quota }` in bytes |
+| `saveAllJournalEntries(entries)` | Bulk save (fire-and-forget async, falls back on error) |
+| `getStorageEstimate()` | Returns `{ used, quota }` in bytes via Storage API |
 | `isInFallbackMode()` | True if using localStorage instead of IndexedDB |
-| `clearJournalStorage()` | Clears all journal data (for reset) |
+| `clearJournalStorage()` | Clears entries and metadata stores (for reset) |
+
+### Debugging
+
+**Check if migration happened**:
+1. Open DevTools → Application → IndexedDB → `good-days`
+2. Check `metadata` store for `{ key: 'migrated', value: true }`
+3. Check `entries` store has your entries
+
+**Check localStorage cleared**:
+1. Open DevTools → Application → Local Storage
+2. `journalEntries` key should NOT exist after successful migration
+
+**Force re-migration** (for testing):
+1. Clear IndexedDB: `indexedDB.deleteDatabase('good-days')`
+2. Reload - will migrate from localStorage again (if localStorage has data)
+
+**Console messages**:
+- `Migrating X entries from localStorage to IndexedDB...` - migration starting
+- `Migration complete, localStorage cleared` - success
+- `IndexedDB failed, falling back to localStorage:` - fallback triggered
+- `Merging localStorage backup with IndexedDB...` - merge happening
