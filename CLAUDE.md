@@ -963,10 +963,72 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | `zenMode` | Full zen: just editor, hide everything else | Yes | `false` |
 | `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | Yes | `false` |
 | `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` (but `true` on load if panels are open) |
-| `preFocusState` | Saved state before entering zen/minizen (for restore) | No | `null` |
-| `preNarrowState` | Saved panel state before narrowing (for restore on widen) | No | `null` |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
+| `preFocusState` | Saved state before entering zen/minizen (for restore) | No | `null` |
+| `preNarrowState` | Saved state before narrowing (for restore on widen) | No | `null` |
+| `zenFromMinizen` | Tracks if zen was entered from minizen (for proper exit) | No | `false` |
+
+### State Variable Schemas
+
+```tsx
+// Saved when entering zen or minizen (restored on exit)
+preFocusState: {
+  minizen: boolean;
+  showSidebarInNarrow: boolean;
+  showDebugMenu: boolean;
+  showAboutPanel: boolean;
+} | null
+
+// Saved when resizing wide → narrow (restored on resize back)
+preNarrowState: {
+  showDebugMenu: boolean;
+  showAboutPanel: boolean;
+  minizen: boolean;
+} | null
+```
+
+### State Lifecycle
+
+#### `preFocusState`
+
+| Action | Effect |
+|--------|--------|
+| `enterMinizen()` | Set to current state, then close panels |
+| `exitMinizen()` | Restore from it, then set to `null` |
+| `enterZen()` (not from minizen) | Set to current state, then close panels |
+| `exitZen()` (not from minizen) | Restore from it, then set to `null` |
+| `enterZen()` (from minizen) | Don't overwrite (already set by enterMinizen) |
+| `exitZen()` (from minizen) | Don't clear (still needed for exitMinizen) |
+| Resize wide → narrow | Set to `null` (focus state cleared) |
+
+#### `preNarrowState`
+
+| Action | Effect |
+|--------|--------|
+| Resize wide → narrow | Set to `{ showDebugMenu, showAboutPanel, minizen }` |
+| Resize narrow → wide | Restore from it, then set to `null` |
+| **Commit actions in narrow:** | Set to `null` (user committed to narrow) |
+| - Toggle sidebar (header click) | |
+| - Open/close panel buttons | |
+| **Non-commit actions:** | No effect (preNarrowState preserved) |
+| - Typing | |
+| - Click in editor | |
+| - Select entry | |
+
+#### `zenFromMinizen`
+
+Tracks whether zen was entered from minizen. This matters because:
+- If zen entered from minizen: `preFocusState` was set by `enterMinizen()`, not `enterZen()`
+- On `exitZen()`: if `zenFromMinizen`, just exit zen (stay in minizen, keep preFocusState)
+- On `exitZen()`: if NOT `zenFromMinizen`, restore preFocusState fully
+
+| Action | Effect |
+|--------|--------|
+| `enterZen()` from minizen | Set to `true` |
+| `enterZen()` not from minizen | Set to `false` |
+| `exitZen()` | Set to `false` |
+| Resize wide → narrow | Set to `false` |
 
 ### Visual States
 
@@ -1061,7 +1123,7 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 
 **Zen remembers where you came from:**
 
-| Current State | Action | Next State | `preZenState` |
+| Current State | Action | Next State | `preFocusState` |
 |---------------|--------|------------|---------------|
 | Full | footer click | Zen | saves "full" |
 | Minizen | footer click | Zen | saves "minizen" |
@@ -1097,7 +1159,7 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 
 **Zen remembers where you came from:**
 
-| Current State | Action | Next State | `preZenState` |
+| Current State | Action | Next State | `preFocusState` |
 |---------------|--------|------------|---------------|
 | Default | footer click | Zen | saves "default" |
 | Sidebar Visible | footer click | Zen | saves "sidebar-visible" |
@@ -1229,70 +1291,64 @@ const showFooter = !zenMode;
 | Element | Wide Mode | Narrow Mode |
 |---------|-----------|-------------|
 | Header | Toggle minizen | Toggle sidebar |
-| Footer | Toggle zen | Toggle zen |
-| Editor (in zen) | Exit to minizen | Exit to default |
+| Footer | Enter zen (save state) | Enter zen (save state) |
+| Editor (in zen) | No click exit (ESC only) | No click exit (ESC only) |
 | Sidebar area | Close panels | Close panels |
 | Sidebar overlay | N/A | Close sidebar + panels |
 
-### Code: State Transitions
+### Code: Key Functions (Simplified)
 
 ```tsx
-// State to remember where user was before zen
-const [preZenState, setPreZenState] = useState<{
-  minizen: boolean;
-  showSidebarInNarrow: boolean;
-} | null>(null);
-
-// Header click - toggle sidebar/minizen
-const handleHeaderClick = () => {
-  closePanels();
-  if (isNarrow) {
-    setShowSidebarInNarrow(!showSidebarInNarrow);
+// Enter zen mode - save state, close panels
+const enterZen = () => {
+  if (minizen) {
+    // From minizen: don't overwrite preFocusState (already set by enterMinizen)
+    setZenFromMinizen(true);
   } else {
-    setMinizen(!minizen);
+    // From full: save current state
+    setPreFocusState({ minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel });
+    closePanels();
+    setZenFromMinizen(false);
   }
+  setZenMode(true);
 };
 
-// Footer click - toggle zen
-const handleFooterClick = () => {
-  closePanels();
-  if (!zenMode) {
-    // Entering zen: save current state
-    setPreZenState({ minizen, showSidebarInNarrow });
-    setZenMode(true);
-  } else {
-    // Exiting zen: restore saved state
-    exitZen();
-  }
-};
-
-// Exit zen - restore previous state
+// Exit zen mode - restore previous state
 const exitZen = () => {
   setZenMode(false);
-  if (preZenState) {
-    setMinizen(preZenState.minizen);
-    setShowSidebarInNarrow(preZenState.showSidebarInNarrow);
-    setPreZenState(null);
+  if (zenFromMinizen) {
+    // Was in minizen before zen - stay in minizen, keep preFocusState
+    setZenFromMinizen(false);
+  } else if (preFocusState) {
+    // Was in full mode - restore everything
+    setMinizen(preFocusState.minizen);
+    setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
+    setShowDebugMenu(preFocusState.showDebugMenu);
+    setShowAboutPanel(preFocusState.showAboutPanel);
+    setPreFocusState(null);
   }
 };
 
-// ESC key
-const handleEsc = () => {
-  if (zenMode) {
-    exitZen();
-    return;
-  }
-  // Otherwise lock app
-  auth.lock();
+// Enter minizen - save state, close panels
+const enterMinizen = () => {
+  setPreFocusState({ minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel });
+  setMinizen(true);
+  closePanels();
 };
 
-// Click in editor while in zen
-const handleEditorClickInZen = () => {
-  if (zenMode) {
-    exitZen();
+// Exit minizen - restore previous state
+const exitMinizen = () => {
+  setMinizen(false);
+  if (preFocusState) {
+    setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
+    setShowDebugMenu(preFocusState.showDebugMenu);
+    setShowAboutPanel(preFocusState.showAboutPanel);
+    setPreFocusState(null);
   }
 };
 ```
+
+See `src/App.tsx` for full implementation including ESC handler and resize logic.
 
 ### Key Principles
 
@@ -1300,27 +1356,7 @@ const handleEditorClickInZen = () => {
 2. **Footer = zen toggle** - Footer click enters/exits zen in both modes
 3. **Header = sidebar toggle** - Header click toggles sidebar visibility (minizen in wide, overlay in narrow)
 4. **Zen survives resize** - If in zen, stay in zen across breakpoint
-5. **preZenState captures full context** - Includes `minizen`, `showSidebarInNarrow`, `showDebugMenu`, `showAboutPanel`
-
-### State Restoration Framework
-
-Any action that hides UI elements must save the full layout state and restore it on exit.
-
-**State variable**: `preFocusState` (in App.tsx)
-
-```tsx
-// Full layout state to remember
-const [preFocusState, setPreFocusState] = useState<{
-  minizen: boolean;
-  showSidebarInNarrow: boolean;
-  showDebugMenu: boolean;
-  showAboutPanel: boolean;
-} | null>(null);
-```
-
-**Functions**:
-- `enterZen()` / `exitZen()` - Save/restore when entering/exiting zen mode
-- `enterMinizen()` / `exitMinizen()` - Save/restore when entering/exiting minizen
+5. **`preFocusState` captures full context** - See "State Lifecycle" section above for details
 
 **The rule**: If settings was open → zen → exit zen = settings open again. Same for minizen.
 
@@ -1471,53 +1507,53 @@ This uses capture phase to run before `stopPropagation()` calls.
 
 ### Dynamic Status Colors (Confirm & Error)
 
-Both the confirm (success) and error colors are **dynamically calculated** to contrast with the text color, background color, AND each other. Uses **hue AND lightness** for full contrast.
+Status colors are **as close to semantic red/green as possible**, only deviating when there's actual chromatic conflict.
+
+**Key insight:** If a color is achromatic (low saturation), its hue is meaningless. Black text, white text, gray backgrounds — their hues shouldn't constrain us.
 
 **Algorithm:**
-1. Text and background hues divide the color wheel into two arcs
-2. Find the largest arc (most room for contrast colors)
-3. Place two candidates at 1/3 and 2/3 of the arc
-4. Assign the one **closer to green** (120°) as confirm, the other as error
-5. Set **lightness to contrast with background**:
-   - Dark background (< 50% lightness) → bright status colors (65% lightness)
-   - Light background (≥ 50% lightness) → darker status colors (40% lightness)
+1. **Identify chromatic constraints** — only avoid hues with saturation > 30%
+2. **Error:** Start at RED (0°), expand outward until ≥45° from all chromatic constraints
+3. **Confirm:** Start at GREEN (120°), expand outward until ≥45° from constraints AND error
+4. **Lightness:** Contrast with background (dark bg → 60%, light bg → 45%)
 
 ```
-Text: 120° (green), Background: 0° (red)
+Example: Black text (sat=0), Olive green background (hue=75°, sat=80%)
 
-        0° ← background (red)
-          |
-   300°   |   60°
-          |
-270° ─────┼───── 90°
-          |
-   240°   |   120° ← text (green)
-          |
-       180°
+Constraints: only bgHue=75° (text is achromatic, ignored)
 
-Arc from text to background (clockwise): 120° → 360° = 240°
-Candidates: 200° (cyan-ish) and 280° (purple)
-200° is closer to green (120°) → confirm = 200°
-280° is closer to red (0°) → error = 280°
+Error:  RED (0°) is 75° from olive green → SAFE! Use red.
+Confirm: GREEN (120°) is 45° from olive green → SAFE! Use green.
+
+Result: Actual red and green — semantic colors preserved!
 ```
 
-**Why this matters:** Both status colors must:
-1. Be **different from text hue** — so you notice the status change
-2. Be **visible on background** — contrasting lightness (not just hue!)
-3. Be **different from each other** — so success ≠ error
-4. Be **semantically appropriate** — confirm ≈ green, error ≈ red
+```
+Example: Green text (hue=120°, sat=100%), Green background (hue=120°, sat=80%)
 
-**Edge cases handled:**
-- Red text + red background → both colors on opposite side of wheel
-- White text + black background → lightness ensures visibility
-- Green text + cyan background → finds colors in largest gap
-- Any combo works — algorithm uses hue distance AND lightness contrast
+Constraints: textHue=120°, bgHue=120°
+
+Error:  RED (0°) is 120° from both → SAFE! Use red.
+Confirm: GREEN (120°) is 0° from both → NOT safe.
+         Expand: 121°, 119°, 122°, 118°... until 165° (45° away)
+
+Result: Red for error, cyan-ish for confirm.
+```
+
+**Why this works:**
+1. **Semantic colors preserved** when possible (red=error, green=success)
+2. **Only real conflicts cause deviation** — achromatic colors ignored
+3. **Symmetric expansion** — no clockwise/counterclockwise bias
+4. **Lightness contrast** — always readable against background
 
 Code location: `src/shared/utils/confirmColor.ts`
 
 ```tsx
 import { getStatusColors } from '@shared/utils/confirmColor';
-const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, bgHue, bgLightness);
+const { confirm: confirmColor, error: errorColor } = getStatusColors(
+  hue, saturation,           // text color
+  bgHue, bgSaturation, bgLightness  // background color
+);
 ```
 
 **Used in:**
