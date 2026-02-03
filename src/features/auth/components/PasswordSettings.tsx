@@ -116,7 +116,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Saved message animation state
   const [savedBoldCount, setSavedBoldCount] = useState(0);
   const [savedAnimPhase, setSavedAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const savedText = 'saved. lock with esc';
+  const savedText = 'saved. lock with esc.';
 
   // Derived state
   const placeholderText = getPlaceholderText(step);

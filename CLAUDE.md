@@ -545,30 +545,58 @@ Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 
 ## Panel Dimensions
 
-| Panel | Content Width | Border | Total |
-|-------|---------------|--------|-------|
-| Sidebar | 320px (`w-80`) | 6px right | 326px |
-| Settings | 320px (`w-80`) | 6px right | 326px |
-| About (alone) | 720px | 6px right | 726px |
-| About (stacked) | 394px | 6px right | 400px |
+| Panel | Width | Notes |
+|-------|-------|-------|
+| Sidebar | 320px (`w-80`) | Includes 6px right border |
+| Settings | 320px (`w-80`) | Includes 6px right border |
+| About (alone) | 720px | Includes 6px right border |
+| About (stacked) | 400px | Includes 6px right border |
 
 ### Right Edge Alignment (IMPORTANT)
 
-The About panel's right edge stays at the **same horizontal position** whether in About-only mode or powerstat mode. This is achieved through constants in `AboutPanel.tsx`:
+The About panel's right edge stays at the **same horizontal position** whether in About-only mode or powerstat mode.
 
-```tsx
-const PANEL_AREA_TOTAL = 726; // Total width from sidebar edge to About right edge
-const SETTINGS_TOTAL = 326;   // Settings panel total (320 + 6px border)
-const BORDER_WIDTH = 6;
+#### The Math
 
-const aboutWidth = stacked
-  ? PANEL_AREA_TOTAL - SETTINGS_TOTAL - BORDER_WIDTH  // 394px
-  : PANEL_AREA_TOTAL - BORDER_WIDTH;                   // 720px
+Tailwind uses `box-sizing: border-box` globally, meaning **borders are inside the width**, not added to it.
+
+```
+About-only mode:
+  Sidebar (320px) + About (720px) = 1040px right edge
+
+Powerstat mode:
+  Sidebar (320px) + Settings (320px) + About (400px) = 1040px right edge
 ```
 
-**Why this matters:** Without this calculation, the Settings panel's 6px border would push the About panel's right edge 6px further in powerstat mode.
+Both modes have the same right edge position (1040px from viewport left).
 
-**To change panel widths:** Update the constants at the top of `AboutPanel.tsx`. The math automatically keeps the right edge aligned.
+#### Implementation
+
+Constants in `AboutPanel.tsx`:
+
+```tsx
+// Widths INCLUDE the 6px border (border-box sizing)
+const ABOUT_WIDTH = 720;    // About panel width when alone
+const SETTINGS_WIDTH = 320; // Settings panel width (w-80)
+
+const aboutWidth = stacked
+  ? ABOUT_WIDTH - SETTINGS_WIDTH  // 720 - 320 = 400px
+  : ABOUT_WIDTH;                   // 720px
+```
+
+#### Common Mistake
+
+Don't add border width separately! With `border-box`:
+- ❌ `720 - 320 - 6 = 394px` (wrong - double-counts border)
+- ✅ `720 - 320 = 400px` (correct - border already in width)
+
+#### To Change Panel Widths
+
+1. Update `ABOUT_WIDTH` in `AboutPanel.tsx` to change About panel size
+2. The stacked width auto-calculates: `ABOUT_WIDTH - SETTINGS_WIDTH`
+3. If Settings width changes, update `SETTINGS_WIDTH` constant
+
+The right edge will stay aligned regardless of content changes.
 
 ## Opacity Standards
 
