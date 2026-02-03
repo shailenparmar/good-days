@@ -239,23 +239,22 @@ After import, the import button shows feedback:
 
 | State | Text | Color |
 |-------|------|-------|
-| Success | "X entry/entries imported" | Confirm color (cyan/green) |
-| Failure | "import failed" | Red `#ff0000` |
+| Success | "X entry/entries imported" | Confirm color (WCAG green) |
+| Failure | "import failed" | Error color (WCAG red) |
 
 **Behaviors:**
 - No hover shading when feedback is showing
-- Dismiss by: clicking button, clicking anywhere, or pressing any key
+- Dismiss by: **keystroke only** (clicks are intentional actions, not dismissals)
+- Uses capture phase event listener to fire before `stopPropagation()` calls
 
-**Confirm color logic** (based on BACKGROUND color for visibility):
+**Status colors:** Uses WCAG-based dynamic colors for guaranteed readability. See **Dynamic Status Colors** section below for full algorithm details.
+
 ```typescript
-const isBgGreen = bgHue >= 80 && bgHue <= 160;
-const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
+const { confirm: confirmColor, error: errorColor } = getStatusColors(
+  hue, saturation, lightness,       // text color HSL
+  bgHue, bgSaturation, bgLightness  // background color HSL
+);
 ```
-
-- Green background (bgHue 80-160) → cyan `#0ffffb`
-- Other background colors → green `#00ff00`
-
-**IMPORTANT:** Uses `bgHue` (background), not `hue` (text). The confirm color appears ON the background, so we check background hue for visibility.
 
 **Count reflects actual changes:**
 - Importing same backup twice → "0 entries imported" (nothing changed)
