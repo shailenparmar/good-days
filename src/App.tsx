@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.9.2';
+const VERSION = '1.9.3';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -225,7 +225,7 @@ function AppContent() {
           // Wide → Narrow: save state (panels + minizen), then close (no room for them)
           // If in focus mode (zen/minizen), use preFocusState's values (what was open before focus mode)
           const stateToSave = preFocusState
-            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel, minizen }
+            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel, minizen: preFocusState.minizen }
             : { showDebugMenu, showAboutPanel, minizen };
           setPreNarrowState(stateToSave);
           closePanels();

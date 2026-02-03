@@ -1354,6 +1354,32 @@ Certain interactions in narrow mode clear `preNarrowState`, meaning you've commi
 
 This distinction matters: typing and clicking to focus are about **content**, not **UI navigation**. You shouldn't lose your wide-mode state just because you typed something while narrow.
 
+#### preNarrowState Consistency (IMPORTANT)
+
+When saving to `preNarrowState`, the saved state must be internally consistent. Panels require the sidebar to be visible, and minizen hides the sidebar. Therefore: **if panels are open, minizen must be false**.
+
+**The edge case:**
+
+If you're in a focus mode (minizen) when resizing to narrow, the app must save the *pre-focus* state, not a mix of pre-focus panels with current minizen.
+
+**Bug scenario (fixed in v1.9.3):**
+1. Wide mode, settings open (minizen=false)
+2. Click header → enter minizen (saves panels to `preFocusState`, sets minizen=true, closes panels)
+3. Resize to narrow → if we saved `{ showDebugMenu: preFocusState.showDebugMenu, minizen: minizen }` we'd get `{ showDebugMenu: true, minizen: true }` (inconsistent!)
+4. Resize back to wide → settings panel visible but no sidebar (minizen=true)
+
+**The fix:**
+
+When `preFocusState` exists, save the entire pre-focus state consistently:
+
+```tsx
+const stateToSave = preFocusState
+  ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel, minizen: preFocusState.minizen }
+  : { showDebugMenu, showAboutPanel, minizen };
+```
+
+**The invariant:** Saved state must always satisfy: `(showDebugMenu || showAboutPanel) → !minizen`
+
 ### Panel Behavior
 
 Opening settings or about requires the sidebar:
