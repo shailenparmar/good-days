@@ -68,6 +68,7 @@ export async function decryptText(encryptedBase64: string): Promise<string> {
 
 export function formatEncryptedBackup(encryptedContent: string, use24Hour: boolean): string {
   const now = new Date();
+  // Header is just date and time
   const dateStr = now.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -78,22 +79,28 @@ export function formatEncryptedBackup(encryptedContent: string, use24Hour: boole
     hour12: !use24Hour,
   }).replace(/,/g, '');
 
-  return `good days encrypted backup ${dateStr}\n\n${encryptedContent}`;
+  return `${dateStr}\n\n${encryptedContent}`;
+}
+
+// Check if a string looks like base64-encoded data
+function looksLikeBase64(str: string): boolean {
+  // Base64 chars: A-Z, a-z, 0-9, +, /, = (padding)
+  // Must be reasonably long (our encrypted content is always substantial)
+  return str.length > 50 && /^[A-Za-z0-9+/=]+$/.test(str);
 }
 
 export function parseEncryptedBackup(fileContent: string): string | null {
-  // Check for the header
-  if (!fileContent.startsWith('good days encrypted backup')) {
-    return null;
-  }
-
-  // Extract the encrypted content (after the header line and blank line)
   const lines = fileContent.split('\n');
-  // Skip header line and any blank lines
-  let startIndex = 1;
-  while (startIndex < lines.length && lines[startIndex].trim() === '') {
-    startIndex++;
+
+  // Find the first line that looks like base64 content
+  // This handles: new format (date header), old format (good days encrypted backup), or no header
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (looksLikeBase64(line)) {
+      // Found base64 content - return it and any continuation lines
+      return lines.slice(i).join('\n').trim();
+    }
   }
 
-  return lines.slice(startIndex).join('\n').trim();
+  return null;
 }

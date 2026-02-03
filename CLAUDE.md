@@ -106,9 +106,9 @@ Backups are encrypted using AES-GCM with an app-embedded key.
 
 **Filename**: `good days backup 02-03-2026.txt` (MM-DD-YYYY, zero-padded)
 
-**File header** (detailed with time):
+**File header** (just date/time):
 ```
-good days encrypted backup Feb 3 2026 10:30:45 AM
+Feb 3 2026 10:30:45 AM
 
 U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
 [base64 encrypted content continues]
@@ -150,6 +150,17 @@ Entry content here...
 ```
 
 Import automatically detects format: tries JSON first, falls back to legacy markdown.
+
+### Import Validation
+
+Validation is robust and doesn't rely on header text:
+
+1. **Find base64 content** - Skip any header lines, find first line that looks like base64 (50+ chars of `[A-Za-z0-9+/=]`)
+2. **Decryption validates** - AES-GCM decryption fails on non-backup files (wrong key = error)
+3. **JSON structure check** - Valid backup has `version` number and `entries` array
+4. **Legacy fallback** - If not JSON, try markdown parser
+
+This means old backups (with `good days encrypted backup` header) still work, and we don't depend on any specific header text.
 
 ### Encryption Details
 

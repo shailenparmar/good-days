@@ -77,15 +77,15 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const fileContent = await readFile(file);
         if (!fileContent) continue;
 
-        // Check if this is an encrypted backup
+        // Extract encrypted content (skips any header lines)
         const encryptedContent = parseEncryptedBackup(fileContent);
         if (!encryptedContent) {
-          console.error(`Invalid backup file: ${file.name}`);
+          console.error(`No encrypted content found in: ${file.name}`);
           hasError = true;
           continue;
         }
 
-        // Decrypt the content
+        // Decrypt - this validates it's actually our backup (wrong files fail decryption)
         const decrypted = await decryptText(encryptedContent);
 
         // Try JSON format first (v1+), fall back to legacy markdown

@@ -1,4 +1,4 @@
-import { StrictMode, useState, useEffect } from 'react'
+import { StrictMode, useState, useEffect, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -18,207 +18,370 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-// Parse color values from pasted text (same format as powerstat)
-function parseColorInput(input: string) {
-  const trimmed = input.trim().toLowerCase();
+// Color state type
+type ColorState = {
+  hue: number;
+  sat: number;
+  light: number;
+  bgHue: number;
+  bgSat: number;
+  bgLight: number;
+};
 
-  // Try HEX format: #rrggbb
-  const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    const r = parseInt(hex.slice(0, 2), 16) / 255;
-    const g = parseInt(hex.slice(2, 4), 16) / 255;
-    const b = parseInt(hex.slice(4, 6), 16) / 255;
-
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    let h = 0, s = 0;
-
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
-      }
-    }
-
-    return { type: 'hsl' as const, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-  }
-
-  // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
-  const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
-  if (hslMatch) {
-    const type = hslMatch[1] as 'txt' | 'bg' | undefined;
-    return { type: type || 'hsl' as const, h: parseInt(hslMatch[2]), s: parseInt(hslMatch[3]), l: parseInt(hslMatch[4]) };
-  }
-
-  return null;
-}
-
-// Simple mobile component with rand button
+// Simple mobile component with accelerometer color picker
 function MobileScreen() {
-  const [colors, setColors] = useState({
-    hue: 144, sat: 36, light: 43,
-    bgHue: 84, bgSat: 100, bgLight: 94
+  const [colors, setColors] = useState<ColorState>(() => {
+    // Load from localStorage if available
+    const saved = localStorage.getItem('mobileColors');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fall through to default
+      }
+    }
+    return {
+      hue: 175, sat: 100, light: 21,
+      bgHue: 84, bgSat: 100, bgLight: 88
+    };
   });
-  const [pulseKey, setPulseKey] = useState(0);
-  const [isPulsing, setIsPulsing] = useState(false);
 
-  const randomize = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Haptic feedback on supported devices
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-    setColors({
-      hue: Math.floor(Math.random() * 360),
-      sat: Math.floor(Math.random() * 101),
-      light: Math.floor(Math.random() * 101),
-      bgHue: Math.floor(Math.random() * 360),
-      bgSat: Math.floor(Math.random() * 101),
-      bgLight: Math.floor(Math.random() * 101),
-    });
-    setPulseKey(k => k + 1); // Reset animation
-    setIsPulsing(true);
-  };
+  // Which color is being edited: 'text' | 'bg' | null
+  const [editing, setEditing] = useState<'text' | 'bg' | null>(null);
 
-  const stopPulsing = () => setIsPulsing(false);
+  // Track the starting touch Y position and current hue for smooth dragging
+  const touchStartY = useRef(0);
+  const startHue = useRef(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
-  const handlePaste = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (navigator.vibrate) navigator.vibrate(10);
-    try {
-      const text = await navigator.clipboard.readText();
-      let txtH = colors.hue, txtS = colors.sat, txtL = colors.light;
-      let bgH = colors.bgHue, bgS = colors.bgSat, bgL = colors.bgLight;
-      let foundAny = false;
+  // Accelerometer baseline (captured at touch start)
+  const baselineOrientation = useRef({ beta: 0, gamma: 0 });
+  const [liveOrientation, setLiveOrientation] = useState({ beta: 0, gamma: 0 });
 
-      const lines = text.split('\n');
-      for (const line of lines) {
-        const parsed = parseColorInput(line);
-        if (parsed) {
-          foundAny = true;
-          if (parsed.type === 'txt') {
-            txtH = parsed.h; txtS = parsed.s; txtL = parsed.l;
-          } else if (parsed.type === 'bg') {
-            bgH = parsed.h; bgS = parsed.s; bgL = parsed.l;
-          } else {
-            // Plain HSL - apply to text by default
-            txtH = parsed.h; txtS = parsed.s; txtL = parsed.l;
-          }
-        }
-      }
-
-      if (foundAny) {
-        setColors({ hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL });
-        setPulseKey(k => k + 1);
-        setIsPulsing(true);
-      }
-    } catch {
-      // Clipboard access denied or empty
-    }
-  };
+  // Track if we have orientation permission
+  const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
-  const words = ['good', 'days', 'is', 'not', 'supported', 'on', 'mobile', 'yet'];
 
-  // Update theme-color meta tag and body background to match
+  // Save colors to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('mobileColors', JSON.stringify(colors));
+  }, [colors]);
+
+  // Update theme-color meta tag and body background
   useEffect(() => {
     try {
       const hexColor = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
-
-      // Remove ALL theme-color meta tags and re-add
       document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
       const newMeta = document.createElement('meta');
-      newMeta.id = 'theme-color-meta';
       newMeta.name = 'theme-color';
       newMeta.content = hexColor;
       document.head.appendChild(newMeta);
-
-      // Update body/html backgrounds with !important
       document.body.style.setProperty('background-color', bgColor, 'important');
       document.documentElement.style.setProperty('background-color', bgColor, 'important');
-
-      // Force Safari repaint by triggering a minimal scroll
-      window.scrollTo(0, window.scrollY === 0 ? 1 : 0);
-      setTimeout(() => window.scrollTo(0, 0), 10);
-    } catch (e) {
+    } catch {
       // Ignore errors
     }
   }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
 
+  // Request device orientation permission (needed for iOS 13+)
+  const requestOrientationPermission = useCallback(async () => {
+    // Check if DeviceOrientationEvent exists and has requestPermission (iOS 13+)
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission === 'function') {
+      try {
+        const permission = await DOE.requestPermission();
+        if (permission === 'granted') {
+          setHasOrientationPermission(true);
+          return true;
+        }
+      } catch {
+        return false;
+      }
+    } else {
+      // Non-iOS or older iOS - permission not needed
+      setHasOrientationPermission(true);
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Handle device orientation changes
+  useEffect(() => {
+    if (!editing || !hasOrientationPermission) return;
+
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      const beta = e.beta ?? 0;   // Front-back tilt: -180 to 180
+      const gamma = e.gamma ?? 0; // Left-right tilt: -90 to 90
+      setLiveOrientation({ beta, gamma });
+
+      // Calculate deviation from baseline
+      const betaDelta = beta - baselineOrientation.current.beta;
+      const gammaDelta = gamma - baselineOrientation.current.gamma;
+
+      // Map tilt to saturation and lightness
+      // Beta (front-back) controls lightness: tilt forward = darker, back = lighter
+      // Gamma (left-right) controls saturation: tilt left = less, right = more
+      // Range: ±45° maps to full range (0-100)
+      const maxTilt = 45;
+
+      // Lightness: baseline ± delta, clamped to 5-95
+      const lightDelta = (betaDelta / maxTilt) * 50;
+      const newLight = Math.max(5, Math.min(95, 50 - lightDelta));
+
+      // Saturation: baseline ± delta, clamped to 0-100
+      const satDelta = (gammaDelta / maxTilt) * 50;
+      const newSat = Math.max(0, Math.min(100, 50 + satDelta));
+
+      setColors(prev => {
+        if (editing === 'text') {
+          return { ...prev, sat: Math.round(newSat), light: Math.round(newLight) };
+        } else {
+          return { ...prev, bgSat: Math.round(newSat), bgLight: Math.round(newLight) };
+        }
+      });
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, [editing, hasOrientationPermission]);
+
+  // Handle touch start on a color button
+  const handleTouchStart = async (which: 'text' | 'bg', e: React.TouchEvent) => {
+    e.preventDefault();
+
+    // Request permission if needed
+    if (!hasOrientationPermission) {
+      const granted = await requestOrientationPermission();
+      if (!granted) {
+        // Fall back to random on tap if no accelerometer
+        if (navigator.vibrate) navigator.vibrate(10);
+        setColors(prev => {
+          if (which === 'text') {
+            return { ...prev, hue: Math.floor(Math.random() * 360), sat: Math.floor(Math.random() * 101), light: Math.floor(Math.random() * 101) };
+          } else {
+            return { ...prev, bgHue: Math.floor(Math.random() * 360), bgSat: Math.floor(Math.random() * 101), bgLight: Math.floor(Math.random() * 101) };
+          }
+        });
+        return;
+      }
+    }
+
+    if (navigator.vibrate) navigator.vibrate(10);
+
+    // Capture baseline orientation
+    baselineOrientation.current = { ...liveOrientation };
+
+    // Store touch start position
+    touchStartY.current = e.touches[0].clientY;
+    startHue.current = which === 'text' ? colors.hue : colors.bgHue;
+
+    setEditing(which);
+  };
+
+  // Handle touch move (controls hue via vertical position)
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!editing || !sliderRef.current) return;
+
+    const touch = e.touches[0];
+    const slider = sliderRef.current;
+    const rect = slider.getBoundingClientRect();
+
+    // Calculate position within slider (0 at top, 1 at bottom)
+    const relativeY = (touch.clientY - rect.top) / rect.height;
+    const clampedY = Math.max(0, Math.min(1, relativeY));
+
+    // Map to hue (0-360)
+    const newHue = Math.round(clampedY * 360);
+
+    setColors(prev => {
+      if (editing === 'text') {
+        return { ...prev, hue: newHue };
+      } else {
+        return { ...prev, bgHue: newHue };
+      }
+    });
+  }, [editing]);
+
+  // Handle touch end (lock the color)
+  const handleTouchEnd = useCallback(() => {
+    if (editing && navigator.vibrate) navigator.vibrate([5, 30, 5]);
+    setEditing(null);
+  }, [editing]);
+
+  // Add global touch listeners when editing
+  useEffect(() => {
+    if (!editing) return;
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [editing, handleTouchMove, handleTouchEnd]);
+
+  // Current hue being edited (for indicator position)
+  const currentHue = editing === 'text' ? colors.hue : colors.bgHue;
+
   return (
     <div
-      onClick={stopPulsing}
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
         backgroundColor: bgColor,
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
+        overflow: 'hidden',
+        touchAction: 'none',
       }}
     >
-      <style>{`
-        @keyframes mobile-pulse {
-          0% { box-shadow: inset 0 0 0 8px ${textColor}; }
-          50% { box-shadow: inset 0 0 0 4px ${textColor}; }
-          100% { box-shadow: inset 0 0 0 8px ${textColor}; }
-        }
-        .mobile-rand-pulse {
-          animation: mobile-pulse 1s steps(12) infinite;
-        }
-      `}</style>
-      <div style={{ marginTop: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {words.map((word, i) => (
-          <p key={i} style={{ color: textColor, fontFamily: 'monospace', fontWeight: 'bold', fontSize: '20px', margin: '4px 0' }}>{word}</p>
-        ))}
+      {/* Top section: "good days" title */}
+      <div
+        style={{
+          flex: editing ? '0 0 50%' : '1',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: editing ? 'none' : 'flex 0.2s ease-out',
+        }}
+      >
+        <p style={{
+          color: textColor,
+          fontFamily: 'monospace',
+          fontWeight: 800,
+          fontSize: editing ? '32px' : '28px',
+          margin: 0,
+          transition: 'font-size 0.2s ease-out',
+        }}>
+          good
+        </p>
+        <p style={{
+          color: textColor,
+          fontFamily: 'monospace',
+          fontWeight: 800,
+          fontSize: editing ? '32px' : '28px',
+          margin: '4px 0 0 0',
+          transition: 'font-size 0.2s ease-out',
+        }}>
+          days
+        </p>
       </div>
 
-      <button
-        key={`rand-${pulseKey}`}
-        onClick={randomize}
-        className={isPulsing ? 'mobile-rand-pulse' : ''}
-        style={{
-          marginTop: '60px',
-          padding: '8px 40px',
-          fontFamily: 'monospace',
-          fontWeight: 800,
-          fontSize: '1.5rem',
-          backgroundColor: 'transparent',
-          border: `8px solid ${textColor}`,
-          borderRadius: '12px',
-          color: textColor,
-        }}
-      >
-        rand
-      </button>
-
-      <button
-        key={`paste-${pulseKey}`}
-        onClick={handlePaste}
-        className={isPulsing ? 'mobile-rand-pulse' : ''}
-        style={{
-          marginTop: '16px',
-          marginBottom: '48px',
-          padding: '8px 40px',
-          fontFamily: 'monospace',
-          fontWeight: 800,
-          fontSize: '1.5rem',
-          backgroundColor: 'transparent',
-          border: `8px solid ${textColor}`,
-          borderRadius: '12px',
-          color: textColor,
-        }}
-      >
-        paste
-      </button>
+      {/* Bottom section: either split button or hue slider */}
+      {!editing ? (
+        // Split button: text | background
+        <div style={{
+          padding: '0 40px 60px 40px',
+          display: 'flex',
+        }}>
+          <button
+            onTouchStart={(e) => handleTouchStart('text', e)}
+            style={{
+              flex: 1,
+              padding: '16px 0',
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              fontSize: '18px',
+              backgroundColor: 'transparent',
+              border: `4px solid ${textColor}`,
+              borderRight: `2px solid ${textColor}`,
+              borderRadius: '12px 0 0 12px',
+              color: textColor,
+            }}
+          >
+            text
+          </button>
+          <button
+            onTouchStart={(e) => handleTouchStart('bg', e)}
+            style={{
+              flex: 1,
+              padding: '16px 0',
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              fontSize: '18px',
+              backgroundColor: 'transparent',
+              border: `4px solid ${textColor}`,
+              borderLeft: `2px solid ${textColor}`,
+              borderRadius: '0 12px 12px 0',
+              color: textColor,
+            }}
+          >
+            background
+          </button>
+        </div>
+      ) : (
+        // Hue slider (bottom 50% of screen)
+        <div
+          ref={sliderRef}
+          style={{
+            flex: '0 0 50%',
+            position: 'relative',
+            background: 'linear-gradient(to bottom, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
+          }}
+        >
+          {/* Horizontal indicator line */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: `${(currentHue / 360) * 100}%`,
+              height: '4px',
+              backgroundColor: 'white',
+              boxShadow: '0 0 8px rgba(0,0,0,0.5)',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Label showing current values */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontFamily: 'monospace',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              pointerEvents: 'none',
+            }}
+          >
+            {editing}: h{currentHue} s{editing === 'text' ? colors.sat : colors.bgSat} l{editing === 'text' ? colors.light : colors.bgLight}
+          </div>
+          {/* Tilt hint */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              pointerEvents: 'none',
+              textAlign: 'center',
+            }}
+          >
+            drag ↕ hue • tilt ↔ sat • tilt ↕ light
+          </div>
+        </div>
+      )}
     </div>
   );
 }
