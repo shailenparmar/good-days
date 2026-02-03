@@ -1,26 +1,27 @@
 # Claude Code Instructions
 
+## Push Checklist (MANDATORY)
+
+**EVERY push requires ALL of these steps. No exceptions.**
+
+1. **Increment version** in `src/App.tsx`
+2. **Update CLAUDE.md** with any changes to:
+   - UI behavior or styling
+   - Keyboard shortcuts or interactions
+   - State management patterns
+   - Any logic that future development should know about
+3. **Commit both** code AND documentation together
+4. **Push to main**
+5. **Tell the user**: "Pushed **vX.Y.Z** - documented [what was documented]"
+
+**If you push without documenting, you have failed.** The user should never have to remind you.
+
 ## Deployment
 
-**IMPORTANT**: Always push changes to git after making code changes. Both apps deploy automatically:
+Both apps deploy automatically on push to `main`:
 
-- **Vercel**: https://gdays.vercel.app/ - Auto-deploys on push to `main`
-- **GitHub Pages**: https://shailenparmar.github.io/good-days/ - Auto-deploys via GitHub Actions on push to `main`
-
-After any code changes:
-```bash
-git add <files>
-git commit -m "Description of changes"
-git push origin main
-```
-
-**DOCUMENT WITH EVERY PUSH**: Update this CLAUDE.md file whenever making changes that affect:
-- UI behavior or styling
-- Keyboard shortcuts or interactions
-- State management patterns
-- Any logic that future development should know about
-
-Don't wait to be asked - document proactively with each push.
+- **GitHub Pages**: https://gdays.day (production)
+- **Vercel**: https://gdays.vercel.app/ (backup)
 
 ## Domain & Hosting
 
