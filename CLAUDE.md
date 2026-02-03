@@ -102,17 +102,41 @@ The app supports exporting entries to an **encrypted** `.txt` file and importing
 
 ### Backup Format
 
-Backups are encrypted using AES-GCM with an app-embedded key. The file looks like:
+Backups are encrypted using AES-GCM with an app-embedded key.
 
+**Filename**: `good days backup 02-03-2026.txt` (MM-DD-YYYY, zero-padded)
+
+**File header** (detailed with time):
 ```
-good days encrypted backup Jan 30, 2026, 10:30 AM
+good days encrypted backup Feb 3 2026 10:30:45 AM
 
 U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
 [base64 encrypted content continues]
 ```
 
-The encrypted content, when decrypted, contains the plain text format:
+**Decrypted content** (JSON format, v1+):
+```json
+{
+  "version": 1,
+  "exportedAt": 1706969445000,
+  "entries": [
+    {
+      "date": "2025-01-27",
+      "content": "<div>Entry content here...</div>",
+      "title": "Optional title",
+      "startedAt": 1706345400000,
+      "lastModified": 1706345400000
+    }
+  ]
+}
+```
 
+**JSON format advantages:**
+- Preserves all entry fields (`title`, `lastModified` were lost in legacy format)
+- No regex parsing edge cases
+- Version field for future format changes
+
+**Legacy markdown format** (still supported for import):
 ```
 # good days
 
@@ -124,6 +148,8 @@ The encrypted content, when decrypted, contains the plain text format:
 
 Entry content here...
 ```
+
+Import automatically detects format: tries JSON first, falls back to legacy markdown.
 
 ### Encryption Details
 

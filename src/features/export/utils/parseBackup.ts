@@ -1,4 +1,5 @@
 import type { JournalEntry } from '@features/journal';
+import type { BackupV1 } from './formatEntries';
 
 interface ParsedEntry {
   date: string;
@@ -6,7 +7,86 @@ interface ParsedEntry {
   startedAt?: number;
 }
 
-// Parse a backup TXT file back into journal entries
+// Try to parse as JSON backup (v1+), returns null if not JSON format
+export function parseBackupJson(text: string): JournalEntry[] | null {
+  try {
+    const parsed = JSON.parse(text);
+    // Check if it's our backup format
+    if (parsed && typeof parsed.version === 'number' && Array.isArray(parsed.entries)) {
+      const backup = parsed as BackupV1;
+      return backup.entries;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Merge JSON-imported entries (already have HTML content) with existing entries
+export function mergeJsonEntries(
+  existingEntries: JournalEntry[],
+  importedEntries: JournalEntry[],
+  importTimestamp: number
+): MergeResult {
+  const result = [...existingEntries];
+  const existingDates = new Set(existingEntries.map(e => e.date));
+  let importedCount = 0;
+
+  for (const imported of importedEntries) {
+    if (existingDates.has(imported.date)) {
+      // Conflict: date already exists
+      const existingIndex = result.findIndex(e => e.date === imported.date);
+      const existing = result[existingIndex];
+
+      // Check if content is actually different
+      const existingText = stripHtml(existing.content).trim();
+      const importedText = stripHtml(imported.content).trim();
+
+      const existingNormalized = normalizeForComparison(existingText);
+      const importedNormalized = normalizeForComparison(importedText);
+
+      // Skip if: same content, empty import, or existing already contains imported text
+      if (existingNormalized !== importedNormalized && importedNormalized !== '' && !existingNormalized.includes(importedNormalized)) {
+        // Different content - append imported content with label
+        const importDate = new Date(importTimestamp);
+        const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit'
+        })} backup:\n\n`;
+
+        result[existingIndex] = {
+          ...existing,
+          content: existing.content + importLabel + imported.content,
+          title: existing.title || imported.title,
+          startedAt: imported.startedAt && (!existing.startedAt || imported.startedAt < existing.startedAt)
+            ? imported.startedAt
+            : existing.startedAt,
+          lastModified: importTimestamp,
+        };
+        importedCount++;
+      }
+    } else {
+      // No conflict - add as new entry
+      result.push({
+        ...imported,
+        lastModified: importTimestamp,
+      });
+      existingDates.add(imported.date);
+      importedCount++;
+    }
+  }
+
+  // Sort by date descending (newest first)
+  result.sort((a, b) => b.date.localeCompare(a.date));
+
+  return { entries: result, importedCount };
+}
+
+// Legacy: Parse a backup TXT file back into journal entries
 export function parseBackupText(text: string): ParsedEntry[] {
   const entries: ParsedEntry[] = [];
 

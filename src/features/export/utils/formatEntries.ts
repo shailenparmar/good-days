@@ -1,6 +1,23 @@
 import type { JournalEntry } from '@features/journal';
 
-// For encrypted backup (markdown format needed for import parsing)
+// JSON backup format (v1)
+export interface BackupV1 {
+  version: 1;
+  exportedAt: number;
+  entries: JournalEntry[];
+}
+
+// For encrypted backup (JSON format)
+export function formatEntriesAsJson(entries: JournalEntry[]): string {
+  const backup: BackupV1 = {
+    version: 1,
+    exportedAt: Date.now(),
+    entries: [...entries].sort((a, b) => a.date.localeCompare(b.date)), // oldest first
+  };
+  return JSON.stringify(backup);
+}
+
+// Legacy: For encrypted backup (markdown format needed for import parsing)
 export function formatEntriesAsText(entries: JournalEntry[]): string {
   if (entries.length === 0) return '';
 

@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
-import { formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
-import { parseBackupText, mergeEntries } from '../utils/parseBackup';
+import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
+import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
 import { getItem } from '@shared/storage';
@@ -88,11 +88,23 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         // Decrypt the content
         const decrypted = await decryptText(encryptedContent);
 
-        // Parse the decrypted backup text
-        const parsed = parseBackupText(decrypted);
+        // Try JSON format first (v1+), fall back to legacy markdown
+        const jsonEntries = parseBackupJson(decrypted);
+        let merged: JournalEntry[];
+        let importedCount: number;
 
-        // Merge into running total
-        const { entries: merged, importedCount } = mergeEntries(currentEntries, parsed, Date.now());
+        if (jsonEntries) {
+          // JSON format - entries already have HTML content
+          const result = mergeJsonEntries(currentEntries, jsonEntries, Date.now());
+          merged = result.entries;
+          importedCount = result.importedCount;
+        } else {
+          // Legacy markdown format - needs HTML conversion
+          const parsed = parseBackupText(decrypted);
+          const result = mergeEntries(currentEntries, parsed, Date.now());
+          merged = result.entries;
+          importedCount = result.importedCount;
+        }
         currentEntries = merged;
         totalImported += importedCount;
       } catch (err) {
@@ -114,12 +126,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   };
 
   const handleBackup = async () => {
-    const textContent = formatEntriesAsText(entries);
-    if (!textContent) return;
+    if (entries.length === 0) return;
 
     try {
-      // Encrypt the content
-      const encrypted = await encryptText(textContent);
+      // Use JSON format for backup
+      const jsonContent = formatEntriesAsJson(entries);
+      const encrypted = await encryptText(jsonContent);
       const use24Hour = getItem('timeFormat') === '24h';
       const fileContent = formatEncryptedBackup(encrypted, use24Hour);
 
@@ -128,8 +140,11 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       const a = document.createElement('a');
       a.href = url;
       const now = new Date();
-      const dateStr = `${now.getMonth() + 1}-${now.getDate()}-${now.getFullYear()}`;
-      a.download = `good days ${dateStr}.txt`;
+      // Filename: good days backup MM-DD-YYYY.txt (zero-padded)
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
+      a.download = `good days backup ${month}-${day}-${year}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
