@@ -66,20 +66,9 @@ export async function decryptText(encryptedBase64: string): Promise<string> {
   return decoder.decode(decrypted);
 }
 
-export function formatEncryptedBackup(encryptedContent: string, use24Hour: boolean): string {
-  const now = new Date();
-  // Header is just date and time
-  const dateStr = now.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: !use24Hour,
-  }).replace(/,/g, '');
-
-  return `${dateStr}\n\n${encryptedContent}`;
+// Just returns the encrypted content - no header needed (timestamp is in filename)
+export function formatEncryptedBackup(encryptedContent: string): string {
+  return encryptedContent;
 }
 
 // Check if a string looks like base64-encoded data

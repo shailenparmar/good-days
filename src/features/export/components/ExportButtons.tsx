@@ -5,7 +5,6 @@ import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } f
 import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
-import { getItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { useTheme } from '@features/theme';
@@ -132,19 +131,21 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       // Use JSON format for backup
       const jsonContent = formatEntriesAsJson(entries);
       const encrypted = await encryptText(jsonContent);
-      const use24Hour = getItem('timeFormat') === '24h';
-      const fileContent = formatEncryptedBackup(encrypted, use24Hour);
+      const fileContent = formatEncryptedBackup(encrypted);
 
       const blob = new Blob([fileContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       const now = new Date();
-      // Filename: good days backup MM-DD-YYYY.txt (zero-padded)
+      // Filename: good days backup MM-DD-YYYY HH:mm:ss.txt (zero-padded, always military time)
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       const year = now.getFullYear();
-      a.download = `good days backup ${month}-${day}-${year}.txt`;
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      a.download = `good days backup ${month}-${day}-${year} ${hours}:${minutes}:${seconds}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
