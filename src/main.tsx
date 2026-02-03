@@ -483,19 +483,21 @@ function MobileScreen() {
             background: hueGradient,
           }}
         >
-          {/* Horizontal indicator line */}
+          {/* Horizontal indicator line - white with black borders, no aliasing */}
           <div
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
               top: `${(currentHue / 360) * 100}%`,
-              height: '4px',
+              height: '2px',
               backgroundColor: 'white',
-              boxShadow: '0 0 8px rgba(0,0,0,0.5)',
+              borderTop: '1px solid black',
+              borderBottom: '1px solid black',
               transform: 'translateY(-50%)',
               pointerEvents: 'none',
-            }}
+              imageRendering: 'pixelated',
+            } as React.CSSProperties}
           />
           {/* Current values */}
           <div
