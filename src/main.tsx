@@ -56,6 +56,7 @@ function parseColorInput(input: string) {
 }
 
 function MobileScreen() {
+  // Color state
   const [colors, setColors] = useState<ColorState>(() => {
     const saved = localStorage.getItem('mobileColors');
     if (saved) {
@@ -64,166 +65,176 @@ function MobileScreen() {
     return { hue: 175, sat: 100, light: 21, bgHue: 84, bgSat: 100, bgLight: 88 };
   });
 
+  // Which color is being edited (null = not editing)
   const [editing, setEditing] = useState<'text' | 'bg' | null>(null);
 
-  // Refs for tracking orientation baseline and current values
-  const baselineBeta = useRef(0);
-  const baselineGamma = useRef(0);
-  const baselineSat = useRef(50);
-  const baselineLight = useRef(50);
+  // Track if we need to request orientation permission (iOS)
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
 
-  // Ref for the hue slider area
+  // Refs for baseline values when editing starts
+  const baseline = useRef({ beta: 0, gamma: 0, sat: 50, light: 50 });
+
+  // Ref to track editing state in event handlers (avoids stale closure)
+  const editingRef = useRef<'text' | 'bg' | null>(null);
+
+  // Ref for the slider area
   const sliderRef = useRef<HTMLDivElement>(null);
-
-  // Track if orientation permission granted
-  const [orientationGranted, setOrientationGranted] = useState(false);
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+
+  // Keep editingRef in sync
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
 
   // Persist colors
   useEffect(() => {
     localStorage.setItem('mobileColors', JSON.stringify(colors));
   }, [colors]);
 
-  // Update meta theme-color
+  // Update theme-color meta
   useEffect(() => {
-    const hexColor = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
+    const hex = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
-    meta.content = hexColor;
+    meta.content = hex;
     document.head.appendChild(meta);
     document.body.style.setProperty('background-color', bgColor, 'important');
     document.documentElement.style.setProperty('background-color', bgColor, 'important');
   }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
 
-  // Request orientation permission on first interaction
-  const ensureOrientationPermission = async () => {
-    if (orientationGranted) return true;
+  // Check if we need permission on mount
+  useEffect(() => {
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission === 'function') {
+      setNeedsPermission(true);
+    } else {
+      setPermissionGranted(true);
+    }
+  }, []);
 
+  // Request permission handler (called from a button)
+  const requestPermission = async () => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     if (typeof DOE.requestPermission === 'function') {
       try {
         const result = await DOE.requestPermission();
         if (result === 'granted') {
-          setOrientationGranted(true);
-          return true;
+          setPermissionGranted(true);
+          setNeedsPermission(false);
         }
-        return false;
-      } catch {
-        return false;
-      }
+      } catch { /* ignore */ }
     }
-    // Non-iOS doesn't need permission
-    setOrientationGranted(true);
-    return true;
   };
 
-  // Orientation handler - updates sat/light based on tilt from baseline
+  // Orientation handler - runs while editing
   useEffect(() => {
-    if (!editing) return;
+    if (!editing || !permissionGranted) return;
 
     const handler = (e: DeviceOrientationEvent) => {
       const beta = e.beta ?? 0;
       const gamma = e.gamma ?? 0;
 
-      const betaDelta = beta - baselineBeta.current;
-      const gammaDelta = gamma - baselineGamma.current;
+      // On first event, capture baseline
+      if (baseline.current.beta === 0 && baseline.current.gamma === 0) {
+        baseline.current.beta = beta;
+        baseline.current.gamma = gamma;
+      }
 
-      // ±45° maps to ±50 change
+      const betaDelta = beta - baseline.current.beta;
+      const gammaDelta = gamma - baseline.current.gamma;
+
+      // ±45° = ±50 change in sat/light
       const maxTilt = 45;
       const satChange = (gammaDelta / maxTilt) * 50;
-      const lightChange = -(betaDelta / maxTilt) * 50; // negative: tilt forward = darker
+      const lightChange = -(betaDelta / maxTilt) * 50;
 
-      const newSat = Math.max(0, Math.min(100, Math.round(baselineSat.current + satChange)));
-      const newLight = Math.max(5, Math.min(95, Math.round(baselineLight.current + lightChange)));
+      const newSat = Math.max(0, Math.min(100, Math.round(baseline.current.sat + satChange)));
+      const newLight = Math.max(5, Math.min(95, Math.round(baseline.current.light + lightChange)));
 
       setColors(prev => {
-        if (editing === 'text') {
+        if (editingRef.current === 'text') {
           return { ...prev, sat: newSat, light: newLight };
-        } else {
+        } else if (editingRef.current === 'bg') {
           return { ...prev, bgSat: newSat, bgLight: newLight };
         }
+        return prev;
       });
     };
 
     window.addEventListener('deviceorientation', handler);
     return () => window.removeEventListener('deviceorientation', handler);
-  }, [editing]);
+  }, [editing, permissionGranted]);
 
-  // Touch handlers for the color buttons
-  const handlePointerDown = async (which: 'text' | 'bg', e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-
-    if (navigator.vibrate) navigator.vibrate(10);
-
-    // Request permission (will be instant if already granted)
-    await ensureOrientationPermission();
-
-    // Capture current orientation as baseline
-    const captureBaseline = (ev: DeviceOrientationEvent) => {
-      baselineBeta.current = ev.beta ?? 0;
-      baselineGamma.current = ev.gamma ?? 0;
-      window.removeEventListener('deviceorientation', captureBaseline);
-    };
-    window.addEventListener('deviceorientation', captureBaseline, { once: true });
-
-    // Capture current sat/light as baseline
-    if (which === 'text') {
-      baselineSat.current = colors.sat;
-      baselineLight.current = colors.light;
-    } else {
-      baselineSat.current = colors.bgSat;
-      baselineLight.current = colors.bgLight;
-    }
-
-    setEditing(which);
-  };
-
-  // Global pointer move - updates hue based on Y position in slider
+  // Touch move handler - updates hue based on Y position
   useEffect(() => {
     if (!editing) return;
 
-    const handleMove = (e: PointerEvent) => {
-      if (!sliderRef.current) return;
+    const handleMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (!sliderRef.current || !editingRef.current) return;
 
+      const touch = e.touches[0];
       const rect = sliderRef.current.getBoundingClientRect();
-      const relY = (e.clientY - rect.top) / rect.height;
+      const relY = (touch.clientY - rect.top) / rect.height;
       const clampedY = Math.max(0, Math.min(1, relY));
       const newHue = Math.round(clampedY * 360);
 
       setColors(prev => {
-        if (editing === 'text') {
+        if (editingRef.current === 'text') {
           return { ...prev, hue: newHue };
-        } else {
+        } else if (editingRef.current === 'bg') {
           return { ...prev, bgHue: newHue };
         }
+        return prev;
       });
     };
 
-    const handleUp = () => {
+    const handleEnd = () => {
       if (navigator.vibrate) navigator.vibrate([5, 30, 5]);
       setEditing(null);
+      // Reset baseline for next edit
+      baseline.current = { beta: 0, gamma: 0, sat: 50, light: 50 };
     };
 
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
 
     return () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('touchcancel', handleEnd);
     };
   }, [editing]);
 
+  // Start editing - called on touchstart of text/bg buttons
+  const startEditing = (which: 'text' | 'bg') => {
+    if (navigator.vibrate) navigator.vibrate(10);
+
+    // Capture current sat/light as baseline
+    if (which === 'text') {
+      baseline.current.sat = colors.sat;
+      baseline.current.light = colors.light;
+    } else {
+      baseline.current.sat = colors.bgSat;
+      baseline.current.light = colors.bgLight;
+    }
+    // Reset orientation baseline (will be set on first orientation event)
+    baseline.current.beta = 0;
+    baseline.current.gamma = 0;
+
+    setEditing(which);
+  };
+
   // Copy handler
-  const handleCopy = async () => {
+  const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
     const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
-    try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+    navigator.clipboard.writeText(text).catch(() => {});
   };
 
   // Paste handler
@@ -251,6 +262,50 @@ function MobileScreen() {
   const currentSat = editing === 'text' ? colors.sat : colors.bgSat;
   const currentLight = editing === 'text' ? colors.light : colors.bgLight;
 
+  // If we need permission and haven't granted it yet, show permission button
+  if (needsPermission && !permissionGranted) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: bgColor,
+          gap: '20px',
+        }}
+      >
+        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
+          good
+        </span>
+        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
+          days
+        </span>
+        <button
+          onClick={requestPermission}
+          style={{
+            marginTop: '40px',
+            padding: '16px 32px',
+            fontFamily: 'monospace',
+            fontWeight: 800,
+            fontSize: '16px',
+            backgroundColor: 'transparent',
+            border: `4px solid ${textColor}`,
+            borderRadius: '12px',
+            color: textColor,
+          }}
+        >
+          enable motion
+        </button>
+        <span style={{ color: textColor, fontFamily: 'monospace', fontSize: '12px', opacity: 0.7, textAlign: 'center', padding: '0 40px' }}>
+          tilt controls require motion permission
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -263,9 +318,9 @@ function MobileScreen() {
         userSelect: 'none',
         WebkitUserSelect: 'none',
         WebkitTouchCallout: 'none',
-      }}
+      } as React.CSSProperties}
     >
-      {/* Top half: good days + copy/paste (always visible, updates live) */}
+      {/* Top half: good days + copy/paste */}
       <div
         style={{
           flex: editing ? '0 0 50%' : '1',
@@ -283,10 +338,10 @@ function MobileScreen() {
           days
         </span>
 
-        {/* Copy/paste split button */}
+        {/* Copy/paste buttons */}
         <div style={{ display: 'flex', marginTop: '24px' }}>
           <button
-            onPointerDown={(e) => { e.stopPropagation(); handleCopy(); }}
+            onClick={handleCopy}
             style={{
               padding: '8px 20px',
               fontFamily: 'monospace',
@@ -297,13 +352,12 @@ function MobileScreen() {
               borderRight: `1px solid ${textColor}`,
               borderRadius: '8px 0 0 8px',
               color: textColor,
-              touchAction: 'none',
             }}
           >
             copy
           </button>
           <button
-            onPointerDown={(e) => { e.stopPropagation(); handlePaste(); }}
+            onClick={handlePaste}
             style={{
               padding: '8px 20px',
               fontFamily: 'monospace',
@@ -314,7 +368,6 @@ function MobileScreen() {
               borderLeft: `1px solid ${textColor}`,
               borderRadius: '0 8px 8px 0',
               color: textColor,
-              touchAction: 'none',
             }}
           >
             paste
@@ -322,11 +375,11 @@ function MobileScreen() {
         </div>
       </div>
 
-      {/* Bottom section: either text/bg buttons OR hue slider */}
+      {/* Bottom: either buttons or hue slider */}
       {!editing ? (
         <div style={{ padding: '0 40px 60px', display: 'flex' }}>
-          <button
-            onPointerDown={(e) => handlePointerDown('text', e)}
+          <div
+            onTouchStart={(e) => { e.preventDefault(); startEditing('text'); }}
             style={{
               flex: 1,
               padding: '16px 0',
@@ -338,13 +391,15 @@ function MobileScreen() {
               borderRight: `2px solid ${textColor}`,
               borderRadius: '12px 0 0 12px',
               color: textColor,
-              touchAction: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             text
-          </button>
-          <button
-            onPointerDown={(e) => handlePointerDown('bg', e)}
+          </div>
+          <div
+            onTouchStart={(e) => { e.preventDefault(); startEditing('bg'); }}
             style={{
               flex: 1,
               padding: '16px 0',
@@ -356,11 +411,13 @@ function MobileScreen() {
               borderLeft: `2px solid ${textColor}`,
               borderRadius: '0 12px 12px 0',
               color: textColor,
-              touchAction: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             background
-          </button>
+          </div>
         </div>
       ) : (
         <div
@@ -379,7 +436,7 @@ function MobileScreen() {
             )`,
           }}
         >
-          {/* Horizontal indicator */}
+          {/* Horizontal indicator line */}
           <div
             style={{
               position: 'absolute',
@@ -393,7 +450,7 @@ function MobileScreen() {
               pointerEvents: 'none',
             }}
           />
-          {/* Values label */}
+          {/* Current values */}
           <div
             style={{
               position: 'absolute',
@@ -426,10 +483,9 @@ function MobileScreen() {
               fontFamily: 'monospace',
               fontSize: '12px',
               pointerEvents: 'none',
-              textAlign: 'center',
             }}
           >
-            drag ↕ hue • tilt ↔ sat • tilt ↕ light
+            drag ↕ hue • tilt phone for sat/light
           </div>
         </div>
       )}
