@@ -55,6 +55,86 @@ function parseColorInput(input: string) {
   return null;
 }
 
+// Split button component matching FunctionButton style guide
+function SplitButton({
+  leftText,
+  rightText,
+  onLeftClick,
+  onRightClick,
+  textColor,
+  hue,
+  saturation,
+  lightness,
+}: {
+  leftText: string;
+  rightText: string;
+  onLeftClick: () => void;
+  onRightClick: () => void;
+  textColor: string;
+  hue: number;
+  saturation: number;
+  lightness: number;
+}) {
+  const [leftPressed, setLeftPressed] = useState(false);
+  const [rightPressed, setRightPressed] = useState(false);
+
+  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
+  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
+  const pressedBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+
+  const getLeftBorder = () => leftPressed ? activeColor : borderColor;
+  const getRightBorder = () => rightPressed ? activeColor : borderColor;
+
+  return (
+    <div style={{ display: 'flex' }}>
+      <button
+        onTouchStart={() => setLeftPressed(true)}
+        onTouchEnd={() => { setLeftPressed(false); onLeftClick(); }}
+        onTouchCancel={() => setLeftPressed(false)}
+        style={{
+          padding: '8px 20px',
+          fontFamily: 'monospace',
+          fontWeight: 800,
+          fontSize: '14px',
+          backgroundColor: leftPressed ? pressedBg : 'transparent',
+          borderTop: `3px solid ${getLeftBorder()}`,
+          borderBottom: `3px solid ${getLeftBorder()}`,
+          borderLeft: `3px solid ${getLeftBorder()}`,
+          borderRight: `1px solid ${getLeftBorder()}`,
+          borderRadius: '8px 0 0 8px',
+          color: textColor,
+          outline: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {leftText}
+      </button>
+      <button
+        onTouchStart={() => setRightPressed(true)}
+        onTouchEnd={() => { setRightPressed(false); onRightClick(); }}
+        onTouchCancel={() => setRightPressed(false)}
+        style={{
+          padding: '8px 20px',
+          fontFamily: 'monospace',
+          fontWeight: 800,
+          fontSize: '14px',
+          backgroundColor: rightPressed ? pressedBg : 'transparent',
+          borderTop: `3px solid ${getRightBorder()}`,
+          borderBottom: `3px solid ${getRightBorder()}`,
+          borderRight: `3px solid ${getRightBorder()}`,
+          borderLeft: `1px solid ${getRightBorder()}`,
+          borderRadius: '0 8px 8px 0',
+          color: textColor,
+          outline: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {rightText}
+      </button>
+    </div>
+  );
+}
+
 function MobileScreen() {
   // Color state
   const [colors, setColors] = useState<ColorState>(() => {
@@ -106,6 +186,17 @@ function MobileScreen() {
     document.documentElement.style.setProperty('background-color', bgColor, 'important');
   }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
 
+  // Lock to portrait orientation on mount
+  useEffect(() => {
+    // Try Screen Orientation API (works on Android Chrome, some iOS)
+    const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    if (orientation?.lock) {
+      orientation.lock('portrait').catch(() => {
+        // Silently fail - not supported or not allowed
+      });
+    }
+  }, []);
+
   // Check if we need permission on mount
   useEffect(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
@@ -147,8 +238,8 @@ function MobileScreen() {
       const betaDelta = beta - baseline.current.beta;
       const gammaDelta = gamma - baseline.current.gamma;
 
-      // ±45° = ±50 change in sat/light
-      const maxTilt = 45;
+      // ±20° = full range (0-100 for sat, 5-95 for light)
+      const maxTilt = 20;
       const satChange = (gammaDelta / maxTilt) * 50;
       const lightChange = -(betaDelta / maxTilt) * 50;
 
@@ -237,11 +328,10 @@ function MobileScreen() {
     navigator.clipboard.writeText(text).catch(() => {});
   };
 
-  // Paste handler
-  const handlePaste = async () => {
+  // Paste handler - instant, no async/await blocking
+  const handlePaste = () => {
     if (navigator.vibrate) navigator.vibrate(10);
-    try {
-      const text = await navigator.clipboard.readText();
+    navigator.clipboard.readText().then(text => {
       let txtH = colors.hue, txtS = colors.sat, txtL = colors.light;
       let bgH = colors.bgHue, bgS = colors.bgSat, bgL = colors.bgLight;
       let found = false;
@@ -255,12 +345,23 @@ function MobileScreen() {
         }
       }
       if (found) setColors({ hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL });
-    } catch { /* ignore */ }
+    }).catch(() => {});
   };
 
   const currentHue = editing === 'text' ? colors.hue : colors.bgHue;
   const currentSat = editing === 'text' ? colors.sat : colors.bgSat;
   const currentLight = editing === 'text' ? colors.light : colors.bgLight;
+
+  // Generate hue gradient with current sat/light values
+  const hueGradient = `linear-gradient(to bottom,
+    hsl(0, ${currentSat}%, ${currentLight}%),
+    hsl(60, ${currentSat}%, ${currentLight}%),
+    hsl(120, ${currentSat}%, ${currentLight}%),
+    hsl(180, ${currentSat}%, ${currentLight}%),
+    hsl(240, ${currentSat}%, ${currentLight}%),
+    hsl(300, ${currentSat}%, ${currentLight}%),
+    hsl(360, ${currentSat}%, ${currentLight}%)
+  )`;
 
   // If we need permission and haven't granted it yet, show permission button
   if (needsPermission && !permissionGranted) {
@@ -338,40 +439,18 @@ function MobileScreen() {
           days
         </span>
 
-        {/* Copy/paste buttons */}
-        <div style={{ display: 'flex', marginTop: '24px' }}>
-          <button
-            onClick={handleCopy}
-            style={{
-              padding: '8px 20px',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '14px',
-              backgroundColor: 'transparent',
-              border: `3px solid ${textColor}`,
-              borderRight: `1px solid ${textColor}`,
-              borderRadius: '8px 0 0 8px',
-              color: textColor,
-            }}
-          >
-            copy
-          </button>
-          <button
-            onClick={handlePaste}
-            style={{
-              padding: '8px 20px',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '14px',
-              backgroundColor: 'transparent',
-              border: `3px solid ${textColor}`,
-              borderLeft: `1px solid ${textColor}`,
-              borderRadius: '0 8px 8px 0',
-              color: textColor,
-            }}
-          >
-            paste
-          </button>
+        {/* Copy/paste split button with proper styling */}
+        <div style={{ marginTop: '24px' }}>
+          <SplitButton
+            leftText="copy"
+            rightText="paste"
+            onLeftClick={handleCopy}
+            onRightClick={handlePaste}
+            textColor={textColor}
+            hue={colors.hue}
+            saturation={colors.sat}
+            lightness={colors.light}
+          />
         </div>
       </div>
 
@@ -425,15 +504,7 @@ function MobileScreen() {
           style={{
             flex: '0 0 50%',
             position: 'relative',
-            background: `linear-gradient(to bottom,
-              hsl(0, 100%, 50%),
-              hsl(60, 100%, 50%),
-              hsl(120, 100%, 50%),
-              hsl(180, 100%, 50%),
-              hsl(240, 100%, 50%),
-              hsl(300, 100%, 50%),
-              hsl(360, 100%, 50%)
-            )`,
+            background: hueGradient,
           }}
         >
           {/* Horizontal indicator line */}
@@ -485,7 +556,7 @@ function MobileScreen() {
               pointerEvents: 'none',
             }}
           >
-            drag ↕ hue • tilt phone for sat/light
+            drag ↕ hue • tilt for sat/light
           </div>
         </div>
       )}
