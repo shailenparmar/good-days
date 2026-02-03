@@ -3,6 +3,7 @@ import { useTheme } from '@features/theme';
 import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
 import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared/utils/easterEggs';
+import { getStorageEstimate } from '@shared/storage/journalStorage';
 import type { JournalEntry } from '../types';
 
 interface StatsDisplayProps {
@@ -108,6 +109,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);
+
+  // Storage info from IndexedDB/Storage API
+  const [storageInfo, setStorageInfo] = useState<{ used: string; quota: string } | null>(null);
 
   // Bold sweep animation for easter eggs text
   const [eggBoldCount, setEggBoldCount] = useState(0);
@@ -229,6 +233,27 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return () => clearInterval(interval);
   }, [stacked, superscramble]);
 
+  // Fetch storage estimate when stacked mode is active
+  useEffect(() => {
+    if (!stacked) return;
+    if (superscramble) return; // Freeze display in superscramble
+
+    getStorageEstimate().then(({ used, quota }) => {
+      const usedMB = (used / (1024 * 1024)).toFixed(2);
+      // Show quota in appropriate unit (MB for small, GB for large)
+      let quotaDisplay: string;
+      const quotaMB = quota / (1024 * 1024);
+      if (quotaMB >= 1024) {
+        // Show in GB for large quotas
+        const quotaGB = (quotaMB / 1024).toFixed(1);
+        quotaDisplay = `${quotaGB} GB`;
+      } else {
+        quotaDisplay = `${Math.round(quotaMB)} MB`;
+      }
+      setStorageInfo({ used: usedMB, quota: quotaDisplay });
+    });
+  }, [stacked, superscramble]);
+
   const calculateStreak = () => {
     if (entries.length === 0) return 0;
     let streak = 0;
@@ -300,20 +325,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   // Hardcore technical stats
   const calculateTechnicalStats = () => {
-    // localStorage usage
-    let totalStorageBytes = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key) {
-        const value = localStorage.getItem(key) || '';
-        const bytes = new Blob([key + value]).size;
-        totalStorageBytes += bytes;
-      }
-    }
-
-    // localStorage limit is ~5MB in most browsers
-    const usedStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(4);
-
     // First entry date for "age"
     const firstEntryDate = entries.length > 0 ? entries[entries.length - 1].date : null;
     const journalAgeMs = firstEntryDate ? Date.now() - new Date(firstEntryDate).getTime() : 0;
@@ -329,7 +340,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const totalLogins = Number(localStorage.getItem('totalLogins') || '0');
 
     return {
-      usedStorageMB,
       entriesPerWeek,
       maxStreak,
       lexicon,
@@ -522,7 +532,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {s(`${techStats.totalLogins} ${techStats.totalLogins === 1 ? 'login' : 'logins'}`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-              {s(`${techStats.usedStorageMB}/5 MB used`)}
+              {s(`${storageInfo?.used || '0.00'} MB / ${storageInfo?.quota || '5 MB'}`)}
             </div>
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
               {s(`${techStats.lexicon} word lexicon`)}

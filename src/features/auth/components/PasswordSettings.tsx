@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { scrambleText } from '@shared/utils/scramble';
+import { getStatusColors } from '@shared/utils/confirmColor';
 
 type PasswordStep = 'old' | 'new' | 'confirm' | 'set' | 'set-confirm';
 type FlashState = 'none' | 'green' | 'red';
@@ -90,7 +91,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
 
-  const { getColor, hue, saturation, lightness, bgHue } = useTheme();
+  const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Core state
@@ -228,7 +229,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
     }
   }, [isSaving, superscramble]);
 
-  // Click or keypress anywhere to dismiss "password saved" and return to split buttons
+  // Keypress anywhere to dismiss "password saved" and return to split buttons
+  // (clicks are intentional actions, so only dismiss on keystroke)
   useEffect(() => {
     if (!isSaving) return;
 
@@ -237,16 +239,11 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
       setShowInput(false);
     };
 
-    // Use a small delay to avoid the same click that triggered save from dismissing it
-    const timer = setTimeout(() => {
-      window.addEventListener('click', dismiss);
-      window.addEventListener('keydown', dismiss);
-    }, 100);
+    // Use capture phase so this runs BEFORE any stopPropagation calls in buttons/pickers
+    window.addEventListener('keydown', dismiss, true);
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', dismiss);
-      window.removeEventListener('keydown', dismiss);
+      window.removeEventListener('keydown', dismiss, true);
     };
   }, [isSaving]);
 
@@ -316,13 +313,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
   const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
-  // Use cyan for confirm/success when background is green (bgHue 80-160), otherwise green
-  const isBgGreen = bgHue >= 80 && bgHue <= 160;
-  const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
+  // Dynamic status colors: as close to red/green as possible, only avoiding chromatic conflicts
+  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, bgHue, bgSaturation, bgLightness);
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;
-    if (flashState === 'red') return '#ff0000';
+    if (flashState === 'red') return errorColor;
     if (isPressed) return activeColor;
     if (isFocused || isHovered || input) return textColor;
     return dividerColor;
@@ -488,15 +484,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
             }}
           />
 
-          {/* Saved message with clickable overlay */}
+          {/* Saved message (dismiss with keystroke only, not click) */}
           {isSaving && (
-            <div
-              className="absolute inset-0 flex items-center"
-              onClick={() => {
-                setIsSaving(false);
-                setShowInput(false);
-              }}
-            >
+            <div className="absolute inset-0 flex items-center">
               <span className="ml-3.5 text-xs font-mono select-none" style={{ color: confirmColor }}>
                 {superscramble ? <span className="font-bold">{s(savedText)}</span> : renderAnimatedText(savedText, savedBoldCount, savedAnimPhase)}
               </span>

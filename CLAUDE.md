@@ -1147,7 +1147,7 @@ Sidebar Visible → ESC → Lock
 
 ### Resize Transitions
 
-Panel state is preserved across resize using `preNarrowState`.
+State is preserved across resize using `preNarrowState`. Resizing to narrow "agrees to the narrow experience" but preserves your wide-mode intent for when you resize back.
 
 #### Wide → Narrow
 
@@ -1159,26 +1159,42 @@ Panel state is preserved across resize using `preNarrowState`.
 | Panels open | Panels closed (saved) | No room, but state saved for restore |
 
 **State changes:**
-- `preNarrowState` saves `{ showDebugMenu, showAboutPanel }`
+- `preNarrowState` saves `{ showDebugMenu, showAboutPanel, minizen }`
 - `minizen = false` (reset)
 - `showSidebarInNarrow = false` (reset)
 - `closePanels()` (close settings/about)
+- `preFocusState = null` (clear focus mode state)
 - `zenMode` preserved (if in zen, stay in zen)
 
 #### Narrow → Wide
 
 | Before | After | Reason |
 |--------|-------|--------|
-| Default | Full | Show sidebar by default in wide |
-| Sidebar Visible | Full | Sidebar is normal in wide |
+| Default (not committed) | Restore saved state | Panels + minizen restored from preNarrowState |
+| Default (committed) | Full | User interacted in narrow, start fresh |
+| Sidebar Visible | Full or Minizen | Depends on preNarrowState |
 | Zen | Zen | Stay in zen |
-| Panels were open before narrow | Panels restored | State restoration from preNarrowState |
 
 **State changes:**
-- `preNarrowState` restored → panels reopen if they were open
-- `minizen = false` (reset to show sidebar)
+- `preNarrowState` restored → panels AND minizen restored if saved
 - `showSidebarInNarrow = false` (reset)
 - `zenMode` preserved (if in zen, stay in zen)
+
+#### "Committing" to Narrow Mode
+
+Certain interactions in narrow mode clear `preNarrowState`, meaning you've committed to the narrow experience and won't restore wide-mode state on resize back.
+
+**Actions that commit (clear `preNarrowState`):**
+- Toggle sidebar (header click)
+- Open/close panel buttons
+
+**Actions that DON'T commit:**
+- Typing (content creation)
+- Click in editor
+- Scrolling
+- Selecting an entry
+
+This distinction matters: typing and clicking to focus are about **content**, not **UI navigation**. You shouldn't lose your wide-mode state just because you typed something while narrow.
 
 ### Panel Behavior
 
@@ -1322,13 +1338,33 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 ### ESC Priority (checked in order)
 
 1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
-2. **Zen mode** → Exit zen (FIRST check in App.tsx - works even when typing in editor!)
+2. **Zen mode** → Exit zen, restore previous state (works even when typing in editor!)
 3. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
-4. **Minizen mode** → Exit minizen
-5. **Narrow + sidebar hidden** → Show sidebar
-6. **Otherwise** → Lock app
+4. **Minizen mode (wide)** → Exit minizen, restore previous state (including panels)
+5. **Function menus open** → Close all panels (both at once)
+6. **Narrow + sidebar hidden** → Show sidebar
+7. **Base state** → Lock app (sidebar visible, no menus open)
 
 **IMPORTANT:** Zen mode check comes BEFORE the input check. This ensures ESC exits zen even when the user is focused in the editor textarea.
+
+### The ESC Philosophy
+
+**ESC = "Go back to what you were looking at"**
+
+Each ESC press peels back one layer of UI state. You can only lock from the "base state" (sidebar visible, no function menus open). This ensures:
+- No accidental locks from deep states
+- Each ESC is predictable and reversible
+- You always see the lock coming
+
+**Example flow:**
+```
+Wide + powerstat → ESC → Wide + full (panels closed)
+                → ESC → 🔒 LOCKED
+
+Wide + settings → zen → ESC → Wide + settings (restored!)
+                      → ESC → Wide + full
+                      → ESC → 🔒 LOCKED
+```
 
 ### Ref Pattern for Zen Mode
 
@@ -1359,63 +1395,141 @@ This pattern ensures the handler always sees the current zenMode value without r
 
 1. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
 2. **ESC was already handled** - Check `e.defaultPrevented`
-3. **In zen mode** - Exit zen instead of locking
-4. **In minizen mode** - Exit minizen instead of locking
-5. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
+3. **In zen mode** - Exit zen instead
+4. **In minizen mode** - Exit minizen instead
+5. **Function menus open** - Close panels instead
+6. **Narrow + sidebar hidden** - Show sidebar instead
+7. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
 
 ### When ESC SHOULD Lock
 
-1. **Main editor view** - No panels open, not in input, not in zen
-2. **After password saved** - Label says "esc to lock", `isSaving=true`
-3. **Split buttons visible** - No password flow in progress
+**Only from base state:** sidebar visible, no function menus open, not in focus mode.
+
+1. **Wide + full view** - Sidebar visible, no panels, not in minizen/zen
+2. **Narrow + sidebar visible** - No panels open
+3. **After password saved** - Label says "esc to lock", `isSaving=true`
 
 ### Password Flow ESC Behavior
 
 | State | `showInput` | `isSaving` | ESC Result |
 |-------|-------------|------------|------------|
-| Split buttons | `false` | `false` | Lock (no flow active) |
+| Split buttons | `false` | `false` | Close settings (then base state → lock) |
 | "old password" step | `true` | `false` | → Split buttons |
 | "new password" step | `true` | `false` | → "old password" |
 | "confirm" step | `true` | `false` | → "old password" |
 | "password" (set) | `true` | `false` | Blur input (show placeholder) |
 | "one more time" (set-confirm) | `true` | `false` | → "type here" |
-| "password saved" | `true` | `true` | Lock (handler skips) |
+| "password saved" | `true` | `true` | Lock (handler skips, already at base) |
 
 ### Click-to-Dismiss Behavior
 
-Password flows can also be dismissed by clicking outside the input:
+Password flows can be dismissed by clicking outside the input:
 
-- **After "password saved"** - Click anywhere or press any key dismisses message and returns to split buttons
+- **After "password saved"** - Press any key to dismiss (clicks don't dismiss — they're intentional actions)
 - **During "change password" flow** - Click outside input returns to split buttons
 - **During "set password" flow** - Click outside input resets to first step and blurs
 
-**Implementation note:** The click handler uses capture phase (`addEventListener(..., true)`) so it runs before `stopPropagation()` calls in buttons/pickers. This ensures clicking *anywhere* outside the input triggers the dismiss.
+### Keystroke to Dismiss Pattern (IMPORTANT)
 
-### Password Confirm Colors
+Status messages (like "saved. lock with esc" or "3 entries imported") dismiss on **keystroke only**, not clicks. Clicks are intentional actions — the user might be clicking to do something else, not to dismiss the status.
 
-The password input flashes a confirm color on successful entry. To maintain contrast against the BACKGROUND:
+```tsx
+useEffect(() => {
+  if (!showingStatus) return;
 
-| Background Color | Confirm Color | Hex |
-|------------------|---------------|-----|
-| Green (bgHue 80-160) | Cyan | `#0ffffb` |
-| Any other color | Green | `#00ff00` |
+  const dismiss = () => {
+    // Reset state here
+  };
 
-This affects:
-- **Border** - flashes confirm color on success
-- **Input text** - changes to confirm color during flash
-- **"saved. lock with esc"** - animated text displays in confirm color after save
+  // Use capture phase so this runs BEFORE any stopPropagation calls in buttons/pickers
+  window.addEventListener('keydown', dismiss, true);
+
+  return () => {
+    window.removeEventListener('keydown', dismiss, true);
+  };
+}, [showingStatus]);
+```
+
+**Why capture phase?** Many UI components call `e.stopPropagation()` on keydown (buttons, pickers, etc.). Without capture phase, the dismiss handler might not fire. Capture phase runs **before** bubble phase.
+
+**Why keystroke only?**
+- Clicks are intentional — user clicked to do something, not to dismiss
+- Keystrokes indicate "I'm done looking at this status, moving on"
+- If the panel closes, the status naturally disappears with it
+
+**Where this pattern is used:**
+- Password "saved. lock with esc" dismiss (`PasswordSettings.tsx`)
+- Import feedback dismiss (`ExportButtons.tsx`)
+
+### Click Outside to Dismiss (Different Pattern)
+
+For dismissing *interactive flows* (not status messages), click outside IS appropriate:
+
+- Click outside password input → dismiss password flow (`PasswordSettings.tsx`)
+
+This uses capture phase to run before `stopPropagation()` calls.
+
+### Dynamic Status Colors (Confirm & Error)
+
+Both the confirm (success) and error colors are **dynamically calculated** to contrast with the text color, background color, AND each other. Uses **hue AND lightness** for full contrast.
+
+**Algorithm:**
+1. Text and background hues divide the color wheel into two arcs
+2. Find the largest arc (most room for contrast colors)
+3. Place two candidates at 1/3 and 2/3 of the arc
+4. Assign the one **closer to green** (120°) as confirm, the other as error
+5. Set **lightness to contrast with background**:
+   - Dark background (< 50% lightness) → bright status colors (65% lightness)
+   - Light background (≥ 50% lightness) → darker status colors (40% lightness)
+
+```
+Text: 120° (green), Background: 0° (red)
+
+        0° ← background (red)
+          |
+   300°   |   60°
+          |
+270° ─────┼───── 90°
+          |
+   240°   |   120° ← text (green)
+          |
+       180°
+
+Arc from text to background (clockwise): 120° → 360° = 240°
+Candidates: 200° (cyan-ish) and 280° (purple)
+200° is closer to green (120°) → confirm = 200°
+280° is closer to red (0°) → error = 280°
+```
+
+**Why this matters:** Both status colors must:
+1. Be **different from text hue** — so you notice the status change
+2. Be **visible on background** — contrasting lightness (not just hue!)
+3. Be **different from each other** — so success ≠ error
+4. Be **semantically appropriate** — confirm ≈ green, error ≈ red
+
+**Edge cases handled:**
+- Red text + red background → both colors on opposite side of wheel
+- White text + black background → lightness ensures visibility
+- Green text + cyan background → finds colors in largest gap
+- Any combo works — algorithm uses hue distance AND lightness contrast
+
+Code location: `src/shared/utils/confirmColor.ts`
+
+```tsx
+import { getStatusColors } from '@shared/utils/confirmColor';
+const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, bgHue, bgLightness);
+```
+
+**Used in:**
+- Password success/error states (`PasswordSettings.tsx`)
+- Import success/error feedback (`ExportButtons.tsx`)
+
+### Password Input Labels
 
 **No title labels:** Password flows have no labels above the input. The placeholder text indicates the current step:
 - "set password" → "one more time" (new password flow)
 - "old password" → "new password" → "new password again" (change flow)
 - "saved. lock with esc" (after successful save, with bold sweep animation)
-
-Code location: `src/features/auth/components/PasswordSettings.tsx`
-
-```tsx
-const isBgGreen = bgHue >= 80 && bgHue <= 160;
-const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
-```
 
 ### Password Input Styling
 
@@ -1723,3 +1837,70 @@ When pushing changes:
 The version displays in the app title ("good days v1.0.1") only when the about panel is open.
 
 This lets the user verify which build is deployed by opening the about panel and checking the version. If the version doesn't match, they know the deploy hasn't completed or there's a cache issue.
+
+## Storage Architecture
+
+### IndexedDB (Journal Entries)
+
+Journal entries are stored in IndexedDB for effectively unlimited storage (localStorage has a 5MB limit).
+
+| Property | Value |
+|----------|-------|
+| Database name | `good-days` |
+| Version | 1 |
+| Object stores | `entries` (keyPath: `date`), `metadata` (keyPath: `key`) |
+
+**Code location**: `src/shared/storage/journalStorage.ts`
+
+### Migration Behavior
+
+On app startup, the storage module checks for existing localStorage data:
+
+```
+App starts
+    ↓
+localStorage has 'journalEntries'?
+    ├── YES → Open IndexedDB → Write entries → Verify count → Delete localStorage key
+    └── NO  → Load from IndexedDB directly
+```
+
+**Safety**: localStorage is only deleted AFTER IndexedDB write is verified (count matches).
+
+### Fallback Mode
+
+If IndexedDB fails (e.g., private browsing mode), the app falls back to localStorage:
+
+- `isInFallbackMode()` returns `true` when in fallback
+- All operations work the same, just using localStorage
+- Users won't notice any difference except the 5MB limit
+
+### What Stays in localStorage
+
+Small settings that benefit from synchronous access:
+
+| Category | Keys |
+|----------|------|
+| Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, etc. |
+| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled` |
+| Auth | `passwordHash` |
+| Statistics | `totalKeystrokes`, `totalSecondsOnApp`, `totalLogins` |
+| Easter eggs | `easterEggs` |
+| Scroll positions | `settingsScrollTop`, `aboutScrollTop`, `scrollPosition:*` |
+
+### Storage Display (Powerstat Mode)
+
+In powerstat mode, storage usage shows IndexedDB quota via `navigator.storage.estimate()`:
+
+- Format: `{used}/{quota} MB used`
+- Large quotas (>1GB) display as `∞` (effectively unlimited)
+- Fallback: calculates localStorage usage if Storage API unavailable
+
+### Functions
+
+| Function | Purpose |
+|----------|---------|
+| `initJournalStorage()` | Opens DB, migrates if needed, returns all entries |
+| `saveAllJournalEntries(entries)` | Bulk save (fire-and-forget async) |
+| `getStorageEstimate()` | Returns `{ used, quota }` in bytes |
+| `isInFallbackMode()` | True if using localStorage instead of IndexedDB |
+| `clearJournalStorage()` | Clears all journal data (for reset) |

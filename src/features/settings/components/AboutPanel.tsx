@@ -79,7 +79,7 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
             {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
           </p>
           <p>
-            {s("all data added lives on your hard drive in a file called localStorage. the website pulls from it to display your text, but entries never leave the hardware on your device.")}
+            {s("all data added lives on your hard drive in something called IndexedDB — local storage for large, long-term data. the website pulls from it to display your text, but entries never leave the hardware on your device.")}
           </p>
           <p>
             {s("as a safety guarantee, all the code is open source.")}{' '}
@@ -94,6 +94,9 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
               <ExternalLink className="w-4 h-4" />
               {s("github")}
             </a>
+          </p>
+          <p>
+            {s("one caveat: safari wipes browser data after 7 days of inactivity. backup often if that's your window of choice.")}
           </p>
         </div>
       </div>

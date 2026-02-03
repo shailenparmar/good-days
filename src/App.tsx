@@ -10,13 +10,14 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
+import { saveAllJournalEntries } from '@shared/storage/journalStorage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.6.50';
+const VERSION = '1.7.1';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -141,6 +142,7 @@ function AppContent() {
   const [preNarrowState, setPreNarrowState] = useState<{
     showDebugMenu: boolean;
     showAboutPanel: boolean;
+    minizen: boolean;
   } | null>(null);
 
   // Exit zen mode and restore previous state (including panels)
@@ -220,27 +222,28 @@ function AppContent() {
       // Mode transition handling
       if (narrow !== wasNarrow) {
         if (narrow && !wasNarrow) {
-          // Wide → Narrow: save panel state, then close (no room for them)
+          // Wide → Narrow: save state (panels + minizen), then close (no room for them)
           // If in focus mode (zen/minizen), use preFocusState's values (what was open before focus mode)
-          const panelsToSave = preFocusState
-            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel }
-            : { showDebugMenu, showAboutPanel };
-          setPreNarrowState(panelsToSave);
+          const stateToSave = preFocusState
+            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel, minizen }
+            : { showDebugMenu, showAboutPanel, minizen };
+          setPreNarrowState(stateToSave);
           closePanels();
           // Clear focus mode state so exiting zen/minizen doesn't reopen panels
           setPreFocusState(null);
           setZenFromMinizen(false);
+          setMinizen(false);
+          setShowSidebarInNarrow(false);
         } else if (!narrow && wasNarrow) {
-          // Narrow → Wide: restore panel state
+          // Narrow → Wide: restore state (panels + minizen) if not committed to narrow
           if (preNarrowState) {
             setShowDebugMenu(preNarrowState.showDebugMenu);
             setShowAboutPanel(preNarrowState.showAboutPanel);
+            setMinizen(preNarrowState.minizen);
             setPreNarrowState(null);
           }
+          setShowSidebarInNarrow(false);
         }
-        // Both directions: reset sidebar states (but preserve zen!)
-        setShowSidebarInNarrow(false);
-        setMinizen(false);
         // zenMode is preserved - if in zen, stay in zen
       }
     };
@@ -317,9 +320,10 @@ function AppContent() {
 
   // ESC key behavior (priority order):
   // 1. In zen mode: exit zen and restore previous state (even if in textarea!)
-  // 2. In minizen (wide): exit minizen (show sidebar)
-  // 3. In narrow mode with sidebar hidden: show sidebar
-  // 4. Otherwise: lock the app
+  // 2. In minizen (wide): exit minizen (restore panels)
+  // 3. Function menus open: close them
+  // 4. In narrow mode with sidebar hidden: show sidebar
+  // 5. Base state (sidebar visible, no menus): lock the app
   // DON'T act when:
   // - User is in an input field (EXCEPT in zen mode - ESC should always exit zen)
   // - ESC was already handled by another component (via e.defaultPrevented)
@@ -349,13 +353,19 @@ function AppContent() {
           return;
         }
 
+        // Function menus open: close them (both at once)
+        if (showDebugMenu || showAboutPanel) {
+          closePanels();
+          return;
+        }
+
         // In narrow mode with sidebar hidden: show sidebar
         if (isNarrow && !showSidebarInNarrow) {
           setShowSidebarInNarrow(true);
           return;
         }
 
-        // Otherwise: save and lock
+        // Base state (sidebar visible, no menus): save and lock
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.value || '', Date.now());
         }
@@ -364,7 +374,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow]);
+  }, [auth, journal, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel, closePanels]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
   // Only works when viewing today's entry (past entries are read-only)
@@ -479,6 +489,23 @@ function AppContent() {
       markEasterEggFound('superscrambleTyping');
     }
   };
+
+  // Loading screen during IndexedDB init/migration
+  if (journal.isLoading) {
+    return (
+      <div
+        className="flex h-screen items-center justify-center"
+        style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
+      >
+        <span
+          className="text-base font-mono font-bold"
+          style={{ color: getColor() }}
+        >
+          loading...
+        </span>
+      </div>
+    );
+  }
 
   // Lock screen (only show if password is set)
   if (auth.isLocked && auth.hasPassword) {
@@ -649,7 +676,7 @@ function AppContent() {
         entries={journal.entries}
         onImport={(entries) => {
           journal.setEntries(entries);
-          setItem('journalEntries', JSON.stringify(entries));
+          saveAllJournalEntries(entries);
           setEditorKey(k => k + 1); // Force editor remount to show imported content
         }}
         onCloseAbout={() => setShowAboutPanel(false)}

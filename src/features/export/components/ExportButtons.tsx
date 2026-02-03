@@ -7,6 +7,7 @@ import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup }
 import { FunctionButton } from '@shared/components';
 import { getItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
+import { getStatusColors } from '@shared/utils/confirmColor';
 import { useTheme } from '@features/theme';
 
 interface ExportButtonsProps {
@@ -28,27 +29,23 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
   const [importHovered, setImportHovered] = useState(false);
-  const { bgHue } = useTheme();
-  const isBgGreen = bgHue >= 80 && bgHue <= 160;
-  const confirmColor = isBgGreen ? '#0ffffb' : '#00ff00';
-  const errorColor = '#ff0000';
+  const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
+  const importWrapperRef = useRef<HTMLDivElement>(null);
+  const { hue, saturation, bgHue, bgSaturation, bgLightness } = useTheme();
+  // Dynamic status colors: as close to red/green as possible, only avoiding chromatic conflicts
+  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, bgHue, bgSaturation, bgLightness);
 
-  // Dismiss import feedback on click or key anywhere
+  // Dismiss import feedback on keystroke (clicks are intentional actions)
   useEffect(() => {
     if (!importFeedback) return;
 
     const dismiss = () => setImportFeedback(null);
 
-    // Small delay to avoid the import click from immediately dismissing
-    const timer = setTimeout(() => {
-      window.addEventListener('click', dismiss);
-      window.addEventListener('keydown', dismiss);
-    }, 100);
+    // Use capture phase so this runs BEFORE any stopPropagation calls in buttons/pickers
+    window.addEventListener('keydown', dismiss, true);
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', dismiss);
-      window.removeEventListener('keydown', dismiss);
+      window.removeEventListener('keydown', dismiss, true);
     };
   }, [importFeedback]);
 
@@ -173,11 +170,23 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
       </FunctionButton>
       <div
-        onMouseEnter={() => setImportHovered(true)}
-        onMouseLeave={() => setImportHovered(false)}
+        ref={importWrapperRef}
+        style={lockedDimensions ? { minWidth: lockedDimensions.width, minHeight: lockedDimensions.height } : undefined}
+        onMouseEnter={() => {
+          // Lock hitbox to current size before text changes
+          if (importWrapperRef.current) {
+            const rect = importWrapperRef.current.getBoundingClientRect();
+            setLockedDimensions({ width: rect.width, height: rect.height });
+          }
+          setImportHovered(true);
+        }}
+        onMouseLeave={() => {
+          setImportHovered(false);
+          setLockedDimensions(null);
+        }}
       >
         <FunctionButton
-          onClick={importFeedback ? () => setImportFeedback(null) : handleImport}
+          onClick={handleImport}
           size="sm"
           overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
         >

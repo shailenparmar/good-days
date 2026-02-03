@@ -1,40 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getItem, setItem, forceSave } from '@shared/storage';
+import { getItem, setItem } from '@shared/storage';
+import { initJournalStorage, saveAllJournalEntries } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
-
-// Validate a single journal entry
-function isValidEntry(entry: unknown): entry is JournalEntry {
-  if (typeof entry !== 'object' || entry === null) return false;
-  const e = entry as Record<string, unknown>;
-  if (typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return false;
-  if (typeof e.content !== 'string') return false;
-  if (e.title !== undefined && typeof e.title !== 'string') return false;
-  if (e.startedAt !== undefined && typeof e.startedAt !== 'number') return false;
-  if (e.lastModified !== undefined && typeof e.lastModified !== 'number') return false;
-  return true;
-}
-
-// Safely parse and validate journal entries from storage
-function parseAndValidateEntries(json: string): JournalEntry[] {
-  try {
-    const parsed = JSON.parse(json);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidEntry);
-  } catch {
-    console.error('Failed to parse journal entries');
-    return [];
-  }
-}
-
-// Load entries synchronously at initialization
-function loadEntriesFromStorage(): JournalEntry[] {
-  const saved = getItem('journalEntries');
-  if (saved) {
-    return parseAndValidateEntries(saved);
-  }
-  return [];
-}
 
 // Convert HTML to plain text, preserving line breaks for word counting
 export function htmlToText(html: string): string {
@@ -49,8 +17,9 @@ export function htmlToText(html: string): string {
 }
 
 export function useJournalEntries() {
-  // Load entries SYNCHRONOUSLY during initialization - never start with empty array
-  const [entries, setEntries] = useState<JournalEntry[]>(() => loadEntriesFromStorage());
+  // Start with empty entries - will be loaded async from IndexedDB
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDateState] = useState<string>(() => {
     // Restore last viewed date, or default to today
     const saved = getItem('selectedDate');
@@ -75,10 +44,34 @@ export function useJournalEntries() {
     entriesRef.current = entries;
   }, [entries]);
 
-  // Force save before closing
+  // Load entries from IndexedDB on mount
+  useEffect(() => {
+    let mounted = true;
+
+    initJournalStorage().then(loadedEntries => {
+      if (!mounted) return;
+
+      setEntries(loadedEntries);
+      entriesRef.current = loadedEntries;
+      setIsLoading(false);
+
+      // Update current content for selected date
+      const entry = loadedEntries.find(e => e.date === selectedDate);
+      setCurrentContent(htmlToText(entry?.content || ''));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Only run on mount
+
+  // Force save before closing - use sync localStorage as backup
   useEffect(() => {
     const handleBeforeUnload = () => {
-      forceSave();
+      // Save to localStorage as backup for unload (IndexedDB may not complete)
+      if (entriesRef.current.length > 0) {
+        localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -86,6 +79,8 @@ export function useJournalEntries() {
 
   // Ensure today's entry always exists
   useEffect(() => {
+    if (isLoading) return; // Wait for initial load
+
     const today = getTodayDate();
     const todayEntry = entries.find(e => e.date === today);
 
@@ -98,9 +93,9 @@ export function useJournalEntries() {
 
       entriesRef.current = newEntries;
       setEntries(newEntries);
-      setItem('journalEntries', JSON.stringify(newEntries));
+      saveAllJournalEntries(newEntries);
     }
-  }, [entries]);
+  }, [entries, isLoading]);
 
   // Wrapper to persist selected date to localStorage
   const setSelectedDate = useCallback((date: string) => {
@@ -110,6 +105,8 @@ export function useJournalEntries() {
 
   // Handle date changes - update currentContent and lastTypedTime
   useEffect(() => {
+    if (isLoading) return; // Wait for initial load
+
     const isDateSwitch = previousDate.current !== null && previousDate.current !== selectedDate;
 
     const entry = entries.find(e => e.date === selectedDate);
@@ -123,7 +120,7 @@ export function useJournalEntries() {
     }
 
     previousDate.current = selectedDate;
-  }, [selectedDate, entries]);
+  }, [selectedDate, entries, isLoading]);
 
   // Save content
   const saveEntry = useCallback((content: string, timestamp?: number) => {
@@ -186,8 +183,8 @@ export function useJournalEntries() {
 
     newEntries.sort((a, b) => b.date.localeCompare(a.date));
 
-    // Save to localStorage IMMEDIATELY (synchronous, before React can batch)
-    setItem('journalEntries', JSON.stringify(newEntries));
+    // Save to IndexedDB (fire-and-forget async)
+    saveAllJournalEntries(newEntries);
 
     // Update ref immediately too
     entriesRef.current = newEntries;
@@ -195,7 +192,7 @@ export function useJournalEntries() {
     // Clear pending save since we just saved
     pendingSaveRef.current = null;
 
-    // Update React state (can be batched, but localStorage already has the data)
+    // Update React state (can be batched, but IndexedDB already has the data)
     setEntries(newEntries);
 
     lastTypedTime.current = now;
@@ -214,30 +211,29 @@ export function useJournalEntries() {
         title: title.trim() || undefined, // Remove title if empty
       };
 
-      setItem('journalEntries', JSON.stringify(newEntries));
+      saveAllJournalEntries(newEntries);
+      entriesRef.current = newEntries;
       return newEntries;
     });
   }, []);
 
   // Reload entries from storage (used after unlock)
-  const reloadEntries = useCallback(() => {
-    const saved = getItem('journalEntries');
-    if (saved) {
-      const loadedEntries = parseAndValidateEntries(saved);
-      setEntries(loadedEntries);
+  const reloadEntries = useCallback(async () => {
+    const loadedEntries = await initJournalStorage();
+    setEntries(loadedEntries);
+    entriesRef.current = loadedEntries;
 
-      const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
-      const content = entry?.content || '';
-      setCurrentContent(content);
-      return content;
-    }
-    return '';
+    const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
+    const content = entry?.content || '';
+    setCurrentContent(content);
+    return content;
   }, [selectedDate]);
 
   return {
     entries,
     selectedDate,
     currentContent,
+    isLoading,
     setEntries,
     setSelectedDate,
     setCurrentContent,
