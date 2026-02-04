@@ -65,8 +65,8 @@ function MobileScreen() {
   const [editing, setEditing] = useState<'picking' | null>(null);
 
   // Touch Y positions for hue indicators (0-1)
-  const [bgTouchY, setBgTouchY] = useState(0);
-  const [textTouchY, setTextTouchY] = useState(0);
+  const [, setBgTouchY] = useState(0);
+  const [, setTextTouchY] = useState(0);
 
   // Tilt values for sat/brightness (-1 to 1)
   const [tiltX, setTiltX] = useState(0);
@@ -157,7 +157,7 @@ function MobileScreen() {
   };
 
   // Process touch - uses activeSide to know which bar, only needs Y position
-  const processTouchAt = useCallback((y: number, source?: string) => {
+  const processTouchAt = useCallback((y: number, _source?: string) => {
     // Use whichever bar exists to get the Y mapping
     const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
     if (!bar) {
@@ -427,7 +427,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.5';
+  const mobileVersion = '1.10.6';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -440,7 +440,7 @@ function MobileScreen() {
   const cornerW = 4;
 
   // Corner brackets - 4 L-shaped pieces at corners
-  const cornerBrackets = (size: number, color: string) => (
+  const cornerBrackets = (_size: number, color: string) => (
     <>
       {/* Top-left */}
       <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />

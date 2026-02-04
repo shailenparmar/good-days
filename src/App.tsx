@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.10.5';
+const VERSION = '1.10.6';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -144,6 +144,7 @@ function AppContent() {
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
   const [titleHovered, setTitleHovered] = useState(false);
+  const titleRef = useRef<HTMLDivElement>(null);
   // State saved before narrowing window (panels close in narrow, restore on widen)
   const [preNarrowState, setPreNarrowState] = useState<{
     showDebugMenu: boolean;
@@ -217,6 +218,18 @@ function AppContent() {
   const closePanels = useCallback(() => {
     setShowDebugMenu(false);
     setShowAboutPanel(false);
+  }, []);
+
+  // Title hover detection via coordinates (bypasses z-index overlay)
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!titleRef.current) { setTitleHovered(false); return; }
+      const rect = titleRef.current.getBoundingClientRect();
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      setTitleHovered(inside);
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   useEffect(() => {
@@ -596,15 +609,11 @@ function AppContent() {
             borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <div
-            className="p-4"
-            onMouseEnter={() => setTitleHovered(true)}
-            onMouseLeave={() => setTitleHovered(false)}
-          >
+          <div className="p-4" ref={titleRef}>
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {isSuperscramble
-                ? scrambleText(titleHovered ? `v${VERSION}` : 'good days')
-                : (titleHovered ? `v${VERSION}` : 'good days')}
+                ? scrambleText(titleHovered ? `good days v${VERSION}` : 'good days')
+                : (titleHovered ? `good days v${VERSION}` : 'good days')}
             </h1>
           </div>
 
