@@ -1086,7 +1086,7 @@ Note: The iOS "Allow Paste" banner when reading clipboard via `navigator.clipboa
 
 ### Title Version Display
 
-Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.3"). Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.4"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
 **IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/App.tsx` on every push.
 
