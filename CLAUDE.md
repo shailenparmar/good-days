@@ -801,7 +801,7 @@ All opacities in the app follow this hierarchy:
 | Tier | Opacity | Use |
 |------|---------|-----|
 | **Full** | 100% | Text content, active states |
-| **Strong** | 85% | Panel lines, dividers, placeholders, link hover |
+| **Strong** | 85% | Panel lines, dividers, placeholders |
 | **Medium** | 60% | Resting borders (buttons/inputs) |
 | **Muted** | 50% | Disabled states |
 | **Subtle** | 20% | Hover backgrounds |
@@ -812,7 +812,7 @@ All opacities in the app follow this hierarchy:
 - Panel lines (6px borders): `hsla(..., 0.85)`
 - Dividers (2px borders): `hsla(..., 0.85)`
 - Placeholder text: `opacity: 0.85`
-- Link hover: `hover:opacity-85`
+- GitHub link hover: instant color change to confirm color (no transition)
 
 **60% opacity:**
 - FunctionButton border default

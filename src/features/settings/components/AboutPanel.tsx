@@ -1,7 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { ExternalLink } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
+import { getStatusColors } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
 
 interface AboutPanelProps {
@@ -25,6 +26,8 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const [linkHovered, setLinkHovered] = useState(false);
+  const { confirm: confirmColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
 
   // Calculate About width to keep right edge aligned
   // With border-box, the 6px border is inside the width value
@@ -102,8 +105,10 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
-              className="inline-flex items-center gap-1 transition-opacity hover:opacity-85 outline-none"
-              style={{ color: getColor() }}
+              className="inline-flex items-center gap-1 outline-none"
+              style={{ color: linkHovered ? confirmColor : getColor() }}
+              onMouseEnter={() => setLinkHovered(true)}
+              onMouseLeave={() => setLinkHovered(false)}
             >
               <ExternalLink className="w-4 h-4" />
               {s("GitHub")}
@@ -117,7 +122,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>{s("features:")}</p>
           <p>{s("a new page spawns at midnight; old logs are set in stone.")}</p>
-          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about megazord for powerstats.")}</p>
+          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about join forces for a poweruser menu.")}</p>
           <p>{s("write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.")}</p>
         </div>
       </div>
