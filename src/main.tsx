@@ -221,7 +221,7 @@ function MobileScreen() {
       const betaDelta = beta - baseline.current.beta;
       const gammaDelta = gamma - baseline.current.gamma;
 
-      const maxTilt = 9;
+      const maxTilt = 10;
 
       // Always update tilt visualization (home + picker)
       setTiltY(Math.max(-1, Math.min(1, betaDelta / maxTilt)));
@@ -427,7 +427,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.6';
+  const mobileVersion = '1.10.7';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -440,25 +440,37 @@ function MobileScreen() {
   const cornerW = 4;
 
   // Corner brackets - 4 L-shaped pieces at corners
-  const cornerBrackets = (_size: number, color: string) => (
-    <>
-      {/* Top-left */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-      <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
-      {/* Top-right */}
-      <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-      <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
-      {/* Bottom-left */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
-      {/* Bottom-right */}
-      <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-      <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
-    </>
-  );
+  const cornerBrackets = (_size: number, color: string, showLabels?: boolean) => {
+    const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
+    return (
+      <>
+        {/* Top-left */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {/* Top-right */}
+        <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {/* Bottom-left */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {/* Bottom-right */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {/* Edge midpoint labels - only in picker, centered ON the edge lines */}
+        {showLabels && (
+          <>
+            <span style={{ ...labelStyle, top: 0, left: '50%' }}>white</span>
+            <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 50%)' }}>black</span>
+            <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-50%, -50%)' }}>gray</span>
+            <span style={{ ...labelStyle, right: 0, left: 'auto', top: '50%', transform: 'translate(50%, -50%)' }}>vivid</span>
+          </>
+        )}
+      </>
+    );
+  };
 
   // Tilt square - corner brackets, +, dot, all in text color
-  const tiltSquare = (size: number) => {
+  const tiltSquare = (size: number, showLabels?: boolean) => {
     const dotTravel = (size / 2) - 10;
     const plusArm = cornerLen / 2;
     return (
@@ -470,10 +482,14 @@ function MobileScreen() {
           flexShrink: 0,
         }}
       >
-        {cornerBrackets(size, textColor)}
-        {/* + at center - same thickness as corners */}
-        <div style={{ position: 'absolute', left: '50%', top: `calc(50% - ${plusArm}px)`, width: `${cornerW}px`, height: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateX(-50%)' }} />
-        <div style={{ position: 'absolute', top: '50%', left: `calc(50% - ${plusArm}px)`, height: `${cornerW}px`, width: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateY(-50%)' }} />
+        {cornerBrackets(size, textColor, showLabels)}
+        {/* + at center - only on home screen */}
+        {!showLabels && (
+          <>
+            <div style={{ position: 'absolute', left: '50%', top: `calc(50% - ${plusArm}px)`, width: `${cornerW}px`, height: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateX(-50%)' }} />
+            <div style={{ position: 'absolute', top: '50%', left: `calc(50% - ${plusArm}px)`, height: `${cornerW}px`, width: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateY(-50%)' }} />
+          </>
+        )}
         {/* Dot - text color, no border */}
         <div
           style={{
@@ -552,19 +568,7 @@ function MobileScreen() {
 
         {/* Square complex - centered between title and spectrum */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative' }}>
-            {tiltSquare(252)}
-            {/* Left: Saturation label - positioned outside square */}
-            <div style={{ position: 'absolute', right: 'calc(100% + 8px)', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>sat</span>
-              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>{activeSide.current === 'left' ? colors.bgSat : colors.sat}</span>
-            </div>
-            {/* Right: Lightness label - positioned outside square */}
-            <div style={{ position: 'absolute', left: 'calc(100% + 8px)', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>light</span>
-              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>{activeSide.current === 'left' ? colors.bgLight : colors.light}</span>
-            </div>
-          </div>
+          {tiltSquare(252, true)}
         </div>
 
         {/* Hue bars - sized to match home screen button area */}
@@ -583,7 +587,7 @@ function MobileScreen() {
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
               <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.bgHue / 360) * 100}% - 2px)`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'left' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -598,7 +602,7 @@ function MobileScreen() {
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
               <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.hue / 360) * 100}% - 2px)`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'right' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -658,9 +662,11 @@ function MobileScreen() {
               onTouchStart={(e) => { e.preventDefault(); setPastePressed(true); }}
               onTouchEnd={(e) => { e.preventDefault(); setPastePressed(false); handlePaste(); }}
               onTouchCancel={() => setPastePressed(false)}
-              style={getButtonStyle(pastePressed, 'right')}
+              style={{ ...getButtonStyle(pastePressed, 'right'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
+              role="button"
+              tabIndex={-1}
             >
-              paste
+              <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
             </div>
           </div>
 

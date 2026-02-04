@@ -988,11 +988,11 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 ```
 ┌────────────────────────────────┐
 │          good days             │  ← title, same position as home
-│                                │
-│    sat ┌────────┐ light        │  ← square centered between
-│     50 │   ●    │  50          │     title and spectrum
+│            white               │
+│   gray ┌────────┐ vivid       │  ← square centered, labels at
+│        │   ●    │             │     edge midpoints (no +, no stats)
 │        └────────┘              │
-│                                │
+│            black               │
 ├───────────────┬────────────────┤
 │  background   │      text      │  ← Labels (black)
 │ ──────────────│────────────────│  ← Horizontal hue indicators
@@ -1032,12 +1032,14 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 | Left/Right (gamma) | Saturation | Left = 0%, Flat = 50%, Right = 100% |
 | Forward/Back (beta) | Lightness | Forward = 5%, Flat = 50%, Back = 95% |
 
-**Max tilt angle**: ±15° to reach extremes
+**Max tilt angle**: ±10° to reach extremes (20° total range)
 
 The sat/light square shows:
 - Dot position indicates current tilt
-- Left number = saturation (0-100)
-- Right number = lightness (5-95)
+- Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
+- Labels are centered ON the edge lines (straddling them), 16px monospace bold
+- No sat/light number stats (removed in v1.10.7)
+- The + crosshair only shows on the home screen, not in the picker
 
 ### Button Styling
 
@@ -1080,13 +1082,27 @@ Colors persist to `localStorage` key `mobileColors`:
 
 ### Context Menu Prevention
 
-A global `contextmenu` event listener prevents the iOS Safari long-press context menu (Writing Tools, paste popover) from appearing on any element. This keeps buttons feeling like native controls.
+A global `contextmenu` event listener prevents the iOS Safari long-press context menu from appearing on any element.
 
-Note: The iOS "Allow Paste" banner when reading clipboard via `navigator.clipboard.readText()` is a security requirement and cannot be suppressed.
+The paste button uses additional measures to prevent iOS Writing Tools:
+- Text rendered as split character expressions (`{'p'}{'a'}{'s'}{'t'}{'e'}`) so iOS can't pattern-match the word
+- `pointerEvents: 'none'` on the text span
+- `role="button"`, `tabIndex={-1}` on the button div
+- `-webkit-touch-callout: none`, `-webkit-user-select: none` on the button div
+
+Note: The iOS "Paste" callout when reading clipboard via `navigator.clipboard.readText()` is a system requirement and cannot be suppressed or dismissed by tapping outside.
+
+### Hue Indicator Clamping
+
+The horizontal hue indicators use `clamp()` to stay within bar bounds:
+```css
+top: clamp(0px, calc(X% - 2px), calc(100% - 4px))
+```
+This prevents the 4px indicator from overflowing above the bar at hue 0 or below at hue 360.
 
 ### Title Version Display
 
-Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.6"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
 **IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/App.tsx` on every push.
 
