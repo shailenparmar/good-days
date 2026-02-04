@@ -425,6 +425,10 @@ function MobileScreen() {
   // Set tilt button press state
   const [setTiltPressed, setSetTiltPressed] = useState(false);
 
+  // Title hold to show version
+  const [titlePressed, setTitlePressed] = useState(false);
+  const mobileVersion = '1.10.3';
+
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
     color: textColor, fontFamily: 'monospace', fontWeight: 800,
@@ -493,7 +497,12 @@ function MobileScreen() {
     const tiltFillColor = setTiltPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
     return (
       <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        <span style={titleStyle}>good days</span>
+        <span
+          style={titleStyle}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
+          onTouchEnd={() => setTitlePressed(false)}
+          onTouchCancel={() => setTitlePressed(false)}
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
         <div style={{ flex: 1 }} />
         <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
           <div
@@ -534,7 +543,12 @@ function MobileScreen() {
           zIndex: isPicking ? 10 : -1,
         } as React.CSSProperties}
       >
-        <span style={titleStyle}>good days</span>
+        <span
+          style={titleStyle}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
+          onTouchEnd={() => setTitlePressed(false)}
+          onTouchCancel={() => setTitlePressed(false)}
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
         {/* Square complex - centered between title and spectrum */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -609,7 +623,12 @@ function MobileScreen() {
           zIndex: isPicking ? -1 : 1,
         } as React.CSSProperties}
       >
-        <span style={titleStyle}>good days</span>
+        <span
+          style={titleStyle}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
+          onTouchEnd={() => setTitlePressed(false)}
+          onTouchCancel={() => setTitlePressed(false)}
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
         {/* Square complex - centered between title and buttons */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

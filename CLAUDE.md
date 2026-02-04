@@ -1084,6 +1084,12 @@ A global `contextmenu` event listener prevents the iOS Safari long-press context
 
 Note: The iOS "Allow Paste" banner when reading clipboard via `navigator.clipboard.readText()` is a security requirement and cannot be suppressed.
 
+### Title Version Display
+
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.3"). Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
+
+**IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/App.tsx` on every push.
+
 ### Haptic Feedback
 
 | Event | Pattern |
