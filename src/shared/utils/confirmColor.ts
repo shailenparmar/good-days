@@ -1,15 +1,15 @@
 /**
- * Calculates status colors (confirm/error) with smooth transitions.
+ * Calculates status colors (confirm/error) that are always readable and
+ * visually distinct from both the background and the user's text color.
  *
- * Simple algorithm:
- * 1. Hues are FIXED: red (0°) for error, green (120°) for confirm
- * 2. Only lightness adjusts to achieve 4.5:1 contrast with background
- * 3. Smooth sigmoid blend between dark/light at the luminance crossover
- *
- * This guarantees:
- * - Always readable (WCAG 4.5:1 standard)
- * - Always semantically correct (red = error, green = confirm)
- * - Smooth continuous transitions as background changes
+ * Algorithm:
+ * 1. Hue avoidance: if the ideal hue (green/red) is too close to the text
+ *    color, smoothly shift toward a fallback hue on the opposite side.
+ *    Two fallbacks per color ensure the shift always goes AWAY from text.
+ * 2. Lightness solver: binary search for dark and light solutions that meet
+ *    the contrast target, then sigmoid blend based on background luminance.
+ * 3. Contrast safety net: if the sigmoid blend lands in the dead zone
+ *    (mid-tone backgrounds), snap to whichever direction gives better contrast.
  */
 
 // ============ Color Conversion ============
@@ -43,12 +43,62 @@ function getLuminanceForHsl(h: number, s: number, l: number): number {
   return getLuminance(r, g, b);
 }
 
-// ============ Core Algorithm ============
+// ============ Constants ============
 
 const RED_HUE = 0;
 const GREEN_HUE = 120;
 const SATURATION = 100;
-const TARGET_CONTRAST = 4.5;
+const TARGET_CONTRAST = 3.5;
+const MIN_HUE_DISTANCE = 60;
+
+// Two fallbacks per color: CW (clockwise) and CCW (counter-clockwise).
+// The algorithm picks the one on the opposite side of the ideal from text,
+// so the lerp path always moves AWAY from the text hue.
+const CONFIRM_FB_CW = 210;   // blue — when text is CCW from green (e.g. ~80°)
+const CONFIRM_FB_CCW = 60;   // yellow-green — when text is CW from green (e.g. ~150°)
+const ERROR_FB_CW = 50;      // orange — when text is CCW from red (e.g. ~330°)
+const ERROR_FB_CCW = 310;    // magenta — when text is CW from red (e.g. ~30°)
+
+// ============ Hue Avoidance ============
+
+function hueDist(a: number, b: number): number {
+  const d = Math.abs(((a - b) % 360 + 360) % 360);
+  return Math.min(d, 360 - d);
+}
+
+function lerpHue(a: number, b: number, t: number): number {
+  const diff = ((b - a + 540) % 360) - 180;
+  return ((a + diff * t) % 360 + 360) % 360;
+}
+
+/**
+ * If the ideal hue is within MIN_HUE_DISTANCE of the text hue,
+ * smoothly blend toward a fallback. The fallback is chosen on the
+ * opposite side of the ideal from the text, so the path never crosses
+ * through the text hue.
+ */
+function adjustHue(
+  idealHue: number,
+  fbCW: number,
+  fbCCW: number,
+  textHue: number,
+): number {
+  const dist = hueDist(idealHue, textHue);
+  if (dist >= MIN_HUE_DISTANCE) return idealHue;
+
+  // Which side is text? CW degrees from ideal to text.
+  const cwDist = ((textHue - idealHue) % 360 + 360) % 360;
+  // Text is CW → push CCW (and vice versa)
+  const fallback = cwDist <= 180 ? fbCCW : fbCW;
+
+  // Smoothstep: 0 at zone edge, 1 at dead center
+  const t = 1 - dist / MIN_HUE_DISTANCE;
+  const smooth = t * t * (3 - 2 * t);
+
+  return lerpHue(idealHue, fallback, smooth);
+}
+
+// ============ Lightness Solver ============
 
 /**
  * Find lightness that achieves target contrast, with smooth transitions.
@@ -56,11 +106,15 @@ const TARGET_CONTRAST = 4.5;
  * Light backgrounds → dark status colors
  * Dark backgrounds → light status colors
  * Sigmoid blend at the crossover for smooth transitions
+ *
+ * Safety net: if the sigmoid blend produces a value that doesn't meet
+ * contrast (happens on mid-tone backgrounds), snap to whichever direction
+ * gives better contrast.
  */
 function solveLightness(hue: number, bgLum: number): number {
   const getLum = (l: number) => getLuminanceForHsl(hue, SATURATION, l);
 
-  // Find darkest lightness that achieves target (binary search from 50 down)
+  // Find darkest lightness that achieves target (binary search 0-50)
   let darkL = 0;
   {
     let lo = 0, hi = 50;
@@ -72,7 +126,7 @@ function solveLightness(hue: number, bgLum: number): number {
     darkL = lo;
   }
 
-  // Find lightest lightness that achieves target (binary search from 50 up)
+  // Find lightest lightness that achieves target (binary search 50-100)
   let lightL = 100;
   {
     let lo = 50, hi = 100;
@@ -85,17 +139,23 @@ function solveLightness(hue: number, bgLum: number): number {
   }
 
   // Smooth sigmoid blend based on background luminance
-  // Light bg (high lum) → prefer dark status (t → 1)
-  // Dark bg (low lum) → prefer light status (t → 0)
   const t = 1 / (1 + Math.exp(-15 * (bgLum - 0.18)));
+  let result = lightL * (1 - t) + darkL * t;
 
-  return lightL * (1 - t) + darkL * t;
+  // Safety net: verify contrast, snap if blend failed
+  if (getContrast(getLum(result), bgLum) < TARGET_CONTRAST) {
+    const dc = getContrast(getLum(darkL), bgLum);
+    const lc = getContrast(getLum(lightL), bgLum);
+    result = dc >= lc ? darkL : lightL;
+  }
+
+  return result;
 }
 
 // ============ Main Export ============
 
 export function getStatusColors(
-  _textH: number,
+  textH: number,
   _textS: number,
   _textL: number,
   bgH: number,
@@ -104,11 +164,14 @@ export function getStatusColors(
 ): { confirm: string; error: string } {
   const bgLum = getLuminanceForHsl(bgH, bgS, bgL);
 
-  const errorL = solveLightness(RED_HUE, bgLum);
-  const confirmL = solveLightness(GREEN_HUE, bgLum);
+  const confirmHue = Math.round(adjustHue(GREEN_HUE, CONFIRM_FB_CW, CONFIRM_FB_CCW, textH));
+  const errorHue = Math.round(adjustHue(RED_HUE, ERROR_FB_CW, ERROR_FB_CCW, textH));
+
+  const confirmL = solveLightness(confirmHue, bgLum);
+  const errorL = solveLightness(errorHue, bgLum);
 
   return {
-    confirm: `hsl(${GREEN_HUE}, ${SATURATION}%, ${Math.round(confirmL)}%)`,
-    error: `hsl(${RED_HUE}, ${SATURATION}%, ${Math.round(errorL)}%)`,
+    confirm: `hsl(${confirmHue}, ${SATURATION}%, ${Math.round(confirmL)}%)`,
+    error: `hsl(${errorHue}, ${SATURATION}%, ${Math.round(errorL)}%)`,
   };
 }

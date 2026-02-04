@@ -1836,49 +1836,52 @@ This uses capture phase to run before `stopPropagation()` calls.
 
 ### Dynamic Status Colors (Confirm & Error)
 
-Status colors use **fixed hues** (red=error, green=confirm) with **WCAG-guaranteed readability** through lightness adjustment only. This ensures smooth, continuous color transitions with no sudden jumps.
+Status colors use green (confirm) and red (error) hues with **hue avoidance** to stay visually distinct from the user's text color, and **contrast-guaranteed lightness** for readability on any background.
 
-**Algorithm (v1.9.11+):**
-1. **Hue:** FIXED at red (0°) for error, green (120°) for confirm — never changes
-2. **Saturation:** FIXED at 100% — maximum color intensity
-3. **Lightness:** Binary search to find value that achieves **4.5:1 contrast ratio** with background
-4. **Smooth transition:** Sigmoid blend between dark/light preference at luminance crossover (0.18)
+**Algorithm (v1.9.18+):**
+1. **Hue avoidance:** If the ideal hue (green 120° or red 0°) is within 60° of the text color, smoothly blend toward a fallback hue using smoothstep easing. Two fallbacks per color (CW and CCW) ensure the shift always goes AWAY from the text hue, never through it.
+2. **Lightness solver:** Binary search for dark (0-50%) and light (50-100%) solutions that meet 3.5:1 contrast. Sigmoid blend picks between them based on background luminance.
+3. **Contrast safety net:** If the sigmoid blend lands in the dead zone (mid-tone backgrounds where averaging dark+light fails), snap to whichever direction gives better contrast.
 
-**Key insight:** By keeping hue and saturation fixed, ALL variability comes from lightness alone. This eliminates hue-related discontinuities that caused jarring color jumps in previous versions.
-
+**Hue avoidance details:**
 ```
-Light background (high luminance) → dark status colors
-  Error:  dark red    (low lightness)
-  Confirm: dark green (low lightness)
+Text hue far from ideal (≥60°):
+  → Use ideal hue (green=120° or red=0°)
 
-Dark background (low luminance) → light status colors
-  Error:  light red   (high lightness)
-  Confirm: light green (high lightness)
-
-Mid-tone backgrounds → sigmoid blend for smooth transition
+Text hue close to ideal (<60°):
+  → Smoothly blend toward fallback on the opposite side
+  → Smoothstep easing: no jump at boundary, full shift at center
+  → Direction: always AWAY from text (two fallbacks per color)
 ```
 
-**Why this design?**
-- **Always semantic** — red is always red, green is always green
-- **Always readable** — 4.5:1 WCAG AA standard guaranteed
-- **Always smooth** — no discrete choices that could cause jumps
-- **Mathematically general** — single algorithm handles all backgrounds
+**Fallback hues (directional):**
+| Color | CW Fallback | CCW Fallback | Logic |
+|-------|-------------|--------------|-------|
+| Confirm (120°) | 210° (blue) | 60° (yellow-green) | Text CW from green → push CCW, and vice versa |
+| Error (0°) | 50° (orange) | 310° (magenta) | Text CW from red → push CCW, and vice versa |
+
+**Why two fallbacks?** A single fallback can lerp THROUGH the text hue. Example: error (0°) avoiding text at 330° with fallback 320° — the shortest arc goes 0°→340°→320°, passing right through 330°. With directional fallbacks, the algorithm picks the fallback on the opposite side (50° orange), so the path goes 0°→25°→50°, safely away from 330°.
 
 **Constants:**
 | Name | Value | Purpose |
 |------|-------|---------|
-| `RED_HUE` | 0° | Error color hue (fixed) |
-| `GREEN_HUE` | 120° | Confirm color hue (fixed) |
-| `SATURATION` | 100% | Maximum saturation (fixed) |
-| `TARGET_CONTRAST` | 4.5 | WCAG AA readability standard |
+| `RED_HUE` | 0° | Ideal error hue |
+| `GREEN_HUE` | 120° | Ideal confirm hue |
+| `SATURATION` | 100% | Maximum saturation |
+| `TARGET_CONTRAST` | 3.5 | WCAG large text standard |
+| `MIN_HUE_DISTANCE` | 60° | Avoidance zone radius around text hue |
+| `CONFIRM_FB_CW` | 210° | Confirm → blue (text is CCW from green) |
+| `CONFIRM_FB_CCW` | 60° | Confirm → yellow-green (text is CW from green) |
+| `ERROR_FB_CW` | 50° | Error → orange (text is CCW from red) |
+| `ERROR_FB_CCW` | 310° | Error → magenta (text is CW from red) |
 
 Code location: `src/shared/utils/confirmColor.ts`
 
 ```tsx
 import { getStatusColors } from '@shared/utils/confirmColor';
 const { confirm: confirmColor, error: errorColor } = getStatusColors(
-  hue, saturation, lightness,           // text color (ignored, kept for API compatibility)
-  bgHue, bgSaturation, bgLightness      // background color (only this matters now)
+  hue, saturation, lightness,           // text color (hue used for avoidance)
+  bgHue, bgSaturation, bgLightness      // background color (used for contrast)
 );
 ```
 

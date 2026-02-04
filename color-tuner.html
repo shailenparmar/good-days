@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>color tuner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, monospace;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 16px;
+      font-size: 13px;
+    }
+    h1 { font-size: 18px; margin-bottom: 12px; font-weight: 800; }
+    h2 { font-size: 10px; margin-bottom: 8px; font-weight: 700; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 280px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: #252525;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .picker-label {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .picker-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .hue-slider {
+      width: 100%;
+      height: 10px;
+      border-radius: 5px;
+      appearance: none;
+      background: linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%));
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .hue-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; border: 2px solid #000; cursor: pointer;
+    }
+    .hue-slider::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; border: 2px solid #000; cursor: pointer;
+    }
+
+    .sat-light-picker {
+      position: relative;
+      width: 100%;
+      height: 100px;
+      border-radius: 4px;
+      cursor: crosshair;
+    }
+    .picker-dot {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      border: 2px solid #000;
+    }
+
+    .picker-group { margin-bottom: 16px; }
+
+    .preset-row { display: flex; gap: 6px; margin-top: 10px; }
+    .preset-btn {
+      flex: 1; padding: 8px 4px; border-radius: 4px;
+      text-align: center; font-size: 11px; font-weight: 700;
+      cursor: pointer; border: 2px solid transparent;
+    }
+    .preset-btn:hover { border-color: rgba(255,255,255,0.4); }
+    .preset-btn.active { border-color: #fff; }
+
+    .param-row { margin-bottom: 10px; }
+    .param-row .label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; margin-bottom: 2px;
+    }
+    .param-row .label em { opacity: 0.6; }
+    .param-row .desc {
+      font-size: 9px; opacity: 0.35; margin-bottom: 4px; line-height: 1.3;
+    }
+    .param-row input[type="range"] {
+      width: 100%; height: 6px; accent-color: #1fff0f; cursor: pointer;
+    }
+
+    .btn-row { display: flex; gap: 6px; margin-top: 12px; }
+    .btn {
+      flex: 1; background: #444; border: none; color: #fff;
+      padding: 8px 10px; border-radius: 4px; cursor: pointer;
+      font-family: inherit; font-size: 11px; font-weight: 600;
+    }
+    .btn:hover { background: #555; }
+
+    .output-box {
+      background: #333; padding: 10px; border-radius: 4px;
+      margin-top: 12px; font-size: 10px; white-space: pre; line-height: 1.4;
+    }
+
+    .preview-area {
+      border-radius: 6px; padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .preview-label { font-size: 10px; opacity: 0.5; }
+    .preview-text { font-size: 20px; font-weight: 800; }
+    .mock-button {
+      display: inline-block; padding: 6px 12px;
+      border: 3px solid; border-radius: 4px;
+      font-size: 13px; font-weight: 700;
+    }
+    .status-info {
+      margin-top: 8px; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+      font-size: 11px; opacity: 0.6; line-height: 1.6; white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <h1>color tuner</h1>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="picker-group">
+        <div class="picker-label"><span class="picker-swatch" id="text-swatch"></span> text</div>
+        <input type="range" class="hue-slider" id="text-hue" min="0" max="360" value="175">
+        <div class="sat-light-picker" id="text-picker">
+          <div class="picker-dot" id="text-dot"></div>
+        </div>
+      </div>
+      <div class="picker-group">
+        <div class="picker-label"><span class="picker-swatch" id="bg-swatch"></span> background</div>
+        <input type="range" class="hue-slider" id="bg-hue" min="0" max="360" value="84">
+        <div class="sat-light-picker" id="bg-picker">
+          <div class="picker-dot" id="bg-dot"></div>
+        </div>
+      </div>
+      <h2>presets</h2>
+      <div class="preset-row" id="presets"></div>
+    </div>
+
+    <div class="panel" style="max-height: calc(100vh - 32px); overflow-y: auto;">
+      <h2>algorithm</h2>
+      <div class="param-row">
+        <div class="label"><span>saturation</span><em id="v-sat">100%</em></div>
+        <div class="desc">higher = more vivid, lower = washed out</div>
+        <input type="range" id="p-sat" min="50" max="100" value="100">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>green hue</span><em id="v-green">120°</em></div>
+        <div class="desc">ideal confirm color. lower = yellow-green, higher = teal</div>
+        <input type="range" id="p-green" min="80" max="160" value="120">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>red hue</span><em id="v-red">0°</em></div>
+        <div class="desc">ideal error color. higher = more orange</div>
+        <input type="range" id="p-red" min="0" max="30" value="0">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>contrast target</span><em id="v-con">3.5</em></div>
+        <div class="desc">lower = brighter colors allowed, higher = more muted but readable</div>
+        <input type="range" id="p-con" min="1" max="7" step="0.1" value="3.5">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>sigmoid steepness</span><em id="v-sig">15</em></div>
+        <div class="desc">how sharp the dark/light switch is. higher = snappier, lower = gradual</div>
+        <input type="range" id="p-sig" min="5" max="30" value="15">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>sigmoid midpoint</span><em id="v-mid">0.18</em></div>
+        <div class="desc">bg brightness where dark/light flips. higher = stays dark longer</div>
+        <input type="range" id="p-mid" min="0.05" max="0.5" step="0.01" value="0.18">
+      </div>
+
+      <div style="margin-top:14px; margin-bottom:6px"><h2>hue avoidance</h2></div>
+      <div class="param-row">
+        <div class="label"><span>min hue distance</span><em id="v-dist">60°</em></div>
+        <div class="desc">avoidance zone around text hue. 0 = off, higher = shifts sooner</div>
+        <input type="range" id="p-dist" min="0" max="120" value="60">
+      </div>
+
+      <div style="margin-top:10px; margin-bottom:4px; font-size:10px; opacity:0.4;">CONFIRM FALLBACKS</div>
+      <div class="param-row">
+        <div class="label"><span>confirm → blue</span><em id="v-cfb-cw">210°</em></div>
+        <div class="desc">when text is below green on hue wheel (e.g. text ~80°). shifts toward blue</div>
+        <input type="range" id="p-cfb-cw" min="160" max="270" value="210">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>confirm → yellow</span><em id="v-cfb-ccw">60°</em></div>
+        <div class="desc">when text is above green on hue wheel (e.g. text ~150°). shifts toward yellow-green</div>
+        <input type="range" id="p-cfb-ccw" min="20" max="100" value="60">
+      </div>
+
+      <div style="margin-top:10px; margin-bottom:4px; font-size:10px; opacity:0.4;">ERROR FALLBACKS</div>
+      <div class="param-row">
+        <div class="label"><span>error → orange</span><em id="v-efb-cw">50°</em></div>
+        <div class="desc">when text is below red on hue wheel (e.g. text ~330°). shifts toward orange</div>
+        <input type="range" id="p-efb-cw" min="20" max="80" value="50">
+      </div>
+      <div class="param-row">
+        <div class="label"><span>error → magenta</span><em id="v-efb-ccw">310°</em></div>
+        <div class="desc">when text is above red on hue wheel (e.g. text ~30°). shifts toward magenta</div>
+        <input type="range" id="p-efb-ccw" min="270" max="350" value="310">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="reset">reset</button>
+        <button class="btn" id="old">old algorithm</button>
+      </div>
+      <div class="output-box" id="export"></div>
+    </div>
+
+    <div class="preview-area" id="preview">
+      <div>
+        <div class="preview-label" id="lbl-text">text</div>
+        <div class="preview-text" id="prev-text">good days</div>
+      </div>
+      <div>
+        <div class="preview-label" id="lbl-confirm">confirm</div>
+        <div class="mock-button" id="btn-confirm">3 entries imported</div>
+      </div>
+      <div>
+        <div class="preview-label" id="lbl-error">error</div>
+        <div class="mock-button" id="btn-error">import failed</div>
+      </div>
+      <div>
+        <div class="preview-label" id="lbl-pwd">password</div>
+        <div class="mock-button" id="btn-pwd">saved. lock with esc.</div>
+      </div>
+      <div class="status-info" id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const hslToRgb = (h, s, l) => {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+    };
+    const getLum = (r, g, b) => {
+      const [rs, gs, bs] = [r, g, b].map(c => {
+        c /= 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+    };
+    const getContrast = (l1, l2) => {
+      const [hi, lo] = l1 > l2 ? [l1, l2] : [l2, l1];
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const hslLum = (h, s, l) => getLum(...hslToRgb(h, s, l));
+
+    let text = { h: 175, s: 100, l: 21 };
+    let bg = { h: 84, s: 100, l: 88 };
+    let P = {
+      sat: 100, green: 120, red: 0, con: 3.5, sig: 15, mid: 0.18, dist: 60,
+      cfbCW: 210, cfbCCW: 60, efbCW: 50, efbCCW: 310,
+    };
+
+    const DEFAULTS = { ...P };
+
+    const presets = [
+      { n: '1', t: { h: 175, s: 100, l: 21 }, b: { h: 84, s: 100, l: 88 } },
+      { n: '2', t: { h: 229, s: 61, l: 100 }, b: { h: 251, s: 100, l: 59 } },
+      { n: '3', t: { h: 360, s: 100, l: 49 }, b: { h: 360, s: 100, l: 13 } },
+      { n: '4', t: { h: 241, s: 69, l: 47 }, b: { h: 59, s: 100, l: 66 } },
+      { n: '5', t: { h: 116, s: 100, l: 53 }, b: { h: 96, s: 100, l: 0 } },
+    ];
+
+    // ---- Hue avoidance (directional fallbacks) ----
+    function hueDist(a, b) {
+      const d = Math.abs(((a - b) % 360 + 360) % 360);
+      return Math.min(d, 360 - d);
+    }
+
+    function lerpHue(a, b, t) {
+      let diff = ((b - a + 540) % 360) - 180;
+      return ((a + diff * t) % 360 + 360) % 360;
+    }
+
+    function adjustHue(idealHue, fbCW, fbCCW, textHue, minDist) {
+      if (minDist === 0) return idealHue;
+      const dist = hueDist(idealHue, textHue);
+      if (dist >= minDist) return idealHue;
+
+      // Which side is text? Pick fallback on the OPPOSITE side.
+      // cwDist = how many degrees CW from ideal to text
+      const cwDist = ((textHue - idealHue) % 360 + 360) % 360;
+      // text is CW from ideal → push CCW (and vice versa)
+      const fallback = cwDist <= 180 ? fbCCW : fbCW;
+
+      const t = 1 - dist / minDist;
+      const smooth = t * t * (3 - 2 * t);
+      return lerpHue(idealHue, fallback, smooth);
+    }
+
+    // ---- Lightness solver (contrast-guaranteed) ----
+    function solveL(hue, bgLum) {
+      const getLumAt = l => hslLum(hue, P.sat, l);
+
+      // Find darkest lightness that meets contrast (search 0-50)
+      let darkL = 0;
+      { let lo = 0, hi = 50;
+        for (let i = 0; i < 20; i++) {
+          const m = (lo + hi) / 2;
+          getContrast(getLumAt(m), bgLum) >= P.con ? lo = m : hi = m;
+        }
+        darkL = lo;
+      }
+
+      // Find lightest lightness that meets contrast (search 50-100)
+      let lightL = 100;
+      { let lo = 50, hi = 100;
+        for (let i = 0; i < 20; i++) {
+          const m = (lo + hi) / 2;
+          getContrast(getLumAt(m), bgLum) >= P.con ? hi = m : lo = m;
+        }
+        lightL = hi;
+      }
+
+      // Sigmoid blend: light bg → prefer dark, dark bg → prefer light
+      const t = 1 / (1 + Math.exp(-P.sig * (bgLum - P.mid)));
+      let result = lightL * (1 - t) + darkL * t;
+
+      // SAFETY NET: if the blend landed in the dead zone, snap to best direction
+      if (getContrast(getLumAt(result), bgLum) < P.con) {
+        const dc = getContrast(getLumAt(darkL), bgLum);
+        const lc = getContrast(getLumAt(lightL), bgLum);
+        result = dc >= lc ? darkL : lightL;
+      }
+
+      return result;
+    }
+
+    function getStatus() {
+      const bgLum = hslLum(bg.h, bg.s, bg.l);
+      const confirmHue = Math.round(adjustHue(P.green, P.cfbCW, P.cfbCCW, text.h, P.dist));
+      const errorHue = Math.round(adjustHue(P.red, P.efbCW, P.efbCCW, text.h, P.dist));
+      const cL = Math.round(solveL(confirmHue, bgLum));
+      const eL = Math.round(solveL(errorHue, bgLum));
+
+      const confirmLum = hslLum(confirmHue, P.sat, cL);
+      const errorLum = hslLum(errorHue, P.sat, eL);
+      const textLum = hslLum(text.h, text.s, text.l);
+
+      return {
+        confirm: `hsl(${confirmHue}, ${P.sat}%, ${cL}%)`,
+        error: `hsl(${errorHue}, ${P.sat}%, ${eL}%)`,
+        cL, eL, bgLum, confirmHue, errorHue,
+        confirmShifted: confirmHue !== P.green,
+        errorShifted: errorHue !== Math.round(P.red),
+        cContrastBg: getContrast(confirmLum, bgLum),
+        eContrastBg: getContrast(errorLum, bgLum),
+        cContrastText: getContrast(confirmLum, textLum),
+        eContrastText: getContrast(errorLum, textLum),
+        cHueDist: hueDist(confirmHue, text.h),
+        eHueDist: hueDist(errorHue, text.h),
+        ceHueDist: hueDist(confirmHue, errorHue),
+      };
+    }
+
+    function render() {
+      const hsl = c => `hsl(${c.h}, ${c.s}%, ${c.l}%)`;
+      const s = getStatus();
+
+      document.getElementById('text-swatch').style.background = hsl(text);
+      document.getElementById('bg-swatch').style.background = hsl(bg);
+      document.getElementById('text-hue').value = text.h;
+      document.getElementById('bg-hue').value = bg.h;
+
+      const tp = document.getElementById('text-picker');
+      tp.style.background = `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${text.h}, 0%, 50%), hsl(${text.h}, 100%, 50%))`;
+      document.getElementById('text-dot').style.cssText = `left:${text.s}%;top:${100-text.l}%;background:${hsl(bg)}`;
+
+      const bp = document.getElementById('bg-picker');
+      bp.style.background = `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${bg.h}, 0%, 50%), hsl(${bg.h}, 100%, 50%))`;
+      document.getElementById('bg-dot').style.cssText = `left:${bg.s}%;top:${100-bg.l}%;background:${hsl(text)}`;
+
+      document.getElementById('v-sat').textContent = P.sat + '%';
+      document.getElementById('v-green').textContent = P.green + '°';
+      document.getElementById('v-red').textContent = P.red + '°';
+      document.getElementById('v-con').textContent = P.con;
+      document.getElementById('v-sig').textContent = P.sig;
+      document.getElementById('v-mid').textContent = P.mid;
+      document.getElementById('v-dist').textContent = P.dist + '°';
+      document.getElementById('v-cfb-cw').textContent = P.cfbCW + '°';
+      document.getElementById('v-cfb-ccw').textContent = P.cfbCCW + '°';
+      document.getElementById('v-efb-cw').textContent = P.efbCW + '°';
+      document.getElementById('v-efb-ccw').textContent = P.efbCCW + '°';
+
+      document.getElementById('p-sat').value = P.sat;
+      document.getElementById('p-green').value = P.green;
+      document.getElementById('p-red').value = P.red;
+      document.getElementById('p-con').value = P.con;
+      document.getElementById('p-sig').value = P.sig;
+      document.getElementById('p-mid').value = P.mid;
+      document.getElementById('p-dist').value = P.dist;
+      document.getElementById('p-cfb-cw').value = P.cfbCW;
+      document.getElementById('p-cfb-ccw').value = P.cfbCCW;
+      document.getElementById('p-efb-cw').value = P.efbCW;
+      document.getElementById('p-efb-ccw').value = P.efbCCW;
+
+      document.getElementById('preview').style.backgroundColor = hsl(bg);
+      document.getElementById('prev-text').style.color = hsl(text);
+      ['lbl-text','lbl-confirm','lbl-error','lbl-pwd'].forEach(id => {
+        document.getElementById(id).style.color = hsl(text);
+      });
+
+      document.getElementById('btn-confirm').style.cssText = `color:${s.confirm};border-color:${s.confirm}`;
+      document.getElementById('btn-error').style.cssText = `color:${s.error};border-color:${s.error}`;
+      document.getElementById('btn-pwd').style.cssText = `color:${s.confirm};border-color:${s.confirm}`;
+
+      const cLabel = s.confirmShifted ? `confirm (${P.green}° → ${s.confirmHue}°)` : 'confirm';
+      const eLabel = s.errorShifted ? `error (${P.red}° → ${s.errorHue}°)` : 'error';
+      document.getElementById('lbl-confirm').textContent = cLabel;
+      document.getElementById('lbl-error').textContent = eLabel;
+
+      // Warnings
+      let warnings = [];
+      if (s.cContrastBg < 3) warnings.push(`confirm vs bg: ${s.cContrastBg.toFixed(1)} (low)`);
+      if (s.eContrastBg < 3) warnings.push(`error vs bg: ${s.eContrastBg.toFixed(1)} (low)`);
+      if (s.cHueDist < 30) warnings.push(`confirm hue ${Math.round(s.cHueDist)}° from text (close)`);
+      if (s.eHueDist < 30) warnings.push(`error hue ${Math.round(s.eHueDist)}° from text (close)`);
+      if (s.ceHueDist < 30) warnings.push(`confirm/error only ${Math.round(s.ceHueDist)}° apart`);
+
+      document.getElementById('status').textContent =
+        `text: ${text.h}°, ${text.s}%, ${text.l}%\n` +
+        `bg: ${bg.h}°, ${bg.s}%, ${bg.l}% (lum ${s.bgLum.toFixed(3)})\n` +
+        `confirm: hue ${s.confirmHue}°, L${s.cL}% — ${s.cContrastBg.toFixed(1)}:1 vs bg\n` +
+        `error: hue ${s.errorHue}°, L${s.eL}% — ${s.eContrastBg.toFixed(1)}:1 vs bg\n` +
+        `hue gaps: c↔text=${Math.round(s.cHueDist)}° e↔text=${Math.round(s.eHueDist)}° c↔e=${Math.round(s.ceHueDist)}°` +
+        (warnings.length > 0 ? '\n⚠️ ' + warnings.join(' | ') : '');
+
+      document.getElementById('export').textContent =
+        `SATURATION = ${P.sat}\nGREEN_HUE = ${P.green}\nRED_HUE = ${P.red}\n` +
+        `TARGET_CONTRAST = ${P.con}\nMIN_HUE_DISTANCE = ${P.dist}\n` +
+        `CONFIRM_FB: CW=${P.cfbCW} CCW=${P.cfbCCW}\n` +
+        `ERROR_FB: CW=${P.efbCW} CCW=${P.efbCCW}\n` +
+        `// sig: ${P.sig}, mid: ${P.mid}`;
+    }
+
+    function setupPicker(pickerId, color) {
+      const picker = document.getElementById(pickerId);
+      const update = (x, y) => {
+        const r = picker.getBoundingClientRect();
+        color.s = Math.round(Math.max(0, Math.min(100, (x - r.left) / r.width * 100)));
+        color.l = Math.round(Math.max(0, Math.min(100, 100 - (y - r.top) / r.height * 100)));
+        render();
+      };
+      picker.addEventListener('mousedown', e => {
+        update(e.clientX, e.clientY);
+        const move = e => update(e.clientX, e.clientY);
+        const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      });
+    }
+
+    setupPicker('text-picker', text);
+    setupPicker('bg-picker', bg);
+
+    document.getElementById('text-hue').addEventListener('input', e => { text.h = +e.target.value; render(); });
+    document.getElementById('bg-hue').addEventListener('input', e => { bg.h = +e.target.value; render(); });
+
+    const paramBindings = {
+      'p-sat': v => P.sat = +v, 'p-green': v => P.green = +v, 'p-red': v => P.red = +v,
+      'p-con': v => P.con = +v, 'p-sig': v => P.sig = +v, 'p-mid': v => P.mid = +v,
+      'p-dist': v => P.dist = +v,
+      'p-cfb-cw': v => P.cfbCW = +v, 'p-cfb-ccw': v => P.cfbCCW = +v,
+      'p-efb-cw': v => P.efbCW = +v, 'p-efb-ccw': v => P.efbCCW = +v,
+    };
+    Object.entries(paramBindings).forEach(([id, fn]) => {
+      document.getElementById(id).addEventListener('input', e => { fn(e.target.value); render(); });
+    });
+
+    document.getElementById('reset').onclick = () => {
+      P = { ...DEFAULTS };
+      render();
+    };
+    document.getElementById('old').onclick = () => {
+      P = { sat: 100, green: 120, red: 0, con: 4.5, sig: 15, mid: 0.18, dist: 0, cfbCW: 210, cfbCCW: 60, efbCW: 50, efbCCW: 310 };
+      render();
+    };
+
+    const presetsEl = document.getElementById('presets');
+    presetsEl.innerHTML = presets.map((p, i) =>
+      `<div class="preset-btn ${i===0?'active':''}" data-i="${i}" style="background:hsl(${p.b.h},${p.b.s}%,${p.b.l}%);color:hsl(${p.t.h},${p.t.s}%,${p.t.l}%)">${p.n}</div>`
+    ).join('');
+    presetsEl.onclick = e => {
+      const btn = e.target.closest('.preset-btn');
+      if (!btn) return;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const p = presets[+btn.dataset.i];
+      text = { ...p.t }; bg = { ...p.b };
+      render();
+    };
+
+    render();
+  </script>
+</body>
+</html>
