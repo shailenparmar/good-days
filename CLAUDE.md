@@ -930,10 +930,10 @@ The hover region must only cover the text content, not the spacing above it. Thi
 | Not hovered | Color stats: `txt: H, S%, L%` and HEX values |
 | Hovered | Split buttons: `copy` (left) / `paste` (right) |
 
-**Copy**: Copies both colors to clipboard in format:
+**Copy**: Copies both colors to clipboard in hex format:
 ```
-txt: 120, 50%, 60%
-bg: 200, 80%, 90%
+txt: #78cc33
+bg: #c8ff00
 ```
 
 **Paste**: Reads clipboard, parses color values, applies them, creates new preset.
@@ -984,7 +984,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │   │   copy    │   paste    │   │  ← Split button
 │   └───────────┴────────────┘   │
 │   ┌───────────┬────────────┐   │
-│   │background │    text    │   │  ← Split button (triggers picker)
+│   │   text    │ background │   │  ← Split button (triggers picker)
 │   └───────────┴────────────┘   │
 └────────────────────────────────┘
 ```
@@ -999,7 +999,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        └────────┘              │
 │            black               │
 ├───────────────┬────────────────┤
-│  background   │      text      │  ← Labels (black)
+│     text      │   background   │  ← Labels (black)
 │ ──────────────│────────────────│  ← Horizontal hue indicators
 │               │                │
 │  (hue gradient│  hue gradient) │  ← Split hue bars
@@ -1024,7 +1024,7 @@ The picker uses a **seamless press-hold-drag-release** interaction:
 
 **Key refs:**
 - `isTrackingRef` - Whether touch tracking is active
-- `activeSide` - Which bar is being controlled ('left' = background, 'right' = text)
+- `activeSide` - Which bar is being controlled ('left' = text, 'right' = background)
 - `liveTouch` - Current finger position `{ x, y }`
 - `barsMounted` - Counter for when both hue bars have mounted
 
@@ -1068,7 +1068,7 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 
 | Button | Action |
 |--------|--------|
-| `copy` | Copies `txt: h, s%, l%\nbg: h, s%, l%` to clipboard |
+| `copy` | Copies `txt: #hex\nbg: #hex` to clipboard |
 | `paste` | Parses clipboard, applies colors |
 
 **iOS copy method:** Uses textarea + `document.execCommand('copy')` instead of `navigator.clipboard.writeText()`. The Clipboard API on iOS Safari URL-encodes text when pasting into iMessage and other apps (`%20` for spaces, `%25` for `%`, etc.). The textarea approach writes pure plain text. Falls back to Clipboard API if execCommand fails.
@@ -1076,10 +1076,12 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 **Paste decoding:** Both mobile and desktop paste handlers run `decodeURIComponent()` on clipboard text before parsing, as a safety net for URL-encoded input.
 
 **Supported paste formats:**
-- `txt: h, s%, l%` - text color HSL
-- `bg: h, s%, l%` - background color HSL
+- `txt: #rrggbb` - text color HEX (primary format, matches copy output)
+- `bg: #rrggbb` - background color HEX (primary format, matches copy output)
+- `txt: h, s%, l%` - text color HSL (legacy)
+- `bg: h, s%, l%` - background color HSL (legacy)
 - `h, s%, l%` - plain HSL (applies to text)
-- `#rrggbb` - HEX (converts to HSL)
+- `#rrggbb` - bare HEX (applies to text)
 
 ### Persistence
 
@@ -2187,7 +2189,7 @@ Use when swapping between two completely different UIs and you want consistent s
 ```
 ┌─────────────────────────┐  ← container (sized to fit BOTH)
 │  copy | paste           │  ← visible when hovered
-│  txt: 120, 50%, 60%     │  ← visible when NOT hovered (same space)
+│  txt: #78cc33           │  ← visible when NOT hovered (same space)
 └─────────────────────────┘
 ```
 

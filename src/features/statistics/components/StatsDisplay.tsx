@@ -354,7 +354,30 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const parseColorInput = useCallback((input: string) => {
     const trimmed = input.trim().toLowerCase();
 
-    // Try HEX format: #rrggbb
+    // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
+    const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
+    if (labeledHexMatch) {
+      const type = labeledHexMatch[1] as 'txt' | 'bg';
+      const hex = labeledHexMatch[2];
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      let h = 0, s = 0;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return { type, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    }
+
+    // Try bare HEX format: #rrggbb
     const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
     if (hexMatch) {
       const hex = hexMatch[1];
@@ -399,11 +422,11 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return null;
   }, []);
 
-  // Handle copy button click - copies color values to clipboard
+  // Handle copy button click - copies hex color values to clipboard
   const handleColorCopy = useCallback(() => {
-    const textHsl = `txt: ${hue}, ${saturation}%, ${lightness}%`;
-    const bgHsl = `bg: ${bgHue}, ${bgSaturation}%, ${bgLightness}%`;
-    const copyText = `${textHsl}\n${bgHsl}`;
+    const textHex = `txt: ${hslToHex(hue, saturation, lightness)}`;
+    const bgHex = `bg: ${hslToHex(bgHue, bgSaturation, bgLightness)}`;
+    const copyText = `${textHex}\n${bgHex}`;
     navigator.clipboard.writeText(copyText);
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);

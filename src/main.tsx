@@ -27,6 +27,29 @@ type ColorState = {
 
 function parseColorInput(input: string) {
   const trimmed = input.trim().toLowerCase();
+  // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
+  const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
+  if (labeledHexMatch) {
+    const type = labeledHexMatch[1] as 'txt' | 'bg';
+    const hex = labeledHexMatch[2];
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0, s = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return { type, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+  // Try bare HEX format: #rrggbb
   const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
   if (hexMatch) {
     const hex = hexMatch[1];
@@ -47,6 +70,7 @@ function parseColorInput(input: string) {
     }
     return { type: 'hsl' as const, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
   }
+  // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
   const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
   if (hslMatch) {
     const type = hslMatch[1] as 'txt' | 'bg' | undefined;
@@ -170,11 +194,11 @@ function MobileScreen() {
     const newHue = Math.round(clampedY * 360);
 
     if (activeSide.current === 'left') {
-      setBgTouchY(clampedY);
-      setColors(prev => ({ ...prev, bgHue: newHue }));
-    } else {
       setTextTouchY(clampedY);
       setColors(prev => ({ ...prev, hue: newHue }));
+    } else {
+      setBgTouchY(clampedY);
+      setColors(prev => ({ ...prev, bgHue: newHue }));
     }
     return true;
   }, []);
@@ -238,14 +262,14 @@ function MobileScreen() {
         if (activeSide.current === 'left') {
           setColors(prev => ({
             ...prev,
-            bgSat: Math.max(0, Math.min(100, newSat)),
-            bgLight: Math.max(0, Math.min(100, newLight)),
+            sat: Math.max(0, Math.min(100, newSat)),
+            light: Math.max(0, Math.min(100, newLight)),
           }));
         } else {
           setColors(prev => ({
             ...prev,
-            sat: Math.max(0, Math.min(100, newSat)),
-            light: Math.max(0, Math.min(100, newLight)),
+            bgSat: Math.max(0, Math.min(100, newSat)),
+            bgLight: Math.max(0, Math.min(100, newLight)),
           }));
         }
       }
@@ -333,8 +357,8 @@ function MobileScreen() {
     if (bar) {
       const rect = bar.getBoundingClientRect();
       const relY = Math.max(0, Math.min(1, (touch.clientY - rect.top) / rect.height));
-      if (side === 'left') setBgTouchY(relY);
-      else setTextTouchY(relY);
+      if (side === 'left') setTextTouchY(relY);
+      else setBgTouchY(relY);
     }
 
     setEditing('picking');
@@ -350,7 +374,7 @@ function MobileScreen() {
   // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
-    const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
+    const text = `txt: ${hslToHex(colors.hue, colors.sat, colors.light)}\nbg: ${hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}`;
     // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -427,7 +451,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.11';
+  const mobileVersion = '1.10.14';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -579,13 +603,13 @@ function MobileScreen() {
           </div>
           {/* Bars overlay */}
           <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-            {/* Left: background hue bar */}
+            {/* Left: text hue bar */}
             <div
               ref={leftBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
-              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'left' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -594,13 +618,13 @@ function MobileScreen() {
             {/* Black vertical divider */}
             <div style={{ width: '4px', backgroundColor: 'black', flexShrink: 0 }} />
 
-            {/* Right: text hue bar */}
+            {/* Right: background hue bar */}
             <div
               ref={rightBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
-              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'right' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -673,13 +697,13 @@ function MobileScreen() {
               onTouchStart={startPicking('left')}
               style={getButtonStyle(false, 'left')}
             >
-              background
+              text
             </div>
             <div
               onTouchStart={startPicking('right')}
               style={getButtonStyle(false, 'right')}
             >
-              text
+              background
             </div>
           </div>
         </div>
