@@ -344,17 +344,17 @@ function MobileScreen() {
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
     const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
-    // Use ClipboardItem with explicit text/plain MIME type to prevent iOS
-    // from URL-encoding the text when pasting into iMessage etc.
-    try {
-      const blob = new Blob([text], { type: 'text/plain' });
-      const item = new ClipboardItem({ 'text/plain': blob });
-      navigator.clipboard.write([item]).catch(() => {
-        navigator.clipboard.writeText(text).catch(() => {});
-      });
-    } catch {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
+    // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:none;outline:none;background:transparent;opacity:0.01;font-size:16px;-webkit-user-select:text;user-select:text;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    // Fall back to clipboard API if execCommand failed
+    if (!ok) navigator.clipboard.writeText(text).catch(() => {});
   };
 
   // Paste

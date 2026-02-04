@@ -968,9 +968,11 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 **Home Screen**:
 ```
 ┌────────────────────────────────┐
+│          good days             │  ← title, one line
 │                                │
-│            good                │  ← 80px centered
-│            days                │
+│        ┌────────┐              │
+│        │   ●    │              │  ← square centered between
+│        └────────┘              │     title and buttons
 │                                │
 │   ┌────────────────────────┐   │
 │   │      reset tilt        │   │  ← Full-width button
@@ -987,21 +989,24 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 **Picker Screen** (while holding background or text):
 ```
 ┌────────────────────────────────┐
-│            good                │  ← 48px, updates live
-│            days                │
+│          good days             │  ← title, same position as home
 │                                │
-│    sat ┌────────┐ light        │  ← Labels on sides
-│     50 │   ●    │  50          │  ← 36px values, dot shows tilt
+│    sat ┌────────┐ light        │  ← square centered between
+│     50 │   ●    │  50          │     title and spectrum
 │        └────────┘              │
 │                                │
 ├───────────────┬────────────────┤
-│  background   │      text      │  ← Labels (white, black stroke)
-│ ══════════════│════════════════│  ← Horizontal indicator lines
+│  background   │      text      │  ← Labels (black)
+│ ──────────────│────────────────│  ← Horizontal hue indicators
 │               │                │
 │  (hue gradient│  hue gradient) │  ← Split hue bars
 │               │                │
 └───────────────┴────────────────┘
 ```
+
+### Layout Centering
+
+The tilt square complex (square + sat/light labels) is vertically centered in the space between the title and the bottom element using `flex: 1` with `alignItems: 'center'`. This keeps the square in the same visual position on both screens regardless of bottom element height.
 
 ### Seamless Touch Tracking
 
@@ -1057,6 +1062,10 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 |--------|--------|
 | `copy` | Copies `txt: h, s%, l%\nbg: h, s%, l%` to clipboard |
 | `paste` | Parses clipboard, applies colors |
+
+**iOS copy method:** Uses textarea + `document.execCommand('copy')` instead of `navigator.clipboard.writeText()`. The Clipboard API on iOS Safari URL-encodes text when pasting into iMessage and other apps (`%20` for spaces, `%25` for `%`, etc.). The textarea approach writes pure plain text. Falls back to Clipboard API if execCommand fails.
+
+**Paste decoding:** Both mobile and desktop paste handlers run `decodeURIComponent()` on clipboard text before parsing, as a safety net for URL-encoded input.
 
 **Supported paste formats:**
 - `txt: h, s%, l%` - text color HSL
