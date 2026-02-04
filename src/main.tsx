@@ -177,31 +177,19 @@ function MobileScreen() {
     return true;
   }, []);
 
-  // Process touch when both bars are mounted - uses LIVE Y position
-  const tryProcessLiveTouch = useCallback(() => {
-    barsMounted.current++;
-    // Wait for BOTH bars to mount
-    if (barsMounted.current >= 2 && liveTouch.current) {
-      // Process current live Y position immediately
-      processTouchAt(liveTouch.current.y, 'BARS_READY');
+  // When picker appears, snap indicator to current finger position
+  useEffect(() => {
+    if (editing === 'picking' && liveTouch.current) {
+      // Wait for bars to render, then process
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (liveTouch.current) {
+            processTouchAt(liveTouch.current.y, 'PICKER_READY');
+          }
+        });
+      });
     }
-  }, [processTouchAt]);
-
-  // Callback ref for left bar
-  const leftBarCallback = useCallback((node: HTMLDivElement | null) => {
-    leftBarRef.current = node;
-    if (node && liveTouch.current) {
-      tryProcessLiveTouch();
-    }
-  }, [tryProcessLiveTouch]);
-
-  // Callback ref for right bar
-  const rightBarCallback = useCallback((node: HTMLDivElement | null) => {
-    rightBarRef.current = node;
-    if (node && liveTouch.current) {
-      tryProcessLiveTouch();
-    }
-  }, [tryProcessLiveTouch]);
+  }, [editing, processTouchAt]);
 
   // Orientation handler while picking
   useEffect(() => {
@@ -391,15 +379,15 @@ function MobileScreen() {
     return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
   };
 
-  // Generate hue gradient - uses CURRENT sat/light values
-  const makeHueGradient = (sat: number, light: number) => `linear-gradient(to bottom,
-    hsl(0, ${sat}%, ${light}%),
-    hsl(60, ${sat}%, ${light}%),
-    hsl(120, ${sat}%, ${light}%),
-    hsl(180, ${sat}%, ${light}%),
-    hsl(240, ${sat}%, ${light}%),
-    hsl(300, ${sat}%, ${light}%),
-    hsl(360, ${sat}%, ${light}%)
+  // Pure hue gradient - always 100% sat, 50% light (unaffected by tilt)
+  const pureHueGradient = `linear-gradient(to bottom,
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%)
   )`;
 
   // Permission screen
@@ -496,11 +484,11 @@ function MobileScreen() {
         <div style={{ flex: 1, display: 'flex', gap: '0' }}>
           {/* Left: background hue bar */}
           <div
-            ref={leftBarCallback}
+            ref={leftBarRef}
             style={{
               flex: 1,
               position: 'relative',
-              background: makeHueGradient(colors.bgSat, colors.bgLight),
+              background: pureHueGradient,
             }}
           >
             <span style={{
@@ -532,11 +520,11 @@ function MobileScreen() {
 
           {/* Right: text hue bar */}
           <div
-            ref={rightBarCallback}
+            ref={rightBarRef}
             style={{
               flex: 1,
               position: 'relative',
-              background: makeHueGradient(colors.sat, colors.light),
+              background: pureHueGradient,
             }}
           >
             <span style={{
