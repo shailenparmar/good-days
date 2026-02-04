@@ -11,6 +11,16 @@ const METADATA_STORE = 'metadata';
 // Track if we're in fallback mode (IndexedDB failed, using localStorage)
 let fallbackMode = false;
 
+// Logging utility for debugging storage issues
+const log = (msg: string, data?: unknown) => {
+  const timestamp = new Date().toISOString();
+  if (data !== undefined) {
+    console.log(`[gdays ${timestamp}] ${msg}`, data);
+  } else {
+    console.log(`[gdays ${timestamp}] ${msg}`);
+  }
+};
+
 // Open the IndexedDB database
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -85,37 +95,52 @@ async function getEntriesFromIndexedDB(db: IDBDatabase): Promise<JournalEntry[]>
   });
 }
 
-// Write all entries to IndexedDB
+// Write all entries to IndexedDB (upsert, no clear - safe for multi-tab)
 async function writeEntriesToIndexedDB(db: IDBDatabase, entries: JournalEntry[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
     const store = transaction.objectStore(ENTRIES_STORE);
 
-    // Clear existing entries first
-    const clearRequest = store.clear();
-    clearRequest.onerror = () => reject(clearRequest.error);
+    if (entries.length === 0) {
+      resolve();
+      return;
+    }
 
-    clearRequest.onsuccess = () => {
-      // Add all entries
-      let completed = 0;
-      const total = entries.length;
+    let completed = 0;
+    const total = entries.length;
 
-      if (total === 0) {
-        resolve();
-        return;
-      }
+    for (const entry of entries) {
+      const request = store.put(entry);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        completed++;
+        if (completed === total) {
+          resolve();
+        }
+      };
+    }
+  });
+}
 
-      for (const entry of entries) {
-        const addRequest = store.put(entry);
-        addRequest.onerror = () => reject(addRequest.error);
-        addRequest.onsuccess = () => {
-          completed++;
-          if (completed === total) {
-            resolve();
-          }
-        };
-      }
-    };
+// Write a single entry to IndexedDB
+async function writeSingleEntryToIndexedDB(db: IDBDatabase, entry: JournalEntry): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
+    const store = transaction.objectStore(ENTRIES_STORE);
+    const request = store.put(entry);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+// Delete a single entry from IndexedDB
+async function deleteSingleEntryFromIndexedDB(db: IDBDatabase, date: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
+    const store = transaction.objectStore(ENTRIES_STORE);
+    const request = store.delete(date);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
   });
 }
 
@@ -188,16 +213,19 @@ function mergeEntries(indexedDBEntries: JournalEntry[], localStorageEntries: Jou
  * Falls back to localStorage if IndexedDB fails
  */
 export async function initJournalStorage(): Promise<JournalEntry[]> {
+  log('initJournalStorage: starting');
   try {
     const db = await openDatabase();
+    log('initJournalStorage: database opened');
 
     // Check if we need to migrate from localStorage
     const localStorageEntries = parseLocalStorageEntries();
     const alreadyMigrated = await hasMigrated(db);
+    log('initJournalStorage: state', { localStorageCount: localStorageEntries.length, alreadyMigrated });
 
     if (localStorageEntries.length > 0 && !alreadyMigrated) {
       // Migration needed: localStorage has entries and we haven't migrated
-      console.log(`Migrating ${localStorageEntries.length} entries from localStorage to IndexedDB...`);
+      log(`initJournalStorage: migrating ${localStorageEntries.length} entries from localStorage`);
 
       // Write to IndexedDB
       await writeEntriesToIndexedDB(db, localStorageEntries);
@@ -211,7 +239,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       // Mark as migrated and delete from localStorage
       await markMigrated(db);
       localStorage.removeItem('journalEntries');
-      console.log('Migration complete, localStorage cleared');
+      log('initJournalStorage: migration complete', { entryCount: verifiedEntries.length });
 
       db.close();
       return verifiedEntries;
@@ -219,6 +247,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
 
     // Load from IndexedDB
     const indexedDBEntries = await getEntriesFromIndexedDB(db);
+    log('initJournalStorage: loaded from IndexedDB', { entryCount: indexedDBEntries.length, dates: indexedDBEntries.map(e => e.date) });
 
     // Check for localStorage backup (from beforeunload) and merge if present
     // This handles the case where IndexedDB async write didn't complete before tab close
@@ -228,7 +257,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       // If merge changed anything, update IndexedDB and clear localStorage
       if (mergedEntries.length !== indexedDBEntries.length ||
           mergedEntries.some((e, i) => e.lastModified !== indexedDBEntries[i]?.lastModified)) {
-        console.log('Merging localStorage backup with IndexedDB...');
+        log('initJournalStorage: merging localStorage backup', { indexedDBCount: indexedDBEntries.length, localStorageCount: localStorageEntries.length, mergedCount: mergedEntries.length });
         await writeEntriesToIndexedDB(db, mergedEntries);
         localStorage.removeItem('journalEntries');
         db.close();
@@ -237,26 +266,29 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
 
       // No changes needed, but still clear stale localStorage
       localStorage.removeItem('journalEntries');
+      log('initJournalStorage: cleared stale localStorage backup');
     }
 
     db.close();
     return indexedDBEntries;
   } catch (error) {
-    console.error('IndexedDB failed, falling back to localStorage:', error);
+    log('initJournalStorage: IndexedDB failed, using localStorage fallback', error);
     fallbackMode = true;
     return parseLocalStorageEntries();
   }
 }
 
 /**
- * Save all journal entries to IndexedDB
+ * Save all journal entries to IndexedDB (upsert, no clear)
  * Fire-and-forget async - doesn't block the caller
  * Falls back to localStorage if IndexedDB failed
  */
 export function saveAllJournalEntries(entries: JournalEntry[]): void {
+  log('saveAllJournalEntries: saving', { entryCount: entries.length, dates: entries.map(e => e.date) });
   if (fallbackMode) {
     // Fallback: use localStorage
     localStorage.setItem('journalEntries', JSON.stringify(entries));
+    log('saveAllJournalEntries: saved to localStorage (fallback)');
     return;
   }
 
@@ -266,10 +298,69 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
       const db = await openDatabase();
       await writeEntriesToIndexedDB(db, entries);
       db.close();
+      log('saveAllJournalEntries: saved to IndexedDB', { entryCount: entries.length });
     } catch (error) {
-      console.error('Failed to save to IndexedDB, falling back to localStorage:', error);
+      log('saveAllJournalEntries: FAILED, falling back to localStorage', error);
       fallbackMode = true;
       localStorage.setItem('journalEntries', JSON.stringify(entries));
+    }
+  })();
+}
+
+/**
+ * Save a single journal entry to IndexedDB
+ * Fire-and-forget async - only touches this one entry, safe for multi-tab
+ */
+export function saveSingleEntry(entry: JournalEntry): void {
+  log('saveSingleEntry: saving', { date: entry.date, contentLength: entry.content.length });
+  if (fallbackMode) {
+    // Fallback: read all, update one, write all back
+    const entries = parseLocalStorageEntries();
+    const index = entries.findIndex(e => e.date === entry.date);
+    if (index >= 0) {
+      entries[index] = entry;
+    } else {
+      entries.push(entry);
+    }
+    localStorage.setItem('journalEntries', JSON.stringify(entries));
+    log('saveSingleEntry: saved to localStorage (fallback)');
+    return;
+  }
+
+  (async () => {
+    try {
+      const db = await openDatabase();
+      await writeSingleEntryToIndexedDB(db, entry);
+      db.close();
+      log('saveSingleEntry: saved to IndexedDB', { date: entry.date });
+    } catch (error) {
+      log('saveSingleEntry: FAILED', { date: entry.date, error });
+    }
+  })();
+}
+
+/**
+ * Delete a single journal entry from IndexedDB
+ * Fire-and-forget async - only touches this one entry, safe for multi-tab
+ */
+export function deleteSingleEntry(date: string): void {
+  log('deleteSingleEntry: deleting', { date });
+  if (fallbackMode) {
+    // Fallback: read all, remove one, write all back
+    const entries = parseLocalStorageEntries().filter(e => e.date !== date);
+    localStorage.setItem('journalEntries', JSON.stringify(entries));
+    log('deleteSingleEntry: deleted from localStorage (fallback)');
+    return;
+  }
+
+  (async () => {
+    try {
+      const db = await openDatabase();
+      await deleteSingleEntryFromIndexedDB(db, date);
+      db.close();
+      log('deleteSingleEntry: deleted from IndexedDB', { date });
+    } catch (error) {
+      log('deleteSingleEntry: FAILED', { date, error });
     }
   })();
 }

@@ -2361,14 +2361,29 @@ Import writes directly to IndexedDB via `saveAllJournalEntries()`.
 
 ### Reset App Behavior
 
-The reset button (powerstat mode) clears both storage systems:
+The reset button (powerstat mode) clears both storage systems. The process handles two key issues:
+
+1. **Async IndexedDB deletion** - Must wait for `deleteDatabase()` to complete before reload
+2. **beforeunload race condition** - App's backup-on-close would re-save entries to localStorage
 
 ```tsx
 // SettingsPanel.tsx
+(window as { __resettingApp?: boolean }).__resettingApp = true;  // Prevent beforeunload save
 localStorage.clear();
-indexedDB.deleteDatabase('good-days');
-location.reload();
+const deleteRequest = indexedDB.deleteDatabase('good-days');
+deleteRequest.onsuccess = () => location.reload();  // Wait for deletion
+deleteRequest.onerror = () => location.reload();
+deleteRequest.onblocked = () => location.reload();
 ```
+
+The `__resettingApp` flag is checked in `useJournalEntries.ts`:
+
+```tsx
+// beforeunload handler
+if ((window as { __resettingApp?: boolean }).__resettingApp) return;  // Skip save during reset
+```
+
+**Why this matters:** Without the flag, the beforeunload handler would save entries to localStorage immediately before reload, then `initJournalStorage()` would find them and migrate them back to IndexedDB on the fresh load.
 
 ### Storage Display (Powerstat Mode)
 
@@ -2392,7 +2407,9 @@ getStorageEstimate().then(({ used, quota }) => {
 | Function | Purpose |
 |----------|---------|
 | `initJournalStorage()` | Opens DB, migrates if needed, merges backup, returns entries |
-| `saveAllJournalEntries(entries)` | Bulk save (fire-and-forget async, falls back on error) |
+| `saveAllJournalEntries(entries)` | Bulk upsert (fire-and-forget async, falls back on error) |
+| `saveSingleEntry(entry)` | Save one entry (multi-tab safe, no clear) |
+| `deleteSingleEntry(date)` | Delete one entry by date |
 | `getStorageEstimate()` | Returns `{ used, quota }` in bytes via Storage API |
 | `isInFallbackMode()` | True if using localStorage instead of IndexedDB |
 | `clearJournalStorage()` | Clears entries and metadata stores (for reset) |

@@ -78,16 +78,20 @@ export function SettingsPanel({
   }, [resetStep]);
 
 
-  const handleResetApp = () => {
+  const handleResetApp = async () => {
     if (resetStep < 2) {
       setResetStep(resetStep + 1);
       return;
     }
+    // Prevent beforeunload from saving entries back to localStorage
+    (window as { __resettingApp?: boolean }).__resettingApp = true;
     // Actually reset the app
     localStorage.clear();
-    // Clear IndexedDB if used
-    indexedDB.deleteDatabase('good-days');
-    location.reload();
+    // Clear IndexedDB and wait for it to complete before reloading
+    const deleteRequest = indexedDB.deleteDatabase('good-days');
+    deleteRequest.onsuccess = () => location.reload();
+    deleteRequest.onerror = () => location.reload();
+    deleteRequest.onblocked = () => location.reload();
   };
 
   const getResetButtonText = () => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
-import { initJournalStorage, saveAllJournalEntries } from '@shared/storage/journalStorage';
+import { initJournalStorage, saveSingleEntry, deleteSingleEntry } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
@@ -68,6 +68,8 @@ export function useJournalEntries() {
   // Force save before closing - use sync localStorage as backup
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // Skip saving if app is being reset (flag set by reset handler)
+      if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       // Save to localStorage as backup for unload (IndexedDB may not complete)
       if (entriesRef.current.length > 0) {
         localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
@@ -85,15 +87,17 @@ export function useJournalEntries() {
     const todayEntry = entries.find(e => e.date === today);
 
     if (!todayEntry && entries.length > 0) {
-      const newEntries = [...entries, {
+      const newTodayEntry: JournalEntry = {
         date: today,
         content: '',
         startedAt: Date.now(),
-      }].sort((a, b) => b.date.localeCompare(a.date));
+      };
+      const newEntries = [...entries, newTodayEntry].sort((a, b) => b.date.localeCompare(a.date));
 
       entriesRef.current = newEntries;
       setEntries(newEntries);
-      saveAllJournalEntries(newEntries);
+      // Only save the new today entry (safe for multi-tab)
+      saveSingleEntry(newTodayEntry);
     }
   }, [entries, isLoading]);
 
@@ -140,51 +144,60 @@ export function useJournalEntries() {
     const currentEntries = entriesRef.current;
     const existingIndex = currentEntries.findIndex(e => e.date === selectedDate);
     let newEntries: JournalEntry[];
+    let entryToSave: JournalEntry | null = null;
+    let dateToDelete: string | null = null;
 
     if (textContent.trim() === '') {
       if (isToday) {
+        const entry: JournalEntry = {
+          date: selectedDate,
+          content: normalizedContent,
+          title: existingIndex >= 0 ? currentEntries[existingIndex].title : undefined,
+          startedAt: existingIndex >= 0 ? (currentEntries[existingIndex].startedAt || timestamp || now) : (timestamp || now),
+          lastModified: now,
+        };
+        entryToSave = entry;
         if (existingIndex >= 0) {
           newEntries = [...currentEntries];
-          newEntries[existingIndex] = {
-            date: selectedDate,
-            content: normalizedContent,
-            title: currentEntries[existingIndex].title,
-            startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
-            lastModified: now,
-          };
+          newEntries[existingIndex] = entry;
         } else {
-          newEntries = [...currentEntries, {
-            date: selectedDate,
-            content: normalizedContent,
-            startedAt: timestamp || now,
-            lastModified: now,
-          }];
+          newEntries = [...currentEntries, entry];
         }
       } else {
+        // Delete entry for non-today with empty content
+        dateToDelete = selectedDate;
         newEntries = currentEntries.filter(e => e.date !== selectedDate);
       }
     } else if (existingIndex >= 0) {
-      newEntries = [...currentEntries];
-      newEntries[existingIndex] = {
+      const entry: JournalEntry = {
         date: selectedDate,
         content,
         title: currentEntries[existingIndex].title,
         startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
         lastModified: now,
       };
+      entryToSave = entry;
+      newEntries = [...currentEntries];
+      newEntries[existingIndex] = entry;
     } else {
-      newEntries = [...currentEntries, {
+      const entry: JournalEntry = {
         date: selectedDate,
         content,
         startedAt: timestamp || now,
         lastModified: now,
-      }];
+      };
+      entryToSave = entry;
+      newEntries = [...currentEntries, entry];
     }
 
     newEntries.sort((a, b) => b.date.localeCompare(a.date));
 
-    // Save to IndexedDB (fire-and-forget async)
-    saveAllJournalEntries(newEntries);
+    // Save only the changed entry to IndexedDB (safe for multi-tab)
+    if (entryToSave) {
+      saveSingleEntry(entryToSave);
+    } else if (dateToDelete) {
+      deleteSingleEntry(dateToDelete);
+    }
 
     // Update ref immediately too
     entriesRef.current = newEntries;
@@ -206,12 +219,14 @@ export function useJournalEntries() {
       if (existingIndex < 0) return prevEntries;
 
       const newEntries = [...prevEntries];
-      newEntries[existingIndex] = {
+      const updatedEntry = {
         ...newEntries[existingIndex],
         title: title.trim() || undefined, // Remove title if empty
       };
+      newEntries[existingIndex] = updatedEntry;
 
-      saveAllJournalEntries(newEntries);
+      // Save only the changed entry (safe for multi-tab)
+      saveSingleEntry(updatedEntry);
       entriesRef.current = newEntries;
       return newEntries;
     });
