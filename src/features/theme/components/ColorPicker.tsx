@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 interface ColorPickerProps {
@@ -7,6 +7,8 @@ interface ColorPickerProps {
 
 export function ColorPicker({ type }: ColorPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
+  // Track active listeners for cleanup on unmount
+  const listenersRef = useRef<{ move: ((e: MouseEvent) => void) | null; up: (() => void) | null }>({ move: null, up: null });
   const {
     hue, saturation, lightness,
     bgHue, bgSaturation, bgLightness,
@@ -22,6 +24,18 @@ export function ColorPicker({ type }: ColorPickerProps) {
   const setHueValue = isText ? setHue : setBgHue;
   const setSat = isText ? setSaturation : setBgSaturation;
   const setLight = isText ? setLightness : setBgLightness;
+
+  // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
+  useEffect(() => {
+    return () => {
+      if (listenersRef.current.move) {
+        document.removeEventListener('mousemove', listenersRef.current.move);
+      }
+      if (listenersRef.current.up) {
+        document.removeEventListener('mouseup', listenersRef.current.up);
+      }
+    };
+  }, []);
 
   const handlePickerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const updateColor = (clientX: number, clientY: number) => {
@@ -46,8 +60,11 @@ export function ColorPicker({ type }: ColorPickerProps) {
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      listenersRef.current = { move: null, up: null };
     };
 
+    // Store refs for cleanup
+    listenersRef.current = { move: handleMouseMove, up: handleMouseUp };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
