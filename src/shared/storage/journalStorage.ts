@@ -334,7 +334,16 @@ export function saveSingleEntry(entry: JournalEntry): void {
       db.close();
       log('saveSingleEntry: saved to IndexedDB', { date: entry.date });
     } catch (error) {
-      log('saveSingleEntry: FAILED', { date: entry.date, error });
+      log('saveSingleEntry: FAILED, falling back to localStorage', { date: entry.date, error });
+      // Fallback: read all, update one, write all back
+      const entries = parseLocalStorageEntries();
+      const index = entries.findIndex(e => e.date === entry.date);
+      if (index >= 0) {
+        entries[index] = entry;
+      } else {
+        entries.push(entry);
+      }
+      localStorage.setItem('journalEntries', JSON.stringify(entries));
     }
   })();
 }
@@ -360,7 +369,10 @@ export function deleteSingleEntry(date: string): void {
       db.close();
       log('deleteSingleEntry: deleted from IndexedDB', { date });
     } catch (error) {
-      log('deleteSingleEntry: FAILED', { date, error });
+      log('deleteSingleEntry: FAILED, falling back to localStorage', { date, error });
+      // Fallback: read all, remove one, write all back
+      const entries = parseLocalStorageEntries().filter(e => e.date !== date);
+      localStorage.setItem('journalEntries', JSON.stringify(entries));
     }
   })();
 }

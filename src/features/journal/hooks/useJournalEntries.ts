@@ -222,6 +222,7 @@ export function useJournalEntries() {
       const updatedEntry = {
         ...newEntries[existingIndex],
         title: title.trim() || undefined, // Remove title if empty
+        lastModified: Date.now(), // Update timestamp so merge prefers this version
       };
       newEntries[existingIndex] = updatedEntry;
 

@@ -96,6 +96,47 @@ The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle
 - `src/shared/` - Shared utilities and components
 - `src/index.css` - Global styles including scrollbar-hide utility
 
+## Storage Architecture
+
+Journal entries are stored in **IndexedDB** (with localStorage fallback).
+
+### Multi-Tab Safety (v1.9.10+)
+
+The app is safe to use with multiple tabs open. Each save operation only writes the single entry being edited, not the entire entry list.
+
+**Key functions** in `src/shared/storage/journalStorage.ts`:
+
+| Function | What it does | When used |
+|----------|--------------|-----------|
+| `saveSingleEntry(entry)` | Writes one entry by date | User types, saves title |
+| `deleteSingleEntry(date)` | Deletes one entry by date | Entry cleared (not today) |
+| `saveAllJournalEntries(entries)` | Upserts multiple entries | Import only |
+
+**Why this matters:**
+
+Before v1.9.10, every save did `clear()` then `put()` for all entries. If Tab A was stale (opened days ago), saving from Tab A would delete entries Tab A didn't know about.
+
+Now, Tab A can only affect the entry it's editing. Other entries are untouched.
+
+### Debugging Storage Issues
+
+All storage operations are logged to the console with `[gdays]` prefix:
+
+```
+[gdays 2026-02-03T...] initJournalStorage: loaded from IndexedDB { entryCount: 50, dates: [...] }
+[gdays 2026-02-03T...] saveSingleEntry: saving { date: "2026-02-03", contentLength: 142 }
+[gdays 2026-02-03T...] saveSingleEntry: saved to IndexedDB { date: "2026-02-03" }
+```
+
+To debug a user's storage issue:
+1. Have them open DevTools Console
+2. Refresh the page (logs `initJournalStorage` with entry count and dates)
+3. Check if expected entries are listed
+
+### beforeunload Backup
+
+On tab close, entries are written to localStorage as a backup (IndexedDB writes are async and may not complete). On next load, localStorage backup is merged with IndexedDB, preferring newer `lastModified` timestamps.
+
 ## Backup & Import
 
 The app supports exporting entries to an **encrypted** `.txt` file and importing them back.
