@@ -849,6 +849,16 @@ bg: 200, 80%, 90%
 
 Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
+## Desktop Color Picker
+
+The saturation/lightness picker in settings uses mouse drag with global event listeners.
+
+### Drag Listener Cleanup
+
+When the user mousedowns on the sat/light square, `mousemove` and `mouseup` listeners are added to `document`. The `mouseup` handler removes both listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag (e.g. closing settings while dragging).
+
+Code location: `src/features/theme/components/ColorPicker.tsx`
+
 ## Mobile Screen
 
 On mobile devices, the app shows a color picker using touch + accelerometer controls.
