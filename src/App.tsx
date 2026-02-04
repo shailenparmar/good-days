@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.9.14';
+const VERSION = '1.9.15';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -127,6 +127,11 @@ function AppContent() {
   // Ref to track zenMode for ESC handler (avoids stale closure issues)
   const zenModeRef = useRef(zenMode);
   useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
+
+  // Refs for journal functions (avoids stale closures in midnight timer)
+  const journalRef = useRef(journal);
+  useEffect(() => { journalRef.current = journal; }, [journal]);
+  const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Unified state saved before entering any focus mode (zen or minizen)
   const [preFocusState, setPreFocusState] = useState<{
     minizen: boolean;
@@ -435,7 +440,7 @@ function AppContent() {
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 
-  // Automatic midnight detection
+  // Automatic midnight detection - uses refs to avoid stale closures
   useEffect(() => {
     const scheduleNextMidnight = () => {
       const now = new Date();
@@ -445,16 +450,16 @@ function AppContent() {
 
       const msUntilMidnight = tomorrow.getTime() - now.getTime();
 
-      return setTimeout(() => {
-        // Save current content
+      midnightTimeoutRef.current = setTimeout(() => {
+        // Save current content using ref to get latest journal
         if (editorRef.current) {
           const content = editorRef.current.value || '';
           if (content.trim()) {
-            journal.saveEntry(content, Date.now());
+            journalRef.current.saveEntry(content, Date.now());
           }
         }
         // Switch to new day
-        journal.setSelectedDate(getTodayDate());
+        journalRef.current.setSelectedDate(getTodayDate());
         if (editorRef.current) {
           editorRef.current.value = '';
         }
@@ -462,9 +467,13 @@ function AppContent() {
       }, msUntilMidnight);
     };
 
-    const timeoutId = scheduleNextMidnight();
-    return () => clearTimeout(timeoutId);
-  }, [journal]);
+    scheduleNextMidnight();
+    return () => {
+      if (midnightTimeoutRef.current) {
+        clearTimeout(midnightTimeoutRef.current);
+      }
+    };
+  }, []); // Empty deps - uses refs for latest values
 
   // Handle password unlock
   const handlePasswordSubmit = async (e: React.FormEvent): Promise<boolean> => {

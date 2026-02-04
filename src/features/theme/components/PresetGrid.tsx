@@ -29,6 +29,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
@@ -171,8 +172,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
         setActivePresetIndex(newIndex);
 
-        // Scroll to the active preset button
-        setTimeout(() => {
+        // Scroll to the active preset button (clear previous timeout to prevent leak)
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        scrollTimeoutRef.current = setTimeout(() => {
           const button = containerRef.current?.querySelector(`[data-preset-index="${newIndex}"]`);
           button?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }, 0);
@@ -236,7 +240,12 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     };
 
     window.addEventListener('keydown', handlePresetNavigation, true); // capture phase - runs before App.tsx
-    return () => window.removeEventListener('keydown', handlePresetNavigation, true);
+    return () => {
+      window.removeEventListener('keydown', handlePresetNavigation, true);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset]);
 
   // Handle delete key for presets

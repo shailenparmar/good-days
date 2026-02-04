@@ -117,8 +117,11 @@ export function useAuth() {
     const storedSalt = getItem(PASSWORD_SALT_KEY);
 
     if (!storedHash || !storedSalt) {
+      // Password was removed (possibly in another tab) - unlock and refresh state
+      setHasPassword(false);
+      setIsLocked(false);
       setPasswordInput('');
-      return false;
+      return true; // Treat as successful unlock since there's no password
     }
 
     const inputHash = await hashPassword(passwordInput.trim(), storedSalt);

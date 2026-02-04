@@ -528,6 +528,38 @@ The cursor blinks when deleting text. This is intentional - we let the browser h
 |------|---------|
 | `src/features/journal/components/JournalEditor.tsx` | Textarea editor, scramble overlay, `\time` command |
 
+## Midnight Detection
+
+The app automatically switches to a new day at midnight, saving the current entry and creating a fresh one.
+
+### Implementation
+
+Uses refs to avoid stale closures and a single timeout chain:
+
+```tsx
+// App.tsx
+const journalRef = useRef(journal);
+useEffect(() => { journalRef.current = journal; }, [journal]);
+const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+useEffect(() => {
+  const scheduleNextMidnight = () => {
+    const msUntilMidnight = /* calculate */;
+    midnightTimeoutRef.current = setTimeout(() => {
+      journalRef.current.saveEntry(content, Date.now());
+      journalRef.current.setSelectedDate(getTodayDate());
+      scheduleNextMidnight(); // Reschedule for next midnight
+    }, msUntilMidnight);
+  };
+  scheduleNextMidnight();
+  return () => {
+    if (midnightTimeoutRef.current) clearTimeout(midnightTimeoutRef.current);
+  };
+}, []); // Empty deps - uses refs for latest values
+```
+
+**Why refs:** The `journal` object changes on every entry update. Without refs, the effect would re-run constantly, creating multiple timer chains that all fire at midnight (race condition).
+
 ## Scramble Mode
 
 Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
