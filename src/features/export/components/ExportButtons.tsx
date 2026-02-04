@@ -183,7 +183,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
         <Upload className="w-3 h-3" />
-        <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
+        <span>{s(stacked ? 'download AES-256-GCM backup' : 'download backup')}</span>
       </FunctionButton>
       {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
       <div {...importContainerProps}>

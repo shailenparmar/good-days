@@ -373,10 +373,10 @@ This prevents duplicate content from being appended during repeated imports.
 | Mode | Button | Default Text | On Hover |
 |------|--------|--------------|----------|
 | Normal | Copy | "copy to clipboard" | — |
-| Normal | Backup | "backup" | — |
+| Normal | Backup | "download backup" | — |
 | Normal | Import | "import backup" | — |
 | Powerstat | Copy | "copy markdown format" | — |
-| Powerstat | Backup | "AES-256-GCM backup" | — |
+| Powerstat | Backup | "download AES-256-GCM backup" | — |
 | Powerstat | Import | "import AES-256-GCM backup" | "multiple files accepted" |
 
 The import button hover text change in powerstat mode is a literal string change (not a tooltip - we don't use tooltips).
