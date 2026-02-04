@@ -549,7 +549,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
-**Hover Flicker Fix:** Uses the `useStableHover` hook (see "The Hover Flicker Problem"). On hover, the invisible hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to any layout shifts — the button can shrink, move, or reflow, but the hover hitbox stays exactly where it was on screen.
+**Hover Flicker Fix:** Uses the `useStableHover` hook (see "The Hover Flicker Problem"). On hover, the bounding rect is captured. If the button shrinks and triggers mouseLeave while the cursor is still in the original rect, we stay hovered. No overlay div, no scroll blocking.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 

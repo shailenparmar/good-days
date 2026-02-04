@@ -6,7 +6,6 @@ import { getItem, setItem } from '@shared/storage';
 
 interface AboutPanelProps {
   isOpen: boolean;
-  onCloseSettings: () => void;
   stacked?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
@@ -19,7 +18,7 @@ interface AboutPanelProps {
 const ABOUT_WIDTH = 720;    // About panel width when alone (includes border)
 const SETTINGS_WIDTH = 320; // Settings panel width (w-80, includes border)
 
-export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
+export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -75,7 +74,6 @@ export function AboutPanel({ isOpen, onCloseSettings, stacked, superscramble, sc
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
       }}
-      onClick={onCloseSettings}
     >
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>

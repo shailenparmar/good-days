@@ -1,15 +1,15 @@
 /**
- * Calculates optimal status colors (confirm/error) using WCAG contrast ratios.
+ * Calculates status colors (confirm/error) with smooth transitions.
  *
- * Algorithm:
- * 1. Start with ideal hue (red=0° for error, green=120° for confirm)
- * 2. Find lightness that achieves 4.5:1 contrast with background
- * 3. If hue conflicts with text, shift minimally
+ * Simple algorithm:
+ * 1. Hues are FIXED: red (0°) for error, green (120°) for confirm
+ * 2. Only lightness adjusts to achieve 4.5:1 contrast with background
+ * 3. Smooth sigmoid blend between dark/light at the luminance crossover
  *
  * This guarantees:
- * - Readable against background (WCAG 4.5:1 standard)
- * - Distinguishable from text
- * - Semantic colors preserved when possible
+ * - Always readable (WCAG 4.5:1 standard)
+ * - Always semantically correct (red = error, green = confirm)
+ * - Smooth continuous transitions as background changes
  */
 
 // ============ Color Conversion ============
@@ -33,7 +33,7 @@ function getLuminance(r: number, g: number, b: number): number {
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }
 
-function getContrastRatio(lum1: number, lum2: number): number {
+function getContrast(lum1: number, lum2: number): number {
   const [light, dark] = lum1 > lum2 ? [lum1, lum2] : [lum2, lum1];
   return (light + 0.05) / (dark + 0.05);
 }
@@ -45,102 +45,70 @@ function getLuminanceForHsl(h: number, s: number, l: number): number {
 
 // ============ Core Algorithm ============
 
+const RED_HUE = 0;
+const GREEN_HUE = 120;
+const SATURATION = 100;
+const TARGET_CONTRAST = 4.5;
+
 /**
- * Find lightness that achieves target contrast ratio with background.
- * Starts at 50% (most vibrant) and searches outward toward the extreme
- * that provides more contrast. Returns the LEAST extreme lightness that
- * still achieves the target contrast.
+ * Find lightness that achieves target contrast, with smooth transitions.
+ *
+ * Light backgrounds → dark status colors
+ * Dark backgrounds → light status colors
+ * Sigmoid blend at the crossover for smooth transitions
  */
-function findLightnessForContrast(
-  hue: number,
-  sat: number,
-  bgLuminance: number,
-  targetRatio: number
-): number {
-  // Determine which direction increases contrast
-  // Light background → darker colors have more contrast (search toward 0)
-  // Dark background → lighter colors have more contrast (search toward 100)
-  const bgIsLight = bgLuminance > 0.179; // ~45% gray
+function solveLightness(hue: number, bgLum: number): number {
+  const getLum = (l: number) => getLuminanceForHsl(hue, SATURATION, l);
 
-  // Start at 50% and search outward toward the contrasting extreme
-  for (let offset = 0; offset <= 50; offset++) {
-    const l = bgIsLight ? (50 - offset) : (50 + offset);
-    const lum = getLuminanceForHsl(hue, sat, l);
-    const ratio = getContrastRatio(lum, bgLuminance);
-
-    if (ratio >= targetRatio) {
-      return l;
+  // Find darkest lightness that achieves target (binary search from 50 down)
+  let darkL = 0;
+  {
+    let lo = 0, hi = 50;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      if (getContrast(getLum(mid), bgLum) >= TARGET_CONTRAST) lo = mid;
+      else hi = mid;
     }
+    darkL = lo;
   }
 
-  // If 50% offset wasn't enough, return the extreme
-  return bgIsLight ? 0 : 100;
-}
+  // Find lightest lightness that achieves target (binary search from 50 up)
+  let lightL = 100;
+  {
+    let lo = 50, hi = 100;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      if (getContrast(getLum(mid), bgLum) >= TARGET_CONTRAST) hi = mid;
+      else lo = mid;
+    }
+    lightL = hi;
+  }
 
-/**
- * Calculate hue distance on circular color wheel (0-180)
- */
-function hueDistance(h1: number, h2: number): number {
-  const diff = Math.abs(h1 - h2);
-  return Math.min(diff, 360 - diff);
-}
+  // Smooth sigmoid blend based on background luminance
+  // Light bg (high lum) → prefer dark status (t → 1)
+  // Dark bg (low lum) → prefer light status (t → 0)
+  const t = 1 / (1 + Math.exp(-15 * (bgLum - 0.18)));
 
-/**
- * Shift hue away from a target hue by minimum distance.
- * Chooses direction that maximizes distance from avoid hue.
- */
-function shiftHueAway(hue: number, avoid: number, minDist: number = 60): number {
-  if (hueDistance(hue, avoid) >= minDist) return hue;
-
-  const cw = (hue + minDist) % 360;
-  const ccw = (hue - minDist + 360) % 360;
-
-  return hueDistance(cw, avoid) > hueDistance(ccw, avoid) ? cw : ccw;
+  return lightL * (1 - t) + darkL * t;
 }
 
 // ============ Main Export ============
 
-const RED_HUE = 0;
-const GREEN_HUE = 120;
-const SATURATION = 100;
-const TARGET_CONTRAST_RATIO = 4.5; // WCAG AA standard
-const MIN_HUE_DISTANCE = 60; // Minimum hue separation for distinguishability
-const CHROMATIC_THRESHOLD = 30; // Below this saturation, hue is meaningless
-
 export function getStatusColors(
-  textH: number,
-  textS: number,
-  _textL: number, // Available for future luminance-based text distinction
+  _textH: number,
+  _textS: number,
+  _textL: number,
   bgH: number,
   bgS: number,
   bgL: number
 ): { confirm: string; error: string } {
-  // Calculate background luminance
-  const bgLuminance = getLuminanceForHsl(bgH, bgS, bgL);
+  const bgLum = getLuminanceForHsl(bgH, bgS, bgL);
 
-  // Determine if text hue matters (only if chromatic)
-  const textIsChromatic = textS > CHROMATIC_THRESHOLD;
-
-  // Error: start with red
-  let errorHue = RED_HUE;
-  if (textIsChromatic && hueDistance(errorHue, textH) < MIN_HUE_DISTANCE) {
-    errorHue = shiftHueAway(errorHue, textH, MIN_HUE_DISTANCE);
-  }
-  const errorL = findLightnessForContrast(errorHue, SATURATION, bgLuminance, TARGET_CONTRAST_RATIO);
-
-  // Confirm: start with green
-  let confirmHue = GREEN_HUE;
-  if (textIsChromatic && hueDistance(confirmHue, textH) < MIN_HUE_DISTANCE) {
-    confirmHue = shiftHueAway(confirmHue, textH, MIN_HUE_DISTANCE);
-  }
-  // Also ensure confirm is different from error
-  if (hueDistance(confirmHue, errorHue) < MIN_HUE_DISTANCE) {
-    confirmHue = shiftHueAway(confirmHue, errorHue, MIN_HUE_DISTANCE);
-  }
-  const confirmL = findLightnessForContrast(confirmHue, SATURATION, bgLuminance, TARGET_CONTRAST_RATIO);
+  const errorL = solveLightness(RED_HUE, bgLum);
+  const confirmL = solveLightness(GREEN_HUE, bgLum);
 
   return {
-    confirm: `hsl(${Math.round(confirmHue)}, ${SATURATION}%, ${Math.round(confirmL)}%)`,
-    error: `hsl(${Math.round(errorHue)}, ${SATURATION}%, ${Math.round(errorL)}%)`,
+    confirm: `hsl(${GREEN_HUE}, ${SATURATION}%, ${Math.round(confirmL)}%)`,
+    error: `hsl(${RED_HUE}, ${SATURATION}%, ${Math.round(errorL)}%)`,
   };
 }

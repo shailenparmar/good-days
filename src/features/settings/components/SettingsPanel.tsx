@@ -43,7 +43,7 @@ export function SettingsPanel({
   void scrambleSeed;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   // Stable hover for scramble hotkey button
-  const { hovered: hotkeyButtonHovered, containerRef: hotkeyContainerRef, hoverLayerProps: hotkeyHoverProps } = useStableHover();
+  const { hovered: hotkeyButtonHovered, containerProps: hotkeyContainerProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
   // Scroll position persistence
@@ -155,10 +155,8 @@ export function SettingsPanel({
           className="p-4"
           style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
         >
-          {/* Stable hover container - button visually shrinks, hover hitbox stays stable */}
-          <div ref={hotkeyContainerRef} style={{ position: 'relative' }}>
-            {/* Only enable stable hover when text changes (scrambleHotkeyActive) */}
-            {scrambleHotkeyActive && <div {...hotkeyHoverProps} />}
+          {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
+          <div {...hotkeyContainerProps}>
             <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
               <span>
                 {(() => {

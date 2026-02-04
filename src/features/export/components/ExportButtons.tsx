@@ -28,8 +28,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
-  // Stable hover for import button - allows visual shrink while hover hitbox stays stable
-  const { hovered: importHovered, containerRef: importContainerRef, hoverLayerProps: importHoverProps } = useStableHover();
+  // Stable hover for import button - hover hitbox stays stable even when button shrinks
+  const { hovered: importHovered, containerProps: importContainerProps } = useStableHover();
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
@@ -185,10 +185,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <Upload className="w-3 h-3" />
         <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
       </FunctionButton>
-      {/* Stable hover container - button visually shrinks, hover hitbox stays stable */}
-      <div ref={importContainerRef} style={{ position: 'relative' }}>
-        {/* Only enable stable hover in stacked mode where text changes */}
-        {stacked && <div {...importHoverProps} />}
+      {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
+      <div {...importContainerProps}>
         <FunctionButton
           onClick={handleImport}
           size="sm"
