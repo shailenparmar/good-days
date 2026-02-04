@@ -2272,14 +2272,17 @@ When creating or modifying app icons, follow these rules to prevent macOS/iOS fr
 
 ### Icon Files
 
-| File | Purpose | Design |
-|------|---------|--------|
-| `icon.svg` | Favicon (browser tab) | Rounded corners OK, transparent background OK |
-| `apple-touch-icon.png` | iOS/macOS dock | **Square** (OS rounds corners automatically) |
-| `icon-192.png` | Android/PWA | **Square** |
-| `icon-512.png` | Android/PWA | **Square** |
-| `og-image.png` | Social sharing (iMessage, etc.) | Icon on white background, generated from `og-source.svg` |
-| `og-source.svg` | Source SVG for og-image.png | 1200x630, icon centered on white bg |
+| File | Purpose | Rounding | Safe? |
+|------|---------|----------|-------|
+| `icon.svg` | Favicon (browser tab) | Apple 22.37% radius (rx=229/1024) | **Safe** — displayed as-is |
+| `og-image.png` | Social sharing (iMessage, etc.) | Apple 22.37% radius (rx=90/400) | **Safe** — displayed as-is |
+| `og-source.svg` | Source SVG for og-image.png | Apple 22.37% radius (rx=90/400) | **Safe** — source file |
+| `apple-touch-icon.png` | iOS/macOS dock | **Full square** — no rounding | **Unsafe** — OS rounds corners |
+| `icon-192.png` | Android/PWA | **Full square** — no rounding | **Unsafe** — OS rounds corners |
+| `icon-512.png` | Android/PWA | **Full square** — no rounding | **Unsafe** — OS rounds corners |
+| `icon-square.svg` | Source SVG for PNG icons | **Full square** — no rounding | **Unsafe** — source for OS icons |
+
+**Rounding strategy:** Safe icons (displayed as-is by browsers/social platforms) use Apple's macOS icon corner radius (~22.37%). Unsafe icons (processed by iOS/macOS/Android icon pipeline) are full squares so the OS applies its own rounding — adding our own rounding would cause double-rounding artifacts and dark shading.
 
 **og:image URL:** Must be an **absolute URL** (`https://gdays.day/og-image.png`) in `index.html`, not a relative path. Social crawlers (iMessage, Twitter, etc.) require absolute URLs to fetch the preview image.
 

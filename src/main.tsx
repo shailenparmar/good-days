@@ -117,9 +117,8 @@ function MobileScreen() {
   // Live touch position - tracked continuously from button press
   const liveTouch = useRef<{ x: number; y: number } | null>(null);
   const barsMounted = useRef(0);
-  // Which side started the touch (left = background, right = text)
+  // Which side started the touch (left = text, right = background)
   const activeSide = useRef<'left' | 'right' | null>(null);
-
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
@@ -589,52 +588,54 @@ function MobileScreen() {
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
         {/* Square complex - centered between title and spectrum */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
           {tiltSquare(252, true)}
         </div>
 
-        {/* Hex codes above bars */}
-        <div style={{ display: 'flex', marginBottom: '4px', pointerEvents: 'none' }}>
-          <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
-          <span style={{ width: '4px' }} />
-          <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
-        </div>
-
-        {/* Hue bars - sized to match home screen button area */}
+        {/* Hue bars + hex codes - sized to match home screen button area exactly */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
-          {/* Invisible buttons set the correct height */}
+          {/* Invisible buttons set the correct height (same as home screen) */}
           <div style={{ visibility: 'hidden', padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={getButtonStyle(false, 'full')}>&nbsp;</div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
           </div>
-          {/* Bars overlay */}
-          <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-            {/* Left: text hue bar */}
-            <div
-              ref={leftBarRef}
-              style={{ flex: 1, position: 'relative', background: pureHueGradient }}
-            >
-              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
-              {activeSide.current === 'left' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
-              )}
+          {/* Overlay: hex codes + bars */}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+            {/* Hex codes above bars */}
+            <div style={{ display: 'flex', padding: '0', marginBottom: '12px', pointerEvents: 'none', flexShrink: 0 }}>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '24px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
+              <span style={{ width: '4px' }} />
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '24px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
             </div>
+            {/* Bars fill remaining space */}
+            <div style={{ flex: 1, display: 'flex' }}>
+              {/* Left: text hue bar */}
+              <div
+                ref={leftBarRef}
+                style={{ flex: 1, position: 'relative', background: pureHueGradient }}
+              >
+                <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
+                <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+                {activeSide.current === 'left' && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
+                )}
+              </div>
 
-            {/* Black vertical divider */}
-            <div style={{ width: '4px', backgroundColor: 'black', flexShrink: 0 }} />
+              {/* Black vertical divider */}
+              <div style={{ width: '4px', backgroundColor: 'black', flexShrink: 0 }} />
 
-            {/* Right: background hue bar */}
-            <div
-              ref={rightBarRef}
-              style={{ flex: 1, position: 'relative', background: pureHueGradient }}
-            >
-              <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
-              {activeSide.current === 'right' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
-              )}
+              {/* Right: background hue bar */}
+              <div
+                ref={rightBarRef}
+                style={{ flex: 1, position: 'relative', background: pureHueGradient }}
+              >
+                <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
+                <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
+                {activeSide.current === 'right' && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -663,9 +664,9 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        {/* Square complex - centered between title and buttons */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {tiltSquare(252)}
+        {/* Square complex - fills space with 12px gap to title and buttons */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
+          {tiltSquare(squareSize)}
         </div>
 
         <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
