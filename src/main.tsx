@@ -1,4 +1,4 @@
-import { StrictMode, useState, useEffect, useRef } from 'react'
+import { StrictMode, useState, useEffect, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -65,29 +65,42 @@ function MobileScreen() {
     return { hue: 175, sat: 100, light: 21, bgHue: 84, bgSat: 100, bgLight: 88 };
   });
 
-  // Which color is being edited (null = not editing)
-  const [editing, setEditing] = useState<'text' | 'bg' | null>(null);
+  // Editing state
+  const [editing, setEditing] = useState<'picking' | null>(null);
 
-  // Track if we need to request orientation permission (iOS)
+  // Touch Y positions for hue indicators (0-1)
+  const [bgTouchY, setBgTouchY] = useState(0);
+  const [textTouchY, setTextTouchY] = useState(0);
+
+  // Tilt values for sat/brightness (-1 to 1)
+  const [tiltX, setTiltX] = useState(0);
+  const [tiltY, setTiltY] = useState(0);
+
+  // Button press states
+  const [resetPressed, setResetPressed] = useState(false);
+  const [copyPressed, setCopyPressed] = useState(false);
+  const [pastePressed, setPastePressed] = useState(false);
+
+  // iOS permission state
   const [needsPermission, setNeedsPermission] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
-  // Refs for baseline values when editing starts
-  const baseline = useRef({ beta: 0, gamma: 0, sat: 50, light: 50 });
+  // Refs
+  const baseline = useRef({ beta: 0, gamma: 0, bgSat: 50, bgLight: 50, txtSat: 50, txtLight: 50 });
+  const leftBarRef = useRef<HTMLDivElement>(null);
+  const rightBarRef = useRef<HTMLDivElement>(null);
 
-  // Ref to track editing state in event handlers (avoids stale closure)
-  const editingRef = useRef<'text' | 'bg' | null>(null);
+  // Live touch position - tracked continuously from button press
+  const liveTouch = useRef<{ x: number; y: number } | null>(null);
+  const barsMounted = useRef(0);
+  // Which side started the touch (left = background, right = text)
+  const activeSide = useRef<'left' | 'right' | null>(null);
 
-  // Ref for the slider area
-  const sliderRef = useRef<HTMLDivElement>(null);
+  // Debug state for on-screen display
+  const [debugInfo, setDebugInfo] = useState('');
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
-
-  // Keep editingRef in sync
-  useEffect(() => {
-    editingRef.current = editing;
-  }, [editing]);
 
   // Persist colors
   useEffect(() => {
@@ -106,18 +119,15 @@ function MobileScreen() {
     document.documentElement.style.setProperty('background-color', bgColor, 'important');
   }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
 
-  // Lock to portrait orientation on mount
+  // Lock to portrait
   useEffect(() => {
-    // Try Screen Orientation API (works on Android Chrome, some iOS)
     const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
     if (orientation?.lock) {
-      orientation.lock('portrait').catch(() => {
-        // Silently fail - not supported or not allowed
-      });
+      orientation.lock('portrait').catch(() => {});
     }
   }, []);
 
-  // Check if we need permission on mount
+  // Check iOS permission
   useEffect(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     if (typeof DOE.requestPermission === 'function') {
@@ -127,7 +137,7 @@ function MobileScreen() {
     }
   }, []);
 
-  // Request permission handler (called from a button)
+  // Request permission
   const requestPermission = async () => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     if (typeof DOE.requestPermission === 'function') {
@@ -141,7 +151,59 @@ function MobileScreen() {
     }
   };
 
-  // Orientation handler - runs while editing
+  // Process touch - uses activeSide to know which bar, only needs Y position
+  const processTouchAt = useCallback((y: number, source?: string) => {
+    // Use whichever bar exists to get the Y mapping
+    const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
+    if (!bar) {
+      setDebugInfo(`${source}: no bar yet`);
+      return false;
+    }
+
+    const rect = bar.getBoundingClientRect();
+    const relY = (y - rect.top) / rect.height;
+    const clampedY = Math.max(0, Math.min(1, relY));
+    const newHue = Math.round(clampedY * 360);
+
+    setDebugInfo(`${source}: y=${y.toFixed(0)} → ${(clampedY * 100).toFixed(0)}%`);
+
+    if (activeSide.current === 'left') {
+      setBgTouchY(clampedY);
+      setColors(prev => ({ ...prev, bgHue: newHue }));
+    } else {
+      setTextTouchY(clampedY);
+      setColors(prev => ({ ...prev, hue: newHue }));
+    }
+    return true;
+  }, []);
+
+  // Process touch when both bars are mounted - uses LIVE Y position
+  const tryProcessLiveTouch = useCallback(() => {
+    barsMounted.current++;
+    // Wait for BOTH bars to mount
+    if (barsMounted.current >= 2 && liveTouch.current) {
+      // Process current live Y position immediately
+      processTouchAt(liveTouch.current.y, 'BARS_READY');
+    }
+  }, [processTouchAt]);
+
+  // Callback ref for left bar
+  const leftBarCallback = useCallback((node: HTMLDivElement | null) => {
+    leftBarRef.current = node;
+    if (node && liveTouch.current) {
+      tryProcessLiveTouch();
+    }
+  }, [tryProcessLiveTouch]);
+
+  // Callback ref for right bar
+  const rightBarCallback = useCallback((node: HTMLDivElement | null) => {
+    rightBarRef.current = node;
+    if (node && liveTouch.current) {
+      tryProcessLiveTouch();
+    }
+  }, [tryProcessLiveTouch]);
+
+  // Orientation handler while picking
   useEffect(() => {
     if (!editing || !permissionGranted) return;
 
@@ -149,7 +211,7 @@ function MobileScreen() {
       const beta = e.beta ?? 0;
       const gamma = e.gamma ?? 0;
 
-      // On first event, capture baseline
+      // Capture baseline on first event
       if (baseline.current.beta === 0 && baseline.current.gamma === 0) {
         baseline.current.beta = beta;
         baseline.current.gamma = gamma;
@@ -158,59 +220,73 @@ function MobileScreen() {
       const betaDelta = beta - baseline.current.beta;
       const gammaDelta = gamma - baseline.current.gamma;
 
-      // ±20° = full range (0-100 for sat, 5-95 for light)
-      const maxTilt = 20;
-      const satChange = (gammaDelta / maxTilt) * 50;
-      const lightChange = -(betaDelta / maxTilt) * 50;
+      const maxTilt = 15;
 
-      const newSat = Math.max(0, Math.min(100, Math.round(baseline.current.sat + satChange)));
-      const newLight = Math.max(5, Math.min(95, Math.round(baseline.current.light + lightChange)));
+      // Tilt visualization
+      setTiltY(Math.max(-1, Math.min(1, betaDelta / maxTilt)));
+      setTiltX(Math.max(-1, Math.min(1, gammaDelta / maxTilt)));
 
-      setColors(prev => {
-        if (editingRef.current === 'text') {
-          return { ...prev, sat: newSat, light: newLight };
-        } else if (editingRef.current === 'bg') {
-          return { ...prev, bgSat: newSat, bgLight: newLight };
-        }
-        return prev;
-      });
+      // Absolute mapping for sat/light
+      // Center (flat) = 50, full left = 0, full right = 100
+      const tiltNormX = Math.max(-1, Math.min(1, gammaDelta / maxTilt));
+      const tiltNormY = Math.max(-1, Math.min(1, betaDelta / maxTilt));
+
+      // Saturation: left=0, center=50, right=100
+      const newSat = Math.round(50 + tiltNormX * 50);
+      // Lightness: forward=5, center=50, back=95
+      const newLight = Math.round(50 - tiltNormY * 45);
+
+      const newBgSat = Math.max(0, Math.min(100, newSat));
+      const newBgLight = Math.max(5, Math.min(95, newLight));
+      const newTxtSat = Math.max(0, Math.min(100, newSat));
+      const newTxtLight = Math.max(5, Math.min(95, newLight));
+
+      setColors(prev => ({
+        ...prev,
+        bgSat: newBgSat,
+        bgLight: newBgLight,
+        sat: newTxtSat,
+        light: newTxtLight,
+      }));
     };
 
     window.addEventListener('deviceorientation', handler);
     return () => window.removeEventListener('deviceorientation', handler);
   }, [editing, permissionGranted]);
 
-  // Touch move handler - updates hue based on Y position
+  // Tracking active - starts on button press, before picker appears
+  const isTrackingRef = useRef(false);
+
+  // Global touch handlers - ALWAYS listening, track position continuously
   useEffect(() => {
-    if (!editing) return;
-
     const handleMove = (e: TouchEvent) => {
+      if (!isTrackingRef.current) return;
       e.preventDefault();
-      if (!sliderRef.current || !editingRef.current) return;
-
       const touch = e.touches[0];
-      const rect = sliderRef.current.getBoundingClientRect();
-      const relY = (touch.clientY - rect.top) / rect.height;
-      const clampedY = Math.max(0, Math.min(1, relY));
-      const newHue = Math.round(clampedY * 360);
-
-      setColors(prev => {
-        if (editingRef.current === 'text') {
-          return { ...prev, hue: newHue };
-        } else if (editingRef.current === 'bg') {
-          return { ...prev, bgHue: newHue };
+      if (touch) {
+        // Always update live position
+        liveTouch.current = { x: touch.clientX, y: touch.clientY };
+        // If bars exist, process Y position immediately
+        if (leftBarRef.current || rightBarRef.current) {
+          processTouchAt(touch.clientY, 'MOVE');
         }
-        return prev;
-      });
+      }
     };
 
     const handleEnd = () => {
+      if (!isTrackingRef.current) return;
+      isTrackingRef.current = false;
+      activeSide.current = null;
       if (navigator.vibrate) navigator.vibrate([5, 30, 5]);
       setEditing(null);
-      // Reset baseline for next edit
-      baseline.current = { beta: 0, gamma: 0, sat: 50, light: 50 };
+      baseline.current = { beta: 0, gamma: 0, bgSat: 50, bgLight: 50, txtSat: 50, txtLight: 50 };
+      setTiltX(0);
+      setTiltY(0);
+      liveTouch.current = null;
+      barsMounted.current = 0;
     };
 
+    // Handlers attached on mount - always listening
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
     window.addEventListener('touchcancel', handleEnd);
@@ -220,35 +296,57 @@ function MobileScreen() {
       window.removeEventListener('touchend', handleEnd);
       window.removeEventListener('touchcancel', handleEnd);
     };
-  }, [editing]);
+  }, [processTouchAt]);
 
-  // Start editing - called on touchstart of text/bg buttons
-  const startEditing = (which: 'text' | 'bg') => {
+  // Start picking - begin tracking IMMEDIATELY
+  const startPicking = (side: 'left' | 'right') => (e: React.TouchEvent) => {
+    e.preventDefault();
     if (navigator.vibrate) navigator.vibrate(10);
 
-    // Capture current sat/light as baseline
-    if (which === 'text') {
-      baseline.current.sat = colors.sat;
-      baseline.current.light = colors.light;
-    } else {
-      baseline.current.sat = colors.bgSat;
-      baseline.current.light = colors.bgLight;
-    }
-    // Reset orientation baseline (will be set on first orientation event)
+    // Set which side we're controlling
+    activeSide.current = side;
+
+    // Start tracking IMMEDIATELY - before any state changes
+    isTrackingRef.current = true;
+
+    // Store current touch position
+    const touch = e.touches[0];
+    liveTouch.current = { x: touch.clientX, y: touch.clientY };
+    setDebugInfo(`START ${side}: y=${touch.clientY.toFixed(0)}`);
+    barsMounted.current = 0;
+
+    // Capture current values as baseline
+    baseline.current.bgSat = colors.bgSat;
+    baseline.current.bgLight = colors.bgLight;
+    baseline.current.txtSat = colors.sat;
+    baseline.current.txtLight = colors.light;
     baseline.current.beta = 0;
     baseline.current.gamma = 0;
 
-    setEditing(which);
+    // Initialize touch positions from current hues
+    setBgTouchY(colors.bgHue / 360);
+    setTextTouchY(colors.hue / 360);
+
+    setTiltX(0);
+    setTiltY(0);
+    setEditing('picking');
   };
 
-  // Copy handler
+  // Reset tilt baseline
+  const handleResetTilt = () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    baseline.current.beta = 0;
+    baseline.current.gamma = 0;
+  };
+
+  // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
     const text = `txt: ${colors.hue}, ${colors.sat}%, ${colors.light}%\nbg: ${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%`;
     navigator.clipboard.writeText(text).catch(() => {});
   };
 
-  // Paste handler - instant, no async/await blocking
+  // Paste
   const handlePaste = () => {
     if (navigator.vibrate) navigator.vibrate(10);
     navigator.clipboard.readText().then(text => {
@@ -268,23 +366,65 @@ function MobileScreen() {
     }).catch(() => {});
   };
 
-  const currentHue = editing === 'text' ? colors.hue : colors.bgHue;
-  const currentSat = editing === 'text' ? colors.sat : colors.bgSat;
-  const currentLight = editing === 'text' ? colors.light : colors.bgLight;
+  // Button style helper - follows style guide with fill on press
+  const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full') => {
+    const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${pressed ? 65 : colors.light}%, ${pressed ? 1 : 0.6})`;
+    const fillColor = pressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
+    const base: React.CSSProperties = {
+      flex: position === 'full' ? undefined : 1,
+      width: position === 'full' ? '100%' : undefined,
+      padding: '14px 0',
+      fontFamily: 'monospace',
+      fontWeight: 800,
+      fontSize: '16px',
+      backgroundColor: fillColor,
+      color: textColor,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    };
+    if (position === 'left') {
+      return { ...base, border: `4px solid ${borderColor}`, borderRightWidth: '2px', borderRadius: '12px 0 0 12px' };
+    } else if (position === 'right') {
+      return { ...base, border: `4px solid ${borderColor}`, borderLeftWidth: '2px', borderRadius: '0 12px 12px 0' };
+    }
+    return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
+  };
 
-  // Generate hue gradient with current sat/light values
-  const hueGradient = `linear-gradient(to bottom,
-    hsl(0, ${currentSat}%, ${currentLight}%),
-    hsl(60, ${currentSat}%, ${currentLight}%),
-    hsl(120, ${currentSat}%, ${currentLight}%),
-    hsl(180, ${currentSat}%, ${currentLight}%),
-    hsl(240, ${currentSat}%, ${currentLight}%),
-    hsl(300, ${currentSat}%, ${currentLight}%),
-    hsl(360, ${currentSat}%, ${currentLight}%)
+  // Generate hue gradient - uses CURRENT sat/light values
+  const makeHueGradient = (sat: number, light: number) => `linear-gradient(to bottom,
+    hsl(0, ${sat}%, ${light}%),
+    hsl(60, ${sat}%, ${light}%),
+    hsl(120, ${sat}%, ${light}%),
+    hsl(180, ${sat}%, ${light}%),
+    hsl(240, ${sat}%, ${light}%),
+    hsl(300, ${sat}%, ${light}%),
+    hsl(360, ${sat}%, ${light}%)
   )`;
 
-  // If we need permission and haven't granted it yet, show permission button
+  // Permission screen
   if (needsPermission && !permissionGranted) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+        <div style={{ flex: '0 0 70%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '80px', lineHeight: 1 }}>good</span>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '80px', lineHeight: 1 }}>days</span>
+        </div>
+        <div style={{ flex: '0 0 30%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 40px', gap: '16px' }}>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '24px' }}>hold flat</span>
+          <button
+            onClick={requestPermission}
+            style={{ width: '100%', padding: '16px 0', fontFamily: 'monospace', fontWeight: 800, fontSize: '24px', backgroundColor: 'transparent', border: `4px solid ${textColor}`, borderRadius: '12px', color: textColor }}
+          >
+            set tilt
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Picker screen
+  if (editing === 'picking') {
     return (
       <div
         style={{
@@ -293,60 +433,144 @@ function MobileScreen() {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: bgColor,
-        }}
+          touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+        } as React.CSSProperties}
       >
-        {/* Top 3/4: big "good days" */}
-        <div
-          style={{
-            flex: '0 0 75%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0px',
-          }}
-        >
-          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '64px', lineHeight: 1 }}>
-            good
-          </span>
-          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '64px', lineHeight: 1 }}>
-            days
-          </span>
+        {/* Top: good days + sat/brightness square with labels */}
+        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px 20px' }}>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '48px', lineHeight: 1 }}>good</span>
+          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '48px', lineHeight: 1 }}>days</span>
+
+          {/* Sat/Brightness square with side labels */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '20px' }}>
+            {/* Left: Saturation label */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '60px' }}>
+              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', opacity: 0.6 }}>sat</span>
+              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '36px' }}>{colors.sat}</span>
+            </div>
+
+            {/* Square */}
+            <div
+              style={{
+                width: '100px',
+                height: '100px',
+                position: 'relative',
+                border: `2px solid ${textColor}`,
+              }}
+            >
+              {/* Dot - white fill, black border */}
+              <div
+                style={{
+                  position: 'absolute',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  border: '2px solid black',
+                  left: `calc(50% + ${tiltX * 40}px)`,
+                  top: `calc(50% + ${tiltY * 40}px)`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            </div>
+
+            {/* Right: Lightness label */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '60px' }}>
+              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', opacity: 0.6 }}>light</span>
+              <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '36px' }}>{colors.light}</span>
+            </div>
+          </div>
+
+          {/* Debug info */}
+          {debugInfo && (
+            <div style={{ marginTop: '12px', padding: '8px', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '8px' }}>
+              <pre style={{ color: 'white', fontFamily: 'monospace', fontSize: '10px', margin: 0, whiteSpace: 'pre-wrap' }}>{debugInfo}</pre>
+            </div>
+          )}
         </div>
-        {/* Bottom 1/4: instruction + button */}
-        <div
-          style={{
-            flex: '0 0 25%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: '16px',
-          }}
-        >
-          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px' }}>
-            hold your phone flat
-          </span>
-          <button
-            onClick={requestPermission}
+
+        {/* Bottom: two hue bars side by side */}
+        <div style={{ flex: 1, display: 'flex', gap: '0' }}>
+          {/* Left: background hue bar */}
+          <div
+            ref={leftBarCallback}
             style={{
-              padding: '16px 32px',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '16px',
-              backgroundColor: 'transparent',
-              border: `4px solid ${textColor}`,
-              borderRadius: '12px',
-              color: textColor,
+              flex: 1,
+              position: 'relative',
+              background: makeHueGradient(colors.bgSat, colors.bgLight),
             }}
           >
-            enable accelerometer
-          </button>
+            <span style={{
+              position: 'absolute',
+              top: '8px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: 'white',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              fontWeight: 800,
+              WebkitTextStroke: '1px black',
+              paintOrder: 'stroke fill',
+            } as React.CSSProperties}>
+              background
+            </span>
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: `${bgTouchY * 100}%`,
+              height: '2px',
+              backgroundColor: 'white',
+              boxShadow: '0 -1px 0 black, 0 1px 0 black',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }} />
+          </div>
+
+          {/* Right: text hue bar */}
+          <div
+            ref={rightBarCallback}
+            style={{
+              flex: 1,
+              position: 'relative',
+              background: makeHueGradient(colors.sat, colors.light),
+            }}
+          >
+            <span style={{
+              position: 'absolute',
+              top: '8px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: 'white',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              fontWeight: 800,
+              WebkitTextStroke: '1px black',
+              paintOrder: 'stroke fill',
+            } as React.CSSProperties}>
+              text
+            </span>
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: `${textTouchY * 100}%`,
+              height: '2px',
+              backgroundColor: 'white',
+              boxShadow: '0 -1px 0 black, 0 1px 0 black',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }} />
+          </div>
         </div>
       </div>
     );
   }
 
+  // Home screen
   return (
     <div
       style={{
@@ -361,118 +585,53 @@ function MobileScreen() {
         WebkitTouchCallout: 'none',
       } as React.CSSProperties}
     >
-      {/* Top: good days */}
-      <div
-        style={{
-          flex: editing ? '0 0 auto' : '1',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '4px',
-          paddingTop: editing ? '60px' : '0',
-        }}
-      >
-        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
-          good
-        </span>
-        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '28px' }}>
-          days
-        </span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '80px', lineHeight: 1 }}>good</span>
+        <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '80px', lineHeight: 1 }}>days</span>
       </div>
 
-      {/* Middle: stats panel - only when editing */}
-      {editing && (
+      <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px 0',
-            gap: '8px',
-          }}
+          onTouchStart={(e) => { e.preventDefault(); setResetPressed(true); }}
+          onTouchEnd={(e) => { e.preventDefault(); setResetPressed(false); handleResetTilt(); }}
+          onTouchCancel={() => setResetPressed(false)}
+          style={getButtonStyle(resetPressed, 'full')}
         >
-          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '14px' }}>
-            {editing}: h{currentHue} s{currentSat} l{currentLight}
-          </span>
-          <span style={{ color: textColor, fontFamily: 'monospace', fontSize: '12px' }}>
-            drag ↕ hue • tilt for sat/light
-          </span>
-          {/* Copy/paste buttons - smaller */}
-          <div style={{ display: 'flex', marginTop: '8px' }}>
-            <div
-              onTouchStart={(e) => { e.preventDefault(); handleCopy(); }}
-              style={{
-                padding: '8px 16px',
-                fontFamily: 'monospace',
-                fontWeight: 800,
-                fontSize: '12px',
-                backgroundColor: 'transparent',
-                border: `2px solid ${textColor}`,
-                borderRight: `1px solid ${textColor}`,
-                borderRadius: '8px 0 0 8px',
-                color: textColor,
-              }}
-            >
-              copy
-            </div>
-            <div
-              onTouchStart={(e) => { e.preventDefault(); handlePaste(); }}
-              style={{
-                padding: '8px 16px',
-                fontFamily: 'monospace',
-                fontWeight: 800,
-                fontSize: '12px',
-                backgroundColor: 'transparent',
-                border: `2px solid ${textColor}`,
-                borderLeft: `1px solid ${textColor}`,
-                borderRadius: '0 8px 8px 0',
-                color: textColor,
-              }}
-            >
-              paste
-            </div>
+          reset tilt
+        </div>
+
+        <div style={{ display: 'flex' }}>
+          <div
+            onTouchStart={(e) => { e.preventDefault(); setCopyPressed(true); }}
+            onTouchEnd={(e) => { e.preventDefault(); setCopyPressed(false); handleCopy(); }}
+            onTouchCancel={() => setCopyPressed(false)}
+            style={getButtonStyle(copyPressed, 'left')}
+          >
+            copy
+          </div>
+          <div
+            onTouchStart={(e) => { e.preventDefault(); setPastePressed(true); }}
+            onTouchEnd={(e) => { e.preventDefault(); setPastePressed(false); handlePaste(); }}
+            onTouchCancel={() => setPastePressed(false)}
+            style={getButtonStyle(pastePressed, 'right')}
+          >
+            paste
           </div>
         </div>
-      )}
 
-      {/* Bottom: text/bg buttons or hue slider */}
-      {!editing ? (
-        <div style={{ padding: '0 40px 60px', display: 'flex' }}>
+        <div style={{ display: 'flex' }}>
           <div
-            onTouchStart={(e) => { e.preventDefault(); startEditing('text'); }}
+            onTouchStart={startPicking('left')}
             style={{
               flex: 1,
-              padding: '16px 0',
+              padding: '14px 0',
               fontFamily: 'monospace',
               fontWeight: 800,
-              fontSize: '18px',
+              fontSize: '16px',
               backgroundColor: 'transparent',
               border: `4px solid ${textColor}`,
-              borderRight: `2px solid ${textColor}`,
+              borderRightWidth: '2px',
               borderRadius: '12px 0 0 12px',
-              color: textColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            text
-          </div>
-          <div
-            onTouchStart={(e) => { e.preventDefault(); startEditing('bg'); }}
-            style={{
-              flex: 1,
-              padding: '16px 0',
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: '18px',
-              backgroundColor: 'transparent',
-              border: `4px solid ${textColor}`,
-              borderLeft: `2px solid ${textColor}`,
-              borderRadius: '0 12px 12px 0',
               color: textColor,
               display: 'flex',
               alignItems: 'center',
@@ -481,34 +640,28 @@ function MobileScreen() {
           >
             background
           </div>
-        </div>
-      ) : (
-        <div
-          ref={sliderRef}
-          style={{
-            flex: '0 0 50%',
-            position: 'relative',
-            background: hueGradient,
-          }}
-        >
-          {/* Horizontal indicator line - white with black borders, no aliasing */}
           <div
+            onTouchStart={startPicking('right')}
             style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: `${(currentHue / 360) * 100}%`,
-              height: '2px',
-              backgroundColor: 'white',
-              borderTop: '1px solid black',
-              borderBottom: '1px solid black',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none',
-              imageRendering: 'pixelated',
-            } as React.CSSProperties}
-          />
+              flex: 1,
+              padding: '14px 0',
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              fontSize: '16px',
+              backgroundColor: 'transparent',
+              border: `4px solid ${textColor}`,
+              borderLeftWidth: '2px',
+              borderRadius: '0 12px 12px 0',
+              color: textColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            text
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

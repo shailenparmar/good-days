@@ -821,81 +821,124 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
 On mobile devices, the app shows a color picker using touch + accelerometer controls.
 
-### Layout
+### Screens
 
+**Permission Screen** (iOS only, first visit):
 ```
 ┌────────────────────────────────┐
 │                                │
-│            good                │  ← Centered vertically
+│            good                │
 │            days                │
 │                                │
-│        ┌────────────────┐      │
-│        │ copy  │ paste  │      │  ← Split button (copy/paste colors)
-│        └────────────────┘      │
-│                                │
-│  ┌───────────────────────────┐ │
-│  │ text       │   background │ │  ← Split button (edit text or bg)
-│  └───────────────────────────┘ │
-└────────────────────────────────┘
-
-When editing (press and hold text or background):
-
-┌────────────────────────────────┐
-│            good                │  ← Top 50%
-│            days                │
-├────────────────────────────────┤
-│  ┌────────────────────────┐    │
-│  │ text: h120 s50 l60     │    │  ← Current values label
-│  └────────────────────────┘    │
-│ ════════════════════════════   │  ← Horizontal indicator line
-│     (hue spectrum gradient)    │  ← Bottom 50%: vertical hue picker
-│  ┌────────────────────────┐    │
-│  │ drag ↕ hue • tilt...   │    │  ← Tilt hint
-│  └────────────────────────┘    │
+│          hold flat             │  ← 24px instruction
+│   ┌────────────────────────┐   │
+│   │       set tilt         │   │  ← Full-width button, 24px
+│   └────────────────────────┘   │
 └────────────────────────────────┘
 ```
 
-### Interaction Model
+**Home Screen**:
+```
+┌────────────────────────────────┐
+│                                │
+│            good                │  ← 80px centered
+│            days                │
+│                                │
+│   ┌────────────────────────┐   │
+│   │      reset tilt        │   │  ← Full-width button
+│   └────────────────────────┘   │
+│   ┌───────────┬────────────┐   │
+│   │   copy    │   paste    │   │  ← Split button
+│   └───────────┴────────────┘   │
+│   ┌───────────┬────────────┐   │
+│   │background │    text    │   │  ← Split button (triggers picker)
+│   └───────────┴────────────┘   │
+└────────────────────────────────┘
+```
 
-**Press and hold** either `text` or `background` button:
-1. Bottom 50% becomes vertical hue spectrum (red → yellow → green → cyan → blue → magenta → red)
-2. Horizontal white indicator line shows current hue position
-3. **Drag vertically** to change hue (0-360°)
-4. **Tilt phone left/right** to change saturation (0-100%)
-5. **Tilt phone forward/back** to change lightness (5-95%)
-6. **Release** to lock in the color (haptic feedback)
+**Picker Screen** (while holding background or text):
+```
+┌────────────────────────────────┐
+│            good                │  ← 48px, updates live
+│            days                │
+│                                │
+│    sat ┌────────┐ light        │  ← Labels on sides
+│     50 │   ●    │  50          │  ← 36px values, dot shows tilt
+│        └────────┘              │
+│                                │
+├───────────────┬────────────────┤
+│  background   │      text      │  ← Labels (white, black stroke)
+│ ══════════════│════════════════│  ← Horizontal indicator lines
+│               │                │
+│  (hue gradient│  hue gradient) │  ← Split hue bars
+│               │                │
+└───────────────┴────────────────┘
+```
 
-The "good days" text at top updates live to show color changes.
+### Seamless Touch Tracking
 
-### Accelerometer Controls
+The picker uses a **seamless press-hold-drag-release** interaction:
 
-| Axis | Controls | Range | Mapping |
-|------|----------|-------|---------|
-| Gamma (left-right tilt) | Saturation | 0-100% | ±45° = full range |
-| Beta (front-back tilt) | Lightness | 5-95% | ±45° = full range |
+1. Touch handlers attached on component mount (always listening)
+2. On button touchstart: `isTrackingRef = true`, `activeSide` set to 'left' or 'right'
+3. `liveTouch` ref continuously updated by touchmove events
+4. When picker renders and bars mount, indicator immediately snaps to current finger Y
+5. Dragging updates indicator position in real-time
+6. Release locks color with haptic feedback
 
-**Baseline capture**: When you start editing, the current phone orientation becomes the "neutral" position. Tilting from there adjusts values proportionally.
+**Key refs:**
+- `isTrackingRef` - Whether touch tracking is active
+- `activeSide` - Which bar is being controlled ('left' = background, 'right' = text)
+- `liveTouch` - Current finger position `{ x, y }`
+- `barsMounted` - Counter for when both hue bars have mounted
 
-**iOS 13+ permission**: First touch prompts for device orientation permission. If denied, falls back to random color on tap.
+### Tilt Controls (Absolute Mapping)
 
-### Copy/Paste Buttons
+Tilt values use **absolute mapping** from the phone's orientation when picking started:
 
-Split button under "good days" for sharing colors with desktop:
+| Tilt | Controls | Mapping |
+|------|----------|---------|
+| Left/Right (gamma) | Saturation | Left = 0%, Flat = 50%, Right = 100% |
+| Forward/Back (beta) | Lightness | Forward = 5%, Flat = 50%, Back = 95% |
+
+**Max tilt angle**: ±15° to reach extremes
+
+The sat/light square shows:
+- Dot position indicates current tilt
+- Left number = saturation (0-100)
+- Right number = lightness (5-95)
+
+### Button Styling
+
+Buttons follow the style guide:
+- **Default**: 60% opacity border, transparent fill
+- **Pressed**: 100% opacity border, 65% lightness, 20% opacity fill
+
+### iOS Permission
+
+iOS 13+ requires explicit permission for DeviceOrientationEvent:
+1. Permission screen shown on first visit
+2. User taps "set tilt" button
+3. `DeviceOrientationEvent.requestPermission()` called
+4. If granted, home screen shown
+5. If denied, tilt controls won't work (hue-only mode)
+
+### Copy/Paste
 
 | Button | Action |
 |--------|--------|
 | `copy` | Copies `txt: h, s%, l%\nbg: h, s%, l%` to clipboard |
-| `paste` | Reads clipboard, parses color values, applies them |
+| `paste` | Parses clipboard, applies colors |
 
 **Supported paste formats:**
 - `txt: h, s%, l%` - text color HSL
 - `bg: h, s%, l%` - background color HSL
 - `h, s%, l%` - plain HSL (applies to text)
-- `#rrggbb` - HEX (converts to HSL, applies to text)
+- `#rrggbb` - HEX (converts to HSL)
 
 ### Persistence
 
-Colors persist to `localStorage` key `mobileColors` as JSON:
+Colors persist to `localStorage` key `mobileColors`:
 ```json
 { "hue": 175, "sat": 100, "light": 21, "bgHue": 84, "bgSat": 100, "bgLight": 88 }
 ```
@@ -904,9 +947,9 @@ Colors persist to `localStorage` key `mobileColors` as JSON:
 
 | Event | Pattern |
 |-------|---------|
-| Touch start (begin editing) | Single 10ms vibration |
+| Touch start (begin picking) | 10ms vibration |
 | Touch end (lock color) | 5ms, 30ms pause, 5ms |
-| Copy/paste button tap | Single 10ms vibration |
+| Button tap | 10ms vibration |
 
 Code location: `src/main.tsx`
 
@@ -1751,55 +1794,49 @@ This uses capture phase to run before `stopPropagation()` calls.
 
 ### Dynamic Status Colors (Confirm & Error)
 
-Status colors use **WCAG contrast ratios** to guarantee readability, while preserving semantic meaning (red=error, green=success) when possible.
+Status colors use **fixed hues** (red=error, green=confirm) with **WCAG-guaranteed readability** through lightness adjustment only. This ensures smooth, continuous color transitions with no sudden jumps.
 
-**Algorithm:**
-1. **Hue:** Start with ideal (red=0° for error, green=120° for confirm)
-2. **Lightness:** Find the lightness that achieves **4.5:1 contrast ratio** with background (WCAG AA standard)
-3. **Hue adjustment:** If text is chromatic and hue conflicts (within 60°), shift hue minimally
+**Algorithm (v1.9.11+):**
+1. **Hue:** FIXED at red (0°) for error, green (120°) for confirm — never changes
+2. **Saturation:** FIXED at 100% — maximum color intensity
+3. **Lightness:** Binary search to find value that achieves **4.5:1 contrast ratio** with background
+4. **Smooth transition:** Sigmoid blend between dark/light preference at luminance crossover (0.18)
 
-**Key insight:** Lightness is the primary lever for readability, not hue. The WCAG contrast ratio uses relative luminance (derived from RGB), which accounts for how humans actually perceive brightness.
-
-```
-Example: Black text, Light background (bgL=88%)
-
-Background luminance is high → need dark status colors for contrast
-Error:  RED at lightness ~35% achieves 4.5:1 contrast
-Confirm: GREEN at lightness ~32% achieves 4.5:1 contrast
-
-Result: Dark red and dark green — readable and semantic!
-```
+**Key insight:** By keeping hue and saturation fixed, ALL variability comes from lightness alone. This eliminates hue-related discontinuities that caused jarring color jumps in previous versions.
 
 ```
-Example: Red text (hue=0°, sat=100%), Dark background (bgL=10%)
+Light background (high luminance) → dark status colors
+  Error:  dark red    (low lightness)
+  Confirm: dark green (low lightness)
 
-Background luminance is low → need light status colors
-Error:  RED hue conflicts with text → shift to ~60° (orange-ish)
-        Find lightness for 4.5:1 contrast
-Confirm: GREEN is fine, find lightness for 4.5:1 contrast
+Dark background (low luminance) → light status colors
+  Error:  light red   (high lightness)
+  Confirm: light green (high lightness)
 
-Result: Light orange for error, light green for confirm
+Mid-tone backgrounds → sigmoid blend for smooth transition
 ```
 
-**Why WCAG contrast ratios?**
-- **Perceptually grounded** — based on human vision research
-- **Guaranteed readable** — 4.5:1 is the accessibility standard
-- **No magic numbers** — the ratio is a real standard, not arbitrary
+**Why this design?**
+- **Always semantic** — red is always red, green is always green
+- **Always readable** — 4.5:1 WCAG AA standard guaranteed
+- **Always smooth** — no discrete choices that could cause jumps
+- **Mathematically general** — single algorithm handles all backgrounds
 
 **Constants:**
 | Name | Value | Purpose |
 |------|-------|---------|
-| `TARGET_CONTRAST_RATIO` | 4.5 | WCAG AA standard for readability |
-| `MIN_HUE_DISTANCE` | 60° | Minimum separation from text hue |
-| `CHROMATIC_THRESHOLD` | 30% | Below this saturation, hue is ignored |
+| `RED_HUE` | 0° | Error color hue (fixed) |
+| `GREEN_HUE` | 120° | Confirm color hue (fixed) |
+| `SATURATION` | 100% | Maximum saturation (fixed) |
+| `TARGET_CONTRAST` | 4.5 | WCAG AA readability standard |
 
 Code location: `src/shared/utils/confirmColor.ts`
 
 ```tsx
 import { getStatusColors } from '@shared/utils/confirmColor';
 const { confirm: confirmColor, error: errorColor } = getStatusColors(
-  hue, saturation, lightness,           // text color (full HSL)
-  bgHue, bgSaturation, bgLightness      // background color (full HSL)
+  hue, saturation, lightness,           // text color (ignored, kept for API compatibility)
+  bgHue, bgSaturation, bgLightness      // background color (only this matters now)
 );
 ```
 
