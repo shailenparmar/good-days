@@ -2,6 +2,7 @@
 // Provides effectively unlimited storage compared to localStorage's 5MB limit
 
 import type { JournalEntry } from '@features/journal/types';
+import { logAction } from '@shared/logger';
 
 const DB_NAME = 'good-days';
 const DB_VERSION = 1;
@@ -249,12 +250,14 @@ function mergeEntries(indexedDBEntries: JournalEntry[], localStorageEntries: Jou
  */
 export async function initJournalStorage(): Promise<JournalEntry[]> {
   log('initJournalStorage: starting');
+  logAction('storage.init');
 
   // Request persistent storage so Chrome/Firefox/Android won't evict data under storage pressure
   // (Safari ignores this - its 7-day inactivity policy is not overridable)
   if (navigator.storage?.persist) {
     navigator.storage.persist().then(granted => {
       log('initJournalStorage: persistent storage ' + (granted ? 'granted' : 'denied'));
+      logAction('storage.persist', { granted });
     }).catch(() => {});
   }
 
@@ -270,6 +273,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
     if (localStorageEntries.length > 0 && !alreadyMigrated) {
       // Migration needed: localStorage has entries and we haven't migrated
       log(`initJournalStorage: migrating ${localStorageEntries.length} entries from localStorage`);
+      logAction('storage.init.migrate', { entryCount: localStorageEntries.length });
 
       // Write to IndexedDB
       await writeEntriesToIndexedDB(db, localStorageEntries);
@@ -284,6 +288,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       await markMigrated(db);
       localStorage.removeItem('journalEntries');
       log('initJournalStorage: migration complete', { entryCount: verifiedEntries.length });
+      logAction('storage.init.done', { entryCount: verifiedEntries.length, fallback: false });
 
       db.close();
       return verifiedEntries;
@@ -302,6 +307,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       if (mergedEntries.length !== indexedDBEntries.length ||
           mergedEntries.some((e, i) => e.lastModified !== indexedDBEntries[i]?.lastModified)) {
         log('initJournalStorage: merging localStorage backup', { indexedDBCount: indexedDBEntries.length, localStorageCount: localStorageEntries.length, mergedCount: mergedEntries.length });
+        logAction('storage.init.merge', { idbCount: indexedDBEntries.length, lsCount: localStorageEntries.length, mergedCount: mergedEntries.length });
         await writeEntriesToIndexedDB(db, mergedEntries);
         localStorage.removeItem('journalEntries');
         db.close();
@@ -313,12 +319,16 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       log('initJournalStorage: cleared stale localStorage backup');
     }
 
+    logAction('storage.init.done', { entryCount: indexedDBEntries.length, fallback: false });
     db.close();
     return indexedDBEntries;
   } catch (error) {
     log('initJournalStorage: IndexedDB failed, using localStorage fallback', error);
+    logAction('storage.init.fallback');
     fallbackMode = true;
-    return parseLocalStorageEntries();
+    const fallbackEntries = parseLocalStorageEntries();
+    logAction('storage.init.done', { entryCount: fallbackEntries.length, fallback: true });
+    return fallbackEntries;
   }
 }
 
@@ -329,6 +339,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
  */
 export function saveAllJournalEntries(entries: JournalEntry[]): void {
   log('saveAllJournalEntries: saving', { entryCount: entries.length, dates: entries.map(e => e.date) });
+  logAction('storage.saveAll', { entryCount: entries.length });
   if (fallbackMode) {
     // Fallback: use localStorage
     localStorage.setItem('journalEntries', JSON.stringify(entries));
@@ -367,6 +378,7 @@ export function saveSingleEntry(entry: JournalEntry): void {
     }
     localStorage.setItem('journalEntries', JSON.stringify(entries));
     log('saveSingleEntry: saved to localStorage (fallback)');
+    logAction('storage.save.fallback', { date: entry.date });
     return;
   }
 
@@ -386,6 +398,8 @@ export function saveSingleEntry(entry: JournalEntry): void {
 
 /** Flush all debounced saves immediately (called on beforeunload) */
 export function flushPendingSaves(): void {
+  const count = pendingSaves.size;
+  if (count > 0) logAction('storage.flush', { count });
   for (const [, { entry, timer }] of pendingSaves) {
     clearTimeout(timer);
     writeEntryToStorage(entry);
@@ -400,9 +414,11 @@ function writeEntryToStorage(entry: JournalEntry): void {
       await writeSingleEntryToIndexedDB(db, entry);
       db.close();
       log('saveSingleEntry: saved to IndexedDB', { date: entry.date });
+      logAction('storage.save', { date: entry.date });
       broadcastSave(entry.date);
     } catch (error) {
       log('saveSingleEntry: FAILED, switching to fallback mode', { date: entry.date, error });
+      logAction('storage.save.fail', { date: entry.date });
       fallbackMode = true;
       const entries = parseLocalStorageEntries();
       const index = entries.findIndex(e => e.date === entry.date);
@@ -436,6 +452,7 @@ export function deleteSingleEntry(date: string): void {
       await deleteSingleEntryFromIndexedDB(db, date);
       db.close();
       log('deleteSingleEntry: deleted from IndexedDB', { date });
+      logAction('storage.delete', { date });
     } catch (error) {
       log('deleteSingleEntry: FAILED, switching to fallback mode', { date, error });
       fallbackMode = true;
@@ -530,6 +547,7 @@ export async function loadSingleEntry(date: string): Promise<JournalEntry | null
  * Clear all journal data from IndexedDB (for reset functionality)
  */
 export async function clearJournalStorage(): Promise<void> {
+  logAction('storage.clear');
   if (fallbackMode) {
     localStorage.removeItem('journalEntries');
     return;

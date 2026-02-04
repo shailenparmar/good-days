@@ -430,6 +430,10 @@ const { confirm: confirmColor, error: errorColor } = getStatusColors(
 
 Code location: `src/features/export/components/ExportButtons.tsx`
 
+### Export Buttons Layout
+
+In powerstat (stacked) mode, each export button is wrapped in a `<div className="p-4">` with an 85% opacity 6px bottom border separator. The import button's separator only shows in stacked mode. The outer container is a `<>` fragment (no wrapping `<div>`).
+
 ## UI Conventions
 
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
@@ -1043,15 +1047,18 @@ The sat/light square shows:
 
 ### Button Styling
 
-Buttons follow the style guide:
+All mobile buttons (including the permission screen "calibrate tilt" button) use the shared `getButtonStyle()` helper:
 - **Default**: 60% opacity border, transparent fill
 - **Pressed**: 100% opacity border, 65% lightness, 20% opacity fill
+- **Padding**: `14px 0` (vertical), flexbox centered
+- **Font**: monospace, weight 800, 20px
+- **Border**: 4px solid (2px on split interior edges), 12px radius
 
 ### iOS Permission
 
 iOS 13+ requires explicit permission for DeviceOrientationEvent:
 1. Permission screen shown on first visit
-2. User taps "set tilt" button
+2. User taps "calibrate tilt" button
 3. `DeviceOrientationEvent.requestPermission()` called
 4. If granted, home screen shown
 5. If denied, tilt controls won't work (hue-only mode)
@@ -1104,7 +1111,7 @@ This prevents the 4px indicator from overflowing above the bar at hue 0 or below
 
 Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
-**IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/App.tsx` on every push.
+**IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/shared/version.ts` on every push.
 
 ### Haptic Feedback
 
@@ -2399,10 +2406,10 @@ The bold sweep is tied to `isRainbowMode`:
 
 **CRITICAL**: EVERY push to main MUST increment the version number. No exceptions. This allows the user to verify they're seeing the latest deployed build.
 
-The version number is stored in `src/App.tsx` as `const VERSION = 'x.y.z'`.
+The version number is stored in `src/shared/version.ts` as `export const VERSION = 'x.y.z'` (imported by both `App.tsx` and `main.tsx`).
 
 When pushing changes:
-1. **ALWAYS increment the version number** in `src/App.tsx` before pushing
+1. **ALWAYS increment the version number** in `src/shared/version.ts` AND `mobileVersion` in `src/main.tsx` before pushing
    - Patch (x.y.Z): Bug fixes, small tweaks, any change at all
    - Minor (x.Y.0): New features, non-breaking changes
    - Major (X.0.0): Breaking changes, major rewrites
@@ -2414,6 +2421,19 @@ The version displays by hovering over the "good days" title in the sidebar heade
 **Implementation:** Uses coordinate-based hover detection (`mousemove` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay).
 
 This lets the user verify which build is deployed by hovering the title and checking the version.
+
+## Action Logger
+
+Lightweight debug logger for diagnosing user-reported issues. Stores a circular buffer of up to 500 events in localStorage (key: `gdays_actionLog`). **Never logs entry content** — only event names and metadata (counts, dates, flags).
+
+**Code location**: `src/shared/logger.ts`
+
+**Events logged**: storage init/save/delete/flush, journal load/date changes/deletions, multi-tab reloads, beforeunload flushes, fallback mode transitions.
+
+**API**:
+- `logAction(event, data?)` — append event to circular buffer
+- `exportLogs(appVersion, entryCount)` — human-readable dump with header
+- `clearLogs()` — wipe all logs
 
 ## Storage Architecture
 

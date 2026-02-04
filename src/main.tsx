@@ -427,7 +427,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.10';
+  const mobileVersion = '1.10.11';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -509,8 +509,6 @@ function MobileScreen() {
 
   // Permission screen (iOS only)
   if (needsPermission && !permissionGranted) {
-    const tiltBorderColor = `hsla(${colors.hue}, ${colors.sat}%, ${setTiltPressed ? 65 : colors.light}%, ${setTiltPressed ? 1 : 0.6})`;
-    const tiltFillColor = setTiltPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
     return (
       <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         <span
@@ -525,7 +523,7 @@ function MobileScreen() {
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
             onTouchCancel={() => setSetTiltPressed(false)}
-            style={{ width: '100%', padding: '16px 0', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', backgroundColor: tiltFillColor, border: `4px solid ${tiltBorderColor}`, borderRadius: '12px', color: textColor, textAlign: 'center' }}
+            style={getButtonStyle(setTiltPressed, 'full')}
           >
             calibrate tilt
           </div>

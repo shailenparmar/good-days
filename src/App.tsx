@@ -16,8 +16,8 @@ import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
-
-const VERSION = '1.10.10';
+import { VERSION } from '@shared/version';
+import { logAction } from '@shared/logger';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -280,6 +280,9 @@ function AppContent() {
     updateGlobalScrambleSeed(scrambleSeed);
   }, [scrambleSeed]);
 
+  // Log app load (once on mount)
+  useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
+
   // Save panel states to localStorage
   useEffect(() => {
     setItem('showSettings', String(showDebugMenu));
@@ -465,6 +468,7 @@ function AppContent() {
       const msUntilMidnight = tomorrow.getTime() - now.getTime();
 
       midnightTimeoutRef.current = setTimeout(() => {
+        logAction('app.midnight');
         // Save current content using ref to get latest journal
         if (editorRef.current) {
           const content = editorRef.current.value || '';
@@ -708,6 +712,7 @@ function AppContent() {
         removePassword={auth.removePassword}
         entries={journal.entries}
         onImport={(entries) => {
+          logAction('app.import', { entryCount: entries.length });
           journal.setEntries(entries);
           saveAllJournalEntries(entries);
           setEditorKey(k => k + 1); // Force editor remount to show imported content

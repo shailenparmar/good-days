@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
 import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
+import { logAction } from '@shared/logger';
 import type { JournalEntry } from '../types';
 
 // Convert HTML to plain text, preserving line breaks for word counting
@@ -61,6 +62,7 @@ export function useJournalEntries() {
       setEntries(loadedEntries);
       entriesRef.current = loadedEntries;
       setIsLoading(false);
+      logAction('journal.loaded', { entryCount: loadedEntries.length });
 
       // Update current content for selected date
       const entry = loadedEntries.find(e => e.date === selectedDate);
@@ -80,10 +82,12 @@ export function useJournalEntries() {
       flushPendingSaves();
       // Sync backup to localStorage (IndexedDB writes may not complete before tab closes)
       if (entriesRef.current.length > 0) {
+        logAction('journal.beforeunload', { entryCount: entriesRef.current.length });
         try {
           localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
         } catch (e) {
           console.error('[gdays] beforeunload: localStorage backup failed', e);
+          logAction('journal.beforeunload.fail');
         }
       }
     };
@@ -102,6 +106,7 @@ export function useJournalEntries() {
       if (!entry) return;
 
       console.log(`[gdays] multi-tab: other tab saved ${date}, reloading`);
+      logAction('journal.multitab.reload', { date });
 
       setEntries(prev => {
         const index = prev.findIndex(e => e.date === date);
@@ -149,7 +154,10 @@ export function useJournalEntries() {
 
   // Wrapper to persist selected date to localStorage
   const setSelectedDate = useCallback((date: string) => {
-    setSelectedDateState(date);
+    setSelectedDateState(prev => {
+      if (prev !== date) logAction('journal.dateChange', { from: prev, to: date });
+      return date;
+    });
     setItem('selectedDate', date);
   }, []);
 
@@ -213,6 +221,7 @@ export function useJournalEntries() {
         // Delete entry for non-today with empty content
         dateToDelete = selectedDate;
         newEntries = currentEntries.filter(e => e.date !== selectedDate);
+        logAction('journal.entryDeleted', { date: selectedDate });
       }
     } else if (existingIndex >= 0) {
       const entry: JournalEntry = {

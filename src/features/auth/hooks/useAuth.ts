@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
+import { logAction } from '@shared/logger';
 
 const PASSWORD_KEY = 'passwordHash';
 const PASSWORD_SALT_KEY = 'passwordSalt';
@@ -68,6 +69,7 @@ function migratePasswordIfNeeded(): void {
   if (oldHash) {
     removeItem(PASSWORD_KEY);
     removeItem(PASSWORD_SALT_KEY);
+    logAction('auth.password.migrated');
   }
 
   setItem(PASSWORD_VERSION_KEY, String(CURRENT_PASSWORD_VERSION));
@@ -133,9 +135,11 @@ export function useAuth() {
       // Increment login count
       const currentLogins = Number(getItem(LOGIN_COUNT_KEY) || '0');
       setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
+      logAction('auth.unlock');
       return true;
     } else {
       setPasswordInput('');
+      logAction('auth.unlock.fail');
       return false;
     }
   }, [passwordInput]);
@@ -149,6 +153,7 @@ export function useAuth() {
     setItem(PASSWORD_SALT_KEY, salt);
     setItem(PASSWORD_KEY, hash);
     setHasPassword(true);
+    logAction('auth.password.set');
     return true;
   }, []);
 
@@ -157,6 +162,7 @@ export function useAuth() {
     removeItem(PASSWORD_SALT_KEY);
     setHasPassword(false);
     setIsLocked(false);
+    logAction('auth.password.removed');
   }, []);
 
   const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
@@ -171,6 +177,7 @@ export function useAuth() {
     if (getItem(PASSWORD_KEY) !== null) {
       setIsLocked(true);
       sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+      logAction('auth.lock');
     }
   }, []);
 
