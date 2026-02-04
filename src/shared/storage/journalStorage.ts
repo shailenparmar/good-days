@@ -11,6 +11,41 @@ const METADATA_STORE = 'metadata';
 // Track if we're in fallback mode (IndexedDB failed, using localStorage)
 let fallbackMode = false;
 
+// Multi-tab sync via BroadcastChannel
+const TAB_ID = Math.random().toString(36).slice(2);
+let syncChannel: BroadcastChannel | null = null;
+try {
+  syncChannel = new BroadcastChannel('good-days-sync');
+} catch {
+  // BroadcastChannel not supported (e.g. older Safari) - tabs won't sync but won't break
+}
+
+type EntrySavedCallback = (date: string) => void;
+const entrySavedListeners: EntrySavedCallback[] = [];
+
+if (syncChannel) {
+  syncChannel.onmessage = (event) => {
+    const { type, date, tabId } = event.data || {};
+    if (type === 'entry-saved' && tabId !== TAB_ID && typeof date === 'string') {
+      for (const listener of entrySavedListeners) {
+        listener(date);
+      }
+    }
+  };
+}
+
+function broadcastSave(date: string): void {
+  try {
+    syncChannel?.postMessage({ type: 'entry-saved', date, tabId: TAB_ID });
+  } catch {
+    // Channel closed or not available - ignore
+  }
+}
+
+// Debounce pending saves (300ms - batches rapid keystrokes, feels near-instant)
+const SAVE_DEBOUNCE_MS = 300;
+const pendingSaves = new Map<string, { entry: JournalEntry; timer: ReturnType<typeof setTimeout> }>();
+
 // Logging utility for debugging storage issues
 const log = (msg: string, data?: unknown) => {
   const timestamp = new Date().toISOString();
@@ -214,6 +249,15 @@ function mergeEntries(indexedDBEntries: JournalEntry[], localStorageEntries: Jou
  */
 export async function initJournalStorage(): Promise<JournalEntry[]> {
   log('initJournalStorage: starting');
+
+  // Request persistent storage so Chrome/Firefox/Android won't evict data under storage pressure
+  // (Safari ignores this - its 7-day inactivity policy is not overridable)
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().then(granted => {
+      log('initJournalStorage: persistent storage ' + (granted ? 'granted' : 'denied'));
+    }).catch(() => {});
+  }
+
   try {
     const db = await openDatabase();
     log('initJournalStorage: database opened');
@@ -308,13 +352,12 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
 }
 
 /**
- * Save a single journal entry to IndexedDB
- * Fire-and-forget async - only touches this one entry, safe for multi-tab
+ * Save a single journal entry to IndexedDB (debounced 300ms)
+ * Batches rapid keystrokes into one write. Safe for multi-tab.
  */
 export function saveSingleEntry(entry: JournalEntry): void {
-  log('saveSingleEntry: saving', { date: entry.date, contentLength: entry.content.length });
+  log('saveSingleEntry: queued', { date: entry.date, contentLength: entry.content.length });
   if (fallbackMode) {
-    // Fallback: read all, update one, write all back
     const entries = parseLocalStorageEntries();
     const index = entries.findIndex(e => e.date === entry.date);
     if (index >= 0) {
@@ -327,16 +370,40 @@ export function saveSingleEntry(entry: JournalEntry): void {
     return;
   }
 
+  // Clear previous timer for this date
+  const pending = pendingSaves.get(entry.date);
+  if (pending) {
+    clearTimeout(pending.timer);
+  }
+
+  const timer = setTimeout(() => {
+    pendingSaves.delete(entry.date);
+    writeEntryToStorage(entry);
+  }, SAVE_DEBOUNCE_MS);
+
+  pendingSaves.set(entry.date, { entry, timer });
+}
+
+/** Flush all debounced saves immediately (called on beforeunload) */
+export function flushPendingSaves(): void {
+  for (const [, { entry, timer }] of pendingSaves) {
+    clearTimeout(timer);
+    writeEntryToStorage(entry);
+  }
+  pendingSaves.clear();
+}
+
+function writeEntryToStorage(entry: JournalEntry): void {
   (async () => {
     try {
       const db = await openDatabase();
       await writeSingleEntryToIndexedDB(db, entry);
       db.close();
       log('saveSingleEntry: saved to IndexedDB', { date: entry.date });
+      broadcastSave(entry.date);
     } catch (error) {
       log('saveSingleEntry: FAILED, switching to fallback mode', { date: entry.date, error });
       fallbackMode = true;
-      // Fallback: read all, update one, write all back
       const entries = parseLocalStorageEntries();
       const index = entries.findIndex(e => e.date === entry.date);
       if (index >= 0) {
@@ -417,6 +484,46 @@ export async function getStorageEstimate(): Promise<{ used: number; quota: numbe
  */
 export function isInFallbackMode(): boolean {
   return fallbackMode;
+}
+
+/**
+ * Subscribe to entry saves from OTHER tabs.
+ * Callback receives the date string that was saved.
+ * Returns an unsubscribe function.
+ */
+export function onEntrySaved(callback: EntrySavedCallback): () => void {
+  entrySavedListeners.push(callback);
+  return () => {
+    const index = entrySavedListeners.indexOf(callback);
+    if (index >= 0) entrySavedListeners.splice(index, 1);
+  };
+}
+
+/**
+ * Load a single entry from IndexedDB by date.
+ * Returns null if not found or if in fallback mode.
+ */
+export async function loadSingleEntry(date: string): Promise<JournalEntry | null> {
+  if (fallbackMode) {
+    return parseLocalStorageEntries().find(e => e.date === date) || null;
+  }
+  try {
+    const db = await openDatabase();
+    const entry = await new Promise<JournalEntry | null>((resolve, reject) => {
+      const transaction = db.transaction(ENTRIES_STORE, 'readonly');
+      const store = transaction.objectStore(ENTRIES_STORE);
+      const request = store.get(date);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        resolve(result && isValidEntry(result) ? result : null);
+      };
+    });
+    db.close();
+    return entry;
+  } catch {
+    return null;
+  }
 }
 
 /**

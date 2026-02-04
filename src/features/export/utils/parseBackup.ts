@@ -70,10 +70,10 @@ export function mergeJsonEntries(
         importedCount++;
       }
     } else {
-      // No conflict - add as new entry
+      // No conflict - add as new entry (preserve original lastModified)
       result.push({
         ...imported,
-        lastModified: importTimestamp,
+        lastModified: imported.lastModified || importTimestamp,
       });
       existingDates.add(imported.date);
       importedCount++;
@@ -230,7 +230,7 @@ export function mergeEntries(
         date: imported.date,
         content: importedHtml,
         startedAt: imported.startedAt || importTimestamp,
-        lastModified: importTimestamp,
+        lastModified: importTimestamp, // Legacy format has no lastModified, so import time is best we can do
       });
       existingDates.add(imported.date);
       importedCount++;

@@ -10,14 +10,14 @@ import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
 import { getItem, setItem } from '@shared/storage';
-import { saveAllJournalEntries } from '@shared/storage/journalStorage';
+import { saveAllJournalEntries, flushPendingSaves } from '@shared/storage/journalStorage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.9.18';
+const VERSION = '1.10.0';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -458,6 +458,15 @@ function AppContent() {
             journalRef.current.saveEntry(content, Date.now());
           }
         }
+        // Flush debounced saves immediately (don't wait 300ms)
+        flushPendingSaves();
+        // Sync localStorage backup in case IndexedDB write is still in-flight
+        try {
+          const entries = journalRef.current.entries;
+          if (entries.length > 0) {
+            localStorage.setItem('journalEntries', JSON.stringify(entries));
+          }
+        } catch { /* localStorage full - IndexedDB flush is our primary */ }
         // Switch to new day
         journalRef.current.setSelectedDate(getTodayDate());
         if (editorRef.current) {

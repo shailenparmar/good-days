@@ -118,6 +118,72 @@ Before v1.9.10, every save did `clear()` then `put()` for all entries. If Tab A 
 
 Now, Tab A can only affect the entry it's editing. Other entries are untouched.
 
+### Multi-Tab Sync via BroadcastChannel (v1.10.0+)
+
+Tabs communicate via `BroadcastChannel('good-days-sync')` to prevent silent overwrites when the same date is edited in multiple tabs.
+
+**How it works:**
+1. Each tab has a unique `TAB_ID` (random string, generated on load)
+2. After every successful IndexedDB write, the tab broadcasts `{ type: 'entry-saved', date, tabId }`
+3. Other tabs receive the message (own-tab messages filtered by `tabId`)
+4. If a tab is viewing the saved date, it reloads that entry from IndexedDB and updates React state
+
+**Key functions in `journalStorage.ts`:**
+
+| Function | Purpose |
+|----------|---------|
+| `broadcastSave(date)` | Internal — broadcasts after successful write |
+| `onEntrySaved(callback)` | Subscribe to saves from other tabs, returns unsubscribe fn |
+| `loadSingleEntry(date)` | Read one entry from IndexedDB (used for reload) |
+
+**In `useJournalEntries.ts`:**
+- On mount, subscribes via `onEntrySaved`
+- When another tab saves a date we're viewing, reloads entry and updates `currentContent`
+- Logs to console: `[gdays] multi-tab: other tab saved 2026-02-03, reloading`
+
+**Important:** BroadcastChannel is fully local (same-origin, same-device, same-browser). No network traffic. Falls back gracefully if unsupported (older Safari) — tabs just won't sync but nothing breaks.
+
+### Write Debouncing (v1.10.0+)
+
+Every keystroke updates `entriesRef` in memory immediately, but IndexedDB writes are debounced by **300ms**. This batches rapid typing into one write instead of one per character.
+
+**Key functions in `journalStorage.ts`:**
+
+| Function | Purpose |
+|----------|---------|
+| `saveSingleEntry(entry)` | Queues a debounced write (300ms) |
+| `flushPendingSaves()` | Forces all pending writes immediately |
+
+**`flushPendingSaves()` is called in three places:**
+1. `beforeunload` handler — ensures pending writes start before tab closes
+2. Midnight transition — ensures today's entry is written before switching to new day
+3. Error boundary `componentDidCatch` — emergency save on React crash
+
+### Persistent Storage Request (v1.10.0+)
+
+On init, the app calls `navigator.storage.persist()` to request the browser protect data from eviction under storage pressure. Non-blocking, fire-and-forget.
+
+- **Chrome/Firefox/Android**: May grant persistent storage
+- **Safari**: Ignores this (7-day inactivity policy is not overridable by any API)
+
+### Midnight Transition Safety (v1.10.0+)
+
+At midnight, before clearing the editor and switching to the new day:
+1. `saveEntry()` is called (updates `entriesRef` immediately, queues debounced write)
+2. `flushPendingSaves()` forces the IndexedDB write to start immediately
+3. Sync `localStorage.setItem` backup of all entries (guaranteed to complete before next line)
+4. Only then does the editor clear and date switch
+
+This ensures the previous day's entry is persisted even if IndexedDB is slow or the tab closes right at midnight.
+
+Code location: `src/App.tsx` (midnight timeout handler)
+
+### Error Boundary Emergency Save (v1.10.0+)
+
+If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending debounced writes to IndexedDB before showing the error screen.
+
+Code location: `src/shared/components/ErrorBoundary.tsx`
+
 ### Debugging Storage Issues
 
 All storage operations are logged to the console with `[gdays]` prefix:
@@ -136,6 +202,8 @@ To debug a user's storage issue:
 ### beforeunload Backup
 
 On tab close, entries are written to localStorage as a backup (IndexedDB writes are async and may not complete). On next load, localStorage backup is merged with IndexedDB, preferring newer `lastModified` timestamps.
+
+The `beforeunload` handler is wrapped in try-catch to handle `QuotaExceededError` if localStorage is full. If it fails, the flush to IndexedDB is still the primary safety net.
 
 ## Backup & Import
 
@@ -216,6 +284,24 @@ When importing, entries are **merged** (not replaced). If an imported entry's da
 
 1. **Same content**: Skip (no change)
 2. **Different content**: Append imported content below existing with a separator
+
+### Import `lastModified` Preservation (v1.10.0+)
+
+Imported entries preserve their original `lastModified` timestamp from the backup file. This is important because:
+- `lastModified` is meaningful journal metadata (when the entry was actually last edited)
+- The merge logic uses `lastModified` to pick winners — fake timestamps would poison it
+- Previously, all imported entries got `lastModified: Date.now()`, making old backups appear "newer" than current entries
+
+**Current behavior:**
+
+| Scenario | `lastModified` value |
+|----------|---------------------|
+| New entry from JSON backup (has `lastModified`) | Original from backup |
+| New entry from JSON backup (no `lastModified`) | Import timestamp (fallback) |
+| New entry from legacy markdown backup | Import timestamp (format has no `lastModified`) |
+| Conflict merge (content appended) | Import timestamp (content genuinely changed) |
+
+Code location: `src/features/export/utils/parseBackup.ts`
 
 The conflict separator format (one blank line above `---`):
 

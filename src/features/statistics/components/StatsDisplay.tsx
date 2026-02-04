@@ -411,7 +411,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Handle paste button click - read from clipboard, apply, and create new preset
   const handleColorPaste = useCallback(async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      let text = await navigator.clipboard.readText();
+      // Decode URL-encoded clipboard text (mobile browsers may encode)
+      try { text = decodeURIComponent(text); } catch { /* not encoded, use as-is */ }
       // Collect parsed values
       let txtH = hue, txtS = saturation, txtL = lightness;
       let bgH = bgHue, bgS = bgSaturation, bgL = bgLightness;

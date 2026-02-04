@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
-import { initJournalStorage, saveSingleEntry, deleteSingleEntry } from '@shared/storage/journalStorage';
+import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import type { JournalEntry } from '../types';
 
@@ -75,15 +75,54 @@ export function useJournalEntries() {
   // Force save before closing - use sync localStorage as backup
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Skip saving if app is being reset (flag set by reset handler)
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
-      // Save to localStorage as backup for unload (IndexedDB may not complete)
+      // Flush any debounced saves to IndexedDB (best-effort, async)
+      flushPendingSaves();
+      // Sync backup to localStorage (IndexedDB writes may not complete before tab closes)
       if (entriesRef.current.length > 0) {
-        localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
+        try {
+          localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
+        } catch (e) {
+          console.error('[gdays] beforeunload: localStorage backup failed', e);
+        }
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Listen for saves from other tabs (multi-tab sync)
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+
+  useEffect(() => {
+    const unsubscribe = onEntrySaved(async (date: string) => {
+      // Another tab saved this date - reload it from storage
+      const entry = await loadSingleEntry(date);
+      if (!entry) return;
+
+      console.log(`[gdays] multi-tab: other tab saved ${date}, reloading`);
+
+      setEntries(prev => {
+        const index = prev.findIndex(e => e.date === date);
+        const updated = [...prev];
+        if (index >= 0) {
+          updated[index] = entry;
+        } else {
+          updated.push(entry);
+          updated.sort((a, b) => b.date.localeCompare(a.date));
+        }
+        entriesRef.current = updated;
+        return updated;
+      });
+
+      // If we're viewing this date, update the displayed content
+      if (selectedDateRef.current === date) {
+        setCurrentContent(htmlToText(entry.content || ''));
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   // Ensure today's entry always exists

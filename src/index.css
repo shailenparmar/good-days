@@ -92,6 +92,15 @@ html {
   border: none;
 }
 
+/* Disable text selection on mobile */
+@media (pointer: coarse) {
+  * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+}
+
 /* Remove focus outlines from all buttons */
 button:focus,
 button:focus-visible {
