@@ -5,6 +5,7 @@ import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } f
 import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
 import { FunctionButton } from '@shared/components';
+import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { useTheme } from '@features/theme';
@@ -27,9 +28,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
-  const [importHovered, setImportHovered] = useState(false);
-  const [lockedDimensions, setLockedDimensions] = useState<{ width: number; height: number } | null>(null);
-  const importWrapperRef = useRef<HTMLDivElement>(null);
+  // Stable hover for import button - allows visual shrink while hover hitbox stays stable
+  const { hovered: importHovered, containerRef: importContainerRef, hoverLayerProps: importHoverProps } = useStableHover();
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
@@ -185,22 +185,10 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <Upload className="w-3 h-3" />
         <span>{s(stacked ? 'AES-256-GCM backup' : 'backup')}</span>
       </FunctionButton>
-      <div
-        ref={importWrapperRef}
-        style={lockedDimensions ? { minWidth: lockedDimensions.width, minHeight: lockedDimensions.height } : undefined}
-        onMouseEnter={() => {
-          // Lock hitbox to current size before text changes
-          if (importWrapperRef.current) {
-            const rect = importWrapperRef.current.getBoundingClientRect();
-            setLockedDimensions({ width: rect.width, height: rect.height });
-          }
-          setImportHovered(true);
-        }}
-        onMouseLeave={() => {
-          setImportHovered(false);
-          setLockedDimensions(null);
-        }}
-      >
+      {/* Stable hover container - button visually shrinks, hover hitbox stays stable */}
+      <div ref={importContainerRef} style={{ position: 'relative' }}>
+        {/* Only enable stable hover in stacked mode where text changes */}
+        {stacked && <div {...importHoverProps} />}
         <FunctionButton
           onClick={handleImport}
           size="sm"

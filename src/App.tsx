@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.9.7';
+const VERSION = '1.9.8';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -680,7 +680,6 @@ function AppContent() {
           saveAllJournalEntries(entries);
           setEditorKey(k => k + 1); // Force editor remount to show imported content
         }}
-        onCloseAbout={() => setShowAboutPanel(false)}
         stacked={showDebugMenu && showAboutPanel}
         superscramble={isSuperscramble}
         scrambleSeed={scrambleSeed}
@@ -689,7 +688,7 @@ function AppContent() {
       />
 
       {/* About Panel */}
-      <AboutPanel isOpen={showAboutPanel} onCloseSettings={() => setShowDebugMenu(false)} stacked={showDebugMenu && showAboutPanel} superscramble={isSuperscramble} scrambleSeed={scrambleSeed} />
+      <AboutPanel isOpen={showAboutPanel} stacked={showDebugMenu && showAboutPanel} superscramble={isSuperscramble} scrambleSeed={scrambleSeed} />
 
       {/* Main Editor Area */}
       <div

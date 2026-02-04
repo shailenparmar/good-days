@@ -508,7 +508,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
-**Hover Flicker Fix:** Uses screen-coordinate locking (see "The Hover Flicker Problem"). On hover, the invisible hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to any layout shifts — the button can shrink, move, or reflow, but the hover hitbox stays exactly where it was on screen.
+**Hover Flicker Fix:** Uses the `useStableHover` hook (see "The Hover Flicker Problem"). On hover, the invisible hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to any layout shifts — the button can shrink, move, or reflow, but the hover hitbox stays exactly where it was on screen.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
@@ -1881,9 +1881,13 @@ import { FunctionButton } from '@shared/components';
 
 **The problem:** When button text changes on hover to something that occupies fewer lines, the button height shrinks. If the cursor was near the bottom edge, it's now outside the button. This triggers mouse leave, which restores the original text, the button grows, the cursor is inside again, mouse enter fires — infinite flicker loop.
 
-**Key insight:** This is a LINE COUNT problem, not a character count problem. The same text might fit on one line when the app is wide, but wrap to two lines when narrow. You must check at runtime whether the button actually shrinks.
+**Key insight:** This is a LINE COUNT problem, not a character count problem. The same text might fit on one line when the app is wide, but wrap to two lines when narrow.
+
+**Pattern name:** We call this **"stable hover"** — the hover hitbox stays stable while the button can visually change.
 
 #### Solution 1: Screen-Coordinate Locking (Button Visually Shrinks)
+
+Use the `useStableHover` hook from `@shared/hooks`.
 
 Use when you want the button to visually shrink but need the hover hitbox to stay stable. On mouseEnter, the hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to **any** layout changes — shrinking, reflow, scroll anchoring, flex adjustments.
 
@@ -1898,58 +1902,35 @@ Screen coordinates locked on enter:
 ```
 
 ```tsx
-const [hovered, setHovered] = useState(false);
-const hoverRef = useRef<HTMLDivElement>(null);
-const containerRef = useRef<HTMLDivElement>(null);
+import { useStableHover } from '@shared/hooks';
+
+const { hovered, containerRef, hoverLayerProps } = useStableHover();
 
 // In JSX:
 <div ref={containerRef} style={{ position: 'relative' }}>
-  {/* Hover detection layer - locks to screen coordinates on enter */}
-  <div
-    ref={hoverRef}
-    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-    onMouseEnter={() => {
-      // Lock to exact SCREEN coordinates before state change
-      if (containerRef.current && hoverRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        hoverRef.current.style.position = 'fixed';
-        hoverRef.current.style.top = `${rect.top}px`;
-        hoverRef.current.style.left = `${rect.left}px`;
-        hoverRef.current.style.right = 'auto';
-        hoverRef.current.style.bottom = 'auto';
-        hoverRef.current.style.width = `${rect.width}px`;
-        hoverRef.current.style.height = `${rect.height}px`;
-      }
-      setHovered(true);
-    }}
-    onMouseLeave={() => {
-      // Reset to relative positioning
-      if (hoverRef.current) {
-        hoverRef.current.style.position = 'absolute';
-        hoverRef.current.style.top = '0';
-        hoverRef.current.style.left = '0';
-        hoverRef.current.style.right = '0';
-        hoverRef.current.style.bottom = '0';
-        hoverRef.current.style.width = '';
-        hoverRef.current.style.height = '';
-      }
-      setHovered(false);
-    }}
-  />
+  <div {...hoverLayerProps} />
   <FunctionButton>
     {hovered ? 'short text' : 'longer text that might wrap'}
   </FunctionButton>
 </div>
 ```
 
-**Key points:**
-- On enter: capture bounding rect, switch to `position: fixed` at those exact screen coordinates
-- The hover hitbox is now pinned to screen position, not the container
+**How it works:**
+- On enter: captures bounding rect, switches hover layer to `position: fixed` at exact screen coordinates
+- The hover hitbox is now pinned to screen position, immune to layout changes
 - Button can shrink in any direction, container can move — hitbox stays put
-- On leave: reset to `position: absolute` with standard fill styling
+- On leave: resets hover layer to `position: absolute` with standard fill styling
 - Edge case (scroll while hovering): hitbox stays fixed, acceptable tradeoff
 
-Code location: `src/features/settings/components/SettingsPanel.tsx` (scramble hotkey button)
+**Key points:**
+- Only render the hover layer when the text actually changes on hover
+- Conditionally render: `{shouldChangeOnHover && <div {...hoverLayerProps} />}`
+- The hook handles all the screen-coordinate math internally
+
+Code locations:
+- Hook: `src/shared/hooks/useStableHover.ts`
+- Scramble hotkey button: `src/features/settings/components/SettingsPanel.tsx`
+- Import button: `src/features/export/components/ExportButtons.tsx`
 
 #### Solution 2: Grid Overlay (UI Swap, No Visual Shrink)
 

@@ -4,6 +4,7 @@ import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
 import { TimeDisplay } from './TimeDisplay';
 import { FunctionButton } from '@shared/components';
+import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { getItem, setItem } from '@shared/storage';
@@ -17,7 +18,6 @@ interface SettingsPanelProps {
   removePassword: () => void;
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
-  onCloseAbout: () => void;
   stacked?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
@@ -33,7 +33,6 @@ export function SettingsPanel({
   removePassword,
   entries,
   onImport,
-  onCloseAbout,
   stacked,
   superscramble,
   scrambleSeed,
@@ -43,9 +42,8 @@ export function SettingsPanel({
   // Suppress unused variable warning
   void scrambleSeed;
   const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
-  const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
-  const hotkeyHoverRef = useRef<HTMLDivElement>(null);
-  const hotkeyContainerRef = useRef<HTMLDivElement>(null);
+  // Stable hover for scramble hotkey button
+  const { hovered: hotkeyButtonHovered, containerRef: hotkeyContainerRef, hoverLayerProps: hotkeyHoverProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
   // Scroll position persistence
@@ -111,13 +109,11 @@ export function SettingsPanel({
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
         borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
       }}
-      onClick={onCloseAbout}
     >
-      {/* Color Picker Section - clicks here don't close about panel */}
+      {/* Color Picker Section */}
       <div
         className="p-4"
         style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
@@ -155,41 +151,10 @@ export function SettingsPanel({
           className="p-4"
           style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
         >
-          {/* Container for button + hover layer */}
+          {/* Stable hover container - button visually shrinks, hover hitbox stays stable */}
           <div ref={hotkeyContainerRef} style={{ position: 'relative' }}>
-            {/* Hover detection layer - locks to screen coordinates on enter */}
-            <div
-              ref={hotkeyHoverRef}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-              onMouseEnter={() => {
-                // Lock hover layer to exact SCREEN coordinates before state change
-                // This makes it immune to any layout shifts (shrinking, reflow, scroll)
-                if (hotkeyContainerRef.current && hotkeyHoverRef.current && scrambleHotkeyActive) {
-                  const rect = hotkeyContainerRef.current.getBoundingClientRect();
-                  hotkeyHoverRef.current.style.position = 'fixed';
-                  hotkeyHoverRef.current.style.top = `${rect.top}px`;
-                  hotkeyHoverRef.current.style.left = `${rect.left}px`;
-                  hotkeyHoverRef.current.style.right = 'auto';
-                  hotkeyHoverRef.current.style.bottom = 'auto';
-                  hotkeyHoverRef.current.style.width = `${rect.width}px`;
-                  hotkeyHoverRef.current.style.height = `${rect.height}px`;
-                }
-                setHotkeyButtonHovered(true);
-              }}
-              onMouseLeave={() => {
-                // Reset hover layer to relative positioning
-                if (hotkeyHoverRef.current) {
-                  hotkeyHoverRef.current.style.position = 'absolute';
-                  hotkeyHoverRef.current.style.top = '0';
-                  hotkeyHoverRef.current.style.left = '0';
-                  hotkeyHoverRef.current.style.right = '0';
-                  hotkeyHoverRef.current.style.bottom = '0';
-                  hotkeyHoverRef.current.style.width = '';
-                  hotkeyHoverRef.current.style.height = '';
-                }
-                setHotkeyButtonHovered(false);
-              }}
-            />
+            {/* Only enable stable hover when text changes (scrambleHotkeyActive) */}
+            {scrambleHotkeyActive && <div {...hotkeyHoverProps} />}
             <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
               <span>
                 {(() => {
