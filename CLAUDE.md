@@ -1086,7 +1086,7 @@ Note: The iOS "Allow Paste" banner when reading clipboard via `navigator.clipboa
 
 ### Title Version Display
 
-Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.4"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.5"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
 **IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/App.tsx` on every push.
 
@@ -2393,9 +2393,9 @@ When pushing changes:
 2. **Tell the user the version number** after pushing (e.g., "Pushed **v1.0.1**")
 3. Use the version in the commit message (e.g., "v1.0.1: Fix editor focus issue")
 
-The version displays in the app title ("good days v1.0.1") only when the about panel is open.
+The version displays by hovering over the "good days" title in the sidebar header. On hover, the title text replaces entirely with `v1.10.5` (no "good days" prefix). On mouse leave, it reverts to "good days". Works in both normal and superscramble modes.
 
-This lets the user verify which build is deployed by opening the about panel and checking the version. If the version doesn't match, they know the deploy hasn't completed or there's a cache issue.
+This lets the user verify which build is deployed by hovering the title and checking the version.
 
 ## Storage Architecture
 

@@ -427,7 +427,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.4';
+  const mobileVersion = '1.10.5';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {

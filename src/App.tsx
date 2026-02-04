@@ -17,7 +17,7 @@ import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 
-const VERSION = '1.10.4';
+const VERSION = '1.10.5';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -143,6 +143,7 @@ function AppContent() {
   const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
+  const [titleHovered, setTitleHovered] = useState(false);
   // State saved before narrowing window (panels close in narrow, restore on widen)
   const [preNarrowState, setPreNarrowState] = useState<{
     showDebugMenu: boolean;
@@ -595,11 +596,15 @@ function AppContent() {
             borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <div className="p-4">
+          <div
+            className="p-4"
+            onMouseEnter={() => setTitleHovered(true)}
+            onMouseLeave={() => setTitleHovered(false)}
+          >
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {isSuperscramble
-                ? scrambleText(showAboutPanel ? `good days v${VERSION}` : 'good days')
-                : (showAboutPanel ? `good days v${VERSION}` : 'good days')}
+                ? scrambleText(titleHovered ? `v${VERSION}` : 'good days')
+                : (titleHovered ? `v${VERSION}` : 'good days')}
             </h1>
           </div>
 
