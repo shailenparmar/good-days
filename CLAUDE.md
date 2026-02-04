@@ -955,12 +955,10 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 ```
 ┌────────────────────────────────┐
 │                                │
-│            good                │
-│            days                │
+│          good days             │
 │                                │
-│          hold flat             │  ← 24px instruction
 │   ┌────────────────────────┐   │
-│   │       set tilt         │   │  ← Full-width button, 24px
+│   │    calibrate tilt      │   │  ← Full-width button
 │   └────────────────────────┘   │
 └────────────────────────────────┘
 ```
@@ -975,7 +973,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        └────────┘              │     title and buttons
 │                                │
 │   ┌────────────────────────┐   │
-│   │      reset tilt        │   │  ← Full-width button
+│   │   recalibrate tilt     │   │  ← Full-width button
 │   └────────────────────────┘   │
 │   ┌───────────┬────────────┐   │
 │   │   copy    │   paste    │   │  ← Split button
@@ -1079,6 +1077,12 @@ Colors persist to `localStorage` key `mobileColors`:
 ```json
 { "hue": 175, "sat": 100, "light": 21, "bgHue": 84, "bgSat": 100, "bgLight": 88 }
 ```
+
+### Context Menu Prevention
+
+A global `contextmenu` event listener prevents the iOS Safari long-press context menu (Writing Tools, paste popover) from appearing on any element. This keeps buttons feeling like native controls.
+
+Note: The iOS "Allow Paste" banner when reading clipboard via `navigator.clipboard.readText()` is a security requirement and cannot be suppressed.
 
 ### Haptic Feedback
 

@@ -125,6 +125,13 @@ function MobileScreen() {
     }
   }, []);
 
+  // Prevent iOS context menu / Writing Tools on long press
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault();
+    document.addEventListener('contextmenu', prevent);
+    return () => document.removeEventListener('contextmenu', prevent);
+  }, []);
+
   // Check iOS permission
   useEffect(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
@@ -489,14 +496,13 @@ function MobileScreen() {
         <span style={titleStyle}>good days</span>
         <div style={{ flex: 1 }} />
         <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-          <span style={{ color: textColor, fontFamily: 'monospace', fontWeight: 800, fontSize: '20px' }}>hold flat</span>
           <div
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
             onTouchCancel={() => setSetTiltPressed(false)}
             style={{ width: '100%', padding: '16px 0', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', backgroundColor: tiltFillColor, border: `4px solid ${tiltBorderColor}`, borderRadius: '12px', color: textColor, textAlign: 'center' }}
           >
-            set tilt
+            calibrate tilt
           </div>
         </div>
       </div>
@@ -563,7 +569,7 @@ function MobileScreen() {
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
               <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `${(colors.bgHue / 360) * 100}%`, height: '4px', backgroundColor: 'black', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.bgHue / 360) * 100}% - 2px)`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'left' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -578,7 +584,7 @@ function MobileScreen() {
               style={{ flex: 1, position: 'relative', background: pureHueGradient }}
             >
               <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: `${(colors.hue / 360) * 100}%`, height: '4px', backgroundColor: 'black', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.hue / 360) * 100}% - 2px)`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
               {activeSide.current === 'right' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
               )}
@@ -617,7 +623,7 @@ function MobileScreen() {
             onTouchCancel={() => setResetPressed(false)}
             style={getButtonStyle(resetPressed, 'full')}
           >
-            reset tilt
+            recalibrate tilt
           </div>
 
           <div style={{ display: 'flex' }}>
