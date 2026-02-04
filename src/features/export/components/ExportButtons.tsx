@@ -138,14 +138,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       const a = document.createElement('a');
       a.href = url;
       const now = new Date();
-      // Filename: good days backup MM-DD-YYYY HH:mm:ss.txt (zero-padded, always military time)
+      // Filename: good days backup MM-DD-YYYY HHmmss.txt (zero-padded, always military time, no colons - macOS converts them to underscores)
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       const year = now.getFullYear();
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      a.download = `good days backup ${month}-${day}-${year} ${hours}:${minutes}:${seconds}.txt`;
+      a.download = `good days backup ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

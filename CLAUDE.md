@@ -213,7 +213,7 @@ The app supports exporting entries to an **encrypted** `.txt` file and importing
 
 Backups are encrypted using AES-GCM with an app-embedded key.
 
-**Filename**: `good days backup 02-03-2026 21:12:01.txt` (MM-DD-YYYY HH:mm:ss, zero-padded, always military time for clean filenames and sorting)
+**Filename**: `good days backup 02-03-2026 211201.txt` (MM-DD-YYYY HHmmss, zero-padded, always military time, no colon separators because macOS converts them to underscores)
 
 **File contents**: Just the encrypted base64 blob, no header.
 ```
