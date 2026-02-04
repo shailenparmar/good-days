@@ -432,7 +432,7 @@ Code location: `src/features/export/components/ExportButtons.tsx`
 
 ### Export Buttons Layout
 
-In powerstat (stacked) mode, each export button is wrapped in a `<div className="p-4">` with an 85% opacity 6px bottom border separator. The import button's separator only shows in stacked mode. The outer container is a `<>` fragment (no wrapping `<div>`).
+All three export buttons (copy, download backup, import) live in a single `<div className="space-y-2">` container inside ExportButtons. The parent section in SettingsPanel wraps them in `<div className="p-4">` with a 6px bottom border in stacked mode. **Do NOT wrap individual buttons in their own bordered divs** — this creates unwanted thick panel lines between buttons.
 
 ## UI Conventions
 
@@ -712,7 +712,8 @@ The app has special modes that activate when multiple panels are open.
 | About panel shrinks | Width goes from 675px → 400px |
 | Scramble hotkey toggle | Button appears in Settings to enable Option/Alt+S hotkey |
 | Horizontal stats | StatsDisplay switches to horizontal layout |
-| Reset app button | Appears at bottom of Settings panel |
+| Export debug log button | Downloads human-readable action log for debugging |
+| Reset app button | Appears at bottom of Settings panel (with RotateCcw icon) |
 | Easter egg tracking | `powerstatMode` is marked as found |
 
 ### Reset App Button
@@ -2170,6 +2171,7 @@ const { hovered, containerProps } = useStableHover();
 - Global mousemove listener (only while hovered) detects true exit from original rect
 - No overlay div blocking scroll events
 - Button freely shrinks/grows based on content
+- **Border buffer**: `isInsideRect` adds a 3px buffer to the rect check, matching the FunctionButton `3px solid` border. Without this, cursor positions at the exact border edge oscillate in/out, causing flicker in a narrow strip around the button.
 
 **Edge case:** Scrolling while hovering makes the captured rect stale relative to viewport. Cursor will "exit" even if visually over button. Acceptable — scrolling while hovering is unusual.
 
@@ -2428,12 +2430,14 @@ Lightweight debug logger for diagnosing user-reported issues. Stores a circular 
 
 **Code location**: `src/shared/logger.ts`
 
-**Events logged**: storage init/save/delete/flush, journal load/date changes/deletions, multi-tab reloads, beforeunload flushes, fallback mode transitions.
+**Events logged**: storage init/save/delete/flush, journal load/date changes/deletions, multi-tab reloads, beforeunload flushes, fallback mode transitions, auth lock/unlock/password, export/import, errors, app load/midnight.
 
 **API**:
 - `logAction(event, data?)` — append event to circular buffer
 - `exportLogs(appVersion, entryCount)` — human-readable dump with header
 - `clearLogs()` — wipe all logs
+
+**Export UI**: "export debug log" button in powerstat mode (Settings panel, same section as reset). Downloads a `.txt` file with app version, entry count, user agent, and timestamped events. Filename: `good days debug log MM-DD-YYYY HHmmss.txt`.
 
 ## Storage Architecture
 

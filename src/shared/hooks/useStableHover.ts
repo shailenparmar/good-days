@@ -29,9 +29,10 @@ export function useStableHover() {
   const containerRef = useRef<HTMLDivElement>(null);
   const lockedRect = useRef<DOMRect | null>(null);
 
-  // Check if point is inside rect
+  // Check if point is inside rect (with buffer to account for border width)
   const isInsideRect = (x: number, y: number, rect: DOMRect) => {
-    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    const buffer = 3;
+    return x >= rect.left - buffer && x <= rect.right + buffer && y >= rect.top - buffer && y <= rect.bottom + buffer;
   };
 
   const onMouseEnter = useCallback(() => {

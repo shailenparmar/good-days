@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { flushPendingSaves } from '@shared/storage/journalStorage';
+import { logAction } from '@shared/logger';
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logAction('error.boundary', { message: error.message, componentStack: errorInfo.componentStack?.slice(0, 500) });
     // Emergency save: flush debounced writes to IndexedDB
     try {
       flushPendingSaves();

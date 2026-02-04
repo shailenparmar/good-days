@@ -174,10 +174,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     }
   };
 
-  const borderStyle = { borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` };
-
   return (
-    <>
+    <div className="space-y-2">
       <input
         ref={fileInputRef}
         type="file"
@@ -186,39 +184,33 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         onChange={handleFileChange}
         className="hidden"
       />
-      <div className="p-4" style={borderStyle}>
-        <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
-          <Copy className="w-3 h-3" />
-          <span>{s(stacked ? 'copy markdown format' : 'copy to clipboard')}</span>
-        </FunctionButton>
-      </div>
-      <div className="p-4" style={borderStyle}>
-        <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
-          <Upload className="w-3 h-3" />
-          <span>{s(stacked ? 'download AES-256-GCM backup' : 'download backup')}</span>
-        </FunctionButton>
-      </div>
+      <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
+        <Copy className="w-3 h-3" />
+        <span>{s(stacked ? 'copy markdown format' : 'copy to clipboard')}</span>
+      </FunctionButton>
+      <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
+        <Upload className="w-3 h-3" />
+        <span>{s(stacked ? 'download AES-256-GCM backup' : 'download backup')}</span>
+      </FunctionButton>
       {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
-      <div className="p-4" style={stacked ? borderStyle : undefined}>
-        <div {...importContainerProps}>
-          <FunctionButton
-            onClick={handleImport}
-            size="sm"
-            overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
-          >
-            {!importFeedback && !(stacked && importHovered) && <Download className="w-3 h-3" />}
-            <span>
-              {importFeedback
-                ? importFeedback.type === 'success'
-                  ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
-                  : s('import failed')
-                : stacked && importHovered
-                  ? s('multiple files accepted')
-                  : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
-            </span>
-          </FunctionButton>
-        </div>
+      <div {...importContainerProps}>
+        <FunctionButton
+          onClick={handleImport}
+          size="sm"
+          overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
+        >
+          {!importFeedback && !(stacked && importHovered) && <Download className="w-3 h-3" />}
+          <span>
+            {importFeedback
+              ? importFeedback.type === 'success'
+                ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+                : s('import failed')
+              : stacked && importHovered
+                ? s('multiple files accepted')
+                : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
+          </span>
+        </FunctionButton>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -8,6 +9,8 @@ import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { getItem, setItem } from '@shared/storage';
+import { logAction, exportLogs } from '@shared/logger';
+import { VERSION } from '@shared/version';
 import type { JournalEntry } from '@features/journal';
 
 interface SettingsPanelProps {
@@ -83,6 +86,7 @@ export function SettingsPanel({
       setResetStep(resetStep + 1);
       return;
     }
+    logAction('settings.reset');
     // Prevent beforeunload from saving entries back to localStorage
     (window as { __resettingApp?: boolean }).__resettingApp = true;
     // Actually reset the app
@@ -92,6 +96,27 @@ export function SettingsPanel({
     deleteRequest.onsuccess = () => location.reload();
     deleteRequest.onerror = () => location.reload();
     deleteRequest.onblocked = () => location.reload();
+  };
+
+  const handleExportDebugLog = () => {
+    const content = exportLogs(VERSION, entries.length);
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    a.download = `good days debug log ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    logAction('debug.exported');
   };
 
   const getResetButtonText = () => {
@@ -180,9 +205,12 @@ export function SettingsPanel({
         <ExportButtons entries={entries} onImport={onImport} stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
 
-      {/* Reset App - only in powerstat mode */}
+      {/* Reset App + Debug Log - only in powerstat mode */}
       {stacked && (
-        <div className="p-4">
+        <div className="p-4 space-y-2">
+          <FunctionButton onClick={handleExportDebugLog} size="sm">
+            <span>{superscramble ? scrambleText('export debug log') : 'export debug log'}</span>
+          </FunctionButton>
           {/* Blackout overlay for final confirmation */}
           {resetStep === 2 && (
             <div
@@ -192,6 +220,7 @@ export function SettingsPanel({
           )}
           <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative z-50' : ''}>
             <FunctionButton onClick={handleResetApp} size="sm">
+              <RotateCcw className="w-3 h-3" />
               <span>
                 {superscramble ? scrambleText(getResetButtonText()) : getResetButtonText()}
               </span>
