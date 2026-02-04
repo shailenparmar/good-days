@@ -1963,30 +1963,28 @@ import { FunctionButton } from '@shared/components';
 
 **Pattern name:** We call this **"stable hover"** — the hover hitbox stays stable while the button can visually change.
 
-#### Solution 1: Screen-Coordinate Locking (Button Visually Shrinks)
+#### Solution: Coordinate-Based Stable Hover (Button Visually Shrinks)
 
 Use the `useStableHover` hook from `@shared/hooks`.
 
-Use when you want the button to visually shrink but need the hover hitbox to stay stable. On mouseEnter, the hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to **any** layout changes — shrinking, reflow, scroll anchoring, flex adjustments.
+Use when you want the button to visually shrink but need the hover state to stay stable. Pure coordinate math — no overlay div, no scroll blocking.
 
 ```
-Screen coordinates locked on enter:
-┌─────────────────────────┐  ← hover layer (position: fixed at original coords)
-│  ┌───────────────────┐  │
-│  │ short text        │  │  ← button (can shrink, move, whatever)
-│  └───────────────────┘  │
-│       empty space       │  ← mouse here = still hovering
-└─────────────────────────┘
+How it works:
+1. Mouse enters → capture bounding rect → set hovered
+2. Button shrinks → mouseLeave fires
+3. Check: is cursor still in captured rect?
+   ├─ Yes: stay hovered (global mousemove monitors for real exit)
+   └─ No: unhover
 ```
 
 ```tsx
 import { useStableHover } from '@shared/hooks';
 
-const { hovered, containerRef, hoverLayerProps } = useStableHover();
+const { hovered, containerProps } = useStableHover();
 
 // In JSX:
-<div ref={containerRef} style={{ position: 'relative' }}>
-  <div {...hoverLayerProps} />
+<div {...containerProps}>
   <FunctionButton>
     {hovered ? 'short text' : 'longer text that might wrap'}
   </FunctionButton>
@@ -1994,16 +1992,13 @@ const { hovered, containerRef, hoverLayerProps } = useStableHover();
 ```
 
 **How it works:**
-- On enter: captures bounding rect, switches hover layer to `position: fixed` at exact screen coordinates
-- The hover hitbox is now pinned to screen position, immune to layout changes
-- Button can shrink in any direction, container can move — hitbox stays put
-- On leave: resets hover layer to `position: absolute` with standard fill styling
-- Edge case (scroll while hovering): hitbox stays fixed, acceptable tradeoff
+- On enter: captures bounding rect before any state change
+- On leave: checks if cursor is still inside captured rect — if so, stays hovered
+- Global mousemove listener (only while hovered) detects true exit from original rect
+- No overlay div blocking scroll events
+- Button freely shrinks/grows based on content
 
-**Key points:**
-- Only render the hover layer when the text actually changes on hover
-- Conditionally render: `{shouldChangeOnHover && <div {...hoverLayerProps} />}`
-- The hook handles all the screen-coordinate math internally
+**Edge case:** Scrolling while hovering makes the captured rect stale relative to viewport. Cursor will "exit" even if visually over button. Acceptable — scrolling while hovering is unusual.
 
 Code locations:
 - Hook: `src/shared/hooks/useStableHover.ts`
