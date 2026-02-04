@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -46,7 +46,6 @@ export function SettingsPanel({
   const [hotkeyButtonHovered, setHotkeyButtonHovered] = useState(false);
   const hotkeyHoverRef = useRef<HTMLDivElement>(null);
   const hotkeyContainerRef = useRef<HTMLDivElement>(null);
-  const preHoverHeight = useRef<number | null>(null);
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
   // Scroll position persistence
@@ -80,22 +79,6 @@ export function SettingsPanel({
     if (resetStep === 2) markEasterEggFound('resetBlackout');
   }, [resetStep]);
 
-  // After hover state changes, check if button actually shrank - only lock if it did
-  useLayoutEffect(() => {
-    if (!hotkeyHoverRef.current || !hotkeyContainerRef.current || preHoverHeight.current === null) return;
-
-    const currentHeight = hotkeyContainerRef.current.getBoundingClientRect().height;
-
-    if (hotkeyButtonHovered && currentHeight < preHoverHeight.current) {
-      // Button shrank - lock hover layer to original height
-      hotkeyHoverRef.current.style.bottom = 'auto';
-      hotkeyHoverRef.current.style.height = `${preHoverHeight.current}px`;
-    } else {
-      // Button didn't shrink - no locking needed
-      hotkeyHoverRef.current.style.bottom = '0';
-      hotkeyHoverRef.current.style.height = '';
-    }
-  }, [hotkeyButtonHovered]);
 
   const handleResetApp = () => {
     if (resetStep < 2) {
@@ -179,19 +162,21 @@ export function SettingsPanel({
               ref={hotkeyHoverRef}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               onMouseEnter={() => {
-                // Capture current height before text changes
-                if (hotkeyContainerRef.current && scrambleHotkeyActive) {
-                  preHoverHeight.current = hotkeyContainerRef.current.getBoundingClientRect().height;
+                // Lock hover layer to current height BEFORE state change triggers re-render
+                // This prevents any moment where the hover layer could shrink
+                if (hotkeyContainerRef.current && hotkeyHoverRef.current && scrambleHotkeyActive) {
+                  const height = hotkeyContainerRef.current.getBoundingClientRect().height;
+                  hotkeyHoverRef.current.style.height = `${height}px`;
+                  hotkeyHoverRef.current.style.bottom = 'auto';
                 }
                 setHotkeyButtonHovered(true);
               }}
               onMouseLeave={() => {
-                // Reset hover layer and clear stored height
+                // Reset hover layer to fill container
                 if (hotkeyHoverRef.current) {
                   hotkeyHoverRef.current.style.bottom = '0';
                   hotkeyHoverRef.current.style.height = '';
                 }
-                preHoverHeight.current = null;
                 setHotkeyButtonHovered(false);
               }}
             />

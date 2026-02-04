@@ -508,7 +508,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
-**Hover Flicker Fix:** Uses the Absolute Hover Layer solution (see "The Hover Flicker Problem"). The button visually shrinks when text changes from "scramble hotkey activated" to "option/alt + s", but an invisible hover layer stays at the original height to prevent flicker. Only locks when the text actually occupies fewer lines (responsive-aware).
+**Hover Flicker Fix:** Uses the Absolute Hover Layer solution (see "The Hover Flicker Problem"). The button visually shrinks when text changes from "scramble hotkey activated" to "option/alt + s", but an invisible hover layer locks to the original height **before** the state change triggers a re-render. This prevents any moment where the hover layer could shrink.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
@@ -1900,24 +1900,6 @@ Use when you want the button to visually shrink but need the hover hitbox to sta
 const [hovered, setHovered] = useState(false);
 const hoverRef = useRef<HTMLDivElement>(null);
 const containerRef = useRef<HTMLDivElement>(null);
-const preHoverHeight = useRef<number | null>(null);
-
-// After hover state changes, check if button actually shrank
-useLayoutEffect(() => {
-  if (!hoverRef.current || !containerRef.current || preHoverHeight.current === null) return;
-
-  const currentHeight = containerRef.current.getBoundingClientRect().height;
-
-  if (hovered && currentHeight < preHoverHeight.current) {
-    // Button shrank - lock hover layer to original height
-    hoverRef.current.style.bottom = 'auto';
-    hoverRef.current.style.height = `${preHoverHeight.current}px`;
-  } else {
-    // Button didn't shrink - no locking needed
-    hoverRef.current.style.bottom = '0';
-    hoverRef.current.style.height = '';
-  }
-}, [hovered]);
 
 // In JSX:
 <div ref={containerRef} style={{ position: 'relative' }}>
@@ -1926,17 +1908,21 @@ useLayoutEffect(() => {
     ref={hoverRef}
     style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
     onMouseEnter={() => {
-      if (containerRef.current) {
-        preHoverHeight.current = containerRef.current.getBoundingClientRect().height;
+      // Lock hover layer to current height BEFORE state change triggers re-render
+      // This prevents any moment where the hover layer could shrink
+      if (containerRef.current && hoverRef.current) {
+        const height = containerRef.current.getBoundingClientRect().height;
+        hoverRef.current.style.height = `${height}px`;
+        hoverRef.current.style.bottom = 'auto';
       }
       setHovered(true);
     }}
     onMouseLeave={() => {
+      // Reset hover layer to fill container
       if (hoverRef.current) {
         hoverRef.current.style.bottom = '0';
         hoverRef.current.style.height = '';
       }
-      preHoverHeight.current = null;
       setHovered(false);
     }}
   />
@@ -1948,10 +1934,10 @@ useLayoutEffect(() => {
 
 **Key points:**
 - Hover layer is `position: absolute` so it doesn't affect layout
-- Capture height BEFORE text changes (in onMouseEnter)
-- Use `useLayoutEffect` to compare heights AFTER render
-- Only lock if button actually shrank (handles responsive case)
+- Lock height **BEFORE** state change (in onMouseEnter, before `setHovered`)
+- This prevents any brief moment where hover layer could shrink during re-render
 - Button and its borders visually shrink, hover area stays big
+- No useLayoutEffect needed - simpler and more reliable
 
 Code location: `src/features/settings/components/SettingsPanel.tsx` (scramble hotkey button)
 
