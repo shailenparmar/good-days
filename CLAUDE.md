@@ -508,7 +508,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 
 When activated, Option/Alt+S toggles scramble from anywhere in the app.
 
-**Hover Flicker Fix:** Uses the Absolute Hover Layer solution (see "The Hover Flicker Problem"). The button visually shrinks when text changes from "scramble hotkey activated" to "option/alt + s", but an invisible hover layer locks to the original height **before** the state change triggers a re-render. This prevents any moment where the hover layer could shrink.
+**Hover Flicker Fix:** Uses screen-coordinate locking (see "The Hover Flicker Problem"). On hover, the invisible hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to any layout shifts — the button can shrink, move, or reflow, but the hover hitbox stays exactly where it was on screen.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
 
@@ -1883,14 +1883,15 @@ import { FunctionButton } from '@shared/components';
 
 **Key insight:** This is a LINE COUNT problem, not a character count problem. The same text might fit on one line when the app is wide, but wrap to two lines when narrow. You must check at runtime whether the button actually shrinks.
 
-#### Solution 1: Absolute Hover Layer (Button Visually Shrinks)
+#### Solution 1: Screen-Coordinate Locking (Button Visually Shrinks)
 
-Use when you want the button to visually shrink but need the hover hitbox to stay big. The hover layer is positioned absolute so it doesn't affect layout.
+Use when you want the button to visually shrink but need the hover hitbox to stay stable. On mouseEnter, the hover layer switches to `position: fixed` at the button's exact screen coordinates. This makes it immune to **any** layout changes — shrinking, reflow, scroll anchoring, flex adjustments.
 
 ```
-┌─────────────────────────┐  ← invisible hover layer (locked height)
+Screen coordinates locked on enter:
+┌─────────────────────────┐  ← hover layer (position: fixed at original coords)
 │  ┌───────────────────┐  │
-│  │ short text        │  │  ← button (visually shrunk)
+│  │ short text        │  │  ← button (can shrink, move, whatever)
 │  └───────────────────┘  │
 │       empty space       │  ← mouse here = still hovering
 └─────────────────────────┘
@@ -1903,24 +1904,33 @@ const containerRef = useRef<HTMLDivElement>(null);
 
 // In JSX:
 <div ref={containerRef} style={{ position: 'relative' }}>
-  {/* Invisible hover detection layer */}
+  {/* Hover detection layer - locks to screen coordinates on enter */}
   <div
     ref={hoverRef}
     style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
     onMouseEnter={() => {
-      // Lock hover layer to current height BEFORE state change triggers re-render
-      // This prevents any moment where the hover layer could shrink
+      // Lock to exact SCREEN coordinates before state change
       if (containerRef.current && hoverRef.current) {
-        const height = containerRef.current.getBoundingClientRect().height;
-        hoverRef.current.style.height = `${height}px`;
+        const rect = containerRef.current.getBoundingClientRect();
+        hoverRef.current.style.position = 'fixed';
+        hoverRef.current.style.top = `${rect.top}px`;
+        hoverRef.current.style.left = `${rect.left}px`;
+        hoverRef.current.style.right = 'auto';
         hoverRef.current.style.bottom = 'auto';
+        hoverRef.current.style.width = `${rect.width}px`;
+        hoverRef.current.style.height = `${rect.height}px`;
       }
       setHovered(true);
     }}
     onMouseLeave={() => {
-      // Reset hover layer to fill container
+      // Reset to relative positioning
       if (hoverRef.current) {
+        hoverRef.current.style.position = 'absolute';
+        hoverRef.current.style.top = '0';
+        hoverRef.current.style.left = '0';
+        hoverRef.current.style.right = '0';
         hoverRef.current.style.bottom = '0';
+        hoverRef.current.style.width = '';
         hoverRef.current.style.height = '';
       }
       setHovered(false);
@@ -1933,11 +1943,11 @@ const containerRef = useRef<HTMLDivElement>(null);
 ```
 
 **Key points:**
-- Hover layer is `position: absolute` so it doesn't affect layout
-- Lock height **BEFORE** state change (in onMouseEnter, before `setHovered`)
-- This prevents any brief moment where hover layer could shrink during re-render
-- Button and its borders visually shrink, hover area stays big
-- No useLayoutEffect needed - simpler and more reliable
+- On enter: capture bounding rect, switch to `position: fixed` at those exact screen coordinates
+- The hover hitbox is now pinned to screen position, not the container
+- Button can shrink in any direction, container can move — hitbox stays put
+- On leave: reset to `position: absolute` with standard fill styling
+- Edge case (scroll while hovering): hitbox stays fixed, acceptable tradeoff
 
 Code location: `src/features/settings/components/SettingsPanel.tsx` (scramble hotkey button)
 

@@ -157,24 +157,34 @@ export function SettingsPanel({
         >
           {/* Container for button + hover layer */}
           <div ref={hotkeyContainerRef} style={{ position: 'relative' }}>
-            {/* Hover detection layer - only covers the button area */}
+            {/* Hover detection layer - locks to screen coordinates on enter */}
             <div
               ref={hotkeyHoverRef}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               onMouseEnter={() => {
-                // Lock hover layer to current height BEFORE state change triggers re-render
-                // This prevents any moment where the hover layer could shrink
+                // Lock hover layer to exact SCREEN coordinates before state change
+                // This makes it immune to any layout shifts (shrinking, reflow, scroll)
                 if (hotkeyContainerRef.current && hotkeyHoverRef.current && scrambleHotkeyActive) {
-                  const height = hotkeyContainerRef.current.getBoundingClientRect().height;
-                  hotkeyHoverRef.current.style.height = `${height}px`;
+                  const rect = hotkeyContainerRef.current.getBoundingClientRect();
+                  hotkeyHoverRef.current.style.position = 'fixed';
+                  hotkeyHoverRef.current.style.top = `${rect.top}px`;
+                  hotkeyHoverRef.current.style.left = `${rect.left}px`;
+                  hotkeyHoverRef.current.style.right = 'auto';
                   hotkeyHoverRef.current.style.bottom = 'auto';
+                  hotkeyHoverRef.current.style.width = `${rect.width}px`;
+                  hotkeyHoverRef.current.style.height = `${rect.height}px`;
                 }
                 setHotkeyButtonHovered(true);
               }}
               onMouseLeave={() => {
-                // Reset hover layer to fill container
+                // Reset hover layer to relative positioning
                 if (hotkeyHoverRef.current) {
+                  hotkeyHoverRef.current.style.position = 'absolute';
+                  hotkeyHoverRef.current.style.top = '0';
+                  hotkeyHoverRef.current.style.left = '0';
+                  hotkeyHoverRef.current.style.right = '0';
                   hotkeyHoverRef.current.style.bottom = '0';
+                  hotkeyHoverRef.current.style.width = '';
                   hotkeyHoverRef.current.style.height = '';
                 }
                 setHotkeyButtonHovered(false);
