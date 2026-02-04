@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Bug } from 'lucide-react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
@@ -209,6 +209,7 @@ export function SettingsPanel({
       {stacked && (
         <div className="p-4 space-y-2">
           <FunctionButton onClick={handleExportDebugLog} size="sm">
+            <Bug className="w-3 h-3" />
             <span>{superscramble ? scrambleText('export debug log') : 'export debug log'}</span>
           </FunctionButton>
           {/* Blackout overlay for final confirmation */}
