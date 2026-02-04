@@ -593,6 +593,13 @@ function MobileScreen() {
           {tiltSquare(252, true)}
         </div>
 
+        {/* Hex codes above bars */}
+        <div style={{ display: 'flex', marginBottom: '4px', pointerEvents: 'none' }}>
+          <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
+          <span style={{ width: '4px' }} />
+          <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+        </div>
+
         {/* Hue bars - sized to match home screen button area */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
           {/* Invisible buttons set the correct height */}

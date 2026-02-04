@@ -998,6 +998,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        │   ●    │             │     edge midpoints (no +, no stats)
 │        └────────┘              │
 │            black               │
+│       #78cc33    #c8ff00        │  ← Hex codes (monospace, bold)
 ├───────────────┬────────────────┤
 │     text      │   background   │  ← Labels (black)
 │ ──────────────│────────────────│  ← Horizontal hue indicators
@@ -2277,7 +2278,10 @@ When creating or modifying app icons, follow these rules to prevent macOS/iOS fr
 | `apple-touch-icon.png` | iOS/macOS dock | **Square** (OS rounds corners automatically) |
 | `icon-192.png` | Android/PWA | **Square** |
 | `icon-512.png` | Android/PWA | **Square** |
-| `og-image.png` | Social sharing | Icon on white background |
+| `og-image.png` | Social sharing (iMessage, etc.) | Icon on white background, generated from `og-source.svg` |
+| `og-source.svg` | Source SVG for og-image.png | 1200x630, icon centered on white bg |
+
+**og:image URL:** Must be an **absolute URL** (`https://gdays.day/og-image.png`) in `index.html`, not a relative path. Social crawlers (iMessage, Twitter, etc.) require absolute URLs to fetch the preview image.
 
 ### Current Icon Colors
 
