@@ -465,6 +465,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
         <div className="relative">
           <input
             ref={inputRef}
+            tabIndex={-1}
             type={isSaving ? 'text' : 'password'}
             value={isSaving ? '' : input}
             onChange={(e) => setInput(e.target.value)}

@@ -1912,6 +1912,8 @@ This is intentional. The "type anywhere to focus editor" feature in App.tsx skip
 - Input NOT focused → typing goes to editor
 - Input IS focused → typing goes to password input
 
+**Cross-platform fix (v1.10.18):** The password input uses `tabIndex={-1}` to prevent the browser from auto-focusing it when the settings panel opens. On **Windows**, clicking a button gives it focus (unlike macOS where the textarea retains focus), and the browser may then auto-focus the first input in newly rendered content. `tabIndex={-1}` removes the input from the browser's focus order while still allowing focus via click or programmatic `.focus()` calls.
+
 #### When Password Flow Is Active
 
 Once the user clicks the input or "change password" button, auto-focus IS used:
