@@ -30,6 +30,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDeletedPresetRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom' } | null>(null);
 
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
@@ -248,7 +249,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     };
   }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset]);
 
-  // Handle delete key for presets
+  // Handle delete key and Cmd+Z undo for presets
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle if focus is on an input, textarea, or contenteditable
@@ -261,11 +262,40 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         return;
       }
 
+      // Cmd+Z / Ctrl+Z: undo last preset deletion
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey && showDebugMenu) {
+        const deleted = lastDeletedPresetRef.current;
+        if (!deleted) return;
+        e.preventDefault();
+
+        if (deleted.type === 'default') {
+          const newPresets = [...presets];
+          newPresets.splice(deleted.index, 0, deleted.preset);
+          setPresets(newPresets);
+          applyPreset(deleted.preset);
+          setSelectedPreset(deleted.index);
+          setSelectedCustomPreset(null);
+          setActivePresetIndex(deleted.index);
+        } else {
+          const newCustomPresets = [...customPresets];
+          newCustomPresets.splice(deleted.index, 0, deleted.preset);
+          setCustomPresets(newCustomPresets);
+          applyPreset(deleted.preset);
+          setSelectedPreset(null);
+          setSelectedCustomPreset(deleted.index);
+          setActivePresetIndex(presets.length + deleted.index);
+        }
+
+        lastDeletedPresetRef.current = null;
+        return;
+      }
+
       if ((e.key === 'Delete' || e.key === 'Backspace') && showDebugMenu) {
         setKeyboardUseCount(c => c + 1);
         if (activePresetIndex !== null && activePresetIndex < presets.length) {
-          // Delete default preset
+          // Delete default preset — save to ref for undo
           e.preventDefault();
+          lastDeletedPresetRef.current = { preset: presets[activePresetIndex], index: activePresetIndex, type: 'default' };
           const newPresets = presets.filter((_, i) => i !== activePresetIndex);
           setPresets(newPresets);
           // Move to next available preset or stay at end
@@ -282,9 +312,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
             setSelectedCustomPreset(0);
           }
         } else if (activePresetIndex !== null && activePresetIndex >= presets.length && activePresetIndex < presets.length + customPresets.length) {
-          // Delete custom preset
+          // Delete custom preset — save to ref for undo
           e.preventDefault();
           const customIndex = activePresetIndex - presets.length;
+          lastDeletedPresetRef.current = { preset: customPresets[customIndex], index: customIndex, type: 'custom' };
           deleteCustomPreset(customIndex);
         }
       }
@@ -292,7 +323,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
     window.addEventListener('keydown', handleKeyDown, true); // capture phase - runs before App.tsx
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset]);
+  }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, setCustomPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset]);
 
   const handlePresetClick = (index: number, preset: ColorPreset) => {
     // Track mouse clicks for first-time user hint

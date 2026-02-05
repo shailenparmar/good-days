@@ -171,6 +171,13 @@ export function JournalEditor({
     onInput(newValue);
   }, [editorRef, isScrambled, onInput]);
 
+  // Force plain text paste (strips any formatting or styled Unicode)
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }, []);
+
   // Handle special keys
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Block Tab from leaving editor
@@ -245,6 +252,7 @@ export function JournalEditor({
         ref={editorRef}
         value={value}
         onChange={isToday ? handleChange : undefined}
+        onPaste={isToday ? handlePaste : undefined}
         onKeyDown={handleKeyDown}
         onScroll={handleScroll}
         onFocus={() => setIsFocused(true)}

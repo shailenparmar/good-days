@@ -379,7 +379,7 @@ This prevents duplicate content from being appended during repeated imports.
 | Powerstat | Backup | "download AES-256-GCM backup" | — |
 | Powerstat | Import | "import AES-256-GCM backup" | "multiple files accepted" |
 
-The import button hover text change in powerstat mode is a literal string change (not a tooltip - we don't use tooltips).
+The import button hover text change in powerstat mode is a literal string change (not a tooltip - we don't use tooltips). The Download icon stays visible in both default and hover states (v1.10.24+) — only hidden during feedback (success/error).
 
 ### Fearless Import Philosophy
 
@@ -542,6 +542,7 @@ All these work with textarea:
 
 **We intercept:**
 - Tab key only (preventDefault, does nothing - prevents focus leaving editor)
+- Paste (v1.10.24+): Forces plain text via `getData('text/plain')` + `execCommand('insertText')`. Strips all rich formatting (fonts, images, centering, bold, etc.) so pasted content always matches the app's monospace style. Uses `execCommand` to preserve Cmd+Z undo.
 
 ### Scramble Mode
 
@@ -1232,6 +1233,20 @@ When settings is open, presets can be controlled with the keyboard:
 | Arrow keys | Navigate between presets (auto-applies on move) |
 | Space / Enter | Save current colors to the active preset |
 | Backspace / Delete | Delete the active preset |
+| Cmd+Z / Ctrl+Z | Undo last preset deletion |
+
+#### Preset Deletion Undo
+
+Single-level undo for preset deletion. A `lastDeletedPresetRef` in `PresetGrid.tsx` stores the last deleted preset's data (colors, array index, type). On Cmd+Z / Ctrl+Z, the preset is spliced back at its original index, re-applied, and re-selected.
+
+| Scenario | Behavior |
+|----------|----------|
+| Delete twice, then undo | Only the second deletion is undoable |
+| Close settings, reopen, Cmd+Z | No undo (ref cleared on unmount) |
+| Cmd+Z with nothing deleted | No-op |
+| Cmd+Z while typing in editor | Browser native undo (handler skips input/textarea/contentEditable) |
+
+**No conflict with editor Cmd+Z:** The handler runs in capture phase but has an early return for input/textarea/contentEditable elements, so editor undo works normally.
 
 #### Editor Auto-Focus & Date Switch (v1.10.23+)
 
@@ -2403,6 +2418,18 @@ When creating or modifying app icons, follow these rules to prevent macOS/iOS fr
 
 **og:image URL:** Must be an **absolute URL** (`https://gdays.day/og-image.png`) in `index.html`, not a relative path. Social crawlers (iMessage, Twitter, etc.) require absolute URLs to fetch the preview image.
 
+### Icon Proportions (Standard)
+
+All icons use the same proportions, derived from one number: **22.37% border**.
+
+| Property | Ratio | At 1024px | Rule |
+|----------|-------|-----------|------|
+| **Border** | 22.37% | 229px each side | = Apple's icon corner radius |
+| **Inner square** | 55.27% | 566×566 | = 100% − 2 × border |
+| **Corner radius** | 22.37% | rx=229 | Only on safe icons (favicon, og-image) |
+
+The elegant constraint: border = corner radius. The inner square starts exactly where the curve straightens out. For dock icons (`icon-square.svg`), no rounding is applied — Apple's OS applies its own ~22.37% superellipse mask, which matches our border thickness. This means the dock icon looks identical to the standard after OS rounding.
+
 ### Current Icon Colors
 
 | Element | Color | HEX |
@@ -2456,9 +2483,9 @@ Key points:
 ```bash
 # Create SVG with HEX colors, then:
 cd public
-rsvg-convert -w 180 -h 180 icon-source.svg -o apple-touch-icon.png
-rsvg-convert -w 192 -h 192 icon-source.svg -o icon-192.png
-rsvg-convert -w 512 -h 512 icon-source.svg -o icon-512.png
+rsvg-convert -w 180 -h 180 icon-square.svg -o apple-touch-icon.png
+rsvg-convert -w 192 -h 192 icon-square.svg -o icon-192.png
+rsvg-convert -w 512 -h 512 icon-square.svg -o icon-512.png
 
 # Do NOT embed color profiles - leave as plain RGB
 ```
