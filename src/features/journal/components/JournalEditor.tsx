@@ -158,9 +158,11 @@ export function JournalEditor({
 
       markEasterEggFound('timeCommand');
 
-      // Set cursor position after React updates the value
+      // Preserve scroll position and set cursor after React updates the value
+      const savedScroll = editorRef.current?.scrollTop ?? 0;
       requestAnimationFrame(() => {
         if (editorRef.current) {
+          editorRef.current.scrollTop = savedScroll;
           editorRef.current.selectionStart = cursorPosition;
           editorRef.current.selectionEnd = cursorPosition;
         }

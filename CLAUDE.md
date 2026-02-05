@@ -474,6 +474,11 @@ requestAnimationFrame(() => {
 });
 ```
 
+**Inline text replacement scroll preservation:**
+- The `\time` command replaces text inline, which can cause the browser to jump scroll position after React re-renders
+- Before replacement, `scrollTop` is captured and restored in the same `requestAnimationFrame` that sets cursor position
+- This works across all modes (zen, minizen, scramble, settings open) because the textarea DOM element is the same in all modes
+
 Code locations:
 - `src/features/settings/components/SettingsPanel.tsx`
 - `src/features/settings/components/AboutPanel.tsx`
