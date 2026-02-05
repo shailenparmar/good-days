@@ -113,8 +113,6 @@ function MobileScreen() {
   editingRef.current = editing;
   const leftBarRef = useRef<HTMLDivElement>(null);
   const rightBarRef = useRef<HTMLDivElement>(null);
-  const squareContainerRef = useRef<HTMLDivElement>(null);
-  const [squareSize, setSquareSize] = useState(252);
 
   // Live touch position - tracked continuously from button press
   const liveTouch = useRef<{ x: number; y: number } | null>(null);
@@ -122,6 +120,18 @@ function MobileScreen() {
   // Which side started the touch (left = background, right = text)
   const activeSide = useRef<'left' | 'right' | null>(null);
 
+  // Debug refs & state
+  const recalBtnRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
+  const squareRef = useRef<HTMLDivElement>(null);
+  const colorTextLabelRef = useRef<HTMLSpanElement>(null);
+  const copyPasteRowRef = useRef<HTMLDivElement>(null);
+  const textBgRowRef = useRef<HTMLDivElement>(null);
+  const [interactionSegmentY, setInteractionSegmentY] = useState(0);
+  const [feedbackSegmentY, setFeedbackSegmentY] = useState(0);
+  const [squarePerimeter, setSquarePerimeter] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const [colorTextLabelY, setColorTextLabelY] = useState(0);
+  const [btnRects, setBtnRects] = useState({ recalBottom: 0, copyTop: 0, copyBottom: 0, textBgTop: 0, textBgBottom: 0, screenBottom: 0 });
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
@@ -151,24 +161,27 @@ function MobileScreen() {
     }
   }, []);
 
-  // Measure square container to compute largest square that fits
-  // Labels overhang the square by ~10px (half of 20px lineHeight), padding accounts for this
-  const SQUARE_PADDING = 24; // gap from label bounds to title/hex codes
-  const LABEL_OVERHANG = 10; // half of label lineHeight (20px)
-  const CONTAINER_PADDING = SQUARE_PADDING + LABEL_OVERHANG; // 34px total from square edge
+  // Measure debug segment positions
   useEffect(() => {
-    const el = squareContainerRef.current;
-    if (!el) return;
-    const update = () => {
-      const availH = el.clientHeight - CONTAINER_PADDING * 2;
-      const availW = el.clientWidth;
-      const size = Math.max(0, Math.floor(Math.min(availH, availW)));
-      setSquareSize(size);
+    const measure = () => {
+      if (recalBtnRef.current) setInteractionSegmentY(recalBtnRef.current.getBoundingClientRect().top);
+      if (titleRef.current) setFeedbackSegmentY(titleRef.current.getBoundingClientRect().bottom);
+      if (colorTextLabelRef.current) setColorTextLabelY(colorTextLabelRef.current.getBoundingClientRect().top);
+      if (recalBtnRef.current && copyPasteRowRef.current && textBgRowRef.current) {
+        const recal = recalBtnRef.current.getBoundingClientRect();
+        const cp = copyPasteRowRef.current.getBoundingClientRect();
+        const tb = textBgRowRef.current.getBoundingClientRect();
+        setBtnRects({ recalBottom: recal.bottom, copyTop: cp.top, copyBottom: cp.bottom, textBgTop: tb.top, textBgBottom: tb.bottom, screenBottom: window.innerHeight });
+      }
+      if (squareRef.current) {
+        const r = squareRef.current.getBoundingClientRect();
+        const vPad = 12, hPad = 26; // label overhang + 2px gap
+        setSquarePerimeter({ top: r.top - vPad, left: r.left - hPad, width: r.width + hPad * 2, height: r.height + vPad * 2 });
+      }
     };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
   // Prevent iOS context menu / Writing Tools on long press
@@ -328,9 +341,17 @@ function MobileScreen() {
           }
         }
 
-        const bar = activeSide.current === 'left' ? leftBar : rightBar;
+        // Update hue: within bar = track, above = snap to top, below = snap to bottom
+        const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
         if (bar) {
-          processTouchAt(touch.clientY, 'MOVE');
+          const barRect = bar.getBoundingClientRect();
+          if (touch.clientY < barRect.top) {
+            // Above bar — snap hue to top (0)
+            processTouchAt(barRect.top, 'MOVE');
+          } else {
+            // Within or below bar — processTouchAt clamps to [0,1] internally
+            processTouchAt(touch.clientY, 'MOVE');
+          }
         }
       }
     };
@@ -473,7 +494,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.18';
+  const mobileVersion = '1.10.20';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -481,18 +502,24 @@ function MobileScreen() {
     fontSize: 'min(17vw, 70px)', lineHeight: 1, padding: '16px 0 0', textAlign: 'center', whiteSpace: 'nowrap',
   };
 
+  // Debug annotation tag
+  const dbg = (text: string, pos: React.CSSProperties = {}): React.ReactElement => (
+    <span style={{ position: 'absolute', backgroundColor: 'rgba(255,80,0,0.85)', color: 'white', padding: '0px 3px', fontSize: '7px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', zIndex: 9999, pointerEvents: 'none', whiteSpace: 'nowrap', lineHeight: '12px', ...pos }}>{text}</span>
+  );
+
   // Corner bracket length
-  const cornerLen = 24;
+  const cornerLen = 32;
   const cornerW = 4;
 
   // Corner brackets - 4 L-shaped pieces at corners
-  const cornerBrackets = (color: string, showLabels?: boolean) => {
-    const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
+  const cornerBrackets = (_size: number, color: string, showLabels?: boolean) => {
+    const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
     return (
       <>
         {/* Top-left */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
         <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {dbg(`L: ${cornerLen}\u00D7${cornerW}px`, { top: -14, left: 0 })}
         {/* Top-right */}
         <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
         <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
@@ -506,7 +533,9 @@ function MobileScreen() {
         {showLabels && (
           <>
             <span style={{ ...labelStyle, top: 0, left: '50%' }}>white</span>
+            {dbg('16px', { top: -14, left: '50%', transform: 'translateX(-50%)' })}
             <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 50%)' }}>black</span>
+            {dbg('16px', { bottom: -14, left: '50%', transform: 'translateX(-50%)' })}
             <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-50%, -50%)' }}>gray</span>
             <span style={{ ...labelStyle, right: 0, left: 'auto', top: '50%', transform: 'translate(50%, -50%)' }}>vivid</span>
           </>
@@ -516,12 +545,12 @@ function MobileScreen() {
   };
 
   // Tilt square - corner brackets, +, dot, all in text color
-  // Size computed dynamically to be the largest square that fits the container
-  const tiltSquare = (size: number, showLabels?: boolean) => {
+  const tiltSquare = (size: number, showLabels?: boolean, ref?: React.RefObject<HTMLDivElement | null>) => {
     const dotTravel = (size / 2) - 10;
     const plusArm = cornerLen / 2;
     return (
       <div
+        ref={ref}
         style={{
           width: `${size}px`,
           height: `${size}px`,
@@ -529,20 +558,22 @@ function MobileScreen() {
           flexShrink: 0,
         }}
       >
-        {cornerBrackets(textColor, showLabels)}
+        {cornerBrackets(size, textColor, showLabels)}
         {/* + at center - only on home screen */}
         {!showLabels && (
           <>
             <div style={{ position: 'absolute', left: '50%', top: `calc(50% - ${plusArm}px)`, width: `${cornerW}px`, height: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateX(-50%)' }} />
             <div style={{ position: 'absolute', top: '50%', left: `calc(50% - ${plusArm}px)`, height: `${cornerW}px`, width: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateY(-50%)' }} />
+            {dbg(`+: ${cornerW}×${plusArm * 2}px`, { top: 'calc(50% + 16px)', left: '50%', transform: 'translateX(-50%)' })}
           </>
         )}
         {/* Dot - text color, no border */}
+        {dbg('dot: 16px', { bottom: -14, right: 0 })}
         <div
           style={{
             position: 'absolute',
-            width: '12px',
-            height: '12px',
+            width: '16px',
+            height: '16px',
             borderRadius: '50%',
             backgroundColor: textColor,
             left: `calc(50% + ${tiltX * dotTravel}px)`,
@@ -554,10 +585,15 @@ function MobileScreen() {
     );
   };
 
-  // Permission screen (iOS only)
-  if (needsPermission && !permissionGranted) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+  const isPicking = editing === 'picking';
+  const showCalibrate = needsPermission && !permissionGranted;
+
+  // ALL THREE screens always rendered (visibility-toggled) so debug refs are always measurable.
+  return (
+    <>
+      {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor, visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2 }}>
+        <div style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(255,0,0,0.7)', color: 'white', padding: '2px 6px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '4px', zIndex: 999 }}>CALIBRATE SCREEN</div>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -565,7 +601,7 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
         <div style={{ flex: 1 }} />
-        <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
@@ -576,18 +612,7 @@ function MobileScreen() {
           </div>
         </div>
       </div>
-    );
-  }
 
-  const isPicking = editing === 'picking';
-
-  // BOTH screens always rendered (never removed from DOM).
-  // iOS stops delivering touchmove events when the touchstart target element
-  // is removed from the DOM. By keeping both screens alive and toggling
-  // visibility, the button that started the touch persists, and iOS
-  // continues delivering touchmove events to window listeners.
-  return (
-    <>
       {/* ===== PICKER SCREEN (visible when picking) ===== */}
       <div
         style={{
@@ -604,6 +629,7 @@ function MobileScreen() {
           zIndex: isPicking ? 10 : -1,
         } as React.CSSProperties}
       >
+        <div style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(255,0,0,0.7)', color: 'white', padding: '2px 6px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '4px', zIndex: 999 }}>COLOR SCREEN</div>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -611,55 +637,53 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        {/* Square complex - 24px from label bounds to title/hex codes, labels overhang by 10px */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `${CONTAINER_PADDING}px 0` }}>
-          {tiltSquare(squareSize, true)}
+        {/* Square complex - centered between title and spectrum */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {tiltSquare(252, true)}
         </div>
 
-        {/* Hex codes + hue bars - sized to match home screen button area */}
+        {/* Hue bars - sized to match home screen button area */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
+          {/* Live hex codes - at top of interaction segment */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', pointerEvents: 'none', zIndex: 3 }}>
+            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>txt: {hslToHex(colors.hue, colors.sat, colors.light)}</span>
+            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>bg: {hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+          </div>
           {/* Invisible buttons set the correct height */}
-          <div style={{ visibility: 'hidden', padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ visibility: 'hidden', padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={getButtonStyle(false, 'full')}>&nbsp;</div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
           </div>
-          {/* Overlay - hex codes at top (aligned with recalibrate button outside top border), spectrum below */}
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* Hex codes - top aligns with recalibrate tilt button's outside top border */}
-            <div style={{ display: 'flex', pointerEvents: 'none' }}>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
-              <span style={{ width: '4px' }} />
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+          {/* text|background labels — measured from home screen ref for pixel-perfect match */}
+          {btnRects.textBgTop > 0 && (
+            <div style={{ position: 'fixed', top: btnRects.textBgTop, left: 0, right: 0, height: btnRects.textBgBottom - btnRects.textBgTop, display: 'flex', zIndex: 5, pointerEvents: 'none' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: 'black' }}>text</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: 'black' }}>background</div>
             </div>
-            {/* Spectrum bars fill remaining space */}
-            <div style={{ flex: 1, display: 'flex' }}>
-              {/* Left: text hue bar */}
-              <div
-                ref={leftBarRef}
-                style={{ flex: 1, position: 'relative', background: pureHueGradient }}
-              >
-                <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>text</span>
-                <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.hue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
-                {activeSide.current === 'left' && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
-                )}
-              </div>
+          )}
+          {/* Bars overlay - top offset makes room for hex codes, gradient squishes to fit */}
+          <div style={{ position: 'absolute', top: 24, left: 0, right: 0, bottom: 0, display: 'flex' }}>
+            {/* Left: text hue bar */}
+            <div
+              ref={leftBarRef}
+              style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
+            >
+              {(() => { const active = isPicking && activeSide.current === 'left'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.hue / 360) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {dbg('indicator: 4/8px', { bottom: 4, left: 4 })}
+            </div>
 
-              {/* Black vertical divider */}
-              <div style={{ width: '4px', backgroundColor: 'black', flexShrink: 0 }} />
+            {/* Right: background hue bar */}
+            <div
+              ref={rightBarRef}
+              style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
+            >
+              {(() => { const active = isPicking && activeSide.current === 'right'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.bgHue / 360) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+            </div>
 
-              {/* Right: background hue bar */}
-              <div
-                ref={rightBarRef}
-                style={{ flex: 1, position: 'relative', background: pureHueGradient }}
-              >
-                <span style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', color: 'black', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', zIndex: 1 }}>background</span>
-                <div style={{ position: 'absolute', left: 0, right: 0, top: `clamp(0px, calc(${(colors.bgHue / 360) * 100}% - 2px), calc(100% - 4px))`, height: '4px', backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />
-                {activeSide.current === 'right' && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />
-                )}
-              </div>
+            {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '8px', transform: 'translateX(-50%)', backgroundColor: 'black', zIndex: 2 }}>
+              {dbg('8px', { top: '50%', left: 10, transform: 'translateY(-50%)' })}
             </div>
           </div>
         </div>
@@ -681,29 +705,50 @@ function MobileScreen() {
           zIndex: isPicking ? -1 : 1,
         } as React.CSSProperties}
       >
+        <div style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(255,0,0,0.7)', color: 'white', padding: '2px 6px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '4px', zIndex: 999 }}>HOME SCREEN</div>
         <span
+          ref={titleRef}
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
           onTouchEnd={() => setTitlePressed(false)}
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+        <span style={{ position: 'absolute', left: 4, top: 20, backgroundColor: 'rgba(255,80,0,0.85)', color: 'white', padding: '0px 3px', fontSize: '7px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', zIndex: 9999, pointerEvents: 'none', whiteSpace: 'nowrap', lineHeight: '12px' }}>title: min(17vw,70px)</span>
 
-        {/* Square complex - L corners match picker positions exactly */}
-        <div ref={squareContainerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `${CONTAINER_PADDING}px 0` }}>
-          {tiltSquare(squareSize)}
+        {/* Square complex - centered between title and buttons */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {tiltSquare(252, false, squareRef)}
         </div>
 
-        <div style={{ padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
           <div
+            ref={recalBtnRef}
             onTouchStart={(e) => { e.preventDefault(); setResetPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setResetPressed(false); handleResetTilt(); }}
             onTouchCancel={() => setResetPressed(false)}
-            style={getButtonStyle(resetPressed, 'full')}
+            style={{ ...getButtonStyle(resetPressed, 'full'), position: 'relative' }}
           >
             recalibrate tilt
+            {dbg('20px / 4px bdr / 12px rad', { top: -14, right: 0 })}
           </div>
 
-          <div style={{ display: 'flex' }}>
+          <div ref={textBgRowRef} style={{ display: 'flex', position: 'relative' }}>
+            <div
+              onTouchStart={startPicking('left')}
+              style={getButtonStyle(false, 'left')}
+            >
+              text
+            </div>
+            <div
+              onTouchStart={startPicking('right')}
+              style={getButtonStyle(false, 'right')}
+            >
+              background
+            </div>
+            {dbg('20px / 4px bdr / 2px inner', { top: -14, right: 0 })}
+          </div>
+
+          <div ref={copyPasteRowRef} style={{ display: 'flex', position: 'relative' }}>
             <div
               onTouchStart={(e) => { e.preventDefault(); setCopyPressed(true); }}
               onTouchEnd={(e) => { e.preventDefault(); setCopyPressed(false); handleCopy(); }}
@@ -719,27 +764,110 @@ function MobileScreen() {
               style={{ ...getButtonStyle(pastePressed, 'right'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
               role="button"
               tabIndex={-1}
+              // @ts-expect-error -- writingSuggestions is a valid HTML attribute (iOS 18+) not yet in React types
+              writingSuggestions="false"
+              contentEditable={false}
+              spellCheck={false}
             >
               <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
             </div>
-          </div>
-
-          <div style={{ display: 'flex' }}>
-            <div
-              onTouchStart={startPicking('left')}
-              style={getButtonStyle(false, 'left')}
-            >
-              text
-            </div>
-            <div
-              onTouchStart={startPicking('right')}
-              style={getButtonStyle(false, 'right')}
-            >
-              background
-            </div>
+            {dbg('20px / 4px bdr / 2px inner', { top: -14, right: 0 })}
           </div>
         </div>
       </div>
+
+      {/* ===== DEBUG OVERLAYS ===== */}
+      <div style={{ position: 'fixed', top: 4, left: 4, backgroundColor: 'rgba(0,180,0,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', zIndex: 9999, pointerEvents: 'none' }}>GOOD DAYS SEGMENT</div>
+      {feedbackSegmentY > 0 && (
+        <div style={{ position: 'fixed', left: 0, right: 0, top: feedbackSegmentY, zIndex: 9999, pointerEvents: 'none' }}>
+          <div style={{ height: '1px', backgroundColor: 'cyan', opacity: 0.8 }} />
+          <span style={{ position: 'absolute', top: 2, left: 4, backgroundColor: 'rgba(0,200,200,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px' }}>FEEDBACK SEGMENT TOP</span>
+        </div>
+      )}
+      {interactionSegmentY > 0 && (
+        <div style={{ position: 'fixed', left: 0, right: 0, top: interactionSegmentY, zIndex: 9999, pointerEvents: 'none' }}>
+          <div style={{ height: '1px', backgroundColor: 'red', opacity: 0.8 }} />
+          <span style={{ position: 'absolute', top: 2, left: 4, backgroundColor: 'rgba(255,0,0,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px' }}>INTERACTION SEGMENT TOP</span>
+        </div>
+      )}
+      {/* Square complex perimeter */}
+      {squarePerimeter.width > 0 && (
+        <div style={{ position: 'fixed', top: squarePerimeter.top, left: squarePerimeter.left, width: squarePerimeter.width, height: squarePerimeter.height, border: '1px dashed yellow', zIndex: 9999, pointerEvents: 'none' }}>
+          <span style={{ position: 'absolute', top: -14, left: 0, backgroundColor: 'rgba(200,200,0,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px' }}>SQUARE COMPLEX PERIMETER</span>
+          <span style={{ position: 'absolute', top: -14, right: 0, backgroundColor: 'rgba(200,200,0,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px' }}>{Math.round(squarePerimeter.width)}px</span>
+          <span style={{ position: 'absolute', right: -4, top: '50%', transform: 'translate(100%, -50%)', backgroundColor: 'rgba(200,200,0,0.7)', color: 'white', padding: '1px 4px', fontSize: '8px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px' }}>{Math.round(squarePerimeter.height)}px</span>
+        </div>
+      )}
+      {/* Vertical gap measurements (right side, staggered) - 3px thick lines */}
+      {/* 1: "background" text top → interaction segment top */}
+      {colorTextLabelY > 0 && interactionSegmentY > 0 && (
+        <div style={{ position: 'fixed', top: interactionSegmentY, right: 6, height: colorTextLabelY - interactionSegmentY, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ width: '3px', flex: 1, backgroundColor: 'magenta' }} />
+          <span style={{ backgroundColor: 'rgba(200,0,200,0.85)', color: 'white', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(colorTextLabelY - interactionSegmentY)}px</span>
+          <div style={{ width: '3px', height: '4px', backgroundColor: 'magenta' }} />
+        </div>
+      )}
+      {/* 2: interaction segment top → square complex perimeter bottom */}
+      {interactionSegmentY > 0 && squarePerimeter.height > 0 && (() => {
+        const sqBottom = squarePerimeter.top + squarePerimeter.height;
+        const gap = interactionSegmentY - sqBottom;
+        return gap > 0 ? (
+          <div style={{ position: 'fixed', top: sqBottom, right: 36, height: gap, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '3px', height: '4px', backgroundColor: 'orange' }} />
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'orange' }} />
+            <span style={{ backgroundColor: 'rgba(255,140,0,0.85)', color: 'white', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(gap)}px</span>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'orange' }} />
+            <div style={{ width: '3px', height: '4px', backgroundColor: 'orange' }} />
+          </div>
+        ) : null;
+      })()}
+      {/* 3: square complex perimeter top → good days segment bottom (feedback segment top) */}
+      {feedbackSegmentY > 0 && squarePerimeter.top > 0 && (() => {
+        const gap = squarePerimeter.top - feedbackSegmentY;
+        return gap > 0 ? (
+          <div style={{ position: 'fixed', top: feedbackSegmentY, right: 66, height: gap, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '3px', height: '4px', backgroundColor: 'lime' }} />
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'lime' }} />
+            <span style={{ backgroundColor: 'rgba(0,200,0,0.85)', color: 'white', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(gap)}px</span>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'lime' }} />
+            <div style={{ width: '3px', height: '4px', backgroundColor: 'lime' }} />
+          </div>
+        ) : null;
+      })()}
+      {/* Button gap measurements (left side) */}
+      {/* recalibrate → copy|paste gap */}
+      {btnRects.recalBottom > 0 && btnRects.copyTop > 0 && (() => {
+        const gap = btnRects.copyTop - btnRects.recalBottom;
+        return gap > 0 ? (
+          <div style={{ position: 'fixed', top: btnRects.recalBottom, left: 8, height: gap, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+            <span style={{ backgroundColor: 'rgba(255,255,255,0.85)', color: 'black', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(gap)}px</span>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+          </div>
+        ) : null;
+      })()}
+      {/* copy|paste → text|bg gap */}
+      {btnRects.copyBottom > 0 && btnRects.textBgTop > 0 && (() => {
+        const gap = btnRects.textBgTop - btnRects.copyBottom;
+        return gap > 0 ? (
+          <div style={{ position: 'fixed', top: btnRects.copyBottom, left: 8, height: gap, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+            <span style={{ backgroundColor: 'rgba(255,255,255,0.85)', color: 'black', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(gap)}px</span>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+          </div>
+        ) : null;
+      })()}
+      {/* text|bg → bottom of screen (padding) */}
+      {btnRects.textBgBottom > 0 && (() => {
+        const gap = btnRects.screenBottom - btnRects.textBgBottom;
+        return gap > 0 ? (
+          <div style={{ position: 'fixed', top: btnRects.textBgBottom, left: 8, height: gap, zIndex: 9999, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+            <span style={{ backgroundColor: 'rgba(255,255,255,0.85)', color: 'black', padding: '1px 4px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 800, borderRadius: '2px', whiteSpace: 'nowrap' }}>{Math.round(gap)}px</span>
+            <div style={{ width: '3px', flex: 1, backgroundColor: 'white' }} />
+          </div>
+        ) : null;
+      })()}
     </>
   );
 }

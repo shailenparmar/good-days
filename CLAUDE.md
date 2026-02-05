@@ -977,36 +977,32 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        │   ●    │              │  ← square centered between
 │        └────────┘              │     title and buttons
 │                                │
-│   ┌────────────────────────┐   │
-│   │   recalibrate tilt     │   │  ← Full-width button
-│   └────────────────────────┘   │
-│   ┌───────────┬────────────┐   │
-│   │   copy    │   paste    │   │  ← Split button
-│   └───────────┴────────────┘   │
-│   ┌───────────┬────────────┐   │
-│   │   text    │ background │   │  ← Split button (triggers picker)
-│   └───────────┴────────────┘   │
-└────────────────────────────────┘
+├────────────────────────────────┤
+│      recalibrate tilt          │  ← Full-width button (edge-to-edge)
+├───────────────┬────────────────┤
+│     text      │   background   │  ← Split button (triggers picker)
+├───────────────┼────────────────┤
+│     copy      │     paste      │  ← Split button
+└───────────────┴────────────────┘
 ```
 
 **Picker Screen** (while holding background or text):
 ```
 ┌────────────────────────────────┐
 │          good days             │  ← title, same position as home
-│          24px gap              │
-│            white               │  ← label top = 24px below title
+│                                │
+│            white               │
 │   gray ┌────────┐ vivid       │  ← square centered, labels at
 │        │   ●    │             │     edge midpoints (no +, no stats)
 │        └────────┘              │     L corners match home screen exactly
-│            black               │  ← label bottom = 24px above hex codes
-│          24px gap              │
-│  #78cc33    ┃    #c8ff00       │  ← Hex codes (inside overlay, top = recalibrate btn top)
-├─────────────╋────────────────┤
-│     text    ┃   background   │  ← Labels (black)
-│ ────────────┃────────────────│  ← Horizontal hue indicators
-│  hue grad   ┃   hue gradient │  ← Split hue bars (fill remaining space)
-│             ┃                │
-└─────────────┻────────────────┘
+│            black               │
+│                                │
+│  txt: #78cc33  bg: #c8ff00    │  ← Hex codes (4px above spectra top)
+│ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
+│  hue gradient  ┃ hue gradient │  ← Split hue bars (8px vertical divider)
+│     text       ┃  background  │  ← Labels (black, same position as home buttons)
+│                ┃              │
+└────────────────┻──────────────┘
 ```
 
 ### Layout Centering & Square Sizing (v1.10.17+)
@@ -1034,19 +1030,23 @@ Labels have `lineHeight: 20px` and overhang the square edges by 10px (half the l
 CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 ```
 
-**Hex codes in picker overlay (v1.10.17+):**
+**Hex codes and spectra layout (v1.10.20+):**
 
-The hex codes sit **inside** the absolute overlay at the top of the bottom section, aligned with the recalibrate button's outside top border. The spectrum bars fill the remaining space below. This ensures the picker's bottom section is the exact same height as the home's button area.
+The hex codes display as `txt: #hex` and `bg: #hex` (matching copy/paste format), positioned at the top of the interaction segment. The spectra are squished vertically to make room (gradient compressed, all hues still represented). The "text" and "background" labels are rendered in pure black on top of the spectra, positioned using measured coordinates from the home screen `textBgRowRef` for pixel-perfect alignment between screens.
 
 ```
-Picker bottom section (overlay):
+Picker bottom section:
 ┌────────────────────────────────┐
-│  #78cc33       #c8ff00         │ ← Hex codes (top of overlay = recalibrate button outside top border)
-│───────────────┬────────────────│
-│  hue gradient │  hue gradient  │ ← Spectrum bars (fill remaining)
-│               │                │
-└───────────────┴────────────────┘
+│  txt: #78cc33   bg: #c8ff00   │ ← Hex codes (top of section, 16px monospace bold)
+│                4px gap         │
+│ ──────────────╋───────────────│ ← Hue indicators (center-based, clip at edges)
+│  hue gradient ┃ hue gradient  │ ← Spectra (squished to fit, 8px divider)
+│     text      ┃  background   │ ← Labels (black, position matches home buttons)
+│               ┃               │
+└───────────────┻───────────────┘
 ```
+
+**Vertical divider:** 8px wide, absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra.
 
 **Square is always a square:** `width = height = squareSize`. On most phones (portrait), width constrains the size, so vertical gaps may exceed 24px. The 24px is the minimum gap when height-constrained.
 
@@ -1079,11 +1079,12 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 **Max tilt angle**: ±10° to reach extremes (20° total range)
 
 The sat/light square shows:
-- Dot position indicates current tilt
+- Dot (16px, v1.10.20+) position indicates current tilt
+- L corner brackets: 32×4px (v1.10.20+, was 24×4px)
+- + crosshair: 4×32px arms (v1.10.20+, only on home screen)
 - Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
 - Labels are centered ON the edge lines (straddling them), 16px monospace bold, `lineHeight: 20px`
 - No sat/light number stats (removed in v1.10.7)
-- The + crosshair only shows on the home screen, not in the picker
 - Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
 
 ### Button Styling
@@ -1094,6 +1095,9 @@ All mobile buttons (including the permission screen "calibrate tilt" button) use
 - **Padding**: `14px 0` (vertical), flexbox centered
 - **Font**: monospace, weight 800, 20px
 - **Border**: 4px solid (2px on split interior edges), 12px radius
+- **Width**: Edge-to-edge (0px horizontal padding on button container, v1.10.20+)
+
+**Button order** (top to bottom): recalibrate tilt → text|background → copy|paste
 
 ### iOS Permission
 
@@ -1139,16 +1143,22 @@ The paste button uses additional measures to prevent iOS Writing Tools:
 - `pointerEvents: 'none'` on the text span
 - `role="button"`, `tabIndex={-1}` on the button div
 - `-webkit-touch-callout: none`, `-webkit-user-select: none` on the button div
+- `writingSuggestions="false"` - HTML attribute to disable iOS 18+ Writing Tools
+- `contentEditable={false}`, `spellCheck={false}` - marks element as non-editable
 
 Note: The iOS "Paste" callout when reading clipboard via `navigator.clipboard.readText()` is a system requirement and cannot be suppressed or dismissed by tapping outside.
 
-### Hue Indicator Clamping
+### Hue Indicator Positioning (v1.10.20+)
 
-The horizontal hue indicators use `clamp()` to stay within bar bounds:
+The horizontal hue indicator uses center-based positioning with `overflow: hidden` on the bars:
 ```css
-top: clamp(0px, calc(X% - 2px), calc(100% - 4px))
+top: calc(X% - ${h/2}px)    /* h = 4px idle, 8px active */
 ```
-This prevents the 4px indicator from overflowing above the bar at hue 0 or below at hue 360.
+The indicator's **centerline** is the true hue position. At the extremes (hue 0 or 360), half the indicator clips off the bar edge via `overflow: hidden`. This matches the mental model that the thin midpoint line marks the actual hue.
+
+**Active thickness:** The indicator doubles from 4px to 8px when actively picking on that side (`isPicking && activeSide.current === side`). The thickness change is symmetric around the center — 2px added to each side.
+
+**Above-bar snapping (v1.10.20+):** When the finger slides above the bar top (fast drag), the hue snaps to 0 instead of getting stuck at the last tracked position. Below the bar, `processTouchAt` clamps to hue 360.
 
 ### Title Version Display
 
