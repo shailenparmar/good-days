@@ -85,8 +85,8 @@ function MobileScreen() {
     hue: 116, sat: 100, light: 53, bgHue: 96, bgSat: 100, bgLight: 0,
   });
 
-  // Editing state
-  const [editing, setEditing] = useState<'picking' | null>(null);
+  // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
+  const [editing, setEditing] = useState<'seeking' | 'adjusting' | null>(null);
 
   // Touch Y positions for hue indicators (0-1)
   const [, setBgTouchY] = useState(0);
@@ -126,6 +126,11 @@ function MobileScreen() {
   // Ref for cross-screen label positioning
   const textBgRowRef = useRef<HTMLDivElement>(null);
   const [btnRects, setBtnRects] = useState({ textBgTop: 0, textBgBottom: 0 });
+
+  // Two-dot system: which color is the active dot during picking
+  const [activeDot, setActiveDot] = useState<'text' | 'bg'>('text');
+  const colorsRef = useRef(colors);
+  colorsRef.current = colors;
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
@@ -225,7 +230,7 @@ function MobileScreen() {
   // When picker appears, snap indicator to current finger position
   // Poll until ref is actually set - don't rely on arbitrary RAF count
   useEffect(() => {
-    if (editing !== 'picking' || !liveTouch.current) return;
+    if ((editing !== 'seeking' && editing !== 'adjusting') || !liveTouch.current) return;
 
     let cancelled = false;
     const tryProcess = () => {
@@ -271,7 +276,32 @@ function MobileScreen() {
       setTiltX(Math.max(-1, Math.min(1, gammaDelta / maxTilt)));
 
       // Only update colors when picking
-      if (editingRef.current === 'picking') {
+      // SEEKING: dot moves freely (tiltX/tiltY updated above), check if dot reached target square
+      if (editingRef.current === 'seeking') {
+        const cur = colorsRef.current;
+        const tiltPosX = Math.max(-1, Math.min(1, gammaDelta / maxTilt));
+        const tiltPosY = Math.max(-1, Math.min(1, betaDelta / maxTilt));
+        // Target square position (the color we're trying to dock with)
+        const targetPosX = activeSide.current === 'left'
+          ? (cur.sat - 50) / 50
+          : (cur.bgSat - 50) / 50;
+        const targetPosY = activeSide.current === 'left'
+          ? -(cur.light - 50) / 50
+          : -(cur.bgLight - 50) / 50;
+
+        const dx = tiltPosX - targetPosX;
+        const dy = tiltPosY - targetPosY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const contactThreshold = 0.12; // ~14px in the 252px square
+
+        if (dist < contactThreshold) {
+          setEditing('adjusting');
+          if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+        }
+      }
+
+      // ADJUSTING: tilt controls active color's sat/light
+      if (editingRef.current === 'adjusting') {
         const tiltNormX = Math.max(-1, Math.min(1, gammaDelta / maxTilt));
         const tiltNormY = Math.max(-1, Math.min(1, betaDelta / maxTilt));
 
@@ -319,9 +349,11 @@ function MobileScreen() {
           const midX = (leftRect.right + rightRect.left) / 2;
           const newSide = touch.clientX < midX ? 'left' : 'right';
           if (newSide !== activeSide.current) {
-            // Switching sides - haptic tick
+            // Switching sides - haptic tick, go back to seeking
             if (navigator.vibrate) navigator.vibrate(5);
             activeSide.current = newSide;
+            setActiveDot(newSide === 'left' ? 'text' : 'bg');
+            setEditing('seeking');
           }
         }
 
@@ -366,6 +398,7 @@ function MobileScreen() {
   const startPicking = (side: 'left' | 'right') => (e: React.TouchEvent) => {
     e.preventDefault();
     if (navigator.vibrate) navigator.vibrate(10);
+    setActiveDot(side === 'left' ? 'text' : 'bg');
 
     // Set which side we're controlling
     activeSide.current = side;
@@ -388,7 +421,7 @@ function MobileScreen() {
       else setBgTouchY(relY);
     }
 
-    setEditing('picking');
+    setEditing('seeking');
   };
 
   // Reset tilt baseline - captures current orientation as new zero point
@@ -489,7 +522,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.24';
+  const mobileVersion = '1.10.26';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -507,7 +540,7 @@ function MobileScreen() {
 
   // Corner bracket length
   const cornerLen = 32;
-  const cornerW = 4;
+  const cornerW = 2;
 
   // Corner brackets - 4 L-shaped pieces at corners
   const cornerBrackets = (_size: number, color: string, showLabels?: boolean) => {
@@ -526,23 +559,80 @@ function MobileScreen() {
         {/* Bottom-right */}
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
-        {/* Edge midpoint labels - only in picker, centered ON the edge lines */}
+        {/* Edge midpoint labels - only in picker, fully outside the square */}
         {showLabels && (
           <>
-            <span style={{ ...labelStyle, top: 0, left: '50%' }}>white</span>
-            <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 50%)' }}>black</span>
-            <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-50%, -50%)' }}>gray</span>
-            <span style={{ ...labelStyle, right: 0, left: 'auto', top: '50%', transform: 'translate(50%, -50%)' }}>vivid</span>
+            <span style={{ ...labelStyle, top: 0, left: '50%', transform: 'translate(-50%, -100%)' }}>white</span>
+            <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 100%)' }}>black</span>
+            <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-100%, -50%)' }}>gray</span>
+            <span style={{ ...labelStyle, right: 0, left: 'auto', top: '50%', transform: 'translate(100%, -50%)' }}>vivid</span>
           </>
         )}
       </>
     );
   };
 
-  // Tilt square - corner brackets, +, dot, all in text color
+  // Square marker helper - filled square (locked position indicator)
+  const squareMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
+    <div style={{
+      position: 'absolute',
+      width: `${size}px`,
+      height: `${size}px`,
+      backgroundColor: color,
+      left: `calc(50% + ${posX * travel}px)`,
+      top: `calc(50% + ${posY * travel}px)`,
+      transform: 'translate(-50%, -50%)',
+      pointerEvents: 'none',
+    }} />
+  );
+
+  // X marker helper - two crossed diagonal bars (not live, seeking/target)
+  const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
+    <div style={{
+      position: 'absolute',
+      left: `calc(50% + ${posX * travel}px)`,
+      top: `calc(50% + ${posY * travel}px)`,
+      width: `${size}px`,
+      height: `${size}px`,
+      transform: 'translate(-50%, -50%)',
+      pointerEvents: 'none',
+    }}>
+      <div style={{ position: 'absolute', width: '100%', height: `${cornerW}px`, backgroundColor: color, top: '50%', left: 0, transform: 'translateY(-50%) rotate(45deg)' }} />
+      <div style={{ position: 'absolute', width: '100%', height: `${cornerW}px`, backgroundColor: color, top: '50%', left: 0, transform: 'translateY(-50%) rotate(-45deg)' }} />
+    </div>
+  );
+
+  // Dot marker helper - filled circle (LIVE, actively adjusting)
+  const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
+    <div style={{
+      position: 'absolute',
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: '50%',
+      backgroundColor: color,
+      left: `calc(50% + ${posX * travel}px)`,
+      top: `calc(50% + ${posY * travel}px)`,
+      transform: 'translate(-50%, -50%)',
+      pointerEvents: 'none',
+    }} />
+  );
+
+  // Tilt square - two-dot system
+  // Home: two X's (text/bg positions) + calibration dot (tilt feedback)
+  // Picker: active dot (moves with tilt) + locked X (other color)
   const tiltSquare = (size: number, showLabels?: boolean) => {
     const dotTravel = (size / 2) - 10;
     const plusArm = cornerLen / 2;
+
+    // Positions derived from color values (sat→X, light→Y inverted)
+    const textPosX = (colors.sat - 50) / 50;
+    const textPosY = -(colors.light - 50) / 50;
+    const bgPosX = (colors.bgSat - 50) / 50;
+    const bgPosY = -(colors.bgLight - 50) / 50;
+
+    const isHome = !showLabels;
+    const isPicker = showLabels;
+
     return (
       <div
         style={{
@@ -553,31 +643,56 @@ function MobileScreen() {
         }}
       >
         {cornerBrackets(size, textColor, showLabels)}
-        {/* + at center - only on home screen */}
-        {!showLabels && (
+
+        {isHome && (
           <>
-            <div style={{ position: 'absolute', left: '50%', top: `calc(50% - ${plusArm}px)`, width: `${cornerW}px`, height: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateX(-50%)' }} />
-            <div style={{ position: 'absolute', top: '50%', left: `calc(50% - ${plusArm}px)`, height: `${cornerW}px`, width: `${plusArm * 2}px`, backgroundColor: textColor, transform: 'translateY(-50%)' }} />
+            {/* Two X's showing text and bg positions (locked) */}
+            {xMarker(textPosX, textPosY, textColor, dotTravel)}
+            {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
+            {/* Calibration square - moves with tilt (not live, just feedback) */}
+            {squareMarker(tiltX, tiltY, textColor, dotTravel)}
           </>
         )}
-        {/* Dot - text color, no border */}
-        <div
-          style={{
-            position: 'absolute',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            backgroundColor: textColor,
-            left: `calc(50% + ${tiltX * dotTravel}px)`,
-            top: `calc(50% + ${tiltY * dotTravel}px)`,
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
+
+        {isPicker && editing === 'seeking' && (
+          <>
+            {/* SEEKING: free square (cursor) + target square (dock here) + other X (locked) */}
+            {squareMarker(tiltX, tiltY, textColor, dotTravel)}
+            {activeDot === 'text' ? (
+              <>
+                {squareMarker(textPosX, textPosY, textColor, dotTravel)}
+                {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
+              </>
+            ) : (
+              <>
+                {squareMarker(bgPosX, bgPosY, textColor, dotTravel)}
+                {xMarker(textPosX, textPosY, textColor, dotTravel)}
+              </>
+            )}
+          </>
+        )}
+
+        {isPicker && editing === 'adjusting' && (
+          <>
+            {/* ADJUSTING: active dot (LIVE) + other X (locked) */}
+            {activeDot === 'text' ? (
+              <>
+                {dotMarker(textPosX, textPosY, textColor, dotTravel)}
+                {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
+              </>
+            ) : (
+              <>
+                {dotMarker(bgPosX, bgPosY, textColor, dotTravel)}
+                {xMarker(textPosX, textPosY, textColor, dotTravel)}
+              </>
+            )}
+          </>
+        )}
       </div>
     );
   };
 
-  const isPicking = editing === 'picking';
+  const isPicking = editing === 'seeking' || editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
 
   // All three screens always rendered (visibility-toggled) for seamless transitions.

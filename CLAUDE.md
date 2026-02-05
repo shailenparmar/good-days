@@ -980,13 +980,13 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │          good days             │  ← title, one line
 │                                │
 │        ┌────────┐              │
-│        │   ●    │              │  ← square centered between
-│        └────────┘              │     title and buttons
+│        │ ✕ ■ ✕  │              │  ← 2 X's (text/bg positions) +
+│        └────────┘              │     calibration square (tilt feedback)
 │                                │
 ├────────────────────────────────┤
 │      recalibrate tilt          │  ← Full-width button (edge-to-edge)
 ├───────────────┬────────────────┤
-│     text      │   background   │  ← Split button (triggers picker)
+│     text      │   background   │  ← Split button (enters seeking)
 ├───────────────┼────────────────┤
 │     copy      │     paste      │  ← Split button
 └───────────────┴────────────────┘
@@ -998,9 +998,9 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │          good days             │  ← title, same position as home
 │                                │
 │            white               │
-│   gray ┌────────┐ vivid       │  ← square centered, labels at
-│        │   ●    │             │     edge midpoints (no +, no stats)
-│        └────────┘              │     L corners match home screen exactly
+│   gray ┌────────┐ vivid       │  ← square centered, labels fully
+│        │ ■/● ✕  │             │     outside bounds. Markers: see
+│        └────────┘              │     Two-Dot Seeking/Docking System
 │            black               │
 │                                │
 │  txt: #78cc33  bg: #c8ff00    │  ← Hex codes (4px above spectra top)
@@ -1084,14 +1084,57 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 
 **Max tilt angle**: ±10° to reach extremes (20° total range)
 
-The sat/light square shows:
-- Dot (16px, v1.10.20+) position indicates current tilt
-- L corner brackets: 32×4px (v1.10.20+, was 24×4px)
-- + crosshair: 4×32px arms (v1.10.20+, only on home screen)
+The sat/light square shows three marker types (v1.10.26+):
+
+| Shape | Meaning | When |
+|-------|---------|------|
+| **Square** (16px filled) | Not live — cursor during seeking, or target to dock with | Home calibration, seeking phase |
+| **X** (16px, 2px bars) | Locked position, not interactive | Other color during seeking/adjusting, both colors on home |
+| **Dot** (16px circle) | LIVE — actively adjusting a color via tilt | Adjusting phase only |
+
+**Home screen markers:** Two X's (text and bg sat/light positions) + calibration square (moves with tilt, shows accelerometer feedback)
+
+**Seeking/Adjusting phases:** See "Two-Dot Seeking/Docking System" below.
+
+- L corner brackets: 32×2px (v1.10.26+, was 32×4px)
+- No + crosshair (removed in v1.10.26)
 - Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
-- Labels are centered ON the edge lines (straddling them), 16px monospace bold, `lineHeight: 20px`
+- Labels are fully outside the square bounds (v1.10.26+, were straddling edges), 16px monospace bold
 - No sat/light number stats (removed in v1.10.7)
 - Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
+
+### Two-Dot Seeking/Docking System (v1.10.26+)
+
+The picker uses a **seek-then-adjust** mechanic that prevents accidental color changes. Tilt only controls sat/light after you deliberately dock with the target.
+
+**Editing state machine:** `null` (home) → `'seeking'` → `'adjusting'` → `'seeking'` (on side switch) → ...
+
+**Phases:**
+
+| Phase | Dot moves? | Colors change? | Markers shown |
+|-------|-----------|----------------|---------------|
+| **Home** | Calibration square moves with tilt | No | 2 X's (text/bg positions) + calibration square |
+| **Seeking** | Free square moves with tilt | No (hue bars still work) | Free square (cursor) + target square (dock here) + X (other color, locked) |
+| **Adjusting** | Dot moves with tilt | Yes, active color's sat/light | Dot (LIVE) + X (other color, locked) |
+
+**Flow:**
+1. Press "text" button → enters **seeking** for text color
+2. Tilt to guide free square toward text's target square — nothing changes yet
+3. Squares overlap (within ~14px) → **docking**: haptic buzz, transitions to **adjusting**
+4. Now tilt controls text sat/light. Dot is LIVE. Bg shown as locked X.
+5. Slide thumb to bg hue bar → back to **seeking** for bg. Text position freezes as X.
+6. Guide square to bg's target square → dock → adjusting bg.
+7. Lift finger → back to home.
+
+**Contact detection** happens in the `deviceorientation` handler during seeking phase. Threshold: `0.12` in normalized [-1, 1] space (~14px in the 252px square). There is a slight intentional "jump" on dock since contact happens within a radius, not pixel-perfect.
+
+**Side switching** is detected in the global `touchmove` handler. When the finger crosses the midline between hue bars and `activeSide` changes, editing transitions from `adjusting` back to `seeking`. The `activeDot` state tracks which color ('text' | 'bg') is the current target.
+
+**Key state/refs:**
+- `editing`: `'seeking' | 'adjusting' | null` — current phase
+- `activeDot`: `'text' | 'bg'` — which color we're seeking/adjusting
+- `colorsRef`: ref mirroring `colors` state for use in orientation handler
+- `activeSide`: ref `'left' | 'right'` — which hue bar is active (left=text, right=bg)
 
 ### Button Styling
 
