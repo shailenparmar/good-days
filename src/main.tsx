@@ -113,12 +113,15 @@ function MobileScreen() {
   editingRef.current = editing;
   const leftBarRef = useRef<HTMLDivElement>(null);
   const rightBarRef = useRef<HTMLDivElement>(null);
+  const squareContainerRef = useRef<HTMLDivElement>(null);
+  const [squareSize, setSquareSize] = useState(252);
 
   // Live touch position - tracked continuously from button press
   const liveTouch = useRef<{ x: number; y: number } | null>(null);
   const barsMounted = useRef(0);
-  // Which side started the touch (left = text, right = background)
+  // Which side started the touch (left = background, right = text)
   const activeSide = useRef<'left' | 'right' | null>(null);
+
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
@@ -146,6 +149,26 @@ function MobileScreen() {
     if (orientation?.lock) {
       orientation.lock('portrait').catch(() => {});
     }
+  }, []);
+
+  // Measure square container to compute largest square that fits
+  // Labels overhang the square by ~10px (half of 20px lineHeight), padding accounts for this
+  const SQUARE_PADDING = 24; // gap from label bounds to title/hex codes
+  const LABEL_OVERHANG = 10; // half of label lineHeight (20px)
+  const CONTAINER_PADDING = SQUARE_PADDING + LABEL_OVERHANG; // 34px total from square edge
+  useEffect(() => {
+    const el = squareContainerRef.current;
+    if (!el) return;
+    const update = () => {
+      const availH = el.clientHeight - CONTAINER_PADDING * 2;
+      const availW = el.clientWidth;
+      const size = Math.max(0, Math.floor(Math.min(availH, availW)));
+      setSquareSize(size);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   // Prevent iOS context menu / Writing Tools on long press
@@ -450,7 +473,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.14';
+  const mobileVersion = '1.10.17';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -463,8 +486,8 @@ function MobileScreen() {
   const cornerW = 4;
 
   // Corner brackets - 4 L-shaped pieces at corners
-  const cornerBrackets = (_size: number, color: string, showLabels?: boolean) => {
-    const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
+  const cornerBrackets = (color: string, showLabels?: boolean) => {
+    const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
     return (
       <>
         {/* Top-left */}
@@ -493,6 +516,7 @@ function MobileScreen() {
   };
 
   // Tilt square - corner brackets, +, dot, all in text color
+  // Size computed dynamically to be the largest square that fits the container
   const tiltSquare = (size: number, showLabels?: boolean) => {
     const dotTravel = (size / 2) - 10;
     const plusArm = cornerLen / 2;
@@ -505,7 +529,7 @@ function MobileScreen() {
           flexShrink: 0,
         }}
       >
-        {cornerBrackets(size, textColor, showLabels)}
+        {cornerBrackets(textColor, showLabels)}
         {/* + at center - only on home screen */}
         {!showLabels && (
           <>
@@ -587,28 +611,28 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        {/* Square complex - centered between title and spectrum */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
-          {tiltSquare(252, true)}
+        {/* Square complex - 24px from label bounds to title/hex codes, labels overhang by 10px */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `${CONTAINER_PADDING}px 0` }}>
+          {tiltSquare(squareSize, true)}
         </div>
 
-        {/* Hue bars + hex codes - sized to match home screen button area exactly */}
+        {/* Hex codes + hue bars - sized to match home screen button area */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
-          {/* Invisible buttons set the correct height (same as home screen) */}
+          {/* Invisible buttons set the correct height */}
           <div style={{ visibility: 'hidden', padding: '0 40px 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={getButtonStyle(false, 'full')}>&nbsp;</div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
           </div>
-          {/* Overlay: hex codes + bars */}
+          {/* Overlay - hex codes at top (aligned with recalibrate button outside top border), spectrum below */}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* Hex codes above bars */}
-            <div style={{ display: 'flex', padding: '0', marginBottom: '12px', pointerEvents: 'none', flexShrink: 0 }}>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '24px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
+            {/* Hex codes - top aligns with recalibrate tilt button's outside top border */}
+            <div style={{ display: 'flex', pointerEvents: 'none' }}>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', color: textColor }}>{hslToHex(colors.hue, colors.sat, colors.light)}</span>
               <span style={{ width: '4px' }} />
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '24px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', lineHeight: '20px', color: textColor }}>{hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
             </div>
-            {/* Bars fill remaining space */}
+            {/* Spectrum bars fill remaining space */}
             <div style={{ flex: 1, display: 'flex' }}>
               {/* Left: text hue bar */}
               <div
@@ -664,8 +688,8 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        {/* Square complex - fills space with 12px gap to title and buttons */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0' }}>
+        {/* Square complex - L corners match picker positions exactly */}
+        <div ref={squareContainerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `${CONTAINER_PADDING}px 0` }}>
           {tiltSquare(squareSize)}
         </div>
 

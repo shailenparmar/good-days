@@ -993,24 +993,62 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 ```
 ┌────────────────────────────────┐
 │          good days             │  ← title, same position as home
-│            white               │
+│          24px gap              │
+│            white               │  ← label top = 24px below title
 │   gray ┌────────┐ vivid       │  ← square centered, labels at
 │        │   ●    │             │     edge midpoints (no +, no stats)
-│        └────────┘              │
-│            black               │
-│       #78cc33    #c8ff00        │  ← Hex codes (monospace, bold)
-├───────────────┬────────────────┤
-│     text      │   background   │  ← Labels (black)
-│ ──────────────│────────────────│  ← Horizontal hue indicators
-│               │                │
-│  (hue gradient│  hue gradient) │  ← Split hue bars
+│        └────────┘              │     L corners match home screen exactly
+│            black               │  ← label bottom = 24px above hex codes
+│          24px gap              │
+│  #78cc33    ┃    #c8ff00       │  ← Hex codes (inside overlay, top = recalibrate btn top)
+├─────────────╋────────────────┤
+│     text    ┃   background   │  ← Labels (black)
+│ ────────────┃────────────────│  ← Horizontal hue indicators
+│  hue grad   ┃   hue gradient │  ← Split hue bars (fill remaining space)
+│             ┃                │
+└─────────────┻────────────────┘
+```
+
+### Layout Centering & Square Sizing (v1.10.17+)
+
+The tilt square complex (square + L corners + sat/light labels) is dynamically sized and centered between the title and bottom section.
+
+**Key principle:** The L corners must be at the **exact same position** on both the home screen and picker screen. No visual jump on transition.
+
+**How it works:**
+1. Both screens have identical bottom section heights (picker uses invisible buttons matching home buttons; hex codes are inside the overlay, not adding extra height)
+2. Both `flex: 1` containers use the same padding, so the available space is identical
+3. A `ResizeObserver` measures the home container and computes the largest square that fits: `squareSize = min(availableHeight, availableWidth)`
+4. Both screens render `tiltSquare(squareSize)` — same size, same position
+
+**Spacing from label bounds:**
+
+| Gap | From | To | Size |
+|-----|------|----|------|
+| Top | Bottom of "good days" title | Top of "white" label | 24px |
+| Bottom | Bottom of "black" label | Top of hex codes (picker) / buttons (home) | 24px |
+
+Labels have `lineHeight: 20px` and overhang the square edges by 10px (half the line height). Container padding = 24px (gap) + 10px (label overhang) = **34px** from the square's edge to the boundary.
+
+```
+CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
+```
+
+**Hex codes in picker overlay (v1.10.17+):**
+
+The hex codes sit **inside** the absolute overlay at the top of the bottom section, aligned with the recalibrate button's outside top border. The spectrum bars fill the remaining space below. This ensures the picker's bottom section is the exact same height as the home's button area.
+
+```
+Picker bottom section (overlay):
+┌────────────────────────────────┐
+│  #78cc33       #c8ff00         │ ← Hex codes (top of overlay = recalibrate button outside top border)
+│───────────────┬────────────────│
+│  hue gradient │  hue gradient  │ ← Spectrum bars (fill remaining)
 │               │                │
 └───────────────┴────────────────┘
 ```
 
-### Layout Centering
-
-The tilt square complex (square + sat/light labels) is vertically centered in the space between the title and the bottom element using `flex: 1` with `alignItems: 'center'`. This keeps the square in the same visual position on both screens regardless of bottom element height.
+**Square is always a square:** `width = height = squareSize`. On most phones (portrait), width constrains the size, so vertical gaps may exceed 24px. The 24px is the minimum gap when height-constrained.
 
 ### Seamless Touch Tracking
 
@@ -1043,9 +1081,10 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 The sat/light square shows:
 - Dot position indicates current tilt
 - Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
-- Labels are centered ON the edge lines (straddling them), 16px monospace bold
+- Labels are centered ON the edge lines (straddling them), 16px monospace bold, `lineHeight: 20px`
 - No sat/light number stats (removed in v1.10.7)
 - The + crosshair only shows on the home screen, not in the picker
+- Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
 
 ### Button Styling
 
