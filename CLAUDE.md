@@ -1099,6 +1099,24 @@ All mobile buttons (including the permission screen "calibrate tilt" button) use
 
 **Button order** (top to bottom): recalibrate tilt → text|background → copy|paste
 
+### Button Drag-Off Cancellation (v1.10.22+)
+
+The recalibrate, copy, and paste buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
+
+**Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
+
+| Event | Behavior |
+|-------|----------|
+| touchStart | Set engaged=true, show pressed state |
+| touchMove (inside) | No change |
+| touchMove (outside) | Set engaged=false, clear pressed state |
+| touchEnd | Fire action only if still engaged, clear state |
+| touchCancel (long press) | Clear state, do NOT fire action (intentional) |
+
+**Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
+
+**Copy textarea Writing Tools prevention (v1.10.22+):** The temporary textarea used for `execCommand('copy')` now has `writingSuggestions="false"`, `autocomplete/autocorrect/autocapitalize` off, `spellcheck=false`, and explicitly blurs before removal to clear iOS text interaction state.
+
 ### iOS Permission
 
 iOS 13+ requires explicit permission for DeviceOrientationEvent:

@@ -120,6 +120,9 @@ function MobileScreen() {
   // Which side started the touch (left = background, right = text)
   const activeSide = useRef<'left' | 'right' | null>(null);
 
+  // Track button engagement for drag-off cancellation
+  const buttonEngaged = useRef({ reset: false, copy: false, paste: false });
+
   // Ref for cross-screen label positioning
   const textBgRowRef = useRef<HTMLDivElement>(null);
   const [btnRects, setBtnRects] = useState({ textBgTop: 0, textBgBottom: 0 });
@@ -402,12 +405,23 @@ function MobileScreen() {
     // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
     const ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:none;outline:none;background:transparent;opacity:0.01;font-size:16px;-webkit-user-select:text;user-select:text;';
+    ta.setAttribute('writingSuggestions', 'false');
+    ta.setAttribute('autocomplete', 'off');
+    ta.setAttribute('autocorrect', 'off');
+    ta.setAttribute('autocapitalize', 'off');
+    ta.setAttribute('spellcheck', 'false');
+    ta.contentEditable = 'false';
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:none;outline:none;background:transparent;opacity:0.01;font-size:16px;-webkit-user-select:text;user-select:text;-webkit-touch-callout:none;';
     document.body.appendChild(ta);
+    ta.contentEditable = 'true'; // briefly editable for execCommand
     ta.focus();
     ta.setSelectionRange(0, text.length);
     const ok = document.execCommand('copy');
+    ta.contentEditable = 'false';
+    ta.blur();
     document.body.removeChild(ta);
+    // Clear any residual iOS text interaction state
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     // Fall back to clipboard API if execCommand failed
     if (!ok) navigator.clipboard.writeText(text).catch(() => {});
   };
@@ -475,12 +489,20 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.21';
+  const mobileVersion = '1.10.22';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
     color: textColor, fontFamily: 'monospace', fontWeight: 800,
     fontSize: 'min(17vw, 70px)', lineHeight: 1, padding: '16px 0 0', textAlign: 'center', whiteSpace: 'nowrap',
+  };
+
+  // Check if touch is inside element bounds
+  const isTouchInside = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return false;
+    const rect = e.currentTarget.getBoundingClientRect();
+    return touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
   };
 
   // Corner bracket length
@@ -684,9 +706,10 @@ function MobileScreen() {
 
         <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div
-            onTouchStart={(e) => { e.preventDefault(); setResetPressed(true); }}
-            onTouchEnd={(e) => { e.preventDefault(); setResetPressed(false); handleResetTilt(); }}
-            onTouchCancel={() => setResetPressed(false)}
+            onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.reset = true; setResetPressed(true); }}
+            onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.reset = false; setResetPressed(false); } }}
+            onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.reset) handleResetTilt(); buttonEngaged.current.reset = false; setResetPressed(false); }}
+            onTouchCancel={() => { buttonEngaged.current.reset = false; setResetPressed(false); }}
             style={getButtonStyle(resetPressed, 'full')}
           >
             recalibrate tilt
@@ -709,17 +732,19 @@ function MobileScreen() {
 
           <div style={{ display: 'flex' }}>
             <div
-              onTouchStart={(e) => { e.preventDefault(); setCopyPressed(true); }}
-              onTouchEnd={(e) => { e.preventDefault(); setCopyPressed(false); handleCopy(); }}
-              onTouchCancel={() => setCopyPressed(false)}
+              onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.copy = true; setCopyPressed(true); }}
+              onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.copy = false; setCopyPressed(false); } }}
+              onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.copy) handleCopy(); buttonEngaged.current.copy = false; setCopyPressed(false); }}
+              onTouchCancel={() => { buttonEngaged.current.copy = false; setCopyPressed(false); }}
               style={getButtonStyle(copyPressed, 'left')}
             >
               copy
             </div>
             <div
-              onTouchStart={(e) => { e.preventDefault(); setPastePressed(true); }}
-              onTouchEnd={(e) => { e.preventDefault(); setPastePressed(false); handlePaste(); }}
-              onTouchCancel={() => setPastePressed(false)}
+              onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.paste = true; setPastePressed(true); }}
+              onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
+              onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.paste) handlePaste(); buttonEngaged.current.paste = false; setPastePressed(false); }}
+              onTouchCancel={() => { buttonEngaged.current.paste = false; setPastePressed(false); }}
               style={{ ...getButtonStyle(pastePressed, 'right'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
               role="button"
               tabIndex={-1}
