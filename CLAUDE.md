@@ -1358,9 +1358,9 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` (but `true` on load if panels are open) |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
-| `preFocusState` | Saved state before entering zen/minizen (for restore) | No | `null` |
+| `preFocusState` | Saved state before entering zen/minizen (for restore) | Yes | `null` |
 | `preNarrowState` | Saved state before narrowing (for restore on widen) | No | `null` |
-| `zenFromMinizen` | Tracks if zen was entered from minizen (for proper exit) | No | `false` |
+| `zenFromMinizen` | Tracks if zen was entered from minizen (for proper exit) | Yes | `false` |
 
 ### State Variable Schemas
 
@@ -1808,6 +1808,43 @@ See `src/App.tsx` for full implementation including ESC handler and resize logic
 5. **`preFocusState` captures full context** - See "State Lifecycle" section above for details
 
 **The rule**: If settings was open → zen → exit zen = settings open again. Same for minizen.
+
+### Persistence Framework (v1.10.19+)
+
+The layout state system has three domains with different persistence rules.
+
+#### Three State Domains
+
+| Domain | Variables | Persisted? | Rationale |
+|--------|-----------|------------|-----------|
+| **Focus** | `zenMode`, `minizen` | Yes | User chose this mode; should survive close/reopen |
+| **Width** | `isNarrow` | No (computed) | Determined by current window size |
+| **Panels** | `showDebugMenu`, `showAboutPanel` | Yes | User opened these; should survive close/reopen |
+
+#### Restoration Ticket Pattern
+
+`preFocusState` and `preNarrowState` are "restoration tickets" — snapshots of state saved before a transition so the reverse transition can restore it.
+
+**Persistence rule for tickets:** A restoration ticket should persist if and only if the state it restores FROM persists.
+
+| Ticket | Restores from... | That state persists? | Ticket persists? |
+|--------|-------------------|---------------------|-----------------|
+| `preFocusState` | Focus modes (zen/minizen) | Yes | **Yes** |
+| `preNarrowState` | Narrow layout (resize) | No (computed) | **No** |
+
+**Why `preFocusState` persists:** If zen mode persists across close/reopen, the ticket to exit zen must also persist. Otherwise exiting zen after reopen has nowhere to restore from.
+
+**Why `preNarrowState` doesn't persist:** Resize context is session-bound. When you reopen the app, `isNarrow` is freshly computed from the current window width — there's no "returning from narrow" to restore.
+
+#### Domain Boundaries
+
+When crossing from one domain to another, restoration tickets may be absorbed:
+
+- **Resize wide→narrow absorbs focus tickets:** `preFocusState` is cleared because the narrow transition saves its own `preNarrowState` (which includes the pre-focus panel state if `preFocusState` exists). Focus mode context is subsumed into the resize transition.
+
+#### `zenFromMinizen` Persistence
+
+`zenFromMinizen` persists because it's metadata about the focus domain. If zen mode persists and was entered from minizen, we need to remember that so ESC exits to minizen (not full) after reopen.
 
 ## ESC Key Behavior (IMPORTANT)
 
@@ -2650,7 +2687,7 @@ Small settings that benefit from synchronous access:
 | Category | Keys |
 |----------|------|
 | Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, `bgSaturation`, `bgLightness` |
-| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled`, `scrambleHotkeyActive` |
+| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled`, `scrambleHotkeyActive`, `preFocusState`, `zenFromMinizen` |
 | Auth | `passwordHash` |
 | Statistics | `totalKeystrokes`, `totalSecondsOnApp`, `totalLogins` |
 | Easter eggs | `easterEggs` |

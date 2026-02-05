@@ -133,14 +133,14 @@ function AppContent() {
   useEffect(() => { journalRef.current = journal; }, [journal]);
   const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Unified state saved before entering any focus mode (zen or minizen)
-  const [preFocusState, setPreFocusState] = useState<{
+  const [preFocusState, setPreFocusState] = usePersisted<{
     minizen: boolean;
     showSidebarInNarrow: boolean;
     showDebugMenu: boolean;
     showAboutPanel: boolean;
-  } | null>(null);
+  } | null>('preFocusState', null);
   // Track if zen was entered from minizen (for proper exit behavior)
-  const [zenFromMinizen, setZenFromMinizen] = useState(false);
+  const [zenFromMinizen, setZenFromMinizen] = usePersisted('zenFromMinizen', false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
   const [titleHovered, setTitleHovered] = useState(false);
