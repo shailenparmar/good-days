@@ -400,12 +400,9 @@ function AppContent() {
   }, [auth, journal, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel, closePanels]);
 
   // Auto-focus editor when typing anywhere (unless in another input)
-  // Only works when viewing today's entry (past entries are read-only)
+  // If viewing a past entry, switches to today first then focuses editor
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Only allow typing into today's entry
-      if (journal.selectedDate !== getTodayDate()) return;
-
       // Skip if already handled by another component (e.g., preset grid)
       if (e.defaultPrevented) return;
 
@@ -430,7 +427,7 @@ function AppContent() {
         return;
       }
 
-      // Handle printable characters, Enter, and Backspace
+      // Handle printable characters, Enter, Backspace, and Space
       const isPrintable = e.key.length === 1;
       const isEnterOrBackspace = e.key === 'Enter' || e.key === 'Backspace';
       if (!isPrintable && !isEnterOrBackspace) return;
@@ -439,6 +436,32 @@ function AppContent() {
       if (isNarrow) {
         closePanels();
         setShowSidebarInNarrow(false);
+      }
+
+      // If viewing a past entry, switch to today then defer focus
+      // (need to wait for React re-render so textarea becomes editable)
+      const today = getTodayDate();
+      if (journal.selectedDate !== today) {
+        journal.setSelectedDate(today);
+        e.preventDefault();
+        const key = e.key;
+        // Double rAF to wait for React re-render
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!editorRef.current) return;
+            editorRef.current.focus();
+            const len = editorRef.current.value.length;
+            editorRef.current.selectionStart = len;
+            editorRef.current.selectionEnd = len;
+            // Insert the triggering character (not for Backspace — just focus)
+            if (key.length === 1) {
+              document.execCommand('insertText', false, key);
+            } else if (key === 'Enter') {
+              document.execCommand('insertText', false, '\n');
+            }
+          });
+        });
+        return;
       }
 
       // Focus the editor and move cursor to end
@@ -453,7 +476,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [showDebugMenu, showAboutPanel, isNarrow, closePanels, journal.selectedDate]);
+  }, [showDebugMenu, showAboutPanel, isNarrow, closePanels, journal.selectedDate, journal.setSelectedDate]);
 
   // Note: Scramble/unscramble handling is done in JournalEditor
 

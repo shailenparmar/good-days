@@ -509,7 +509,7 @@ Textarea advantages:
 
 All these work with textarea:
 - `\time` command (pattern match on value string)
-- Auto-focus on keypress (focus textarea on window keydown)
+- Auto-focus on keypress (focus textarea on window keydown, switches to today if viewing past entry)
 - Block keys when settings open (same preventDefault logic)
 - Block cursor (`caret-shape: block` CSS)
 - Scramble mode (overlay div over textarea, scroll-synced)
@@ -1233,11 +1233,22 @@ When settings is open, presets can be controlled with the keyboard:
 | Space / Enter | Save current colors to the active preset |
 | Backspace / Delete | Delete the active preset |
 
-#### Editor Auto-Focus Protection
+#### Editor Auto-Focus & Date Switch (v1.10.23+)
 
 The app has a "type anywhere to focus editor" feature. When you press a key, it auto-focuses the editor so you can start typing.
 
-When settings is open (whether just settings, powerstat, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
+**If viewing a past entry**, typing switches to today's entry first, then focuses the editor and inserts the character. This uses a deferred focus (double `requestAnimationFrame`) to wait for React to re-render the textarea as editable before focusing and inserting.
+
+| Key type | Behavior on past entry |
+|----------|----------------------|
+| Printable character | Switch to today, focus, insert character |
+| Space | Switch to today, focus, insert space |
+| Enter | Switch to today, focus, insert newline |
+| Backspace | Switch to today, focus only (no deletion for safety) |
+
+Code location: `App.tsx` `handleGlobalKeyDown`
+
+**Settings protection:** When settings is open (whether just settings, powerstat, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
 
 ```tsx
 // When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
