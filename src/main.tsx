@@ -622,7 +622,6 @@ function MobileScreen() {
   // Picker: active dot (moves with tilt) + locked X (other color)
   const tiltSquare = (size: number, showLabels?: boolean) => {
     const dotTravel = (size / 2) - 10;
-    const plusArm = cornerLen / 2;
 
     // Positions derived from color values (sat→X, light→Y inverted)
     const textPosX = (colors.sat - 50) / 50;
