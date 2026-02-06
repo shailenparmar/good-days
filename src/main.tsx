@@ -287,6 +287,13 @@ function MobileScreen() {
         const overlapY = Math.abs(tiltPosY - targetPosY) < halfSize * 2;
 
         if (overlapX && overlapY) {
+          // Snap baseline so current orientation maps to target position
+          // This makes the cursor "become" the target — no color jump on dock
+          baseline.current.gamma = gamma - targetPosX * maxTilt;
+          baseline.current.beta = beta - targetPosY * maxTilt;
+          setTiltX(targetPosX);
+          setTiltY(targetPosY);
+
           setEditing('adjusting');
           if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
         }
@@ -514,7 +521,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.51';
+  const mobileVersion = '1.10.52';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
