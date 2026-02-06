@@ -99,7 +99,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
             {s("however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
           </p>
           <p>
-            {s("as a safety guarantee, all the code is open source.")}{' '}
+            {s("as a safety guarantee, the entire product is open source.")}{' '}
             <a
               href="https://github.com/shailenparmar/good-days"
               target="_blank"
