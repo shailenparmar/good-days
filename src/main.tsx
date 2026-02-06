@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.44';
+  const mobileVersion = '1.10.45';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -565,7 +565,7 @@ function MobileScreen() {
   };
 
   // X marker helper - two crossed diagonal bars (not live, seeking/target)
-  const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
+  const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20) => (
     <div style={{
       position: 'absolute',
       left: '50%',
@@ -582,7 +582,7 @@ function MobileScreen() {
   );
 
   // Dot marker helper - filled circle (LIVE, actively adjusting)
-  const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
+  const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
@@ -598,7 +598,7 @@ function MobileScreen() {
   );
 
   // Hollow circle marker - outline circle (cursor/target during seeking, home calibration)
-  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 4) => (
+  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20, borderWidth: number = 4) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
