@@ -10,7 +10,8 @@
 1. **Increment version** in `src/shared/version.ts`
 2. **Commit code changes + version bump**
 3. **Push to main**
-4. **Tell the user**: "Pushed **vX.Y.Z**"
+4. **Verify deployment**: Run `gh run list --limit 1` to check the GitHub Actions workflow triggered and passes. If it fails, investigate and fix immediately.
+5. **Tell the user**: "Pushed **vX.Y.Z**" (include deploy status)
 
 ### Step 2: Document (immediately after)
 5. **Update CLAUDE.md** with any changes to:
