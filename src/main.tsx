@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.45';
+  const mobileVersion = '1.10.46';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -532,7 +532,7 @@ function MobileScreen() {
 
   // Corner bracket length
   const cornerLen = 32;
-  const cornerW = 2;
+  const cornerW = 4;
 
   // Corner brackets - 4 L-shaped pieces at corners
   const cornerBrackets = (_size: number, color: string, showLabels?: boolean) => {
