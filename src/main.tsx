@@ -515,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.37';
+  const mobileVersion = '1.10.38';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -565,13 +565,29 @@ function MobileScreen() {
     );
   };
 
-  // Square marker helper - filled square (locked position indicator)
+  // Square marker helper - filled square (target position)
   const squareMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
       height: `${size}px`,
       backgroundColor: color,
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
+      willChange: 'transform',
+      pointerEvents: 'none',
+    }} />
+  );
+
+  // Outline square marker - hollow square (cursor during seeking)
+  const outlineSquareMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 2) => (
+    <div style={{
+      position: 'absolute',
+      width: `${size}px`,
+      height: `${size}px`,
+      border: `${borderWidth}px solid ${color}`,
+      boxSizing: 'border-box',
       left: '50%',
       top: '50%',
       transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
@@ -651,8 +667,8 @@ function MobileScreen() {
 
         {isPickerScreen && editing === 'seeking' && (
           <>
-            {/* SEEKING: free square (cursor) + target square (dock here) + other X (locked) */}
-            {squareMarker(tiltX, tiltY, textColor, dotTravel)}
+            {/* SEEKING: outline square (cursor) + filled square (target) + other X (locked) */}
+            {outlineSquareMarker(tiltX, tiltY, textColor, dotTravel)}
             {activeDot === 'text' ? (
               <>
                 {squareMarker(textPosX, textPosY, textColor, dotTravel)}

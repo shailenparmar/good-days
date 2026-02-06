@@ -1490,14 +1490,14 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | Variable | Purpose | Persisted | Default |
 |----------|---------|-----------|---------|
 | `isNarrow` | `true` when window < 711px | No (computed) | — |
-| `zenMode` | Full zen: just editor, hide everything else | Yes | `false` |
-| `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | Yes | `false` |
+| `zenMode` | Full zen: just editor, hide everything else | **No** (v1.10.37+) | `false` |
+| `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | **No** (v1.10.37+) | `false` |
 | `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` (but `true` on load if panels are open) |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
 | `preFocusState` | Saved state before entering zen/minizen (for restore) | Yes | `null` |
 | `preNarrowState` | Saved state before narrowing (for restore on widen) | No | `null` |
-| `zenFromMinizen` | Tracks if zen was entered from minizen (for proper exit) | Yes | `false` |
+| `zenFromMinizen` | Tracks if zen was entered from minizen (for proper exit) | **No** (v1.10.37+) | `false` |
 
 ### State Variable Schemas
 
@@ -1954,7 +1954,7 @@ The layout state system has three domains with different persistence rules.
 
 | Domain | Variables | Persisted? | Rationale |
 |--------|-----------|------------|-----------|
-| **Focus** | `zenMode`, `minizen` | Yes | User chose this mode; should survive close/reopen |
+| **Focus** | `zenMode`, `minizen` | **No** (v1.10.37+) | Ephemeral focus states; refresh = escape hatch |
 | **Width** | `isNarrow` | No (computed) | Determined by current window size |
 | **Panels** | `showDebugMenu`, `showAboutPanel` | Yes | User opened these; should survive close/reopen |
 
