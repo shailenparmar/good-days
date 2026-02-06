@@ -311,6 +311,50 @@ function AppContent() {
     removeItem('zenFromMinizen');
   }, []);
 
+  // PWA resume handler — resets focus modes when standalone app resumes from background.
+  // In browsers, page reload (Cmd+R) triggers the IIFE which handles this. But in PWAs,
+  // "closing and reopening" often keeps the page in memory (no reload), so the IIFE never
+  // runs. This handler detects resume-from-background and does the same reset.
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as { standalone?: boolean }).standalone === true;
+    if (!isStandalone) return;
+
+    let hiddenAt: number | null = null;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (document.visibilityState === 'visible' && hiddenAt) {
+        const elapsed = Date.now() - hiddenAt;
+        hiddenAt = null;
+
+        // Only reset if hidden for > 2 seconds (filters system overlays like notification center)
+        if (elapsed > 2000) {
+          const raw = getItem('preFocusState');
+          if (raw) {
+            try {
+              const saved = JSON.parse(raw);
+              if (saved) {
+                removeItem('preFocusState');
+                setZenMode(false);
+                setMinizen(false);
+                setZenFromMinizen(false);
+                setShowDebugMenu(saved.showDebugMenu);
+                setShowAboutPanel(saved.showAboutPanel);
+                setShowSidebarInNarrow(saved.showSidebarInNarrow);
+                setPreFocusState(null);
+              }
+            } catch { /* corrupted state, ignore */ }
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   // Save panel states to localStorage
   useEffect(() => {
     setItem('showSettings', String(showDebugMenu));

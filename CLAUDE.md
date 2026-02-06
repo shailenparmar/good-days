@@ -458,6 +458,9 @@ All three export buttons (copy, download backup, import) live in a single `<div 
 - If `preFocusState` exists, panels are restored from it (not from the stale `showSettings`/`showAbout` keys, which were written as `false` when entering focus mode).
 - `zenMode`, `minizen`, and `zenFromMinizen` are plain `useState(false)` — never persisted.
 
+**PWA resume handler (v1.10.47+):**
+In standalone PWA mode, "closing and reopening" the app often doesn't trigger a true page reload — iOS/macOS keeps the page alive in memory. The IIFE (which runs on page load) never executes, so focus modes persist. A `visibilitychange` handler detects when the PWA resumes from background (hidden > 2 seconds) and performs the same reset: reads `preFocusState` from localStorage, restores panels, exits focus modes. Only active in standalone mode (`display-mode: standalone` or iOS `navigator.standalone`). Browser users use Cmd+R which triggers a real reload.
+
 **Edge case: direct focus exit via panel buttons.**
 When clicking the settings/about buttons exits focus mode directly (bypassing `exitMinizen`/`exitZen`), `setPreFocusState(null)` and `setZenFromMinizen(false)` are called to prevent stale panel restore on next refresh.
 
