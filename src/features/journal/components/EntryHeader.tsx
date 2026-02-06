@@ -62,16 +62,10 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked
       if (use24Hour) {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        if (stacked) {
-          const seconds = String(date.getSeconds()).padStart(2, '0');
-          return `started at ${hours}:${minutes}:${seconds}`;
-        }
-        return `started at ${hours}:${minutes}`;
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `started at ${hours}:${minutes}:${seconds}`;
       } else {
-        if (stacked) {
-          return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
-        }
-        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
       }
     }
     const date = new Date(selectedDate + 'T00:00:00');
