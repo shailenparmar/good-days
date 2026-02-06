@@ -515,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.34';
+  const mobileVersion = '1.10.35';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -575,7 +575,6 @@ function MobileScreen() {
       left: '50%',
       top: '50%',
       transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      transition: 'transform 33ms linear',
       willChange: 'transform',
       pointerEvents: 'none',
     }} />
@@ -590,7 +589,6 @@ function MobileScreen() {
       width: `${size}px`,
       height: `${size}px`,
       transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      transition: 'transform 33ms linear',
       willChange: 'transform',
       pointerEvents: 'none',
     }}>
@@ -610,7 +608,6 @@ function MobileScreen() {
       left: '50%',
       top: '50%',
       transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      transition: 'transform 33ms linear',
       willChange: 'transform',
       pointerEvents: 'none',
     }} />
