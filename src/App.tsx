@@ -486,13 +486,15 @@ function AppContent() {
       // Skip if already handled by another component (e.g., preset grid)
       if (e.defaultPrevented) return;
 
-      // Skip if in input or textarea
+      // Skip if in input, or in a writable textarea (allow read-only = viewing old entry)
       const activeEl = document.activeElement;
       const tagName = activeEl?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'textarea') return;
+      if (tagName === 'input') return;
+      if (tagName === 'textarea' && !(activeEl as HTMLTextAreaElement).readOnly) return;
 
-      // Skip if already in the editor (prevents cursor jumping to end while typing)
-      if (editorRef.current?.contains(activeEl)) return;
+      // Skip if already in the editor on today (prevents cursor jumping to end while typing)
+      // Allow through if viewing old entry — handler will switch to today
+      if (editorRef.current?.contains(activeEl) && journal.selectedDate === getTodayDate()) return;
 
       // Skip if in any other contenteditable (e.g., title)
       if (activeEl instanceof HTMLElement && activeEl.isContentEditable) return;
