@@ -129,9 +129,6 @@ function MobileScreen() {
   // Track button engagement for drag-off cancellation
   const buttonEngaged = useRef({ reset: false, copy: false, paste: false });
 
-  // Ref for cross-screen label positioning
-  const textBgRowRef = useRef<HTMLDivElement>(null);
-  const [btnRects, setBtnRects] = useState({ textBgTop: 0, textBgBottom: 0 });
 
   // Two-dot system: which color is the active dot during picking
   const [activeDot, setActiveDot] = useState<'text' | 'bg'>('text');
@@ -166,18 +163,6 @@ function MobileScreen() {
     }
   }, []);
 
-  // Measure text|background button position for color screen labels
-  useEffect(() => {
-    const measure = () => {
-      if (textBgRowRef.current) {
-        const tb = textBgRowRef.current.getBoundingClientRect();
-        setBtnRects({ textBgTop: tb.top, textBgBottom: tb.bottom });
-      }
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
 
   // Prevent iOS context menu / Writing Tools on long press
   useEffect(() => {
@@ -530,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.28';
+  const mobileVersion = '1.10.29';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -866,7 +851,7 @@ function MobileScreen() {
             recalibrate tilt
           </div>
 
-          <div ref={textBgRowRef} style={{ display: 'flex' }}>
+          <div style={{ display: 'flex' }}>
             <div
               onTouchStart={startPicking('left')}
               style={getButtonStyle(false, 'left')}
