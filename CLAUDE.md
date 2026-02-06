@@ -189,6 +189,12 @@ This ensures the previous day's entry is persisted even if IndexedDB is slow or 
 
 Code location: `src/App.tsx` (midnight timeout handler)
 
+### startedAt Deferred Until First Keystroke (v1.10.58+)
+
+The "ensure today's entry exists" effect in `useJournalEntries.ts` creates an empty placeholder entry for today (so the sidebar shows the day). This entry has **no `startedAt`**. The `startedAt` timestamp is only set when `saveEntry()` is first called (i.e., the user actually types). The fallback chain in `saveEntry` is: `existingEntry.startedAt || timestamp || Date.now()`.
+
+**Before v1.10.58:** The placeholder was created with `startedAt: Date.now()`, so if the app was open at midnight, `startedAt` would be ~12:00 AM even if the user didn't type until hours later.
+
 ### Error Boundary Emergency Save (v1.10.0+)
 
 If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending debounced writes to IndexedDB before showing the error screen.
