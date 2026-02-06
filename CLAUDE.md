@@ -1271,7 +1271,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 
 | Preset | Text Color | Background Color | Description |
 |--------|------------|------------------|-------------|
-| **1** | hsl(175, 100%, 21%) teal | hsl(84, 100%, 88%) light green | Default for new users |
+| **1** | hsl(201, 100%, 0%) black #000000 | hsl(53, 53%, 96%) cream #faf9ef | Default for new users |
 | **2** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
 | **3** | hsl(360, 100%, 49%) red | hsl(360, 100%, 13%) dark red | — |
 | **4** | hsl(241, 69%, 47%) blue | hsl(59, 100%, 66%) yellow | — |
@@ -1279,7 +1279,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 
 ### New User Defaults
 
-New users see **Preset 1** (teal on light green). Two places set this:
+New users see **Preset 1** (black on cream). Two places set this:
 
 1. **React defaults**: `ThemeContext.tsx` uses `DEFAULT_PRESETS[0]` for initial state
 2. **HTML fallbacks**: `index.html` has hardcoded values for pre-React page load (prevents flash)
