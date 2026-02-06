@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.47';
+  const mobileVersion = '1.10.48';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -539,18 +539,18 @@ function MobileScreen() {
     const labelStyle: React.CSSProperties = { fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', pointerEvents: 'none', position: 'absolute', color, transform: 'translate(-50%, -50%)' };
     return (
       <>
-        {/* Top-left */}
-        <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-        <div style={{ position: 'absolute', top: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        {/* Top-left - offset outward so L corners frame the pure square */}
+        <div style={{ position: 'absolute', top: `${-cornerW}px`, left: `${-cornerW}px`, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', top: `${-cornerW}px`, left: `${-cornerW}px`, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
         {/* Top-right */}
-        <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-        <div style={{ position: 'absolute', top: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', top: `${-cornerW}px`, right: `${-cornerW}px`, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', top: `${-cornerW}px`, right: `${-cornerW}px`, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
         {/* Bottom-left */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: `${-cornerW}px`, left: `${-cornerW}px`, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: `${-cornerW}px`, left: `${-cornerW}px`, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
         {/* Bottom-right */}
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: `${-cornerW}px`, right: `${-cornerW}px`, width: `${cornerLen}px`, height: `${cornerW}px`, backgroundColor: color }} />
+        <div style={{ position: 'absolute', bottom: `${-cornerW}px`, right: `${-cornerW}px`, width: `${cornerW}px`, height: `${cornerLen}px`, backgroundColor: color }} />
         {/* Edge midpoint labels - only in picker, fully outside the square */}
         {showLabels && (
           <>
