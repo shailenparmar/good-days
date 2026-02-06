@@ -748,6 +748,8 @@ Only visible in powerstat mode. Three-step confirmation:
 
 **Behavior**: Moving mouse off the button at any step resets back to "reset app".
 
+**Blackout overlay (v1.10.54+):** At step 3, a full-screen black overlay covers the viewport. The reset button stands out against it with the app's background color. The overlay is rendered via `createPortal` to `document.body` (zIndex 9998) to avoid stacking context issues from the settings panel's `overflow-y-auto`. The button wrapper uses zIndex 9999 with the app's background color and `rounded` corners.
+
 Code location: `src/features/settings/components/SettingsPanel.tsx`
 
 ### Powerscramble Mode
