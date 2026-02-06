@@ -141,7 +141,6 @@ export function useJournalEntries() {
       const newTodayEntry: JournalEntry = {
         date: today,
         content: '',
-        startedAt: Date.now(),
       };
       const newEntries = [...entries, newTodayEntry].sort((a, b) => b.date.localeCompare(a.date));
 
