@@ -2546,14 +2546,14 @@ Black rounded rect (rx=229) with green square centered inside. All icons are thi
 
 ### Generating Icons
 
-All PNGs are generated from the single `icon.svg`:
+All PNGs are generated from the single `icon.svg` with `-b black` to fill the entire canvas (no transparency — ensures full-size icons on macOS/iOS dock):
 
 ```bash
 cd public
-rsvg-convert icon.svg -w 1024 -h 1024 -o apple-touch-icon.png
-rsvg-convert icon.svg -w 192 -h 192 -o icon-192.png
-rsvg-convert icon.svg -w 512 -h 512 -o icon-512.png
-rsvg-convert icon.svg -w 1024 -h 1024 -o icon-1024.png
+rsvg-convert icon.svg -w 1024 -h 1024 -b black -o apple-touch-icon.png
+rsvg-convert icon.svg -w 192 -h 192 -b black -o icon-192.png
+rsvg-convert icon.svg -w 512 -h 512 -b black -o icon-512.png
+rsvg-convert icon.svg -w 1024 -h 1024 -b black -o icon-1024.png
 rsvg-convert og-source.svg -w 1200 -h 630 -o og-image.png
 ```
 
