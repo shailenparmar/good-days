@@ -2511,101 +2511,55 @@ To install (first time setup):
 
 If a push is blocked, fix the TypeScript errors shown and try again.
 
-## App Icons (IMPORTANT - Prevents macOS/iOS Shading)
+## App Icons
 
-When creating or modifying app icons, follow these rules to prevent macOS/iOS from applying dark shading effects:
+**One icon, one shape, everywhere.** All icons use the same rounded design from `icon.svg`. No platform-specific workarounds.
 
 ### Icon Files
 
-| File | Purpose | Rounding | Safe? |
-|------|---------|----------|-------|
-| `icon.svg` | Favicon (browser tab) | Apple 22.37% radius (rx=229/1024) | **Safe** — displayed as-is |
-| `og-image.png` | Social sharing (iMessage, etc.) | Apple 22.37% radius (rx=90/400) | **Safe** — displayed as-is |
-| `og-source.svg` | Source SVG for og-image.png | Apple 22.37% radius (rx=90/400) | **Safe** — source file |
-| `apple-touch-icon.png` | iOS/macOS dock | **Full square** — no rounding | **Unsafe** — OS rounds corners |
-| `icon-192.png` | Android/PWA | **Full square** — no rounding | **Unsafe** — OS rounds corners |
-| `icon-512.png` | Android/PWA | **Full square** — no rounding | **Unsafe** — OS rounds corners |
-| `icon-square.svg` | Source SVG for PNG icons | **Full square** — no rounding | **Unsafe** — source for OS icons |
+| File | Size | Purpose |
+|------|------|---------|
+| `icon.svg` | 1024x1024 | Master source — favicon, all PNGs generated from this |
+| `apple-touch-icon.png` | 1024x1024 | iOS/macOS home screen & dock |
+| `icon-192.png` | 192x192 | PWA manifest (Android) |
+| `icon-512.png` | 512x512 | PWA manifest (Android) |
+| `icon-1024.png` | 1024x1024 | PWA manifest (max quality) |
+| `og-image.png` | 1200x630 | Social sharing (iMessage, Twitter, etc.) |
+| `og-source.svg` | 1200x630 | Source SVG for og-image.png |
 
-**Rounding strategy:** Safe icons (displayed as-is by browsers/social platforms) use Apple's macOS icon corner radius (~22.37%). Unsafe icons (processed by iOS/macOS/Android icon pipeline) are full squares so the OS applies its own rounding — adding our own rounding would cause double-rounding artifacts and dark shading.
+**og:image URL:** Must be an **absolute URL** (`https://gdays.day/og-image.png`) in `index.html`. Social crawlers require absolute URLs.
 
-**og:image URL:** Must be an **absolute URL** (`https://gdays.day/og-image.png`) in `index.html`, not a relative path. Social crawlers (iMessage, Twitter, etc.) require absolute URLs to fetch the preview image.
+### Icon Design
 
-### Icon Proportions (Standard)
-
-All icons use the same proportions, derived from one number: **22.37% border**.
-
-| Property | Ratio | At 1024px | Rule |
-|----------|-------|-----------|------|
-| **Border** | 22.37% | 229px each side | = Apple's icon corner radius |
-| **Inner square** | 55.27% | 566×566 | = 100% − 2 × border |
-| **Corner radius** | 22.37% | rx=229 | Only on safe icons (favicon, og-image) |
-
-The elegant constraint: border = corner radius. The inner square starts exactly where the curve straightens out. For dock icons (`icon-square.svg`), no rounding is applied — Apple's OS applies its own ~22.37% superellipse mask, which matches our border thickness. This means the dock icon looks identical to the standard after OS rounding.
-
-### Current Icon Colors
+Black rounded rect (rx=229) with green square centered inside. All icons are this same rounded shape — no square variants.
 
 | Element | Color | HEX |
 |---------|-------|-----|
 | Inner square | Green | `#1FFF0F` |
 | Border/background | Black | `#000000` |
 
-### PNG Icon Requirements (Critical)
+### Generating Icons
 
-To prevent macOS from adding dark shading to icons:
+All PNGs are generated from the single `icon.svg`:
 
-1. **Use HEX colors** in SVG source (not HSL)
-   ```svg
-   fill="#0000EB"  <!-- Good -->
-   fill="hsl(241, 100%, 46%)"  <!-- Bad - may cause issues -->
-   ```
-
-2. **No embedded color profile** - just plain RGB
-   - `space: RGB` (not sRGB IEC61966-2.1)
-   - `samplesPerPixel: 3`
-
-3. **No alpha channel**
-   - `hasAlpha: no`
-
-4. **Fill entire canvas** - no transparency for dock icons
-   - The OS applies rounded corners automatically
-   - Transparent areas trigger OS "enhancement" effects
-
-Verify with: `sips -g hasAlpha -g space -g samplesPerPixel <icon>.png`
+```bash
+cd public
+rsvg-convert icon.svg -w 1024 -h 1024 -o apple-touch-icon.png
+rsvg-convert icon.svg -w 192 -h 192 -o icon-192.png
+rsvg-convert icon.svg -w 512 -h 512 -o icon-512.png
+rsvg-convert icon.svg -w 1024 -h 1024 -o icon-1024.png
+rsvg-convert og-source.svg -w 1200 -h 630 -o og-image.png
+```
 
 ### Manifest Config (vite.config.ts)
 
-```typescript
-manifest: {
-  background_color: '#000000',  // Keep black - other colors may tint icons
-  // Do NOT set theme_color in manifest (causes issues)
-  icons: [
-    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-  ],
-}
-```
-
-Key points:
-- `background_color: '#000000'` - other colors (like yellow) caused shading
-- `purpose: 'any'` - NOT `maskable` (maskable triggers 3D effects)
-- Don't include apple-touch-icon in manifest (it's linked in HTML separately)
-
-### Generating Icons
-
-```bash
-# Create SVG with HEX colors, then:
-cd public
-rsvg-convert -w 180 -h 180 icon-square.svg -o apple-touch-icon.png
-rsvg-convert -w 192 -h 192 icon-square.svg -o icon-192.png
-rsvg-convert -w 512 -h 512 icon-square.svg -o icon-512.png
-
-# Do NOT embed color profiles - leave as plain RGB
-```
+- `background_color: '#000000'`
+- `purpose: 'any'` — NOT `maskable`
+- apple-touch-icon is linked in HTML separately, not in manifest
 
 ### Backup
 
-Original working icons backed up at `public/icon-backup/` for reference.
+Old icons backed up at `public/icon-backup/`.
 
 ## Easter Eggs
 
