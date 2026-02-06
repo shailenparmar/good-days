@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.42';
+  const mobileVersion = '1.10.43';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -563,37 +563,6 @@ function MobileScreen() {
       </>
     );
   };
-
-  // Square marker helper - filled square (target position)
-  const squareMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
-    <div style={{
-      position: 'absolute',
-      width: `${size}px`,
-      height: `${size}px`,
-      backgroundColor: color,
-      left: '50%',
-      top: '50%',
-      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      willChange: 'transform',
-      pointerEvents: 'none',
-    }} />
-  );
-
-  // Outline square marker - hollow square (cursor during seeking)
-  const outlineSquareMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 2) => (
-    <div style={{
-      position: 'absolute',
-      width: `${size}px`,
-      height: `${size}px`,
-      border: `${borderWidth}px solid ${color}`,
-      boxSizing: 'border-box',
-      left: '50%',
-      top: '50%',
-      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      willChange: 'transform',
-      pointerEvents: 'none',
-    }} />
-  );
 
   // X marker helper - two crossed diagonal bars (not live, seeking/target)
   const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
