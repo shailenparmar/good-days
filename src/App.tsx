@@ -846,7 +846,6 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
-            stacked={showDebugMenu && showAboutPanel}
             superscramble={isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={(e) => {

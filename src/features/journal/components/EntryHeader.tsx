@@ -8,14 +8,13 @@ interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
-  stacked?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
   onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, stacked, superscramble, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
