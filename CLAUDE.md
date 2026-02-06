@@ -1099,19 +1099,21 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 
 **Max tilt angle**: ±10° to reach extremes (20° total range)
 
-The sat/light square shows three marker types (v1.10.26+):
+The sat/light square shows three marker types (v1.10.47+):
 
 | Shape | Meaning | When |
 |-------|---------|------|
-| **Square** (16px filled) | Not live — cursor during seeking, or target to dock with | Home calibration, seeking phase |
-| **X** (16px, 2px bars) | Locked position, not interactive | Other color during seeking/adjusting, both colors on home |
-| **Dot** (16px circle) | LIVE — actively adjusting a color via tilt | Adjusting phase only |
+| **Hollow circle** (20px, 4px border) | Cursor or target — "hollow + hollow = filled" | Home tilt feedback, seeking cursor, seeking target |
+| **X** (20px, 4px bars) | Locked position, not interactive | Both colors on home, other color during seeking/adjusting |
+| **Filled circle** (20px) | LIVE — actively adjusting a color via tilt | Adjusting phase only |
 
-**Home screen markers:** Two X's (text and bg sat/light positions) + calibration square (moves with tilt, shows accelerometer feedback)
+**Visual logic:** Two hollow circles collide → become one filled circle. This represents "I found it, now I AM it."
+
+**Home screen markers:** Two X's (text and bg sat/light positions) + hollow circle (moves with tilt, shows accelerometer feedback)
 
 **Seeking/Adjusting phases:** See "Two-Dot Seeking/Docking System" below.
 
-- L corner brackets: 32×2px (v1.10.26+, was 32×4px)
+- L corner brackets: 32×4px, positioned OUTSIDE the marker travel area (v1.10.48+) — they frame the pure square space where markers can move
 - No + crosshair (removed in v1.10.26)
 - Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
 - Labels are fully outside the square bounds (v1.10.26+, were straddling edges), 16px monospace bold
@@ -1126,22 +1128,24 @@ The picker uses a **seek-then-adjust** mechanic that prevents accidental color c
 
 **Phases:**
 
-| Phase | Dot moves? | Colors change? | Markers shown |
+| Phase | Marker moves? | Colors change? | Markers shown |
 |-------|-----------|----------------|---------------|
-| **Home** | Calibration square moves with tilt | No | 2 X's (text/bg positions) + calibration square |
-| **Seeking** | Free square moves with tilt | No (hue bars still work) | Free square (cursor) + target square (dock here) + X (other color, locked) |
-| **Adjusting** | Dot moves with tilt | Yes, active color's sat/light | Dot (LIVE) + X (other color, locked) |
+| **Home** | Hollow circle moves with tilt | No | 2 X's (text/bg positions) + hollow circle (tilt feedback) |
+| **Seeking** | Hollow circle (cursor) moves with tilt | No (hue bars still work) | Hollow circle (cursor) + hollow circle (target) + X (other color, locked) |
+| **Adjusting** | Filled circle moves with tilt | Yes, active color's sat/light | Filled circle (LIVE) + X (other color, locked) |
 
 **Flow:**
 1. Press "text" button → enters **seeking** for text color
-2. Tilt to guide free square toward text's target square — nothing changes yet
-3. Squares overlap (within ~14px) → **docking**: haptic buzz, transitions to **adjusting**
-4. Now tilt controls text sat/light. Dot is LIVE. Bg shown as locked X.
+2. Tilt to guide hollow circle cursor toward text's hollow circle target — nothing changes yet
+3. Circles overlap (within ~14px) → **docking**: haptic buzz, cursor snaps to target position, transitions to **adjusting**
+4. Now tilt controls text sat/light. Circle is filled (LIVE). Bg shown as locked X.
 5. Slide thumb to bg hue bar → back to **seeking** for bg. Text position freezes as X.
-6. Guide square to bg's target square → dock → adjusting bg.
+6. Guide cursor to bg's target circle → dock → adjusting bg.
 7. Lift finger → back to home.
 
-**Contact detection** (v1.10.28+) uses AABB (axis-aligned bounding box) collision in the `deviceorientation` handler during seeking phase. Squares are 16px, dotTravel is 116px, so half-size in normalized space = 16/2/116 ≈ 0.069. Overlap occurs when both X and Y distances are less than the full square size (halfSize × 2). There is a slight intentional "jump" on dock since contact happens within a tolerance, not pixel-perfect.
+**Contact detection** (v1.10.28+) uses AABB (axis-aligned bounding box) collision in the `deviceorientation` handler during seeking phase. Circles are 20px, dotTravel is 116px, so half-size in normalized space = 20/2/116 ≈ 0.086. Overlap occurs when both X and Y distances are less than the full marker size (halfSize × 2).
+
+**Snap-to-target (v1.10.52+):** On collision, the cursor snaps to the target's exact position by recalibrating the tilt baseline. This ensures no color jump when transitioning to adjusting mode — "I found it, now I AM it" at exactly where the color was.
 
 **Side switching** is detected in the global `touchmove` handler. When the finger crosses the midline between hue bars and `activeSide` changes, editing transitions from `adjusting` back to `seeking`. The `activeDot` state tracks which color ('text' | 'bg') is the current target.
 
