@@ -9,7 +9,7 @@ import { useStatistics, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
-import { getItem, setItem } from '@shared/storage';
+import { getItem, setItem, removeItem } from '@shared/storage';
 import { saveAllJournalEntries, flushPendingSaves } from '@shared/storage/journalStorage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';

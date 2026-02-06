@@ -515,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.32';
+  const mobileVersion = '1.10.33';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -572,10 +572,11 @@ function MobileScreen() {
       width: `${size}px`,
       height: `${size}px`,
       backgroundColor: color,
-      left: `calc(50% + ${posX * travel}px)`,
-      top: `calc(50% + ${posY * travel}px)`,
-      transform: 'translate(-50%, -50%)',
-      transition: 'left 50ms linear, top 50ms linear',
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
+      transition: 'transform 33ms linear',
+      willChange: 'transform',
       pointerEvents: 'none',
     }} />
   );
@@ -584,12 +585,13 @@ function MobileScreen() {
   const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16) => (
     <div style={{
       position: 'absolute',
-      left: `calc(50% + ${posX * travel}px)`,
-      top: `calc(50% + ${posY * travel}px)`,
+      left: '50%',
+      top: '50%',
       width: `${size}px`,
       height: `${size}px`,
-      transform: 'translate(-50%, -50%)',
-      transition: 'left 50ms linear, top 50ms linear',
+      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
+      transition: 'transform 33ms linear',
+      willChange: 'transform',
       pointerEvents: 'none',
     }}>
       <div style={{ position: 'absolute', width: '100%', height: `${cornerW}px`, backgroundColor: color, top: '50%', left: 0, transform: 'translateY(-50%) rotate(45deg)' }} />
@@ -605,10 +607,11 @@ function MobileScreen() {
       height: `${size}px`,
       borderRadius: '50%',
       backgroundColor: color,
-      left: `calc(50% + ${posX * travel}px)`,
-      top: `calc(50% + ${posY * travel}px)`,
-      transform: 'translate(-50%, -50%)',
-      transition: 'left 50ms linear, top 50ms linear',
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
+      transition: 'transform 33ms linear',
+      willChange: 'transform',
       pointerEvents: 'none',
     }} />
   );
