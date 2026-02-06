@@ -4,23 +4,26 @@
 
 **EVERY push requires ALL of these steps. No exceptions.**
 
-**SPEED RULE: Push first, document second.** Get the code change deployed ASAP. Documentation is a separate commit immediately after.
+**SPEED RULE: Push first, verify deploy, document second.** Get the code change deployed ASAP. Documentation is a separate commit immediately after.
 
 ### Step 1: Push the code
 1. **Increment version** in `src/shared/version.ts`
 2. **Commit code changes + version bump**
 3. **Push to main**
-4. **Verify deployment**: Run `gh run list --limit 1` to check the GitHub Actions workflow triggered and passes. If it fails, investigate and fix immediately.
-5. **Tell the user**: "Pushed **vX.Y.Z**" (include deploy status)
 
-### Step 2: Document (immediately after)
-5. **Update CLAUDE.md** with any changes to:
+### Step 2: Verify deployment
+4. **Wait ~30s then run `gh run list --limit 1`** to check the GitHub Actions workflow status
+5. If still `in_progress`, wait and check again. If `completed success`, proceed. If `failure`, investigate and fix immediately (check logs with `gh run view <id> --log-failed`)
+6. **Tell the user**: "Pushed **vX.Y.Z** — deploy successful" (or report the failure)
+
+### Step 3: Document (immediately after)
+7. **Update CLAUDE.md** with any changes to:
    - UI behavior or styling
    - Keyboard shortcuts or interactions
    - State management patterns
    - Any logic that future development should know about
-6. **Commit and push** the documentation update
-7. **Tell the user** what was documented
+8. **Commit and push** the documentation update
+9. **Tell the user** what was documented
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
