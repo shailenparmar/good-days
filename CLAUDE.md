@@ -446,7 +446,20 @@ All three export buttons (copy, download backup, import) live in a single `<div 
   [contenteditable="true"], .cursor-text { cursor: text; }
   ```
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
-- **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, zen mode, scramble state, etc.
+- **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, scramble state, etc. **Exception: zen and minizen modes** — these are ephemeral focus states that reset on refresh (see below).
+
+### Zen/Minizen Refresh Behavior (v1.10.37+)
+
+**Zen and minizen are NOT persisted across refresh.** Refreshing always returns to base state (sidebar visible, panels restored). This is an intentional escape hatch for users who accidentally enter these modes.
+
+**How panel restoration works:**
+- `preFocusState` is still persisted to localStorage (via `usePersisted`). It stores the panel state from before entering any focus mode.
+- On init, a synchronous IIFE reads and consumes `preFocusState` before `useState` initializers run.
+- If `preFocusState` exists, panels are restored from it (not from the stale `showSettings`/`showAbout` keys, which were written as `false` when entering focus mode).
+- `zenMode`, `minizen`, and `zenFromMinizen` are plain `useState(false)` — never persisted.
+
+**Edge case: direct focus exit via panel buttons.**
+When clicking the settings/about buttons exits focus mode directly (bypassing `exitMinizen`/`exitZen`), `setPreFocusState(null)` and `setZenFromMinizen(false)` are called to prevent stale panel restore on next refresh.
 
 ### Scroll Position Persistence
 

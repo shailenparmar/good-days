@@ -9,7 +9,7 @@ import { useStatistics, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
-import { getItem, setItem } from '@shared/storage';
+import { getItem, setItem, removeItem } from '@shared/storage';
 import { saveAllJournalEntries, flushPendingSaves } from '@shared/storage/journalStorage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
@@ -92,11 +92,30 @@ function AppContent() {
   const auth = useAuth();
   const journal = useJournalEntries();
 
+  // If previous session was in a focus mode (zen/minizen), preFocusState has the panel
+  // state from before entering that mode. Use it to restore panels on refresh.
+  // This read + clear happens synchronously before useState initializers consume it.
+  const savedPanelState = (() => {
+    try {
+      const raw = getItem('preFocusState');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed) {
+          removeItem('preFocusState');
+          return parsed;
+        }
+      }
+    } catch { /* corrupted state, ignore */ }
+    return null;
+  })();
+
   // Panel and scramble state - declared before useStatistics so we can pause it in superscramble
   const [showDebugMenu, setShowDebugMenu] = useState(() => {
+    if (savedPanelState) return savedPanelState.showDebugMenu;
     return getItem('showSettings') === 'true';
   });
   const [showAboutPanel, setShowAboutPanel] = useState(() => {
+    if (savedPanelState) return savedPanelState.showAboutPanel;
     return getItem('showAbout') === 'true';
   });
   const [isScrambled, setIsScrambled] = useState(() => {
@@ -118,11 +137,13 @@ function AppContent() {
   // If in narrow mode and panels are open on load, show sidebar
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(() => {
     const narrow = window.innerWidth < 711;
-    const panelsOpen = getItem('showSettings') === 'true' || getItem('showAbout') === 'true';
+    const panelsOpen = savedPanelState
+      ? (savedPanelState.showDebugMenu || savedPanelState.showAboutPanel)
+      : (getItem('showSettings') === 'true' || getItem('showAbout') === 'true');
     return narrow && panelsOpen;
   });
-  const [zenMode, setZenMode] = usePersisted('zenMode', false); // Full zen: just editor, hide everything
-  const [minizen, setMinizen] = usePersisted('minizen', false); // Minizen: hide sidebar, keep header+footer (wide only)
+  const [zenMode, setZenMode] = useState(false); // Full zen: just editor, hide everything (not persisted — refresh returns to base)
+  const [minizen, setMinizen] = useState(false); // Minizen: hide sidebar, keep header+footer (not persisted — refresh returns to base)
 
   // Ref to track zenMode for ESC handler (avoids stale closure issues)
   const zenModeRef = useRef(zenMode);
@@ -140,7 +161,7 @@ function AppContent() {
     showAboutPanel: boolean;
   } | null>('preFocusState', null);
   // Track if zen was entered from minizen (for proper exit behavior)
-  const [zenFromMinizen, setZenFromMinizen] = usePersisted('zenFromMinizen', false);
+  const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
   const [titleHovered, setTitleHovered] = useState(false);
@@ -282,6 +303,13 @@ function AppContent() {
 
   // Log app load (once on mount)
   useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
+
+  // Clean up stale focus mode keys from localStorage (zen/minizen no longer persisted)
+  useEffect(() => {
+    removeItem('zenMode');
+    removeItem('minizen');
+    removeItem('zenFromMinizen');
+  }, []);
 
   // Save panel states to localStorage
   useEffect(() => {
@@ -699,6 +727,8 @@ function AppContent() {
             if (opening) {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
+              setPreFocusState(null); // Clear saved focus state (direct exit, not via exitMinizen/exitZen)
+              setZenFromMinizen(false);
               if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
             }
             // Interacting with panels in narrow mode = commit to narrow, clear wide state
@@ -714,6 +744,8 @@ function AppContent() {
             if (opening) {
               setZenMode(false); // Exit zen when opening panel
               setMinizen(false); // Exit minizen too
+              setPreFocusState(null); // Clear saved focus state (direct exit, not via exitMinizen/exitZen)
+              setZenFromMinizen(false);
               if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
             }
             // Interacting with panels in narrow mode = commit to narrow, clear wide state
