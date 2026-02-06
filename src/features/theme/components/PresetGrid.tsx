@@ -379,8 +379,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   };
 
   return (
-    <div ref={containerRef} className="overflow-y-auto scrollbar-hide" style={{ maxHeight: '144px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-      <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+    <div ref={containerRef}>
       <div className="grid grid-cols-5 gap-1">
         {/* Default presets */}
         {presets.map((preset, index) => {

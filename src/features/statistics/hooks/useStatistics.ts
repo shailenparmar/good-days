@@ -17,11 +17,13 @@ export function useStatistics(paused: boolean = false) {
 
   // Save total keystrokes to storage whenever it changes
   useEffect(() => {
+    if ((window as { __resettingApp?: boolean }).__resettingApp) return;
     setItem('totalKeystrokes', String(totalKeystrokes));
   }, [totalKeystrokes]);
 
   // Save total seconds to storage whenever it changes
   useEffect(() => {
+    if ((window as { __resettingApp?: boolean }).__resettingApp) return;
     setItem('totalSecondsOnApp', String(totalSecondsOnApp));
   }, [totalSecondsOnApp]);
 
@@ -35,6 +37,7 @@ export function useStatistics(paused: boolean = false) {
     if (paused) return;
 
     const interval = setInterval(() => {
+      if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       const currentSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
       setTotalSecondsOnApp(baseSecondsRef.current + currentSessionSeconds);
     }, 1000);
@@ -47,6 +50,7 @@ export function useStatistics(paused: boolean = false) {
   // Save before app closes
   useEffect(() => {
     const handleBeforeUnload = () => {
+      if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       const currentSessionSeconds = Math.floor((Date.now() - appSessionStart.current) / 1000);
       setItem('totalSecondsOnApp', String(baseSecondsRef.current + currentSessionSeconds));
     };

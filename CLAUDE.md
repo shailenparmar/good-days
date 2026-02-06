@@ -1314,6 +1314,10 @@ The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded co
 
 These are intentionally NOT tied to presets so the error screen always displays consistently.
 
+### Preset Grid Layout
+
+The preset grid (`PresetGrid.tsx`) is a 5-column CSS grid with no height limit — it grows freely to accommodate any number of presets. Users can create unlimited custom presets via the "save" button.
+
 ### Preset Keyboard Navigation
 
 When settings is open, presets can be controlled with the keyboard:
@@ -2884,14 +2888,21 @@ deleteRequest.onerror = () => location.reload();
 deleteRequest.onblocked = () => location.reload();
 ```
 
-The `__resettingApp` flag is checked in `useJournalEntries.ts`:
+The `__resettingApp` flag is checked in both `useJournalEntries.ts` and `useStatistics.ts`:
 
 ```tsx
-// beforeunload handler
+// useJournalEntries.ts - beforeunload handler
 if ((window as { __resettingApp?: boolean }).__resettingApp) return;  // Skip save during reset
+
+// useStatistics.ts - guards all three save paths:
+// 1. setItem effect for totalKeystrokes
+// 2. setItem effect for totalSecondsOnApp
+// 3. setInterval tick (prevents stale baseSecondsRef from updating state)
+// 4. beforeunload handler
+if ((window as { __resettingApp?: boolean }).__resettingApp) return;
 ```
 
-**Why this matters:** Without the flag, the beforeunload handler would save entries to localStorage immediately before reload, then `initJournalStorage()` would find them and migrate them back to IndexedDB on the fresh load.
+**Why this matters:** Without the flag, the beforeunload handler would save entries to localStorage immediately before reload, then `initJournalStorage()` would find them and migrate them back to IndexedDB on the fresh load. Similarly, the statistics hook's interval and save effects would re-persist the old `totalSecondsOnApp` and `totalKeystrokes` values to localStorage after `clear()` but before reload.
 
 ### Storage Display (Powerstat Mode)
 

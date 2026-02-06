@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { RotateCcw, Bug } from 'lucide-react';
 import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
@@ -212,14 +213,16 @@ export function SettingsPanel({
             <Bug className="w-3 h-3" />
             <span>{superscramble ? scrambleText('export debug log') : 'export debug log'}</span>
           </FunctionButton>
-          {/* Blackout overlay for final confirmation */}
-          {resetStep === 2 && (
+          {/* Blackout overlay for final confirmation - portal to body to avoid stacking context issues */}
+          {resetStep === 2 && createPortal(
             <div
-              className="fixed inset-0 bg-black z-40"
+              className="fixed inset-0 bg-black"
+              style={{ zIndex: 9998 }}
               onClick={() => setResetStep(0)}
-            />
+            />,
+            document.body
           )}
-          <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative z-50' : ''}>
+          <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative rounded' : ''} style={resetStep === 2 ? { zIndex: 9999, backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` } : undefined}>
             <FunctionButton onClick={handleResetApp} size="sm">
               <RotateCcw className="w-3 h-3" />
               <span>
