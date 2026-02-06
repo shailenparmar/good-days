@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.43';
+  const mobileVersion = '1.10.44';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -598,7 +598,7 @@ function MobileScreen() {
   );
 
   // Hollow circle marker - outline circle (cursor/target during seeking, home calibration)
-  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 2) => (
+  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 4) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
