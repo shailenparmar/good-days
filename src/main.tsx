@@ -88,7 +88,7 @@ function parseColorInput(input: string) {
 function MobileScreen() {
   // Color state
   const [colors, setColors] = useState<ColorState>({
-    hue: 116, sat: 100, light: 53, bgHue: 96, bgSat: 100, bgLight: 0,
+    hue: 215, sat: 100, light: 0, bgHue: 28, bgSat: 100, bgLight: 83,
   });
 
   // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
@@ -515,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.35';
+  const mobileVersion = '1.10.36';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
