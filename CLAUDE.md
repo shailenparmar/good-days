@@ -1376,6 +1376,13 @@ The app has a "type anywhere to focus editor" feature. When you press a key, it 
 
 Code location: `App.tsx` `handleGlobalKeyDown`
 
+**Read-only textarea passthrough (v1.10.59+):** When viewing an old entry, the textarea is `readOnly`. If the user clicks/taps into it (common in narrow mode where the editor is full-screen), the global handler must still fire to switch to today. Two guards are aware of this:
+
+1. The textarea guard skips writable textareas but allows read-only ones through: `if (tagName === 'textarea' && !readOnly) return`
+2. The editor-contains guard only skips when on today's entry: `if (editorRef.contains(activeEl) && selectedDate === today) return`
+
+Before v1.10.59, both guards bailed unconditionally, so clicking an old entry's editor and typing did nothing.
+
 **Settings protection:** When settings is open (whether just settings, powerstat, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
 
 ```tsx
