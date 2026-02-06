@@ -27,6 +27,12 @@ type ColorState = {
 
 function parseColorInput(input: string) {
   const trimmed = input.trim().toLowerCase();
+  // Try new format: "txt: #rrggbb h234 s23 l99" or "bg: #rrggbb h234 s23 l99"
+  const newFormatMatch = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
+  if (newFormatMatch) {
+    const type = newFormatMatch[1] as 'txt' | 'bg';
+    return { type, h: parseInt(newFormatMatch[2]), s: parseInt(newFormatMatch[3]), l: parseInt(newFormatMatch[4]) };
+  }
   // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
   const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
   if (labeledHexMatch) {
@@ -215,7 +221,8 @@ function MobileScreen() {
     const rect = bar.getBoundingClientRect();
     const relY = (y - rect.top) / rect.height;
     const clampedY = Math.max(0, Math.min(1, relY));
-    const newHue = Math.round(clampedY * 360);
+    // Gradient is flipped: top = 359°, bottom = 0°
+    const newHue = Math.round((1 - clampedY) * 359);
 
     if (activeSide.current === 'left') {
       setTextTouchY(clampedY);
@@ -289,12 +296,13 @@ function MobileScreen() {
           ? -(cur.light - 50) / 50
           : -(cur.bgLight - 50) / 50;
 
-        const dx = tiltPosX - targetPosX;
-        const dy = tiltPosY - targetPosY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const contactThreshold = 0.12; // ~14px in the 252px square
+        // Square-to-square overlap check (AABB collision)
+        // Squares are 16px, dotTravel is 116px, so half-size in normalized space = 16 / 2 / 116 ≈ 0.069
+        const halfSize = 16 / 2 / 116;
+        const overlapX = Math.abs(tiltPosX - targetPosX) < halfSize * 2;
+        const overlapY = Math.abs(tiltPosY - targetPosY) < halfSize * 2;
 
-        if (dist < contactThreshold) {
+        if (overlapX && overlapY) {
           setEditing('adjusting');
           if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
         }
@@ -434,7 +442,7 @@ function MobileScreen() {
   // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
-    const text = `txt: ${hslToHex(colors.hue, colors.sat, colors.light)}\nbg: ${hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}`;
+    const text = `txt: ${hslToHex(colors.hue, colors.sat, colors.light)} h${colors.hue % 360} s${colors.sat} l${colors.light}\nbg: ${hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)} h${colors.bgHue % 360} s${colors.bgSat} l${colors.bgLight}`;
     // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -506,15 +514,15 @@ function MobileScreen() {
     return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
   };
 
-  // Pure hue gradient - always 100% sat, 50% light (unaffected by tilt)
-  const pureHueGradient = `linear-gradient(to bottom,
+  // Pure hue gradient - 0° at bottom, 359° at top (ROYGBIV bottom to top)
+  const pureHueGradient = `linear-gradient(to top,
     hsl(0, 100%, 50%),
     hsl(60, 100%, 50%),
     hsl(120, 100%, 50%),
     hsl(180, 100%, 50%),
     hsl(240, 100%, 50%),
     hsl(300, 100%, 50%),
-    hsl(360, 100%, 50%)
+    hsl(359, 100%, 50%)
   )`;
 
   // Set tilt button press state
@@ -522,7 +530,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.26';
+  const mobileVersion = '1.10.28';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -629,8 +637,8 @@ function MobileScreen() {
     const bgPosX = (colors.bgSat - 50) / 50;
     const bgPosY = -(colors.bgLight - 50) / 50;
 
-    const isHome = !showLabels;
-    const isPicker = showLabels;
+    const isHome = editing === null;
+    const isPickerScreen = editing === 'seeking' || editing === 'adjusting';
 
     return (
       <div
@@ -653,7 +661,7 @@ function MobileScreen() {
           </>
         )}
 
-        {isPicker && editing === 'seeking' && (
+        {isPickerScreen && editing === 'seeking' && (
           <>
             {/* SEEKING: free square (cursor) + target square (dock here) + other X (locked) */}
             {squareMarker(tiltX, tiltY, textColor, dotTravel)}
@@ -671,7 +679,7 @@ function MobileScreen() {
           </>
         )}
 
-        {isPicker && editing === 'adjusting' && (
+        {isPickerScreen && editing === 'adjusting' && (
           <>
             {/* ADJUSTING: active dot (LIVE) + other X (locked) */}
             {activeDot === 'text' ? (
@@ -694,19 +702,35 @@ function MobileScreen() {
   const isPicking = editing === 'seeking' || editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
 
+  // Safe area style for notch/Dynamic Island/home indicator
+  const safeAreaStyle: React.CSSProperties = {
+    paddingTop: 'env(safe-area-inset-top, 0px)',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+    paddingLeft: 'env(safe-area-inset-left, 0px)',
+    paddingRight: 'env(safe-area-inset-right, 0px)',
+  };
+
   // All three screens always rendered (visibility-toggled) for seamless transitions.
   return (
     <>
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor, visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2 }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor, visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2, ...safeAreaStyle }}>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
           onTouchEnd={() => setTitlePressed(false)}
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
-        <div style={{ flex: 1 }} />
-        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+
+        {/* Square with just L corners - matches home screen layout */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '252px', height: '252px', position: 'relative' }}>
+            {cornerBrackets(252, textColor, false)}
+          </div>
+        </div>
+
+        {/* Button area - same position as home screen buttons */}
+        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
@@ -714,6 +738,16 @@ function MobileScreen() {
             style={getButtonStyle(setTiltPressed, 'full')}
           >
             calibrate tilt
+          </div>
+
+          {/* Placeholder rows to match home screen button stack height */}
+          <div style={{ display: 'flex' }}>
+            <div style={{ ...getButtonStyle(false, 'left'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right'), visibility: 'hidden' }}>&nbsp;</div>
+          </div>
+          <div style={{ display: 'flex' }}>
+            <div style={{ ...getButtonStyle(false, 'left'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right'), visibility: 'hidden' }}>&nbsp;</div>
           </div>
         </div>
       </div>
@@ -732,6 +766,7 @@ function MobileScreen() {
           WebkitTouchCallout: 'none',
           visibility: isPicking ? 'visible' : 'hidden',
           zIndex: isPicking ? 10 : -1,
+          ...safeAreaStyle,
         } as React.CSSProperties}
       >
         <span
@@ -743,15 +778,23 @@ function MobileScreen() {
 
         {/* Square complex - centered between title and spectrum */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {tiltSquare(252, true)}
+          {tiltSquare(252, editing === 'adjusting')}
         </div>
 
         {/* Hue bars - sized to match home screen button area */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
-          {/* Live hex codes - at top of interaction segment */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', pointerEvents: 'none', zIndex: 3 }}>
-            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>txt: {hslToHex(colors.hue, colors.sat, colors.light)}</span>
-            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>bg: {hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+          {/* Live color values - hex row (with txt:/bg: labels) above, hsl row sitting on top of spectra */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', pointerEvents: 'none', zIndex: 3 }}>
+            {/* Hex row with labels */}
+            <div style={{ display: 'flex' }}>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>txt: {hslToHex(colors.hue, colors.sat, colors.light)}</span>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>bg: {hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
+            </div>
+            {/* HSL row - sits on top of spectra */}
+            <div style={{ display: 'flex' }}>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.hue % 360} s{Math.min(99, colors.sat)} l{Math.min(99, colors.light)}</span>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.bgHue % 360} s{Math.min(99, colors.bgSat)} l{Math.min(99, colors.bgLight)}</span>
+            </div>
           </div>
           {/* Invisible buttons set the correct height */}
           <div style={{ visibility: 'hidden', padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -759,21 +802,14 @@ function MobileScreen() {
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
           </div>
-          {/* text|background labels — measured from home screen ref for pixel-perfect match */}
-          {btnRects.textBgTop > 0 && (
-            <div style={{ position: 'fixed', top: btnRects.textBgTop, left: 0, right: 0, height: btnRects.textBgBottom - btnRects.textBgTop, display: 'flex', zIndex: 5, pointerEvents: 'none' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: 'black' }}>text</div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: 'black' }}>background</div>
-            </div>
-          )}
-          {/* Bars overlay - top offset makes room for hex codes, gradient squishes to fit */}
-          <div style={{ position: 'absolute', top: 24, left: 0, right: 0, bottom: 0, display: 'flex' }}>
+          {/* Bars overlay - top offset makes room for hex+hsl codes, gradient squishes to fit */}
+          <div style={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, display: 'flex' }}>
             {/* Left: text hue bar */}
             <div
               ref={leftBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && activeSide.current === 'left'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.hue / 360) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && activeSide.current === 'left'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Right: background hue bar */}
@@ -781,7 +817,7 @@ function MobileScreen() {
               ref={rightBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && activeSide.current === 'right'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${(colors.bgHue / 360) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && activeSide.current === 'right'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
@@ -804,6 +840,7 @@ function MobileScreen() {
           WebkitTouchCallout: 'none',
           visibility: isPicking ? 'hidden' : 'visible',
           zIndex: isPicking ? -1 : 1,
+          ...safeAreaStyle,
         } as React.CSSProperties}
       >
         <span

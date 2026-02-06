@@ -1003,10 +1003,10 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        └────────┘              │     Two-Dot Seeking/Docking System
 │            black               │
 │                                │
-│  txt: #78cc33  bg: #c8ff00    │  ← Hex codes (4px above spectra top)
+│  txt: #78cc33  bg: #c8ff00    │  ← Hex codes with labels (16px monospace bold)
+│  h96 s100 l50  h84 s100 l88   │  ← HSL values (sits on spectra top)
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
-│  hue gradient  ┃ hue gradient │  ← Split hue bars (8px vertical divider)
-│     text       ┃  background  │  ← Labels (black, same position as home buttons)
+│  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 8px divider)
 │                ┃              │
 └────────────────┻──────────────┘
 ```
@@ -1036,19 +1036,18 @@ Labels have `lineHeight: 20px` and overhang the square edges by 10px (half the l
 CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 ```
 
-**Hex codes and spectra layout (v1.10.20+):**
+**Hex codes and spectra layout (v1.10.28+):**
 
-The hex codes display as `txt: #hex` and `bg: #hex` (matching copy/paste format), positioned at the top of the interaction segment. The spectra are squished vertically to make room (gradient compressed, all hues still represented). The "text" and "background" labels are rendered in pure black on top of the spectra, positioned using measured coordinates from the home screen `textBgRowRef` for pixel-perfect alignment between screens.
+The picker displays hex codes with `txt:` and `bg:` prefixes, plus an HSL row below. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top). No "text"/"background" labels on spectra (v1.10.28+).
 
 ```
 Picker bottom section:
 ┌────────────────────────────────┐
-│  txt: #78cc33   bg: #c8ff00   │ ← Hex codes (top of section, 16px monospace bold)
-│                4px gap         │
+│  txt: #78cc33   bg: #c8ff00   │ ← Hex codes with labels (16px monospace bold)
+│  h96 s100 l50   h84 s100 l88  │ ← HSL values (sits on top of spectra)
 │ ──────────────╋───────────────│ ← Hue indicators (center-based, clip at edges)
-│  hue gradient ┃ hue gradient  │ ← Spectra (squished to fit, 8px divider)
-│     text      ┃  background   │ ← Labels (black, position matches home buttons)
-│               ┃               │
+│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 8px divider)
+│               ┃               │ ← No labels here (removed in v1.10.28)
 └───────────────┻───────────────┘
 ```
 
@@ -1126,7 +1125,7 @@ The picker uses a **seek-then-adjust** mechanic that prevents accidental color c
 6. Guide square to bg's target square → dock → adjusting bg.
 7. Lift finger → back to home.
 
-**Contact detection** happens in the `deviceorientation` handler during seeking phase. Threshold: `0.12` in normalized [-1, 1] space (~14px in the 252px square). There is a slight intentional "jump" on dock since contact happens within a radius, not pixel-perfect.
+**Contact detection** (v1.10.28+) uses AABB (axis-aligned bounding box) collision in the `deviceorientation` handler during seeking phase. Squares are 16px, dotTravel is 116px, so half-size in normalized space = 16/2/116 ≈ 0.069. Overlap occurs when both X and Y distances are less than the full square size (halfSize × 2). There is a slight intentional "jump" on dock since contact happens within a tolerance, not pixel-perfect.
 
 **Side switching** is detected in the global `touchmove` handler. When the finger crosses the midline between hue bars and `activeSide` changes, editing transitions from `adjusting` back to `seeking`. The `activeDot` state tracks which color ('text' | 'bg') is the current target.
 
@@ -1179,16 +1178,24 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 
 | Button | Action |
 |--------|--------|
-| `copy` | Copies `txt: #hex\nbg: #hex` to clipboard |
-| `paste` | Parses clipboard, applies colors |
+| `copy` | Copies `txt: #hex h96 s100 l50\nbg: #hex h84 s100 l88` to clipboard |
+| `paste` | Parses clipboard, applies colors (uses HSL values, ignores hex) |
+
+**Copy format (v1.10.28+):** Includes both hex and HSL values. Example:
+```
+txt: #78cc33 h96 s100 l50
+bg: #c8ff00 h84 s100 l88
+```
 
 **iOS copy method:** Uses textarea + `document.execCommand('copy')` instead of `navigator.clipboard.writeText()`. The Clipboard API on iOS Safari URL-encodes text when pasting into iMessage and other apps (`%20` for spaces, `%25` for `%`, etc.). The textarea approach writes pure plain text. Falls back to Clipboard API if execCommand fails.
 
 **Paste decoding:** Both mobile and desktop paste handlers run `decodeURIComponent()` on clipboard text before parsing, as a safety net for URL-encoded input.
 
-**Supported paste formats:**
-- `txt: #rrggbb` - text color HEX (primary format, matches copy output)
-- `bg: #rrggbb` - background color HEX (primary format, matches copy output)
+**Supported paste formats (in priority order):**
+- `txt: #rrggbb h123 s45 l67` - new format with hex + HSL (HSL values used, hex ignored)
+- `bg: #rrggbb h123 s45 l67` - new format with hex + HSL (HSL values used, hex ignored)
+- `txt: #rrggbb` - text color HEX only
+- `bg: #rrggbb` - background color HEX only
 - `txt: h, s%, l%` - text color HSL (legacy)
 - `bg: h, s%, l%` - background color HSL (legacy)
 - `h, s%, l%` - plain HSL (applies to text)
@@ -1215,17 +1222,17 @@ The paste button uses additional measures to prevent iOS Writing Tools:
 
 Note: The iOS "Paste" callout when reading clipboard via `navigator.clipboard.readText()` is a system requirement and cannot be suppressed or dismissed by tapping outside.
 
-### Hue Indicator Positioning (v1.10.20+)
+### Hue Indicator Positioning (v1.10.28+)
 
-The horizontal hue indicator uses center-based positioning with `overflow: hidden` on the bars:
+The hue spectrum is flipped: **0° at bottom, 359° at top** (ROYGBIV from bottom to top, no duplicate red). The horizontal hue indicator uses center-based positioning with `overflow: hidden` on the bars:
 ```css
-top: calc(X% - ${h/2}px)    /* h = 4px idle, 8px active */
+top: calc(${((359 - hue) / 359) * 100}% - ${h/2}px)    /* h = 4px idle, 8px active */
 ```
-The indicator's **centerline** is the true hue position. At the extremes (hue 0 or 360), half the indicator clips off the bar edge via `overflow: hidden`. This matches the mental model that the thin midpoint line marks the actual hue.
+The indicator's **centerline** is the true hue position. At the extremes (hue 0 at bottom or 359 at top), half the indicator clips off the bar edge via `overflow: hidden`. This matches the mental model that the thin midpoint line marks the actual hue.
 
 **Active thickness:** The indicator doubles from 4px to 8px when actively picking on that side (`isPicking && activeSide.current === side`). The thickness change is symmetric around the center — 2px added to each side.
 
-**Above-bar snapping (v1.10.20+):** When the finger slides above the bar top (fast drag), the hue snaps to 0 instead of getting stuck at the last tracked position. Below the bar, `processTouchAt` clamps to hue 360.
+**Above-bar snapping:** When the finger slides above the bar top (fast drag), the hue snaps to 359 (top) instead of getting stuck at the last tracked position. Below the bar, `processTouchAt` clamps to hue 0 (bottom).
 
 ### Title Version Display
 
@@ -1240,6 +1247,21 @@ Tap and hold the "good days" title on any screen to show the version number (e.g
 | Touch start (begin picking) | 10ms vibration |
 | Touch end (lock color) | 5ms, 30ms pause, 5ms |
 | Button tap | 10ms vibration |
+
+### Safe Area Insets (v1.10.28+)
+
+All three mobile screens (permission, picker, home) apply CSS `env(safe-area-inset-*)` padding to handle notch/Dynamic Island and home indicator areas:
+
+```typescript
+const safeAreaStyle: React.CSSProperties = {
+  paddingTop: 'env(safe-area-inset-top, 0px)',
+  paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+  paddingLeft: 'env(safe-area-inset-left, 0px)',
+  paddingRight: 'env(safe-area-inset-right, 0px)',
+};
+```
+
+This ensures content doesn't overlap with device UI elements when added to home screen (PWA mode).
 
 Code location: `src/main.tsx`
 

@@ -354,6 +354,13 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const parseColorInput = useCallback((input: string) => {
     const trimmed = input.trim().toLowerCase();
 
+    // Try new format: "txt: #rrggbb h234 s23 l99" or "bg: #rrggbb h234 s23 l99"
+    const newFormatMatch = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
+    if (newFormatMatch) {
+      const type = newFormatMatch[1] as 'txt' | 'bg';
+      return { type, h: parseInt(newFormatMatch[2]), s: parseInt(newFormatMatch[3]), l: parseInt(newFormatMatch[4]) };
+    }
+
     // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
     const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
     if (labeledHexMatch) {
@@ -422,11 +429,11 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return null;
   }, []);
 
-  // Handle copy button click - copies hex color values to clipboard
+  // Handle copy button click - copies hex + hsl color values to clipboard
   const handleColorCopy = useCallback(() => {
-    const textHex = `txt: ${hslToHex(hue, saturation, lightness)}`;
-    const bgHex = `bg: ${hslToHex(bgHue, bgSaturation, bgLightness)}`;
-    const copyText = `${textHex}\n${bgHex}`;
+    const textLine = `txt: ${hslToHex(hue, saturation, lightness)} h${hue % 360} s${saturation} l${lightness}`;
+    const bgLine = `bg: ${hslToHex(bgHue, bgSaturation, bgLightness)} h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
+    const copyText = `${textLine}\n${bgLine}`;
     navigator.clipboard.writeText(copyText);
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
