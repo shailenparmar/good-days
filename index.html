@@ -19,15 +19,8 @@
         var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         var h, s, l;
         if (isMobile) {
-          // Mobile stores colors in mobileColors JSON blob
-          try {
-            var mc = JSON.parse(localStorage.getItem('mobileColors') || '');
-            h = mc.bgHue; s = mc.bgSat; l = mc.bgLight;
-          } catch(e) { /* no saved mobile colors */ }
-          // Mobile defaults: black background
-          h = h !== undefined ? h : 96;
-          s = s !== undefined ? s : 100;
-          l = l !== undefined ? l : 0;
+          // Mobile: always black behind safe areas (Dynamic Island + home indicator)
+          h = 0; s = 0; l = 0;
         } else {
           h = localStorage.getItem('bgHue');
           s = localStorage.getItem('bgSaturation');

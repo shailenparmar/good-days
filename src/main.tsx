@@ -143,17 +143,16 @@ function MobileScreen() {
     localStorage.setItem('mobileColors', JSON.stringify(colors));
   }, [colors]);
 
-  // Update theme-color meta
+  // Update theme-color meta — always black so Safari chrome + safe areas stay black
   useEffect(() => {
-    const hex = hslToHex(colors.bgHue, colors.bgSat, colors.bgLight);
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
-    meta.content = hex;
+    meta.content = '#000000';
     document.head.appendChild(meta);
-    document.body.style.setProperty('background-color', bgColor, 'important');
-    document.documentElement.style.setProperty('background-color', bgColor, 'important');
-  }, [bgColor, colors.bgHue, colors.bgSat, colors.bgLight]);
+    document.body.style.setProperty('background-color', '#000000', 'important');
+    document.documentElement.style.setProperty('background-color', '#000000', 'important');
+  }, []);
 
   // Lock to portrait
   useEffect(() => {
@@ -515,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.39';
+  const mobileVersion = '1.10.40';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -718,7 +717,8 @@ function MobileScreen() {
   return (
     <>
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: bgColor, visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2, ...safeAreaStyle }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2, ...safeAreaStyle }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -755,6 +755,7 @@ function MobileScreen() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* ===== PICKER SCREEN (visible when picking) ===== */}
       <div
@@ -763,7 +764,7 @@ function MobileScreen() {
           inset: 0,
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: bgColor,
+          backgroundColor: '#000',
           touchAction: 'none',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -773,6 +774,7 @@ function MobileScreen() {
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -829,6 +831,7 @@ function MobileScreen() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* ===== HOME SCREEN (visible when not picking) ===== */}
       <div
@@ -837,7 +840,7 @@ function MobileScreen() {
           inset: 0,
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: bgColor,
+          backgroundColor: '#000',
           touchAction: 'none',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -847,6 +850,7 @@ function MobileScreen() {
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -912,6 +916,7 @@ function MobileScreen() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
     </>
