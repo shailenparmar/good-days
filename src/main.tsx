@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.40';
+  const mobileVersion = '1.10.41';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -705,10 +705,10 @@ function MobileScreen() {
   const isPicking = editing === 'seeking' || editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
 
-  // Safe area style for notch/Dynamic Island/home indicator
+  // Safe area style — always at least 12px black at top/bottom so the frame is visible
   const safeAreaStyle: React.CSSProperties = {
-    paddingTop: 'env(safe-area-inset-top, 0px)',
-    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+    paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+    paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
     paddingLeft: 'env(safe-area-inset-left, 0px)',
     paddingRight: 'env(safe-area-inset-right, 0px)',
   };
