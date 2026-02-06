@@ -515,7 +515,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.38';
+  const mobileVersion = '1.10.39';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -660,8 +660,8 @@ function MobileScreen() {
             {/* Two X's showing text and bg positions (locked) */}
             {xMarker(textPosX, textPosY, textColor, dotTravel)}
             {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
-            {/* Calibration square - moves with tilt (not live, just feedback) */}
-            {squareMarker(tiltX, tiltY, textColor, dotTravel)}
+            {/* Calibration square - moves with tilt (outline, not live) */}
+            {outlineSquareMarker(tiltX, tiltY, textColor, dotTravel)}
           </>
         )}
 
