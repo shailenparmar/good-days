@@ -4,17 +4,24 @@
 
 **EVERY push requires ALL of these steps. No exceptions.**
 
-1. **Increment version** in `src/App.tsx`
-2. **Update CLAUDE.md** with any changes to:
+**SPEED RULE: Push first, document second.** Get the code change deployed ASAP. Documentation is a separate commit immediately after.
+
+### Step 1: Push the code
+1. **Increment version** in `src/shared/version.ts`
+2. **Commit code changes + version bump**
+3. **Push to main**
+4. **Tell the user**: "Pushed **vX.Y.Z**"
+
+### Step 2: Document (immediately after)
+5. **Update CLAUDE.md** with any changes to:
    - UI behavior or styling
    - Keyboard shortcuts or interactions
    - State management patterns
    - Any logic that future development should know about
-3. **Commit both** code AND documentation together
-4. **Push to main**
-5. **Tell the user**: "Pushed **vX.Y.Z** - documented [what was documented]"
+6. **Commit and push** the documentation update
+7. **Tell the user** what was documented
 
-**If you push without documenting, you have failed.** The user should never have to remind you.
+**If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
 ## Deployment
 
