@@ -452,11 +452,11 @@ All three export buttons (copy, download backup, import) live in a single `<div 
 
 **Zen and minizen are NOT persisted across refresh.** Refreshing always returns to base state (sidebar visible, panels restored). This is an intentional escape hatch for users who accidentally enter these modes.
 
-**How panel restoration works:**
-- `preFocusState` is still persisted to localStorage (via `usePersisted`). It stores the panel state from before entering any focus mode.
-- On init, a synchronous IIFE reads and consumes `preFocusState` before `useState` initializers run.
-- If `preFocusState` exists, panels are restored from it (not from the stale `showSettings`/`showAbout` keys, which were written as `false` when entering focus mode).
-- `zenMode`, `minizen`, and `zenFromMinizen` are plain `useState(false)` — never persisted.
+**How panel restoration works (v1.10.49+):**
+- The panel persistence effects (`showSettings`/`showAbout` writes to localStorage) are **guarded**: they skip writes when `zenMode || minizen` is true. This means entering a focus mode closes panels in React state but does NOT overwrite their pre-focus values in localStorage.
+- On refresh, `zenMode` and `minizen` reset to false (plain `useState(false)`). Panels initialize from `showSettings`/`showAbout` in localStorage, which still hold the correct pre-focus values.
+- `preFocusState` (persisted via `usePersisted`) is still used for the live ESC/exit path (restoring panels without a refresh). The init IIFE reads it as a secondary fallback.
+- **The guarded effects are the primary mechanism.** The IIFE + preFocusState consumption is belt-and-suspenders.
 
 **PWA resume handler (v1.10.47+):**
 In standalone PWA mode, "closing and reopening" the app often doesn't trigger a true page reload — iOS/macOS keeps the page alive in memory. The IIFE (which runs on page load) never executes, so focus modes persist. A `visibilitychange` handler detects when the PWA resumes from background (hidden > 2 seconds) and performs the same reset: reads `preFocusState` from localStorage, restores panels, exits focus modes. Only active in standalone mode (`display-mode: standalone` or iOS `navigator.standalone`). Browser users use Cmd+R which triggers a real reload.

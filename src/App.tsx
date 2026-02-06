@@ -355,14 +355,22 @@ function AppContent() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Save panel states to localStorage
+  // Save panel states to localStorage — but NOT when in a focus mode.
+  // When entering zen/minizen, panels close (showDebugMenu=false). If we wrote that to
+  // localStorage, we'd lose the pre-focus panel state. By skipping the write during focus
+  // modes, showSettings/showAbout always reflect what the user had open BEFORE focus mode.
+  // On refresh (zen/minizen reset to false), panels initialize from the preserved values.
   useEffect(() => {
-    setItem('showSettings', String(showDebugMenu));
-  }, [showDebugMenu]);
+    if (!zenMode && !minizen) {
+      setItem('showSettings', String(showDebugMenu));
+    }
+  }, [showDebugMenu, zenMode, minizen]);
 
   useEffect(() => {
-    setItem('showAbout', String(showAboutPanel));
-  }, [showAboutPanel]);
+    if (!zenMode && !minizen) {
+      setItem('showAbout', String(showAboutPanel));
+    }
+  }, [showAboutPanel, zenMode, minizen]);
 
   // Save scramble state to localStorage
   useEffect(() => {

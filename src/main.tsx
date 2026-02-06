@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.48';
+  const mobileVersion = '1.10.49';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -901,6 +901,15 @@ function MobileScreen() {
             >
               <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
             </div>
+          </div>
+
+          <div style={{ display: 'flex', pointerEvents: 'none', userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}>
+            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '12px', color: textColor, opacity: 0.5 }}>
+              txt: {hslToHex(colors.hue, colors.sat, colors.light)} h{colors.hue % 360} s{colors.sat} l{colors.light}
+            </span>
+            <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '12px', color: textColor, opacity: 0.5 }}>
+              bg: {hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)} h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}
+            </span>
           </div>
         </div>
       </div>
