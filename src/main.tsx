@@ -514,7 +514,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.41';
+  const mobileVersion = '1.10.42';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -628,6 +628,23 @@ function MobileScreen() {
     }} />
   );
 
+  // Hollow circle marker - outline circle (cursor/target during seeking, home calibration)
+  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 16, borderWidth: number = 2) => (
+    <div style={{
+      position: 'absolute',
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: '50%',
+      border: `${borderWidth}px solid ${color}`,
+      boxSizing: 'border-box',
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
+      willChange: 'transform',
+      pointerEvents: 'none',
+    }} />
+  );
+
   // Tilt square - two-dot system
   // Home: two X's (text/bg positions) + calibration dot (tilt feedback)
   // Picker: active dot (moves with tilt) + locked X (other color)
@@ -659,23 +676,24 @@ function MobileScreen() {
             {/* Two X's showing text and bg positions (locked) */}
             {xMarker(textPosX, textPosY, textColor, dotTravel)}
             {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
-            {/* Calibration square - moves with tilt (outline, not live) */}
-            {outlineSquareMarker(tiltX, tiltY, textColor, dotTravel)}
+            {/* Hollow circle - moves with tilt, nothing happens */}
+            {hollowCircleMarker(tiltX, tiltY, textColor, dotTravel)}
           </>
         )}
 
         {isPickerScreen && editing === 'seeking' && (
           <>
-            {/* SEEKING: outline square (cursor) + filled square (target) + other X (locked) */}
-            {outlineSquareMarker(tiltX, tiltY, textColor, dotTravel)}
+            {/* SEEKING: hollow circle (cursor) + hollow circle (target) + other X (locked) */}
+            {/* Two hollow circles collide → filled circle */}
+            {hollowCircleMarker(tiltX, tiltY, textColor, dotTravel)}
             {activeDot === 'text' ? (
               <>
-                {squareMarker(textPosX, textPosY, textColor, dotTravel)}
+                {hollowCircleMarker(textPosX, textPosY, textColor, dotTravel)}
                 {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
               </>
             ) : (
               <>
-                {squareMarker(bgPosX, bgPosY, textColor, dotTravel)}
+                {hollowCircleMarker(bgPosX, bgPosY, textColor, dotTravel)}
                 {xMarker(textPosX, textPosY, textColor, dotTravel)}
               </>
             )}
