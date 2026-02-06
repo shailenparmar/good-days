@@ -1962,14 +1962,14 @@ The layout state system has three domains with different persistence rules.
 
 `preFocusState` and `preNarrowState` are "restoration tickets" — snapshots of state saved before a transition so the reverse transition can restore it.
 
-**Persistence rule for tickets:** A restoration ticket should persist if and only if the state it restores FROM persists.
+**Persistence rule for tickets:** `preFocusState` persists so that panel state can be restored on refresh from a focus mode. `preNarrowState` does not persist (resize context is session-bound).
 
 | Ticket | Restores from... | That state persists? | Ticket persists? |
 |--------|-------------------|---------------------|-----------------|
-| `preFocusState` | Focus modes (zen/minizen) | Yes | **Yes** |
+| `preFocusState` | Focus modes (zen/minizen) | No (v1.10.37+) | **Yes** (for panel restoration on refresh) |
 | `preNarrowState` | Narrow layout (resize) | No (computed) | **No** |
 
-**Why `preFocusState` persists:** If zen mode persists across close/reopen, the ticket to exit zen must also persist. Otherwise exiting zen after reopen has nowhere to restore from.
+**Why `preFocusState` still persists (v1.10.37+):** Even though zen/minizen no longer persist, `preFocusState` must persist so panels can be restored on refresh. When entering a focus mode, panels are closed (written as `false` to localStorage). On refresh, the init IIFE reads `preFocusState` to restore the original panel state, then clears it. Without this, panels would be lost on refresh from a focus mode.
 
 **Why `preNarrowState` doesn't persist:** Resize context is session-bound. When you reopen the app, `isNarrow` is freshly computed from the current window width — there's no "returning from narrow" to restore.
 
@@ -1979,9 +1979,9 @@ When crossing from one domain to another, restoration tickets may be absorbed:
 
 - **Resize wide→narrow absorbs focus tickets:** `preFocusState` is cleared because the narrow transition saves its own `preNarrowState` (which includes the pre-focus panel state if `preFocusState` exists). Focus mode context is subsumed into the resize transition.
 
-#### `zenFromMinizen` Persistence
+#### `zenFromMinizen` — No Longer Persisted (v1.10.37+)
 
-`zenFromMinizen` persists because it's metadata about the focus domain. If zen mode persists and was entered from minizen, we need to remember that so ESC exits to minizen (not full) after reopen.
+`zenFromMinizen` is now `useState(false)` — it resets on refresh along with zen/minizen. Since focus modes don't survive refresh, the metadata tracking how zen was entered doesn't need to either.
 
 ## ESC Key Behavior (IMPORTANT)
 
@@ -2836,7 +2836,7 @@ Small settings that benefit from synchronous access:
 | Category | Keys |
 |----------|------|
 | Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, `bgSaturation`, `bgLightness` |
-| UI state | `showSettings`, `showAbout`, `zenMode`, `minizen`, `isScrambled`, `scrambleHotkeyActive`, `preFocusState`, `zenFromMinizen` |
+| UI state | `showSettings`, `showAbout`, `isScrambled`, `scrambleHotkeyActive`, `preFocusState` |
 | Auth | `passwordHash` |
 | Statistics | `totalKeystrokes`, `totalSecondsOnApp`, `totalLogins` |
 | Easter eggs | `easterEggs` |
