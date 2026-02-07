@@ -668,9 +668,10 @@ const { confirm: confirmColor, error: errorColor } = getStatusColors(
 - Skipped (identical content) entries are not counted
 - Multi-file import shows combined total across all files
 
-**Failure triggers:**
-- File doesn't start with `good days encrypted backup` header
-- Decryption fails (corrupted or wrong format)
+**Failure handling (v2.1.26+):**
+- Bad files (wrong format, decryption failure) are silently ignored during multi-file import
+- Only shows "import failed" if ALL selected files fail — no valid files processed at all
+- If at least one file succeeds, shows "X entries imported" and ignores the bad ones
 
 Code location: `src/features/export/components/ExportButtons.tsx`
 
