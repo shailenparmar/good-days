@@ -81,7 +81,11 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 | `release` | Leader announces departure (beforeunload) |
 | `focus-claim` | Focused tab demands leadership (always wins) |
 
-**Handoff sequence**: Tab B gains focus → broadcasts `focus-claim` → Tab A yields → closes WS → Tab B claims → connects WS → relay pairs via same `secret` from localStorage.
+**Handoff sequence**: Tab B gains focus → broadcasts `focus-claim` → clears `currentLeader` → calls `claim()` → Tab A yields → closes WS → Tab B wins race check → connects WS → relay pairs via same `secret` from localStorage.
+
+**Critical detail (v2.1.2 fix):** The focus handler must clear `currentLeader = null` before calling `claim()`. Otherwise, existing tabs fail the 100ms race check (`currentLeader === null || currentLeader === tabId`) because `currentLeader` still points to the old leader from previous heartbeats. New tabs worked because `currentLeader` starts as `null`.
+
+**PWA support:** Works in Chrome (tabs + PWA share the same BroadcastChannel context). Safari PWAs on iOS may run in an isolated context where BroadcastChannel doesn't bridge to Safari tabs.
 
 Code location: `src/shared/sync/leaderElection.ts`
 
