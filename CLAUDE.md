@@ -1083,11 +1083,11 @@ Desktop color picker indicators dynamically reflect what the phone is doing. The
 
 | Role | When | SL dot | Hue needle |
 |------|------|--------|------------|
-| `idle` | No phone streaming, or this side not being controlled | 12px | 4px |
-| `beta` | Phone's beta finger is on this side | 12px | 8px |
-| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 32px | 16px |
+| `idle` | No phone streaming, or this side not being controlled | 12px (1x) | 4px (1x) |
+| `beta` | Phone's beta finger is on this side | 12px | 8px (2x) |
+| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 48px (4x) | 16px (4x) |
 
-Size changes are instant (no CSS transitions).
+Size changes are instant (no CSS transitions). Actively dragged picker gets `zIndex: 10` so its indicator floats above all other pickers (SL default zIndex: 2, hue default: 1).
 
 **StreamingControls type** (in `src/features/theme/types.ts`):
 ```typescript
