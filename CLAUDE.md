@@ -2952,7 +2952,7 @@ The app has 8 discoverable easter eggs + 1 secret final egg. The count displays 
 | 1 | `scrambleTyping` | Type while in scramble mode |
 | 2 | `powerstatMode` | Open settings + about panels together |
 | 3 | `superscramble` | Settings + about + scramble all active |
-| 4 | `superscrambleTyping` | Type while in superscramble (theme randomizes) |
+| 4 | `liveControl` | Phone pairs with laptop via live sync (WebSyncBridge) |
 | 5 | `zenMode` | Enter zen mode (click footer) |
 | 6 | `timeCommand` | Use `\time` in the editor |
 | 7 | `spacebarRand` | Press spacebar while on rand button in preset grid |
