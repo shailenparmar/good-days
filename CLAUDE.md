@@ -88,11 +88,11 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 ### Disconnect Grace Period (v2.1.0+)
 
-When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (500ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms — reduced to 500ms for snappier disconnect feedback.
+When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (200ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms → 500ms → 200ms (v2.1.28) for snappier disconnect feedback. Total latency from phone swipe-away to live icon gone: ~300ms.
 
 ### Phone Visibility Disconnect (v2.1.4+)
 
-The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~500ms of the user leaving the phone app (the grace period), and re-enter live mode as soon as they come back.
+The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~300ms of the user leaving the phone app (relay latency + 200ms grace), and re-enter live mode as soon as they come back.
 
 **Implementation:** `visibilitychange` listener in `useMobileSync.ts`:
 - `hidden` → set `hiddenRef=true`, close WS, clear streaming state, cancel reconnect timer, reset backoff
