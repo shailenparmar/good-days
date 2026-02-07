@@ -614,13 +614,17 @@ function MobileScreen() {
   };
 
   // Button style helper - follows style guide with fill on press
-  const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full' | 'center') => {
+  const isLive = sync.pairingState === 'paired';
+
+  const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full' | 'center', role?: 'picker' | 'aux') => {
     const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${pressed ? 65 : colors.light}%, ${pressed ? 1 : 0.6})`;
     const fillColor = pressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
+    // In live mode: picker buttons (text|bg) double height, aux buttons (recal, copy/save/paste) half
+    const vPad = isLive ? (role === 'picker' ? 28 : role === 'aux' ? 7 : 14) : 14;
     const base: React.CSSProperties = {
       flex: (position === 'full') ? undefined : 1,
       width: position === 'full' ? '100%' : undefined,
-      padding: '14px 0',
+      padding: `${vPad}px 0`,
       fontFamily: 'monospace',
       fontWeight: 800,
       fontSize: '20px',
@@ -656,7 +660,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.64';
+  const mobileVersion = '1.10.65';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -836,12 +840,12 @@ function MobileScreen() {
 
           {/* Placeholder rows to match home screen button stack height */}
           <div style={{ display: 'flex' }}>
-            <div style={{ ...getButtonStyle(false, 'left'), visibility: 'hidden' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
           </div>
           <div style={{ display: 'flex' }}>
-            <div style={{ ...getButtonStyle(false, 'left'), visibility: 'hidden' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden' }}>&nbsp;</div>
           </div>
         </div>
       </div>
@@ -894,9 +898,9 @@ function MobileScreen() {
           </div>
           {/* Invisible buttons set the correct height */}
           <div style={{ visibility: 'hidden', padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-            <div style={getButtonStyle(false, 'full')}>&nbsp;</div>
-            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
-            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
+            <div style={getButtonStyle(false, 'full', 'aux')}>&nbsp;</div>
+            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left', 'picker')}>&nbsp;</div><div style={getButtonStyle(false, 'right', 'picker')}>&nbsp;</div></div>
+            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div><div style={getButtonStyle(false, 'right', 'aux')}>&nbsp;</div></div>
           </div>
           {/* Bars overlay - top offset makes room for hex+hsl codes, gradient squishes to fit */}
           <div style={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, display: 'flex' }}>
@@ -959,7 +963,7 @@ function MobileScreen() {
             onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.reset = false; setResetPressed(false); } }}
             onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.reset) handleResetTilt(); buttonEngaged.current.reset = false; setResetPressed(false); }}
             onTouchCancel={() => { buttonEngaged.current.reset = false; setResetPressed(false); }}
-            style={getButtonStyle(resetPressed, 'full')}
+            style={getButtonStyle(resetPressed, 'full', 'aux')}
           >
             recalibrate tilt
           </div>
@@ -967,13 +971,13 @@ function MobileScreen() {
           <div style={{ display: 'flex' }}>
             <div
               onTouchStart={startPicking('left')}
-              style={getButtonStyle(false, 'left')}
+              style={getButtonStyle(false, 'left', 'picker')}
             >
               text
             </div>
             <div
               onTouchStart={startPicking('right')}
-              style={getButtonStyle(false, 'right')}
+              style={getButtonStyle(false, 'right', 'picker')}
             >
               background
             </div>
@@ -985,17 +989,17 @@ function MobileScreen() {
               onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.copy = false; setCopyPressed(false); } }}
               onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.copy) handleCopy(); buttonEngaged.current.copy = false; setCopyPressed(false); }}
               onTouchCancel={() => { buttonEngaged.current.copy = false; setCopyPressed(false); }}
-              style={getButtonStyle(copyPressed, 'left')}
+              style={getButtonStyle(copyPressed, 'left', 'aux')}
             >
               copy
             </div>
-            {sync.pairingState === 'paired' && (
+            {isLive && (
               <div
                 onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.save = true; setSavePressed(true); }}
                 onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.save = false; setSavePressed(false); } }}
                 onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.save) { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); } buttonEngaged.current.save = false; setSavePressed(false); }}
                 onTouchCancel={() => { buttonEngaged.current.save = false; setSavePressed(false); }}
-                style={getButtonStyle(savePressed, 'center')}
+                style={getButtonStyle(savePressed, 'center', 'aux')}
               >
                 save
               </div>
@@ -1005,7 +1009,7 @@ function MobileScreen() {
               onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
               onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.paste) handlePaste(); buttonEngaged.current.paste = false; setPastePressed(false); }}
               onTouchCancel={() => { buttonEngaged.current.paste = false; setPastePressed(false); }}
-              style={{ ...getButtonStyle(pastePressed, 'right'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
+              style={{ ...getButtonStyle(pastePressed, 'right', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
               role="button"
               tabIndex={-1}
               // @ts-expect-error -- writingSuggestions is a valid HTML attribute (iOS 18+) not yet in React types
