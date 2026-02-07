@@ -13,7 +13,8 @@ export type ClientMessage =
   | { type: 'pair-request'; targetId: string }
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
-  | { type: 'stream-stop' };
+  | { type: 'stream-stop' }
+  | { type: 'save-preset' };
 
 // Server → Client
 export type ServerMessage =
@@ -25,7 +26,8 @@ export type ServerMessage =
   | { type: 'no-candidates' }
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
-  | { type: 'stream-stop' };
+  | { type: 'stream-stop' }
+  | { type: 'save-preset' };
 
 export function getWsUrl(): string {
   if (typeof window === 'undefined') return '';
