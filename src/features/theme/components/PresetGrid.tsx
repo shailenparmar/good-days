@@ -245,8 +245,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           };
           setCustomPresets(newCustomPresets);
         } else if (hasLive && activePresetIndex === totalDefaultAndCustom) {
-          // [live] slot — save it as custom preset
-          saveLivePreset();
+          // [live] slot — no-op (use save button to save)
+
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
           // Rand
           markEasterEggFound('spacebarRand');
@@ -478,10 +478,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 e.preventDefault();
                 e.stopPropagation();
                 setPresetClickCount(c => c + 1);
-                if (isLiveActive) {
-                  // Already active — save as numbered custom preset
-                  saveLivePreset();
-                } else {
+                setPulseKey(k => k + 1);
+                if (!isLiveActive) {
                   // Select [live], apply its colors
                   applyPreset(livePreset);
                   setSelectedPreset(null);
@@ -517,6 +515,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
               data-preset-index={randIndex}
               onClick={() => {
                 setPresetClickCount(c => c + 1);
+                setPulseKey(k => k + 1);
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
               }}
@@ -547,6 +546,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
               data-preset-index={saveIndex}
               onClick={() => {
                 setPresetClickCount(c => c + 1);
+                setPulseKey(k => k + 1);
                 saveCustomPreset();
                 setActivePresetIndex(saveIndex);
               }}
