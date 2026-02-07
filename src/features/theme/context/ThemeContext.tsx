@@ -205,9 +205,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setBgSaturation(preset.bgSat);
     setBgLightness(preset.bgLight);
 
-    // Track colorway immediately for preset clicks
-    const colorway = getColorwayKey(preset.hue, preset.sat, preset.light, preset.bgHue, preset.bgSat, preset.bgLight);
-    trackColorway(colorway);
+    // Track colorway for preset clicks, but NOT during live streaming —
+    // phone sends color-update at 60fps which would inflate the count.
+    // Live colorways are tracked on save instead (saveCustomPreset).
+    if (!isLiveStreaming) {
+      const colorway = getColorwayKey(preset.hue, preset.sat, preset.light, preset.bgHue, preset.bgSat, preset.bgLight);
+      trackColorway(colorway);
+    }
   };
 
   const savePreset = (index: number, preset: ColorPreset) => {
@@ -228,6 +232,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setCustomPresets([...customPresets, newPreset]);
     setSelectedPreset(null);
     setSelectedCustomPreset(null);
+
+    // Track colorway on save (covers live mode where applyPreset skips tracking)
+    const colorway = getColorwayKey(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+    trackColorway(colorway);
   };
 
   const deleteCustomPreset = (index: number) => {
