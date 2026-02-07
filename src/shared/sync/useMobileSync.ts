@@ -32,6 +32,7 @@ export interface MobileSyncHandle {
   startStream: (side: 'text' | 'background') => void;
   stopStream: () => void;
   sendColorUpdate: (colors: ColorPayload) => void;
+  sendStreamState: (alpha: { side: 'text' | 'background' }, beta: { side: 'text' | 'background' } | null) => void;
   sendSave: () => void;
   wsRef: React.RefObject<WebSocket | null>;
   isStreamingRef: React.RefObject<boolean>;
@@ -158,6 +159,10 @@ export function useMobileSync(): MobileSyncHandle {
     sendMsg({ type: 'color-update', colors });
   }, [sendMsg]);
 
+  const sendStreamState = useCallback((alpha: { side: 'text' | 'background' }, beta: { side: 'text' | 'background' } | null) => {
+    sendMsg({ type: 'stream-state', alpha, beta });
+  }, [sendMsg]);
+
   const sendSave = useCallback(() => {
     sendMsg({ type: 'save-preset' });
   }, [sendMsg]);
@@ -185,6 +190,7 @@ export function useMobileSync(): MobileSyncHandle {
     startStream,
     stopStream,
     sendColorUpdate,
+    sendStreamState,
     sendSave,
     wsRef,
     isStreamingRef,

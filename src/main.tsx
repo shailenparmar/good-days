@@ -143,6 +143,25 @@ function MobileScreen() {
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
 
+  // Helper: send current stream-state to desktop (alpha/beta sides)
+  const sendCurrentStreamState = useCallback(() => {
+    if (sync.pairingState !== 'paired' || !sync.isStreamingRef.current) return;
+    const alphaId = alphaTouchId.current;
+    if (alphaId === null) return;
+    const alphaSide = trackedTouches.current.get(alphaId);
+    if (!alphaSide) return;
+    const alphaControl = { side: (alphaSide === 'left' ? 'text' : 'background') as 'text' | 'background' };
+    // Find beta (any tracked touch that isn't alpha)
+    let betaControl: { side: 'text' | 'background' } | null = null;
+    for (const [id, side] of trackedTouches.current) {
+      if (id !== alphaId) {
+        betaControl = { side: side === 'left' ? 'text' : 'background' };
+        break;
+      }
+    }
+    sync.sendStreamState(alphaControl, betaControl);
+  }, [sync]);
+
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
 
@@ -378,6 +397,8 @@ function MobileScreen() {
               trackedTouches.current.set(id, newSide);
               activeSide.current = newSide;
               setActiveDot(newSide === 'left' ? 'text' : 'bg');
+              // Send stream-state after side switch
+              sendCurrentStreamState();
               // Process on new side
               const bar = newSide === 'left' ? leftBar : rightBar;
               if (bar) {
@@ -416,6 +437,8 @@ function MobileScreen() {
           if (newSide !== activeSide.current) {
             trackedTouches.current.set(id, newSide);
             if (navigator.vibrate) navigator.vibrate(10);
+            // Send stream-state with new beta (from move detection)
+            sendCurrentStreamState();
             // Process its Y on its bar
             const bar = newSide === 'left' ? leftBar : rightBar;
             if (bar) {
@@ -449,11 +472,15 @@ function MobileScreen() {
             activeSide.current = newAlphaSide;
             setActiveDot(newAlphaSide === 'left' ? 'text' : 'bg');
             if (navigator.vibrate) navigator.vibrate(10);
+            // Send stream-state after promotion (alpha changed, beta gone)
+            sendCurrentStreamState();
           } else {
             alphaTouchId.current = null;
           }
+        } else if (trackedTouches.current.size > 0) {
+          // Beta lifted, alpha continues — send updated stream-state (no beta)
+          sendCurrentStreamState();
         }
-        // If beta lifted, just remove — alpha continues unchanged
       }
 
       // If all touches gone, fully end
@@ -488,6 +515,8 @@ function MobileScreen() {
           e.preventDefault();
           trackedTouches.current.set(id, newSide);
           if (navigator.vibrate) navigator.vibrate(10);
+          // Send stream-state with new beta
+          sendCurrentStreamState();
           const bar = newSide === 'left' ? leftBar : rightBar;
           if (bar) {
             const barRect = bar.getBoundingClientRect();
@@ -513,7 +542,7 @@ function MobileScreen() {
       window.removeEventListener('touchend', handleEnd);
       window.removeEventListener('touchcancel', handleEnd);
     };
-  }, [processTouchAt]);
+  }, [processTouchAt, sendCurrentStreamState]);
 
   // Start picking - begin tracking IMMEDIATELY
   const startPicking = (side: 'left' | 'right') => (e: React.TouchEvent) => {
@@ -535,6 +564,11 @@ function MobileScreen() {
     alphaTouchId.current = touchId;
     trackedTouches.current.clear();
     trackedTouches.current.set(touchId, side);
+
+    // Send initial stream-state (alpha only, no beta)
+    if (sync.pairingState === 'paired') {
+      sync.sendStreamState({ side: side === 'left' ? 'text' : 'background' }, null);
+    }
 
     // Start tracking IMMEDIATELY - before any state changes
     isTrackingRef.current = true;
@@ -660,7 +694,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.0.3';
+  const mobileVersion = '2.0.4';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {

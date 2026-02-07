@@ -51,16 +51,23 @@ export interface PresetActions {
   randomizeTheme: () => void;
 }
 
+export interface StreamingControls {
+  alpha: { side: 'text' | 'background' };
+  beta: { side: 'text' | 'background' } | null;
+}
+
 export interface LiveSyncState {
   livePreset: ColorPreset | null;
   isLiveActive: boolean;
   isLiveStreaming: boolean;
+  streamingControls: StreamingControls | null;
 }
 
 export interface LiveSyncActions {
   setLivePreset: (preset: ColorPreset | null) => void;
   setIsLiveActive: (active: boolean) => void;
   setIsLiveStreaming: (streaming: boolean) => void;
+  setStreamingControls: (controls: StreamingControls | null) => void;
   saveLivePreset: () => void;
 }
 

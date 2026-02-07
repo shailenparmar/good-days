@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
-import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions } from '../types';
+import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions, StreamingControls } from '../types';
 
 export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 215, sat: 100, light: 0, bgHue: 28, bgSat: 100, bgLight: 83 },
@@ -92,6 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [livePreset, setLivePreset] = useState<ColorPreset | null>(null);
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
+  const [streamingControls, setStreamingControls] = useState<StreamingControls | null>(null);
 
   const saveLivePreset = () => {
     if (!livePreset) return;
@@ -332,9 +333,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     livePreset,
     isLiveActive,
     isLiveStreaming,
+    streamingControls,
     setLivePreset,
     setIsLiveActive,
     setIsLiveStreaming,
+    setStreamingControls,
     saveLivePreset,
   };
 

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 interface ColorPickerProps {
@@ -8,6 +8,7 @@ interface ColorPickerProps {
 
 export function ColorPicker({ type, part }: ColorPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
   // Track active listeners for cleanup on unmount
   const listenersRef = useRef<{
     move: ((e: MouseEvent | TouchEvent) => void) | null;
@@ -19,6 +20,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     setHue, setSaturation, setLightness,
     setBgHue, setBgSaturation, setBgLightness,
     getColor, getBgColor,
+    isLiveStreaming, streamingControls,
   } = useTheme();
 
   const isText = type === 'text';
@@ -28,6 +30,23 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   const setHueValue = isText ? setHue : setBgHue;
   const setSat = isText ? setSaturation : setBgSaturation;
   const setLight = isText ? setLightness : setBgLightness;
+
+  // Compute indicator role
+  let role: 'idle' | 'alpha' | 'beta' | 'local-drag' = 'idle';
+  if (isDragging) {
+    role = 'local-drag';
+  } else if (isLiveStreaming && streamingControls) {
+    if (streamingControls.alpha.side === type) {
+      role = 'alpha';
+    } else if (streamingControls.beta?.side === type) {
+      role = 'beta';
+    }
+  }
+
+  // Indicator sizes based on role
+  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 12;
+  const needleHeight = (role === 'alpha' || role === 'local-drag') ? 16 : role === 'beta' ? 8 : 4;
+  const useTransition = role !== 'local-drag';
 
   // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
   useEffect(() => {
@@ -45,6 +64,8 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   }, []);
 
   const startDrag = (clientX: number, clientY: number) => {
+    setIsDragging(true);
+
     if (part === 'sl') {
       const updateColor = (cx: number, cy: number) => {
         if (!pickerRef.current) return;
@@ -68,6 +89,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         document.removeEventListener('touchend', handleUp);
         document.removeEventListener('touchcancel', handleUp);
         listenersRef.current = { move: null, up: null };
+        setIsDragging(false);
       };
 
       listenersRef.current = { move: handleMove, up: handleUp };
@@ -97,6 +119,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         document.removeEventListener('touchend', handleUp);
         document.removeEventListener('touchcancel', handleUp);
         listenersRef.current = { move: null, up: null };
+        setIsDragging(false);
       };
 
       listenersRef.current = { move: handleMove, up: handleUp };
@@ -143,9 +166,10 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
             left: 0,
             right: 0,
             top: `${indicatorTop}%`,
-            height: '16px',
+            height: `${needleHeight}px`,
             transform: 'translateY(-50%)',
             backgroundColor: 'black',
+            transition: useTransition ? 'height 150ms ease' : undefined,
           }}
         />
       </div>
@@ -169,12 +193,13 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: '32px',
-          height: '32px',
+          width: `${dotSize}px`,
+          height: `${dotSize}px`,
           left: `${currentSat}%`,
           top: `${100 - currentLight}%`,
           transform: 'translate(-50%, -50%)',
           backgroundColor: isText ? getBgColor() : getColor(),
+          transition: useTransition ? 'width 150ms ease, height 150ms ease' : undefined,
         }}
       />
     </div>

@@ -101,11 +101,17 @@ export function WebSyncBridge() {
     theme.setIsLiveStreaming(syncState.isStreaming);
   }, [syncState.isStreaming]);
 
+  // Bridge streamingControls to ThemeContext
+  useEffect(() => {
+    theme.setStreamingControls(syncState.streamingControls);
+  }, [syncState.streamingControls]);
+
   // Clear isLiveActive when livePreset goes null
   useEffect(() => {
     if (!syncState.livePreset) {
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
+      theme.setStreamingControls(null);
     }
   }, [syncState.livePreset]);
 

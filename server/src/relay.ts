@@ -150,6 +150,16 @@ function handleStreamStart(clientId: string, side: 'text' | 'background') {
   send(partner.ws, { type: 'stream-start', side });
 }
 
+function handleStreamState(clientId: string, alpha: { side: 'text' | 'background' }, beta: { side: 'text' | 'background' } | null) {
+  const client = clients.get(clientId);
+  if (!client || !client.partnerId) return;
+
+  const partner = clients.get(client.partnerId);
+  if (!partner) return;
+
+  send(partner.ws, { type: 'stream-state', alpha, beta });
+}
+
 function handleStreamStop(clientId: string) {
   const client = clients.get(clientId);
   if (!client) return;
@@ -223,6 +233,10 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
 
       case 'stream-stop':
         handleStreamStop(clientId);
+        break;
+
+      case 'stream-state':
+        handleStreamState(clientId, msg.alpha, msg.beta);
         break;
 
       case 'save-preset': {

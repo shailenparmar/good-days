@@ -24,6 +24,7 @@ export interface WebSyncState {
   livePreset: ColorPayload | null;
   streamSide: 'text' | 'background' | null;
   isStreaming: boolean;
+  streamingControls: { alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null } | null;
   saveRequested: number;
 }
 
@@ -38,6 +39,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     livePreset: null,
     streamSide: null,
     isStreaming: false,
+    streamingControls: null,
     saveRequested: 0,
   });
 
@@ -136,6 +138,14 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             setState(prev => ({
               ...prev,
               isStreaming: false,
+              streamingControls: null,
+            }));
+            break;
+
+          case 'stream-state':
+            setState(prev => ({
+              ...prev,
+              streamingControls: { alpha: msg.alpha, beta: msg.beta },
             }));
             break;
 
@@ -169,7 +179,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     graceTimer.current = setTimeout(() => {
       graceTimer.current = null;
       if (mountedRef.current) {
-        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, saveRequested: prev.saveRequested }));
+        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested }));
       }
     }, GRACE_MS);
   }, []);
