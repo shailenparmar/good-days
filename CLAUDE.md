@@ -1183,6 +1183,47 @@ The picker goes directly to adjusting — no seeking/docking phase. Pressing "te
 - `activeDot`: `'text' | 'bg'` — which color we're adjusting
 - `colorsRef`: ref mirroring `colors` state for use in orientation handler
 - `activeSide`: ref `'left' | 'right'` — which hue bar is active (left=text, right=bg)
+- `trackedTouches`: ref `Map<number, 'left' | 'right'>` — all active touch IDs mapped to their bar side
+- `alphaTouchId`: ref `number | null` — which touch ID is alpha (controls tilt)
+
+### Multitouch Alpha/Beta Hue Control (v1.10.64+)
+
+Two-finger simultaneous control of both hue bars. The first finger down is **alpha** (controls tilt for sat/light). A second finger on the **other** bar becomes **beta** (controls that bar's hue independently, no tilt).
+
+**Concepts:**
+- **Alpha**: The touch that owns tilt. `activeSide` always reflects alpha's side. The orientation handler reads `activeSide` unchanged.
+- **Beta**: A second touch on the opposite bar. Only controls hue on its bar. One finger per bar enforced.
+
+**Flow:**
+1. Press "text" or "background" → initial touch recorded as alpha in `trackedTouches` and `alphaTouchId`
+2. Place second finger on the other hue bar → detected on `touchstart` (instant, no movement needed) → registered as beta, haptic tick
+3. Both fingers independently control their respective hue bars. Tilt controls alpha's sat/light.
+4. Release alpha → beta promoted: `alphaTouchId` updated, `activeSide` switches, `activeDot` swaps, haptic tick. Tilt now controls the promoted finger's color.
+5. Can add a new second finger on the now-free bar → back to two-finger mode
+6. Release all fingers → exits picker (same end behavior as before)
+
+**Single-finger crossover preserved:** When only one finger is down (`trackedTouches.size === 1`), crossing the midline still switches sides (same as pre-multitouch behavior). Disabled when two fingers are down (both bars occupied).
+
+**Beta detection:** New touches are detected in both `touchstart` (instant registration) and `touchmove` (fallback). The `touchstart` handler ensures beta registers the moment the finger touches down, not after movement.
+
+**Hue needle sizes (v1.10.64+):**
+
+| State | Alpha needle | Beta needle | Idle |
+|-------|-------------|-------------|------|
+| One finger | 16px (4x) | — | 4px |
+| Two fingers | 16px (4x) | 8px (2x) | 4px |
+
+Alpha is always the thick needle. When beta is promoted to alpha, its needle grows from 8px to 16px.
+
+**Indicator active detection:** Each bar checks `trackedTouches.current.values().includes(side)` instead of `activeSide.current === side`. This allows both bars to show active indicators simultaneously.
+
+**Haptics (v1.10.64+):** All touch event haptics are 10ms (was 5ms for side crossover, beta join, and alpha promotion — too short to feel). End pattern unchanged: `[5, 30, 5]`.
+
+**What stays the same:**
+- Orientation handler reads `activeSide.current` which always = alpha's side
+- Single-finger behavior identical to pre-multitouch
+- WebSocket streaming follows alpha's color
+- Button engagement tracking unrelated
 
 ### Button Styling
 
