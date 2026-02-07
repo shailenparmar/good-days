@@ -1405,7 +1405,18 @@ if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' 
 
 #### Pulse Animation Reset
 
-Active presets show a pulsing border animation (`preset-pulse` class). When you save colors to a preset (via Space/Enter or clicking an already-active preset), the animation resets to give visual feedback. This is done by incrementing a `pulseKey` state that's part of each button's React key.
+Active presets show a pulsing border animation (`preset-pulse` class). The animation resets to give visual feedback on interaction. This is done by incrementing a `pulseKey` state that's part of each button's React key — when the key changes, React remounts the element and the CSS animation restarts from 0%.
+
+**Style rule: EVERY clickable button in the preset grid must call `setPulseKey(k => k + 1)` in its onClick handler.** This includes numbered presets, custom presets, rand, save, live, and any future buttons. If a new button is added to the grid without this call, the pulse animation won't reset on click, which is a bug.
+
+| Button type | Where pulse reset happens |
+|-------------|--------------------------|
+| Default presets | `handlePresetClick()` (when `wasActive`) |
+| Custom presets | `handleCustomPresetClick()` (when `wasActive`) |
+| rand | Inline onClick (every click) |
+| save | Inline onClick (every click) |
+| live | Inline onClick (every click) |
+| Space/Enter key | Keyboard handler (line ~220) |
 
 Code location: `src/features/theme/components/PresetGrid.tsx`
 
