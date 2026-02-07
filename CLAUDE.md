@@ -1077,17 +1077,17 @@ The color picker in settings uses a 2x2 grid layout with mouse and touch drag su
 
 This 4-square layout is permanent (not conditional on live sync mode).
 
-### Indicator Sizes — Selective Sizing (v2.0.4+)
+### Indicator Sizes — Selective Sizing (v2.0.5+)
 
 Desktop color picker indicators dynamically reflect what the phone is doing. The phone sends `stream-state` messages whenever touch state changes (start, side crossover, beta join/leave, alpha promotion). The desktop computes a **role** for each picker:
 
 | Role | When | SL dot | Hue needle |
 |------|------|--------|------------|
-| `idle` | No phone streaming, or this side not being controlled | 12px | 4px |
-| `beta` | Phone's beta finger is on this side | 12px | 8px |
-| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 32px | 16px |
+| `idle` | No phone streaming, or this side not being controlled | 24px | 8px |
+| `beta` | Phone's beta finger is on this side | 24px | 16px |
+| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 64px | 32px |
 
-Size changes animate with `150ms ease` CSS transition (except during local drag — instant).
+Size changes are instant (no CSS transitions).
 
 **StreamingControls type** (in `src/features/theme/types.ts`):
 ```typescript
