@@ -24,7 +24,6 @@ function pairClients(id1: string, id2: string) {
   const c1 = clients.get(id1);
   const c2 = clients.get(id2);
   if (!c1 || !c2) return;
-  console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)})`);
 
   const secret = c1.secret || c2.secret || generateSecret();
   c1.partnerId = id2;
@@ -32,8 +31,24 @@ function pairClients(id1: string, id2: string) {
   c1.secret = secret;
   c2.secret = secret;
 
-  send(c1.ws, { type: 'paired', partnerId: id2, secret, partnerDeviceId: c2.deviceId });
-  send(c2.ws, { type: 'paired', partnerId: id1, secret, partnerDeviceId: c1.deviceId });
+  // Only learn affinity (send partnerDeviceId) in unambiguous 1:1 environments.
+  // If there's more than 1 phone or 1 laptop on this IP, we can't be sure
+  // this pairing is correct, so don't burn a potentially wrong affinity.
+  const group = ipGroups.get(c1.publicIp);
+  let phones = 0, laptops = 0;
+  if (group) {
+    for (const id of group) {
+      const c = clients.get(id);
+      if (c?.role === 'phone') phones++;
+      else if (c?.role === 'laptop') laptops++;
+    }
+  }
+  const learnAffinity = phones === 1 && laptops === 1;
+
+  console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)}) affinity=${learnAffinity}`);
+
+  send(c1.ws, { type: 'paired', partnerId: id2, secret, partnerDeviceId: learnAffinity ? c2.deviceId : undefined });
+  send(c2.ws, { type: 'paired', partnerId: id1, secret, partnerDeviceId: learnAffinity ? c1.deviceId : undefined });
 }
 
 function getUnpairedLaptopsInGroup(ip: string, excludeId?: string): string[] {
