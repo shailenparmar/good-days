@@ -68,6 +68,16 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (500ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms — reduced to 500ms for snappier disconnect feedback.
 
+### Phone Visibility Disconnect (v2.1.4+)
+
+The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~500ms of the user leaving the phone app (the grace period), and re-enter live mode as soon as they come back.
+
+**Implementation:** `visibilitychange` listener in `useMobileSync.ts`:
+- `hidden` → close WS, clear streaming state, cancel reconnect timer, reset backoff
+- `visible` → reset backoff, call `connect()` immediately
+
+Without this, the WS would stay open until the OS kills it or the server times it out, leaving the desktop stuck in live mode for seconds after the phone is backgrounded.
+
 ### Focus-Aware Leader Election (v2.1.1+)
 
 Only one desktop tab holds the WebSocket connection at a time (the "leader"). Switching to a different browser tab immediately transfers leadership — the focused tab broadcasts a `focus-claim` message and the old leader yields unconditionally. This means the phone always connects to whichever tab you're looking at.
