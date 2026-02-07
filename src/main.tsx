@@ -594,23 +594,6 @@ function MobileScreen() {
     );
   };
 
-  // X marker helper - two crossed diagonal bars (not live, seeking/target)
-  const xMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20) => (
-    <div style={{
-      position: 'absolute',
-      left: '50%',
-      top: '50%',
-      width: `${size}px`,
-      height: `${size}px`,
-      transform: `translate(calc(-50% + ${posX * travel}px), calc(-50% + ${posY * travel}px))`,
-      willChange: 'transform',
-      pointerEvents: 'none',
-    }}>
-      <div style={{ position: 'absolute', width: '100%', height: `${cornerW}px`, backgroundColor: color, top: '50%', left: 0, transform: 'translateY(-50%) rotate(45deg)' }} />
-      <div style={{ position: 'absolute', width: '100%', height: `${cornerW}px`, backgroundColor: color, top: '50%', left: 0, transform: 'translateY(-50%) rotate(-45deg)' }} />
-    </div>
-  );
-
   // Dot marker helper - filled circle (LIVE, actively adjusting)
   const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20) => (
     <div style={{
