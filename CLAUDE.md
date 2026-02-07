@@ -27,23 +27,28 @@
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
-## Pending Feature: WebSyncBridge
+## WebSyncBridge (Live Sync)
 
-The WebSyncBridge feature (phone-to-desktop sync) is in progress. The `src/shared/sync/` directory contains the local files but they are **not yet committed**.
+The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.10.67+). The `src/shared/sync/` directory contains all sync files, and `WebSyncBridge` is imported and rendered in `App.tsx`.
 
-**When ready to ship**, add these two lines back to `src/App.tsx`:
+### Relay Server
 
-1. Import at the top (after the other imports):
-   ```tsx
-   import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
-   ```
+| Environment | URL | Server |
+|-------------|-----|--------|
+| Production | `wss://relay.gdays.day/ws` | Fly.io (`good-days-relay`) |
+| Development | `ws://localhost:5173/ws` (Vite proxy → `localhost:3001`) | Local relay |
 
-2. Component inside the root `<div>` (before `{/* Global styles */}`):
-   ```tsx
-   <WebSyncBridge />
-   ```
+Server code: `server/src/relay.ts`, deployed via `server/Dockerfile` + `server/fly.toml`.
 
-These were removed in v1.10.60 because the sync files weren't committed yet and broke CI. Make sure `src/shared/sync/` is committed before pushing.
+To redeploy: `cd server && fly deploy`
+
+### DNS (Cloudflare)
+
+| Type | Name | Target | Proxy |
+|------|------|--------|-------|
+| CNAME | `relay` | `good-days-relay.fly.dev` | DNS only (gray cloud) |
+
+**Must be DNS only** — Cloudflare proxy (orange cloud) causes Error 1033 since there's no Tunnel configured.
 
 ## Deployment
 
@@ -1011,11 +1016,35 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
 ## Desktop Color Picker
 
-The saturation/lightness picker in settings uses mouse drag with global event listeners.
+The color picker in settings uses a 2x2 grid layout with mouse and touch drag support.
+
+### Layout (v1.10.67+)
+
+```
+┌──────────┬──────────┐
+│ text SL  │  bg SL   │  ← saturation/lightness squares
+├──────────┼──────────┤
+│ text hue │  bg hue  │  ← rainbow hue squares
+└──────────┴──────────┘
+  gap: 8px, grid: 1fr 1fr
+```
+
+This 4-square layout is permanent (not conditional on live sync mode).
+
+### Indicator Sizes (v1.10.67+)
+
+Indicators are always the large size — no conditional sizing based on drag or streaming state.
+
+| Part | Indicator | Size | Color |
+|------|-----------|------|-------|
+| SL | Filled circle (dot) | 32px | Opposite color (text→bg, bg→text) |
+| Hue | Horizontal bar (needle) | 16px | Black |
+
+Both parts use `overflow: visible` so indicators can extend beyond the square bounds. SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping).
 
 ### Drag Listener Cleanup
 
-When the user mousedowns on the sat/light square, `mousemove` and `mouseup` listeners are added to `document`. The `mouseup` handler removes both listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag (e.g. closing settings while dragging).
+When the user mousedowns/touchstarts on a picker square, `mousemove`/`touchmove` and `mouseup`/`touchend`/`touchcancel` listeners are added to `document`. The up handler removes all listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag.
 
 Code location: `src/features/theme/components/ColorPicker.tsx`
 
