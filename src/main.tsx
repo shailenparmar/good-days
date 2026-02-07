@@ -711,7 +711,7 @@ function MobileScreen() {
   };
 
   // Dot marker helper - filled circle (LIVE, actively adjusting)
-  const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20) => (
+  const dotMarker = (posX: number, posY: number, color: string, travel: number, size: number = 40) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
@@ -727,7 +727,7 @@ function MobileScreen() {
   );
 
   // Hollow circle marker - outline circle (cursor/target during seeking, home calibration)
-  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 20, borderWidth: number = 4) => (
+  const hollowCircleMarker = (posX: number, posY: number, color: string, travel: number, size: number = 40, borderWidth: number = 8) => (
     <div style={{
       position: 'absolute',
       width: `${size}px`,
@@ -747,7 +747,7 @@ function MobileScreen() {
   // Home: two X's (text/bg positions) + calibration dot (tilt feedback)
   // Picker: active dot (moves with tilt) + locked X (other color)
   const tiltSquare = (size: number, showLabels?: boolean) => {
-    const dotTravel = (size / 2) - 10;
+    const dotTravel = (size / 2) - 20;
 
     // Positions derived from color values (sat→X, light→Y inverted)
     const textPosX = (colors.sat - 50) / 50;
