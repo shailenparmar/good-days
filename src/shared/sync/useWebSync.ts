@@ -102,6 +102,13 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           secret,
           colorway,
         });
+
+        // If this window is already focused, claim the laptop immediately.
+        // The focus event only fires on GAINING focus — on initial page load
+        // the window is already focused so no focus event fires.
+        if (document.hasFocus()) {
+          sendMsg({ type: 'claim-laptop' });
+        }
       };
 
       ws.onmessage = (e) => {
