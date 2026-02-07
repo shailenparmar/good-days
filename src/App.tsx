@@ -843,6 +843,7 @@ function AppContent() {
             paddingBottom={20}
             superscramble={isSuperscramble}
             scrambleSeed={scrambleSeed}
+            stacked={showDebugMenu && showAboutPanel}
             onClick={(e) => {
               e.stopPropagation(); // Prevent bubbling to container
               if (isNarrow) {

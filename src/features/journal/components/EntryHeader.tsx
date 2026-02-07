@@ -10,11 +10,12 @@ interface EntryHeaderProps {
   paddingBottom?: number;
   superscramble?: boolean;
   scrambleSeed?: number;
+  stacked?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, onClick, onHeightChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, stacked, onClick, onHeightChange }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -61,10 +62,15 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, supersc
       if (use24Hour) {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `started at ${hours}:${minutes}:${seconds}`;
+        if (stacked) {
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+          return `started at ${hours}:${minutes}:${seconds}`;
+        }
+        return `started at ${hours}:${minutes}`;
       } else {
-        return `started at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`;
+        const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+        if (stacked) options.second = '2-digit';
+        return `started at ${date.toLocaleTimeString('en-US', options)}`;
       }
     }
     const date = new Date(selectedDate + 'T00:00:00');
