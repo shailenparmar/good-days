@@ -167,13 +167,35 @@ export function useMobileSync(): MobileSyncHandle {
     sendMsg({ type: 'save-preset' });
   }, [sendMsg]);
 
-  // Connect on mount
+  // Connect on mount + disconnect/reconnect on visibility change
   useEffect(() => {
     mountedRef.current = true;
     connect();
 
+    // When phone goes to home screen, close WS immediately so desktop exits live fast.
+    // When phone comes back, reconnect.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        // Close immediately — desktop's 500ms grace will clear live state
+        wsRef.current?.close();
+        wsRef.current = null;
+        isStreamingRef.current = false;
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        backoffRef.current = 1000;
+      } else if (document.visibilityState === 'visible') {
+        // Reconnect immediately
+        backoffRef.current = 1000;
+        connect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       mountedRef.current = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
       wsRef.current?.close();
       wsRef.current = null;
       if (reconnectTimer.current) {
