@@ -50,6 +50,18 @@ The relay server pings each client every 30 seconds (`ws.ping()`). If no pong is
 
 With pings, stale connections are detected within 40 seconds (30s interval + 10s timeout). The `ws.terminate()` fires the client's `onclose`, triggering automatic reconnect.
 
+### Desktop Wake-from-Sleep Reconnect (v2.1.22+)
+
+When a laptop sleeps, the WebSocket connection dies on the server (killed by keep-alive pings) but the browser doesn't know — `onclose` never fires, so the desktop never reconnects. The phone then finds a ghost connection on the relay and pairing fails.
+
+**Fix:** `useWebSync.ts` now tracks `lastWsActivityRef` (updated on `onopen` and every `onmessage`). A `visibilitychange` listener fires when the page becomes visible. If it's been >45 seconds since the last activity (at least one server ping missed), the connection is considered dead. The handler force-closes the stale WebSocket, resets backoff to 1000ms, and calls `connect()` immediately.
+
+**Why 45 seconds:** The server pings every 30s. If we haven't received anything in 45s, we've missed at least one full ping cycle, meaning the connection is dead. This threshold avoids false positives from normal tab switches (where the connection stays alive and messages flow).
+
+**Why not close on hidden (like mobile does):** The mobile closes its WebSocket when backgrounded because leaving the phone app means you're not using it. Desktop tabs stay open while switching between apps — closing the WebSocket on every tab switch would be disruptive and unnecessary. Instead, we only reconnect on `visible` if the connection is actually stale.
+
+Code: `handleVisibility` listener + `lastWsActivityRef` in `useWebSync.ts`.
+
 ### DNS (Cloudflare)
 
 | Type | Name | Target | Proxy |
