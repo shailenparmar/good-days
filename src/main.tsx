@@ -645,7 +645,14 @@ function MobileScreen() {
           else { txtH = parsed.h; txtS = parsed.s; txtL = parsed.l; }
         }
       }
-      if (found) setColors({ hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL });
+      if (found) {
+        const newColors = { hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL };
+        setColors(newColors);
+        // One-shot sync to paired laptop (color-update only streams during picker, not home screen)
+        if (sync.pairingState === 'paired') {
+          sync.sendColorUpdate(newColors);
+        }
+      }
     }).catch(() => {});
   };
 
@@ -696,7 +703,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.19';
+  const mobileVersion = '2.1.20';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
