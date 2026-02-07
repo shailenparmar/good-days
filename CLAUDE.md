@@ -115,6 +115,21 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 
 Code location: `src/shared/sync/leaderElection.ts`
 
+### Relay Handoff Grace Period (v2.1.15+)
+
+When a paired laptop disconnects, the relay delays unpairing the phone by `HANDOFF_GRACE_MS` (3000ms). This prevents the phone from flashing back to the pairing/unpaired screen during browser tab switches or browser-to-browser switches, where the old tab closes its WS before the new tab connects.
+
+**How it works:**
+1. Laptop disconnects → relay starts 3s timer, clears phone's `partnerId` but does NOT send `unpaired`
+2. New laptop connects with same `secret` (or sends `claim-laptop`) → cancels timer, pairs with phone, replays stream state
+3. Timer expires with no new laptop → sends `unpaired` to phone, re-evaluates pairing
+
+**Stream state replay:** When a new laptop pairs during grace (or via `claim-laptop`), the relay replays the phone's last known `stream-start`, `stream-state`, and `color-update` so the new laptop immediately shows the correct colors and picker state. Snapshots stored on phone's `ClientRecord`: `lastColors`, `lastStreamSide`, `lastStreamState`.
+
+**Color-update during grace:** The phone may still be sending `color-update` while unpaired (finger still on screen). These are captured in `lastColors` even without a partner, so the replay has the latest colors.
+
+Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`, `lastColors`/`lastStreamSide`/`lastStreamState` fields in `types.ts`.
+
 ### Cross-Browser Switching (v2.1.8–2.1.13)
 
 BroadcastChannel only works within a single browser. Chrome and Safari on the same machine are invisible to each other. Two relay-level mechanisms handle cross-browser switching:
@@ -1254,6 +1269,25 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │                ┃              │
 └────────────────┻──────────────┘
 ```
+
+**Pairing Screen** (v2.1.15+, when multiple desktops detected):
+```
+┌────────────────────────────────┐
+│          good days             │  ← title
+│                                │
+│     which one is yours?        │  ← 20px monospace bold
+│                                │
+│   ┌────────────────────────┐   │
+│   │     desktop 1          │   │  ← candidate's colorway fill
+│   └────────────────────────┘   │     4px border, 12px radius
+│   ┌────────────────────────┐   │
+│   │     desktop 2          │   │  ← different colorway
+│   └────────────────────────┘   │
+│                                │
+└────────────────────────────────┘
+```
+
+Flex column layout, 12px gap, 320px max-width. Each button uses the candidate's colorway for fill and text color. Border follows `getButtonStyle` pattern (60% opacity resting, 65% lightness pressed). Full engage/disengage touch handling with `candidateEngaged` ref.
 
 ### Layout Centering & Square Sizing (v1.10.17+)
 
