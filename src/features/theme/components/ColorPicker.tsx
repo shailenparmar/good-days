@@ -3,9 +3,12 @@ import { useTheme } from '../context/ThemeContext';
 
 interface ColorPickerProps {
   type: 'text' | 'background';
+  vertical?: boolean;
+  huePosition?: 'left' | 'right';
+  height?: number;
 }
 
-export function ColorPicker({ type }: ColorPickerProps) {
+export function ColorPicker({ type, vertical, huePosition, height }: ColorPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
   // Track active listeners for cleanup on unmount
   const listenersRef = useRef<{ move: ((e: MouseEvent) => void) | null; up: (() => void) | null }>({ move: null, up: null });
@@ -69,71 +72,99 @@ export function ColorPicker({ type }: ColorPickerProps) {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  const thumbColor = isText ? getColor() : getBgColor();
+  const thumbStyle = `
+    .hue-slider-${type}::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: ${thumbColor};
+      border: 2px solid ${thumbColor};
+    }
+    .hue-slider-${type}::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: ${thumbColor};
+      border: 2px solid ${thumbColor};
+    }
+  `;
+
+  const hueSlider = (
+    <input
+      type="range"
+      min="0"
+      max="360"
+      value={currentHue}
+      onChange={(e) => setHueValue(Number(e.target.value))}
+      onMouseUp={(e) => e.currentTarget.blur()}
+      onKeyDown={(e) => e.preventDefault()}
+      tabIndex={-1}
+      className={`rounded appearance-none hue-slider-${type}`}
+      style={vertical ? {
+        writingMode: 'vertical-lr',
+        direction: 'rtl',
+        width: '20px',
+        height: '100%',
+        background: 'linear-gradient(to top, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
+      } : {
+        width: '100%',
+        height: '8px',
+        background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
+      }}
+    />
+  );
+
+  const slSquare = (
+    <div
+      ref={pickerRef}
+      onMouseDown={handlePickerMouseDown}
+      className="relative rounded"
+      style={{
+        ...(vertical ? { flex: 1, height: '100%' } : { width: '100%', height: '80px' }),
+        background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`,
+      }}
+    >
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: '16px',
+          height: '16px',
+          left: `${currentSat}%`,
+          top: `${100 - currentLight}%`,
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: vertical
+            ? (isText ? getColor() : getBgColor())
+            : (isText ? getBgColor() : getColor()),
+        }}
+      />
+    </div>
+  );
+
+  if (vertical) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '4px', height: height ?? 192, flex: 1, minWidth: 0 }}>
+        <style>{thumbStyle}</style>
+        {huePosition === 'left' ? (
+          <>{hueSlider}{slSquare}</>
+        ) : (
+          <>{slSquare}{hueSlider}</>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* Hue slider */}
+      <style>{thumbStyle}</style>
       <div className="mb-1">
-        <style>
-          {`
-            .hue-slider-${type}::-webkit-slider-thumb {
-              -webkit-appearance: none;
-              appearance: none;
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: ${getColor()};
-              border: 2px solid ${getColor()};
-            }
-            .hue-slider-${type}::-moz-range-thumb {
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: ${getColor()};
-              border: 2px solid ${getColor()};
-            }
-          `}
-        </style>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={currentHue}
-          onChange={(e) => setHueValue(Number(e.target.value))}
-          onMouseUp={(e) => e.currentTarget.blur()}
-          onKeyDown={(e) => e.preventDefault()}
-          tabIndex={-1}
-          className={`w-full h-2 rounded appearance-none hue-slider-${type}`}
-          style={{
-            background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'
-          }}
-        />
+        {hueSlider}
       </div>
-
-      {/* Saturation/Lightness picker */}
       <div>
-        <div
-          ref={pickerRef}
-          onMouseDown={handlePickerMouseDown}
-          className="relative w-full h-20 rounded"
-          style={{
-            background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`
-          }}
-        >
-          {/* Dot indicator */}
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: '16px',
-              height: '16px',
-              left: `${currentSat}%`,
-              top: `${100 - currentLight}%`,
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: isText ? getBgColor() : getColor(),
-            }}
-          />
-        </div>
+        {slSquare}
       </div>
-
     </div>
   );
 }
