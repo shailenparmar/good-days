@@ -130,11 +130,13 @@ When a paired laptop disconnects, the relay delays unpairing the phone by `HANDO
 
 Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`, `lastColors`/`lastStreamSide`/`lastStreamState` fields in `types.ts`.
 
-### Cross-Browser Switching (v2.1.8–2.1.13)
+### Cross-Browser Switching (v2.1.8–2.1.13, v2.1.19)
 
 BroadcastChannel only works within a single browser. Chrome and Safari on the same machine are invisible to each other. Two relay-level mechanisms handle cross-browser switching:
 
 **Laptop takeover (v2.1.11, v2.1.13):** When the user switches desktop browsers (e.g. Chrome → Safari), the focused browser sends `claim-laptop` to the relay. The relay transfers the phone pairing from the old laptop to the new one. The phone doesn't know anything changed — color updates seamlessly flow to the focused browser. `claim-laptop` is sent in two places: (1) `window.focus` event (covers switching between already-loaded browsers), and (2) immediately after `register` in `ws.onopen` if `document.hasFocus()` is true (covers initial page load where focus event never fires). Code: `handleClaimLaptop()` in `relay.ts`, focus listener + onopen in `useWebSync.ts`.
+
+**Auto-pair with focused laptop (v2.1.19):** When a phone connects and sees multiple unpaired laptops on the same IP (e.g. Chrome + Safari both open), the relay auto-pairs with the most recently focused one instead of showing a "which one is yours?" candidates screen. Each `claim-laptop` message records a `lastClaimTime` on the laptop's `ClientRecord`. The `pickBestLaptop()` helper sorts by this timestamp. If no laptop has claimed focus, falls back to the first one. This eliminates the confusing pairing screen when multiple browsers are open on the same machine.
 
 **Colorway stats (v2.1.12):** `applyPreset` skips `trackColorway()` when `isLiveStreaming` is true. Without this, every color-update from the phone (60fps) would inflate the unique colorways count. Live colorways are tracked in `saveCustomPreset()` instead (when the user presses save on the phone).
 
