@@ -1788,9 +1788,9 @@ The bold sweep animation runs across all three lines sequentially.
 | **label** | 14px | inline `fontSize: '14px'` | Sidebar buttons, entry dates, footer, "started at" |
 | **caption** | 12px | `text-xs font-bold` | Stats, settings controls, password inputs, presets |
 
-### "started at" Time Display (v1.10.55+)
+### "started at" Time Display (v2.1.29+)
 
-The entry header shows "started at HH:MM:SS" with seconds in **all modes** (minizen, powerstats, default). Previously seconds were gated behind the `stacked` prop (powerstats only). The `stacked` check was removed so seconds always display in both 12-hour and 24-hour formats. In powerstats mode, the TimeDisplay component additionally shows tenths of milliseconds (HH:MM:SS.X).
+The entry header shows "started at HH:MM" by default. Seconds are only shown when the powerstats menu is open (`stacked` prop = `showDebugMenu && showAboutPanel`), displaying "started at HH:MM:SS". Works in both 12-hour and 24-hour formats. In powerstats mode, the TimeDisplay component additionally shows tenths of milliseconds (HH:MM:SS.X).
 
 Code location: `src/features/journal/components/EntryHeader.tsx`
 
