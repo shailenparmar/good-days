@@ -106,6 +106,7 @@ function MobileScreen() {
   // Button press states
   const [resetPressed, setResetPressed] = useState(false);
   const [copyPressed, setCopyPressed] = useState(false);
+  const [savePressed, setSavePressed] = useState(false);
   const [pastePressed, setPastePressed] = useState(false);
 
   // iOS permission state
@@ -124,11 +125,13 @@ function MobileScreen() {
   // Live touch position - tracked continuously from button press
   const liveTouch = useRef<{ x: number; y: number } | null>(null);
   const barsMounted = useRef(0);
-  // Which side started the touch (left = background, right = text)
+  // Which side started the touch (left = background, right = text) — always reflects alpha's side
   const activeSide = useRef<'left' | 'right' | null>(null);
+  const trackedTouches = useRef<Map<number, 'left' | 'right'>>(new Map());  // touchId → side
+  const alphaTouchId = useRef<number | null>(null);  // which touch is alpha (controls tilt)
 
   // Track button engagement for drag-off cancellation
-  const buttonEngaged = useRef({ reset: false, copy: false, paste: false });
+  const buttonEngaged = useRef({ reset: false, copy: false, paste: false, save: false });
 
 
   // Two-dot system: which color is the active dot during picking
@@ -199,10 +202,10 @@ function MobileScreen() {
     }
   };
 
-  // Process touch - uses activeSide to know which bar, only needs Y position
-  const processTouchAt = useCallback((y: number, _source?: string) => {
-    // Use whichever bar exists to get the Y mapping
-    const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
+  // Process touch - uses passed side to know which bar, only needs Y position
+  const processTouchAt = useCallback((y: number, side: 'left' | 'right', _source?: string) => {
+    // Use the specified side's bar to get the Y mapping
+    const bar = side === 'left' ? leftBarRef.current : rightBarRef.current;
     if (!bar) {
       return false;
     }
@@ -213,7 +216,7 @@ function MobileScreen() {
     // Gradient is flipped: top = 359°, bottom = 0°
     const newHue = Math.round((1 - clampedY) * 359);
 
-    if (activeSide.current === 'left') {
+    if (side === 'left') {
       setTextTouchY(clampedY);
       setColors(prev => {
         const next = { ...prev, hue: newHue };
@@ -255,7 +258,7 @@ function MobileScreen() {
       if (cancelled) return;
       const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
       if (bar && liveTouch.current) {
-        processTouchAt(liveTouch.current.y, 'PICKER_READY');
+        processTouchAt(liveTouch.current.y, activeSide.current!, 'PICKER_READY');
       } else {
         // Ref not set yet, try again next frame
         requestAnimationFrame(tryProcess);
@@ -351,60 +354,161 @@ function MobileScreen() {
     const handleMove = (e: TouchEvent) => {
       if (!isTrackingRef.current) return;
       e.preventDefault();
-      const touch = e.touches[0];
-      if (touch) {
-        liveTouch.current = { x: touch.clientX, y: touch.clientY };
 
-        // Determine which side based on finger X position
-        const leftBar = leftBarRef.current;
-        const rightBar = rightBarRef.current;
-        if (leftBar && rightBar) {
-          const leftRect = leftBar.getBoundingClientRect();
-          const rightRect = rightBar.getBoundingClientRect();
-          const midX = (leftRect.right + rightRect.left) / 2;
-          const newSide = touch.clientX < midX ? 'left' : 'right';
-          if (newSide !== activeSide.current) {
-            // Switching sides - haptic tick, color jumps to current tilt position
-            if (navigator.vibrate) navigator.vibrate(5);
-            activeSide.current = newSide;
-            setActiveDot(newSide === 'left' ? 'text' : 'bg');
+      const leftBar = leftBarRef.current;
+      const rightBar = rightBarRef.current;
+      const midX = (leftBar && rightBar)
+        ? (leftBar.getBoundingClientRect().right + rightBar.getBoundingClientRect().left) / 2
+        : 0;
+
+      // Process all active touches
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        const id = touch.identifier;
+
+        if (trackedTouches.current.has(id)) {
+          // Known touch — process on its tracked side
+          const side = trackedTouches.current.get(id)!;
+
+          // If this is alpha, also handle side-switching (single-finger crossover)
+          if (id === alphaTouchId.current && trackedTouches.current.size === 1 && leftBar && rightBar) {
+            const newSide = touch.clientX < midX ? 'left' : 'right';
+            if (newSide !== side) {
+              if (navigator.vibrate) navigator.vibrate(10);
+              trackedTouches.current.set(id, newSide);
+              activeSide.current = newSide;
+              setActiveDot(newSide === 'left' ? 'text' : 'bg');
+              // Process on new side
+              const bar = newSide === 'left' ? leftBar : rightBar;
+              if (bar) {
+                const barRect = bar.getBoundingClientRect();
+                if (touch.clientY < barRect.top) {
+                  processTouchAt(barRect.top, newSide, 'MOVE');
+                } else {
+                  processTouchAt(touch.clientY, newSide, 'MOVE');
+                }
+              }
+              // Update liveTouch for alpha
+              liveTouch.current = { x: touch.clientX, y: touch.clientY };
+              continue;
+            }
           }
-        }
 
-        // Update hue: within bar = track, above = snap to top, below = snap to bottom
-        const bar = activeSide.current === 'left' ? leftBarRef.current : rightBarRef.current;
-        if (bar) {
-          const barRect = bar.getBoundingClientRect();
-          if (touch.clientY < barRect.top) {
-            // Above bar — snap hue to top (0)
-            processTouchAt(barRect.top, 'MOVE');
-          } else {
-            // Within or below bar — processTouchAt clamps to [0,1] internally
-            processTouchAt(touch.clientY, 'MOVE');
+          // Normal hue tracking on this touch's side
+          const bar = side === 'left' ? leftBarRef.current : rightBarRef.current;
+          if (bar) {
+            const barRect = bar.getBoundingClientRect();
+            if (touch.clientY < barRect.top) {
+              processTouchAt(barRect.top, side, 'MOVE');
+            } else {
+              processTouchAt(touch.clientY, side, 'MOVE');
+            }
+          }
+
+          // Track alpha's position for picker-ready snap
+          if (id === alphaTouchId.current) {
+            liveTouch.current = { x: touch.clientX, y: touch.clientY };
+          }
+        } else if (trackedTouches.current.size < 2 && leftBar && rightBar) {
+          // New touch — add as beta if on the other bar
+          const newSide = touch.clientX < midX ? 'left' : 'right';
+          // Only add if side differs from alpha's side (one finger per bar)
+          if (newSide !== activeSide.current) {
+            trackedTouches.current.set(id, newSide);
+            if (navigator.vibrate) navigator.vibrate(10);
+            // Process its Y on its bar
+            const bar = newSide === 'left' ? leftBar : rightBar;
+            if (bar) {
+              const barRect = bar.getBoundingClientRect();
+              if (touch.clientY < barRect.top) {
+                processTouchAt(barRect.top, newSide, 'MOVE');
+              } else {
+                processTouchAt(touch.clientY, newSide, 'MOVE');
+              }
+            }
           }
         }
       }
     };
 
-    const handleEnd = () => {
+    const handleEnd = (e: TouchEvent) => {
       if (!isTrackingRef.current) return;
-      isTrackingRef.current = false;
-      activeSide.current = null;
-      if (navigator.vibrate) navigator.vibrate([5, 30, 5]);
-      setEditing(null);
-      liveTouch.current = null;
-      barsMounted.current = 0;
 
-      // Stop WS streaming
-      sync.stopStream();
+      // Remove ended touches from tracking
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const id = touch.identifier;
+        trackedTouches.current.delete(id);
+
+        if (id === alphaTouchId.current) {
+          // Alpha lifted — check if beta remains
+          if (trackedTouches.current.size > 0) {
+            // Promote beta to alpha
+            const [newAlphaId, newAlphaSide] = trackedTouches.current.entries().next().value!;
+            alphaTouchId.current = newAlphaId;
+            activeSide.current = newAlphaSide;
+            setActiveDot(newAlphaSide === 'left' ? 'text' : 'bg');
+            if (navigator.vibrate) navigator.vibrate(10);
+          } else {
+            alphaTouchId.current = null;
+          }
+        }
+        // If beta lifted, just remove — alpha continues unchanged
+      }
+
+      // If all touches gone, fully end
+      if (trackedTouches.current.size === 0) {
+        isTrackingRef.current = false;
+        activeSide.current = null;
+        alphaTouchId.current = null;
+        if (navigator.vibrate) navigator.vibrate([5, 30, 5]);
+        setEditing(null);
+        liveTouch.current = null;
+        barsMounted.current = 0;
+
+        // Stop WS streaming
+        sync.stopStream();
+      }
+    };
+
+    // Detect new beta touches immediately on touchstart (not just on move)
+    const handleStart = (e: TouchEvent) => {
+      if (!isTrackingRef.current) return;
+      const leftBar = leftBarRef.current;
+      const rightBar = rightBarRef.current;
+      if (!leftBar || !rightBar) return;
+      const midX = (leftBar.getBoundingClientRect().right + rightBar.getBoundingClientRect().left) / 2;
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const id = touch.identifier;
+        if (trackedTouches.current.has(id) || trackedTouches.current.size >= 2) continue;
+        const newSide = touch.clientX < midX ? 'left' : 'right';
+        if (newSide !== activeSide.current) {
+          e.preventDefault();
+          trackedTouches.current.set(id, newSide);
+          if (navigator.vibrate) navigator.vibrate(10);
+          const bar = newSide === 'left' ? leftBar : rightBar;
+          if (bar) {
+            const barRect = bar.getBoundingClientRect();
+            if (touch.clientY < barRect.top) {
+              processTouchAt(barRect.top, newSide, 'START');
+            } else {
+              processTouchAt(touch.clientY, newSide, 'START');
+            }
+          }
+        }
+      }
     };
 
     // Handlers attached on mount - always listening
+    window.addEventListener('touchstart', handleStart, { passive: false });
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
     window.addEventListener('touchcancel', handleEnd);
 
     return () => {
+      window.removeEventListener('touchstart', handleStart);
       window.removeEventListener('touchmove', handleMove);
       window.removeEventListener('touchend', handleEnd);
       window.removeEventListener('touchcancel', handleEnd);
@@ -425,11 +529,17 @@ function MobileScreen() {
     // Set which side we're controlling
     activeSide.current = side;
 
+    // Record initial touch as alpha
+    const touch = e.touches[0];
+    const touchId = touch.identifier;
+    alphaTouchId.current = touchId;
+    trackedTouches.current.clear();
+    trackedTouches.current.set(touchId, side);
+
     // Start tracking IMMEDIATELY - before any state changes
     isTrackingRef.current = true;
 
     // Store current touch position
-    const touch = e.touches[0];
     liveTouch.current = { x: touch.clientX, y: touch.clientY };
     barsMounted.current = 0;
 
@@ -504,11 +614,11 @@ function MobileScreen() {
   };
 
   // Button style helper - follows style guide with fill on press
-  const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full') => {
+  const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full' | 'center') => {
     const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${pressed ? 65 : colors.light}%, ${pressed ? 1 : 0.6})`;
     const fillColor = pressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
     const base: React.CSSProperties = {
-      flex: position === 'full' ? undefined : 1,
+      flex: (position === 'full') ? undefined : 1,
       width: position === 'full' ? '100%' : undefined,
       padding: '14px 0',
       fontFamily: 'monospace',
@@ -524,6 +634,8 @@ function MobileScreen() {
       return { ...base, border: `4px solid ${borderColor}`, borderRightWidth: '2px', borderRadius: '12px 0 0 12px' };
     } else if (position === 'right') {
       return { ...base, border: `4px solid ${borderColor}`, borderLeftWidth: '2px', borderRadius: '0 12px 12px 0' };
+    } else if (position === 'center') {
+      return { ...base, border: `4px solid ${borderColor}`, borderLeftWidth: '2px', borderRightWidth: '2px', borderRadius: '0' };
     }
     return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
   };
@@ -544,7 +656,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.54';
+  const mobileVersion = '1.10.64';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -793,7 +905,7 @@ function MobileScreen() {
               ref={leftBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && activeSide.current === 'left'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('left'); const isAlpha = activeSide.current === 'left'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Right: background hue bar */}
@@ -801,7 +913,7 @@ function MobileScreen() {
               ref={rightBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && activeSide.current === 'right'; const h = active ? 8 : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('right'); const isAlpha = activeSide.current === 'right'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', opacity: 1, pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
@@ -877,6 +989,17 @@ function MobileScreen() {
             >
               copy
             </div>
+            {sync.pairingState === 'paired' && (
+              <div
+                onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.save = true; setSavePressed(true); }}
+                onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.save = false; setSavePressed(false); } }}
+                onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.save) { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); } buttonEngaged.current.save = false; setSavePressed(false); }}
+                onTouchCancel={() => { buttonEngaged.current.save = false; setSavePressed(false); }}
+                style={getButtonStyle(savePressed, 'center')}
+              >
+                save
+              </div>
+            )}
             <div
               onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.paste = true; setPastePressed(true); }}
               onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
