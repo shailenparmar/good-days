@@ -135,12 +135,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setItem('bgLightness', String(bgLightness));
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
-  // Update Safari toolbar color when background changes
+  // Update Safari toolbar color + page background when background changes
   useEffect(() => {
+    // Convert to hex — Safari handles hex more reliably than HSL for theme-color
+    const s = bgSaturation / 100, l = bgLightness / 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => {
+      const k = (n + bgHue / 30) % 12;
+      const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * c).toString(16).padStart(2, '0');
+    };
+    const hex = `#${f(0)}${f(8)}${f(4)}`;
     const meta = document.getElementById('theme-color-meta');
     if (meta) {
-      meta.setAttribute('content', `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`);
+      meta.setAttribute('content', hex);
     }
+    // Safari also uses the page background for toolbar tinting
+    document.documentElement.style.backgroundColor = hex;
+    document.body.style.backgroundColor = hex;
   }, [bgHue, bgSaturation, bgLightness]);
 
   // Save presets
