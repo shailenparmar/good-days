@@ -641,14 +641,14 @@ All three export buttons (copy, download backup, import) live in a single `<div 
   [contenteditable="true"], .cursor-text { cursor: text; }
   ```
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
-- **Safari toolbar tinting (v2.1.17+)** - Safari's toolbar/tab bar tints to match the page background. Three things keep it in sync:
+- **Safari toolbar tinting (v2.1.16+)** - Safari's toolbar/tab bar tints to match the page background. Three things keep it in sync:
   1. `index.html` IIFE sets `theme-color` meta + `<html>`/`<body>` background on initial load (from localStorage, hex format)
-  2. `ThemeContext.tsx` effect removes and re-inserts the `<meta name="theme-color">` tag on every bg color change (also updates `documentElement.style.backgroundColor` + `body.style.backgroundColor`)
+  2. `ThemeContext.tsx` effect updates theme-color meta via `setAttribute` + syncs `documentElement.style.backgroundColor` + `body.style.backgroundColor` on every bg color change
   3. Mobile `main.tsx` overrides all to `#000000` (mobile always has black chrome)
 
-  **Must use hex format** — Safari handles hex more reliably than HSL for `theme-color`.
+  **Must use hex format** — Safari handles hex more reliably than HSL for `theme-color`. The meta tag has `id="theme-color-meta"` for fast lookup.
 
-  **Must remove+re-insert meta tag** (v2.1.17) — Safari ignores `setAttribute('content', ...)` on existing theme-color meta elements. It only reads the value when a meta tag is first inserted into the DOM. The effect removes the old tag and creates a fresh one each time.
+  **macOS Safari limitation:** The toolbar color is determined by Safari internally sampling the rendered page background — NOT by reading the `theme-color` meta tag dynamically. The meta tag is only read on page load. Live color changes will NOT update the toolbar in real-time. Safari re-evaluates on its own schedule (tab switch, scroll, navigation). This is a browser limitation with no workaround. Attempted: `setAttribute`, remove+re-insert meta — neither triggers live updates.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, scramble state, etc. **Exception: zen and minizen modes** — these are ephemeral focus states that reset on refresh (see below).
 
 ### Zen/Minizen Refresh Behavior (v1.10.37+)
