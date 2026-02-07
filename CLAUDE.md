@@ -1547,6 +1547,8 @@ bg: #c8ff00 h84 s100 l88
 - `h, s%, l%` - plain HSL (applies to text)
 - `#rrggbb` - bare HEX (applies to text)
 
+**Paste-to-laptop sync (v2.1.20+):** When paired with a laptop, pasting a color on the mobile home screen sends a one-shot `color-update` to the laptop so it immediately reflects the pasted colors. Normally color updates only stream during the picker screen (60fps while dragging). The paste sends a single `sendColorUpdate()` after `setColors()`, which the relay forwards to the paired laptop unconditionally (no `stream-start` required).
+
 ### Persistence
 
 Colors persist to `localStorage` key `mobileColors`:
