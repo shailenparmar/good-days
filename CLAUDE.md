@@ -1077,14 +1077,34 @@ The color picker in settings uses a 2x2 grid layout with mouse and touch drag su
 
 This 4-square layout is permanent (not conditional on live sync mode).
 
-### Indicator Sizes (v1.10.67+)
+### Indicator Sizes — Selective Sizing (v2.0.4+)
 
-Indicators are always the large size — no conditional sizing based on drag or streaming state.
+Desktop color picker indicators dynamically reflect what the phone is doing. The phone sends `stream-state` messages whenever touch state changes (start, side crossover, beta join/leave, alpha promotion). The desktop computes a **role** for each picker:
 
-| Part | Indicator | Size | Color |
-|------|-----------|------|-------|
-| SL | Filled circle (dot) | 32px | Opposite color (text→bg, bg→text) |
-| Hue | Horizontal bar (needle) | 16px | Black |
+| Role | When | SL dot | Hue needle |
+|------|------|--------|------------|
+| `idle` | No phone streaming, or this side not being controlled | 12px | 4px |
+| `beta` | Phone's beta finger is on this side | 12px | 8px |
+| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 32px | 16px |
+
+Size changes animate with `150ms ease` CSS transition (except during local drag — instant).
+
+**StreamingControls type** (in `src/features/theme/types.ts`):
+```typescript
+interface StreamingControls {
+  alpha: { side: 'text' | 'background' };
+  beta: { side: 'text' | 'background' } | null;
+}
+```
+
+**Data flow**: Phone touch handler → `sendStreamState()` → relay forwards → desktop `useWebSync` → `WebSyncBridge` → `ThemeContext.streamingControls` → `ColorPicker` reads it.
+
+**stream-state sent at 5 control-state change points in `src/main.tsx`**:
+1. `startPicking()` — initial alpha, no beta
+2. Single-finger crossover in `handleMove` — alpha side switched
+3. Beta touch detected in `handleStart` — beta joined
+4. Alpha lifts, beta promoted in `handleEnd` — new alpha, no beta
+5. Beta lifts, alpha continues in `handleEnd` — beta gone
 
 Both parts use `overflow: visible` so indicators can extend beyond the square bounds. SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping).
 
