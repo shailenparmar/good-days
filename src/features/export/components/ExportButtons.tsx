@@ -70,7 +70,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
     let currentEntries = entries;
     let totalImported = 0;
-    let hasError = false;
+    let anyFileSucceeded = false;
 
     // Process all files sequentially
     for (const file of Array.from(files)) {
@@ -82,7 +82,6 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const encryptedContent = parseEncryptedBackup(fileContent);
         if (!encryptedContent) {
           console.error(`No encrypted content found in: ${file.name}`);
-          hasError = true;
           continue;
         }
 
@@ -108,15 +107,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         }
         currentEntries = merged;
         totalImported += importedCount;
+        anyFileSucceeded = true;
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
-        hasError = true;
       }
     }
 
-    // Update state once with final merged result — ignore bad files, show count of what worked
-    // Only show error if ALL files failed (no valid files processed at all)
-    if (hasError && totalImported === 0 && currentEntries.length === entries.length) {
+    // Show error only if ALL files failed — no valid file was processed at all
+    if (!anyFileSucceeded) {
       setImportFeedback({ type: 'error' });
       logAction('import.fail', { fileCount: files.length });
     } else {
