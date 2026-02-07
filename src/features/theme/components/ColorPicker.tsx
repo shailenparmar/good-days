@@ -21,6 +21,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     setBgHue, setBgSaturation, setBgLightness,
     getColor, getBgColor,
     isLiveStreaming, streamingControls,
+    setLocalDragging,
   } = useTheme();
 
   const isText = type === 'text';
@@ -66,6 +67,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
 
   const startDrag = (clientX: number, clientY: number) => {
     setIsDragging(true);
+    setLocalDragging(true);
 
     if (part === 'sl') {
       const updateColor = (cx: number, cy: number) => {
@@ -91,6 +93,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         document.removeEventListener('touchcancel', handleUp);
         listenersRef.current = { move: null, up: null };
         setIsDragging(false);
+        setLocalDragging(false);
       };
 
       listenersRef.current = { move: handleMove, up: handleUp };
@@ -121,6 +124,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         document.removeEventListener('touchcancel', handleUp);
         listenersRef.current = { move: null, up: null };
         setIsDragging(false);
+        setLocalDragging(false);
       };
 
       listenersRef.current = { move: handleMove, up: handleUp };

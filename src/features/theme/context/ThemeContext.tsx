@@ -94,6 +94,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
   const [streamingControls, setStreamingControls] = useState<StreamingControls | null>(null);
 
+  // Desktop drag override: when true, incoming color-updates skip applyPreset
+  const localDragRef = useRef(false);
+  const setLocalDragging = (dragging: boolean) => { localDragRef.current = dragging; };
+
   const saveLivePreset = () => {
     if (!livePreset) return;
     setCustomPresets(prev => [...prev, { ...livePreset }]);
@@ -146,14 +150,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return Math.round(255 * c).toString(16).padStart(2, '0');
     };
     const hex = `#${f(0)}${f(8)}${f(4)}`;
-    // Safari ignores setAttribute on existing theme-color meta — must remove and re-insert
-    const existing = document.querySelector('meta[name="theme-color"]');
-    if (existing) existing.remove();
-    const meta = document.createElement('meta');
-    meta.name = 'theme-color';
-    meta.id = 'theme-color-meta';
-    meta.content = hex;
-    document.head.appendChild(meta);
+    // macOS Safari: toolbar color is sampled from rendered page background, not theme-color meta.
+    // Meta tag only matters on page load. We set it anyway for iOS Safari and other browsers.
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) meta.setAttribute('content', hex);
     // Safari also uses the page background for toolbar tinting
     document.documentElement.style.backgroundColor = hex;
     document.body.style.backgroundColor = hex;
@@ -363,6 +363,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setIsLiveStreaming,
     setStreamingControls,
     saveLivePreset,
+    localDragRef,
+    setLocalDragging,
   };
 
   return (

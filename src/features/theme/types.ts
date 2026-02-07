@@ -69,6 +69,8 @@ export interface LiveSyncActions {
   setIsLiveStreaming: (streaming: boolean) => void;
   setStreamingControls: (controls: StreamingControls | null) => void;
   saveLivePreset: () => void;
+  localDragRef: React.RefObject<boolean>;
+  setLocalDragging: (dragging: boolean) => void;
 }
 
 export interface ColorwayTracking {

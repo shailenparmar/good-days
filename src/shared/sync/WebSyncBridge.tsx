@@ -32,6 +32,10 @@ export function WebSyncBridge() {
       bgSat: colors.bgSat,
       bgLight: colors.bgLight,
     });
+    // Skip applyPreset while desktop user is dragging a color picker —
+    // otherwise phone's 60fps updates fight the local drag, causing flicker.
+    // livePreset still tracks the phone's colors so they resume on drag end.
+    if (t.localDragRef.current) return;
     // Always apply — if we're receiving color-update from the relay,
     // we're paired and should render the phone's colors immediately.
     // Don't gate on isLiveActive: the pairing effect sets it via an
