@@ -27,7 +27,13 @@ export interface WebSyncState {
   saveRequested: number;
 }
 
-export function useWebSync(currentColorway: ColorPayload | undefined) {
+export interface UseWebSyncOptions {
+  onColorUpdate?: (colors: ColorPayload) => void;
+}
+
+export function useWebSync(currentColorway: ColorPayload | undefined, options?: UseWebSyncOptions) {
+  const onColorUpdateRef = useRef(options?.onColorUpdate);
+  onColorUpdateRef.current = options?.onColorUpdate;
   const [state, setState] = useState<WebSyncState>({
     livePreset: null,
     streamSide: null,
@@ -114,6 +120,8 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
               ...prev,
               livePreset: msg.colors,
             }));
+            // Direct callback — bypasses React effect chain for low-latency path
+            onColorUpdateRef.current?.(msg.colors);
             break;
 
           case 'stream-start':

@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
   const theme = useTheme();
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const prevLiveRef = useRef<ColorPayload | null>(null);
+  const skipBridgeRef = useRef(false);
   const [debugLog, setDebugLog] = useState<string[]>(['init']);
 
   const log = (msg: string) => {
@@ -22,15 +25,44 @@ export function WebSyncBridge() {
     bgLight: theme.bgLightness,
   };
 
-  const syncState = useWebSync(currentColorway);
+  // Direct callback from WebSocket — fires synchronously in ws.onmessage.
+  // React 18 batches all setState calls from this + useWebSync into ONE render.
+  const handleColorUpdate = useCallback((colors: ColorPayload) => {
+    const t = themeRef.current;
+    skipBridgeRef.current = true;
+    t.setLivePreset({
+      hue: colors.hue,
+      sat: colors.sat,
+      light: colors.light,
+      bgHue: colors.bgHue,
+      bgSat: colors.bgSat,
+      bgLight: colors.bgLight,
+    });
+    if (t.isLiveActive) {
+      t.applyPreset({
+        hue: colors.hue,
+        sat: colors.sat,
+        light: colors.light,
+        bgHue: colors.bgHue,
+        bgSat: colors.bgSat,
+        bgLight: colors.bgLight,
+      });
+    }
+  }, []);
+
+  const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
 
   // Log state changes
   useEffect(() => {
     log(`sync: live=${syncState.livePreset ? 'yes' : 'null'} streaming=${syncState.isStreaming} side=${syncState.streamSide}`);
   }, [syncState.livePreset, syncState.isStreaming, syncState.streamSide]);
 
-  // Bridge sync state into ThemeContext
+  // Bridge sync state into ThemeContext (skipped for color-update — handled by callback)
   useEffect(() => {
+    if (skipBridgeRef.current) {
+      skipBridgeRef.current = false;
+      return;
+    }
     theme.setLivePreset(syncState.livePreset ? {
       hue: syncState.livePreset.hue,
       sat: syncState.livePreset.sat,
@@ -63,20 +95,6 @@ export function WebSyncBridge() {
       });
     }
   }, [syncState.livePreset]);
-
-  // When live is active and preset changes, apply it
-  useEffect(() => {
-    if (theme.isLiveActive && syncState.livePreset) {
-      theme.applyPreset({
-        hue: syncState.livePreset.hue,
-        sat: syncState.livePreset.sat,
-        light: syncState.livePreset.light,
-        bgHue: syncState.livePreset.bgHue,
-        bgSat: syncState.livePreset.bgSat,
-        bgLight: syncState.livePreset.bgLight,
-      });
-    }
-  }, [syncState.livePreset, theme.isLiveActive]);
 
   // Bridge streaming state into ThemeContext
   useEffect(() => {
