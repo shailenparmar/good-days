@@ -32,8 +32,8 @@ function pairClients(id1: string, id2: string) {
   c1.secret = secret;
   c2.secret = secret;
 
-  send(c1.ws, { type: 'paired', partnerId: id2, secret });
-  send(c2.ws, { type: 'paired', partnerId: id1, secret });
+  send(c1.ws, { type: 'paired', partnerId: id2, secret, partnerDeviceId: c2.deviceId });
+  send(c2.ws, { type: 'paired', partnerId: id1, secret, partnerDeviceId: c1.deviceId });
 }
 
 function getUnpairedLaptopsInGroup(ip: string, excludeId?: string): string[] {
@@ -71,6 +71,42 @@ function pickBestLaptop(laptops: string[]): string {
   return bestId;
 }
 
+function findAffinityMatch(
+  clientId: string,
+  role: 'phone' | 'laptop',
+  publicIp: string,
+  deviceId?: string,
+  partnerDeviceId?: string
+): string | null {
+  if (!deviceId && !partnerDeviceId) return null;
+
+  const group = ipGroups.get(publicIp);
+  if (!group) return null;
+
+  const oppositeRole = role === 'phone' ? 'laptop' : 'phone';
+  let mutualMatch: string | null = null;
+  let oneSidedMatch: string | null = null;
+
+  for (const otherId of group) {
+    if (otherId === clientId) continue;
+    const other = clients.get(otherId);
+    if (!other || other.role !== oppositeRole || other.partnerId) continue;
+
+    const theyClaimUs = other.partnerDeviceId === deviceId;
+    const weClaimThem = partnerDeviceId && partnerDeviceId === other.deviceId;
+
+    if (theyClaimUs && weClaimThem) {
+      mutualMatch = otherId;
+      break;
+    }
+    if ((theyClaimUs || weClaimThem) && !oneSidedMatch) {
+      oneSidedMatch = otherId;
+    }
+  }
+
+  return mutualMatch || oneSidedMatch;
+}
+
 function replayStreamToLaptop(phoneId: string, laptopId: string) {
   const phone = clients.get(phoneId);
   const laptop = clients.get(laptopId);
@@ -89,7 +125,7 @@ function replayStreamToLaptop(phoneId: string, laptopId: string) {
   }
 }
 
-function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, secret?: string, colorway?: ColorPayload) {
+function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, secret?: string, colorway?: ColorPayload, deviceId?: string, partnerDeviceId?: string) {
   const record: ClientRecord = {
     ws,
     role,
@@ -97,6 +133,8 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     secret,
     colorway,
     streaming: false,
+    deviceId,
+    partnerDeviceId,
   };
   clients.set(clientId, record);
 
@@ -107,7 +145,7 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   ipGroups.get(publicIp)!.add(clientId);
 
   send(ws, { type: 'registered', clientId });
-  console.log(`[relay] REGISTER ${role} id=${clientId.slice(0,8)} ip=${publicIp} secret=${secret || 'none'} clients=${clients.size} ipGroup=${ipGroups.get(publicIp)?.size || 0}`);
+  console.log(`[relay] REGISTER ${role} id=${clientId.slice(0,8)} ip=${publicIp} secret=${secret || 'none'} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size} ipGroup=${ipGroups.get(publicIp)?.size || 0}`);
 
   // Secret-based auto-pair: find another client with same secret
   if (secret) {
@@ -129,6 +167,23 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
         return;
       }
     }
+  }
+
+  // Affinity-based auto-pair: match by remembered device IDs
+  const affinityMatch = findAffinityMatch(clientId, role, publicIp, record.deviceId, record.partnerDeviceId);
+  if (affinityMatch) {
+    if (handoffTimers.has(affinityMatch)) {
+      clearTimeout(handoffTimers.get(affinityMatch)!);
+      handoffTimers.delete(affinityMatch);
+      console.log(`[relay] handoff grace cancelled for ${affinityMatch.slice(0,8)} — affinity match`);
+    }
+    console.log(`[relay] affinity-pairing ${role} ${clientId.slice(0,8)} with ${affinityMatch.slice(0,8)}`);
+    pairClients(clientId, affinityMatch);
+    const partner = clients.get(affinityMatch);
+    if (partner?.role === 'phone' && partner.streaming) {
+      replayStreamToLaptop(affinityMatch, clientId);
+    }
+    return;
   }
 
   // IP-based pairing
@@ -456,7 +511,7 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
       case 'register':
         if (registered) return;
         registered = true;
-        handleRegister(clientId, ws, msg.role, msg.publicIp || publicIp, msg.secret, msg.colorway);
+        handleRegister(clientId, ws, msg.role, msg.publicIp || publicIp, msg.secret, msg.colorway, msg.deviceId, msg.partnerDeviceId);
         break;
 
       case 'pair-request':

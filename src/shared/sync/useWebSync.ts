@@ -5,7 +5,18 @@ import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
 const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
+const DEVICE_ID_KEY = 'wsDeviceId';
+const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
 const GRACE_MS = 500;
+
+function getOrCreateDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
 
 // IP fetch runs eagerly on module load so it's cached before first connect()
 let ipPromise: Promise<string> | null = null;
@@ -61,6 +72,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
   const backoffRef = useRef(1000);
   const destroyLeaderRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
+  const lastWsActivityRef = useRef(Date.now());
   const colorwayRef = useRef(currentColorway);
   colorwayRef.current = currentColorway;
 
@@ -87,6 +99,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       ws.onopen = () => {
         console.log('[ws-sync] connected to', url);
         backoffRef.current = 1000;
+        lastWsActivityRef.current = Date.now();
         // Clear grace timer on reconnect
         if (graceTimer.current) {
           clearTimeout(graceTimer.current);
@@ -101,6 +114,8 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           publicIp: ip,
           secret,
           colorway,
+          deviceId: getOrCreateDeviceId(),
+          partnerDeviceId: localStorage.getItem(PARTNER_DEVICE_ID_KEY) || undefined,
         });
 
         // If this window is already focused, claim the laptop immediately.
@@ -113,6 +128,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
 
       ws.onmessage = (e) => {
         if (!mountedRef.current) return;
+        lastWsActivityRef.current = Date.now();
         let msg: ServerMessage;
         try {
           msg = JSON.parse(e.data);
@@ -122,6 +138,9 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         switch (msg.type) {
           case 'paired':
             localStorage.setItem(SECRET_KEY, msg.secret);
+            if (msg.partnerDeviceId) {
+              localStorage.setItem(PARTNER_DEVICE_ID_KEY, msg.partnerDeviceId);
+            }
             // Initialize live preset with current laptop colors
             if (colorwayRef.current) {
               setState(prev => ({
@@ -243,9 +262,36 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     };
     window.addEventListener('focus', handleFocus);
 
+    // Wake-from-sleep detection: when the page becomes visible, check if the
+    // WebSocket is stale. The server pings every 30s — if we haven't received
+    // anything in 45s, the connection is dead (laptop was sleeping) but the
+    // browser doesn't know yet. Force close and reconnect immediately.
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible' || !isLeaderRef.current) return;
+
+      const stale = Date.now() - lastWsActivityRef.current > 45_000;
+      const dead = !wsRef.current || wsRef.current.readyState > WebSocket.OPEN;
+
+      if (stale || dead) {
+        console.log('[ws-sync] wake detected, reconnecting (stale=%s, dead=%s)', stale, dead);
+        backoffRef.current = 1000;
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+        connect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       mountedRef.current = false;
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
       election.destroy();
       wsRef.current?.close();
       wsRef.current = null;

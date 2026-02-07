@@ -4,6 +4,17 @@ import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
 const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
+const DEVICE_ID_KEY = 'wsDeviceId';
+const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
+
+function getOrCreateDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
 
 async function fetchPublicIp(): Promise<string> {
   const cached = sessionStorage.getItem(IP_CACHE_KEY);
@@ -78,6 +89,8 @@ export function useMobileSync(): MobileSyncHandle {
           role: 'phone',
           publicIp: ip,
           secret,
+          deviceId: getOrCreateDeviceId(),
+          partnerDeviceId: localStorage.getItem(PARTNER_DEVICE_ID_KEY) || undefined,
         });
       };
 
@@ -92,6 +105,9 @@ export function useMobileSync(): MobileSyncHandle {
         switch (msg.type) {
           case 'paired':
             localStorage.setItem(SECRET_KEY, msg.secret);
+            if (msg.partnerDeviceId) {
+              localStorage.setItem(PARTNER_DEVICE_ID_KEY, msg.partnerDeviceId);
+            }
             setPairingState('paired');
             setCandidates([]);
             break;
