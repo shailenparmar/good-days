@@ -114,14 +114,15 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       }
     }
 
-    // Update state once with final merged result
-    if (totalImported > 0 || !hasError) {
+    // Update state once with final merged result — ignore bad files, show count of what worked
+    // Only show error if ALL files failed (no valid files processed at all)
+    if (hasError && totalImported === 0 && currentEntries.length === entries.length) {
+      setImportFeedback({ type: 'error' });
+      logAction('import.fail', { fileCount: files.length });
+    } else {
       onImport(currentEntries);
       setImportFeedback({ type: 'success', count: totalImported });
       logAction('import.done', { totalImported, fileCount: files.length });
-    } else {
-      setImportFeedback({ type: 'error' });
-      logAction('import.fail');
     }
 
     // Reset input so same files can be selected again
