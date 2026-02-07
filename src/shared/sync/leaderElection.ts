@@ -6,7 +6,8 @@ const RACE_MS = 100;
 type LeaderMessage =
   | { type: 'claim'; tabId: string; timestamp: number }
   | { type: 'heartbeat'; tabId: string }
-  | { type: 'release'; tabId: string };
+  | { type: 'release'; tabId: string }
+  | { type: 'focus-claim'; tabId: string };
 
 export function createLeaderElection(
   onBecomeLeader: () => void,
@@ -94,6 +95,15 @@ export function createLeaderElection(
         }
         break;
 
+      case 'focus-claim':
+        if (msg.tabId !== tabId && isLeader) {
+          // Focused tab always wins — yield unconditionally
+          loseLeadership();
+          currentLeader = msg.tabId;
+          lastHeartbeat = Date.now();
+        }
+        break;
+
       case 'release':
         if (msg.tabId === currentLeader) {
           currentLeader = null;
@@ -111,6 +121,15 @@ export function createLeaderElection(
       claim();
     }
   }, TIMEOUT_MS);
+
+  // Focus: when tab gains focus, take over leadership immediately
+  const handleFocus = () => {
+    if (!isLeader) {
+      channel?.postMessage({ type: 'focus-claim', tabId } satisfies LeaderMessage);
+      claim();
+    }
+  };
+  window.addEventListener('focus', handleFocus);
 
   // Visibility change: re-run election when tab becomes visible
   const handleVisibility = () => {
@@ -138,6 +157,7 @@ export function createLeaderElection(
     isLeader: () => isLeader,
     destroy: () => {
       cleanup();
+      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('beforeunload', handleUnload);
       if (isLeader) {
