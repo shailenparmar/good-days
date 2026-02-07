@@ -73,8 +73,10 @@ When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GR
 The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~500ms of the user leaving the phone app (the grace period), and re-enter live mode as soon as they come back.
 
 **Implementation:** `visibilitychange` listener in `useMobileSync.ts`:
-- `hidden` → close WS, clear streaming state, cancel reconnect timer, reset backoff
-- `visible` → reset backoff, call `connect()` immediately
+- `hidden` → set `hiddenRef=true`, close WS, clear streaming state, cancel reconnect timer, reset backoff
+- `visible` → set `hiddenRef=false`, reset backoff, call `connect()` immediately
+
+**Bug fix (v2.1.5):** Closing the WS triggers `onclose`, which calls `scheduleReconnect()`. Without the `hiddenRef` guard, the phone would schedule a reconnect while backgrounded, defeating the purpose of the visibility disconnect. `scheduleReconnect` now checks `hiddenRef.current` and bails if hidden.
 
 Without this, the WS would stay open until the OS kills it or the server times it out, leaving the desktop stuck in live mode for seconds after the phone is backgrounded.
 
@@ -95,7 +97,7 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 
 **Smoothness optimizations (v2.1.3):**
 - Focus-claim skips the 100ms `RACE_MS` delay — calls `becomeLeader()` directly instead of `claim()`. The old leader already yielded from the `focus-claim` message, so the race window is unnecessary.
-- Public IP is pre-fetched on module load (`useWebSync.ts`). A shared promise dedupes concurrent calls. By the time `connect()` runs, the IP is already cached — no network latency on the critical path.
+- Public IP is pre-fetched on module load (`useWebSync.ts`). A shared promise dedupes concurrent calls. By the time `connect()` runs, the IP is already cached — no network latency on the critical path. On fetch failure, the promise resets to `null` so the next `connect()` retries (v2.1.5 fix).
 
 **Critical detail (v2.1.2 fix):** The focus handler must clear `currentLeader = null` before calling `becomeLeader()`. Otherwise, existing tabs would fail because `currentLeader` still points to the old leader from previous heartbeats. New tabs worked because `currentLeader` starts as `null`.
 
