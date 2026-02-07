@@ -127,6 +127,27 @@ BroadcastChannel only works within a single browser. Chrome and Safari on the sa
 
 **Disconnect re-evaluation (v2.1.8):** When a paired client disconnects, the relay re-evaluates pairing for remaining unpaired clients in the same IP group. Handles the case where a phone/laptop was waiting with `no-candidates` and a slot opens up. Code: bottom of `handleDisconnect()` in `relay.ts`.
 
+### Seamless Laptop Handoff (v2.1.15+)
+
+When the phone is streaming colors and the user switches laptop tabs or browsers, the phone never disconnects. The relay manages the handoff transparently.
+
+**Handoff grace period:** When a paired laptop disconnects (tab close, browser switch), the relay does NOT immediately send `unpaired` to the phone. Instead, it starts a 3-second grace timer (`HANDOFF_GRACE_MS`). If a new laptop registers with the same secret within 3 seconds, the relay pairs it with the phone seamlessly — the phone never receives `unpaired`, `isStreamingRef` stays true, streaming continues uninterrupted. If the grace expires, the phone gets `unpaired` normally.
+
+**Stream state snapshots:** The relay stores `lastColors`, `lastStreamSide`, and `lastStreamState` on the phone's `ClientRecord` as they flow through. When a new laptop is paired (via handoff, `claim-laptop`, or register), `replayStreamToLaptop()` sends the full streaming state (`stream-start` + `stream-state` + `color-update`) so the new laptop immediately picks up the stream.
+
+**Code locations:**
+- `handoffTimers` Map + `HANDOFF_GRACE_MS` constant in `relay.ts`
+- `replayStreamToLaptop()` helper in `relay.ts`
+- Grace period logic in `handleDisconnect()` (only for laptop-disconnects-from-phone)
+- Replay calls in `handleRegister()` (secret-based and IP-based pairing), `handleClaimLaptop()` (cross-browser + grace-period phones)
+- Stream snapshot fields on `ClientRecord` in `types.ts`: `lastColors`, `lastStreamSide`, `lastStreamState`
+
+**Edge cases:**
+- Grace expires, no laptop → phone gets `unpaired` after 3s (normal fallback)
+- Phone disconnects during grace → timer cancelled, clean cleanup
+- `color-update` during grace (no laptop) → stored in `lastColors`, replayed to next laptop
+- `stream-stop` during grace → clears snapshots, new laptop pairs but not streaming
+
 ### Future: WebRTC DataChannel Migration
 
 The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
@@ -1424,6 +1445,8 @@ The recalibrate, copy, and paste buttons support **drag-off cancellation**: pres
 | touchCancel (long press) | Clear state, do NOT fire action (intentional) |
 
 **Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
+
+**Applied to pairing screen candidate buttons (v2.1.15+):** Each candidate uses its own `candidateEngaged` ref and `pressedCandidate` state for the same engage/disengage pattern. `selectCandidate` only fires if still engaged on touchEnd.
 
 **Copy textarea Writing Tools prevention (v1.10.22+):** The temporary textarea used for `execCommand('copy')` now has `writingSuggestions="false"`, `autocomplete/autocorrect/autocapitalize` off, `spellcheck=false`, and explicitly blurs before removal to clear iOS text interaction state.
 
