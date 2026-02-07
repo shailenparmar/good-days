@@ -2995,6 +2995,7 @@ The bold sweep is tied to `isRainbowMode`:
 ### Implementation Notes
 
 - `getEasterEggCount()` returns `total: 8` (hides the secret 9th egg)
+- `getFound()` filters stored eggs against `EASTER_EGGS` to ignore stale entries from older versions (v2.1.24 fix — old removed eggs in localStorage were inflating the count past 8)
 - `isEasterEggFound('clickedEggCounter')` checks if secret is found
 - Display shows "7.5" when `found === total && !hasSecretEgg`
 - Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress
