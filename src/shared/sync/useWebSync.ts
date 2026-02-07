@@ -7,18 +7,26 @@ const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
 const GRACE_MS = 500;
 
-async function fetchPublicIp(): Promise<string> {
+// IP fetch runs eagerly on module load so it's cached before first connect()
+let ipPromise: Promise<string> | null = null;
+
+function fetchPublicIp(): Promise<string> {
   const cached = sessionStorage.getItem(IP_CACHE_KEY);
-  if (cached) return cached;
-  try {
-    const resp = await fetch('https://api.ipify.org?format=text');
-    const ip = await resp.text();
-    sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
-    return ip.trim();
-  } catch {
-    return 'unknown';
+  if (cached) return Promise.resolve(cached);
+  if (!ipPromise) {
+    ipPromise = fetch('https://api.ipify.org?format=text')
+      .then(resp => resp.text())
+      .then(ip => {
+        sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
+        return ip.trim();
+      })
+      .catch(() => 'unknown');
   }
+  return ipPromise;
 }
+
+// Start fetching immediately on module load
+fetchPublicIp();
 
 export interface WebSyncState {
   livePreset: ColorPayload | null;

@@ -123,11 +123,13 @@ export function createLeaderElection(
   }, TIMEOUT_MS);
 
   // Focus: when tab gains focus, take over leadership immediately
+  // Uses becomeLeader() directly — no 100ms RACE_MS delay needed since
+  // focus-claim already told the old leader to yield unconditionally.
   const handleFocus = () => {
     if (!isLeader) {
       channel?.postMessage({ type: 'focus-claim', tabId } satisfies LeaderMessage);
       currentLeader = null;
-      claim();
+      becomeLeader();
     }
   };
   window.addEventListener('focus', handleFocus);
