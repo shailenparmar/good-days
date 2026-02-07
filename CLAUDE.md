@@ -115,6 +115,16 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 
 Code location: `src/shared/sync/leaderElection.ts`
 
+### Cross-Browser Switching (v2.1.8–2.1.11)
+
+BroadcastChannel only works within a single browser. Chrome and Safari on the same machine are invisible to each other. Two relay-level mechanisms handle cross-browser switching:
+
+**Laptop takeover (v2.1.11):** When the user switches desktop browsers (e.g. Chrome → Safari), the focused browser sends `claim-laptop` to the relay on `window.focus`. The relay transfers the phone pairing from the old laptop to the new one. The phone doesn't know anything changed — color updates seamlessly flow to the focused browser. Code: `handleClaimLaptop()` in `relay.ts`, focus listener in `useWebSync.ts`.
+
+**Phone takeover (v2.1.9–2.1.10):** When a new phone connects from the same IP and all laptops are paired with other phones (e.g. Chrome PWA backgrounded but WS still open), the relay evicts the stale phone and directly pairs the new one with the freed laptop. No candidates screen. Code: phone takeover block in `handleRegister()` in `relay.ts`.
+
+**Disconnect re-evaluation (v2.1.8):** When a paired client disconnects, the relay re-evaluates pairing for remaining unpaired clients in the same IP group. Handles the case where a phone/laptop was waiting with `no-candidates` and a slot opens up. Code: bottom of `handleDisconnect()` in `relay.ts`.
+
 ### Future: WebRTC DataChannel Migration
 
 The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
