@@ -81,9 +81,13 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 | `release` | Leader announces departure (beforeunload) |
 | `focus-claim` | Focused tab demands leadership (always wins) |
 
-**Handoff sequence**: Tab B gains focus → broadcasts `focus-claim` → clears `currentLeader` → calls `claim()` → Tab A yields → closes WS → Tab B wins race check → connects WS → relay pairs via same `secret` from localStorage.
+**Handoff sequence (v2.1.3+)**: Tab B gains focus → broadcasts `focus-claim` → Tab A yields → closes WS → Tab B calls `becomeLeader()` directly (no delay) → connects WS → relay pairs via same `secret` from localStorage.
 
-**Critical detail (v2.1.2 fix):** The focus handler must clear `currentLeader = null` before calling `claim()`. Otherwise, existing tabs fail the 100ms race check (`currentLeader === null || currentLeader === tabId`) because `currentLeader` still points to the old leader from previous heartbeats. New tabs worked because `currentLeader` starts as `null`.
+**Smoothness optimizations (v2.1.3):**
+- Focus-claim skips the 100ms `RACE_MS` delay — calls `becomeLeader()` directly instead of `claim()`. The old leader already yielded from the `focus-claim` message, so the race window is unnecessary.
+- Public IP is pre-fetched on module load (`useWebSync.ts`). A shared promise dedupes concurrent calls. By the time `connect()` runs, the IP is already cached — no network latency on the critical path.
+
+**Critical detail (v2.1.2 fix):** The focus handler must clear `currentLeader = null` before calling `becomeLeader()`. Otherwise, existing tabs would fail because `currentLeader` still points to the old leader from previous heartbeats. New tabs worked because `currentLeader` starts as `null`.
 
 **PWA support:** Works in Chrome (tabs + PWA share the same BroadcastChannel context). Safari PWAs on iOS may run in an isolated context where BroadcastChannel doesn't bridge to Safari tabs.
 
