@@ -68,6 +68,23 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (500ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms — reduced to 500ms for snappier disconnect feedback.
 
+### Focus-Aware Leader Election (v2.1.1+)
+
+Only one desktop tab holds the WebSocket connection at a time (the "leader"). Switching to a different browser tab immediately transfers leadership — the focused tab broadcasts a `focus-claim` message and the old leader yields unconditionally. This means the phone always connects to whichever tab you're looking at.
+
+**Message types** (`BroadcastChannel('good-days-ws-leader')`):
+
+| Type | Purpose |
+|------|---------|
+| `claim` | Race-based claim on startup or after leader timeout |
+| `heartbeat` | Leader pings every 3s to prove liveness |
+| `release` | Leader announces departure (beforeunload) |
+| `focus-claim` | Focused tab demands leadership (always wins) |
+
+**Handoff sequence**: Tab B gains focus → broadcasts `focus-claim` → Tab A yields → closes WS → Tab B claims → connects WS → relay pairs via same `secret` from localStorage.
+
+Code location: `src/shared/sync/leaderElection.ts`
+
 ### Future: WebRTC DataChannel Migration
 
 The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
