@@ -27,6 +27,24 @@
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
+## Pending Feature: WebSyncBridge
+
+The WebSyncBridge feature (phone-to-desktop sync) is in progress. The `src/shared/sync/` directory contains the local files but they are **not yet committed**.
+
+**When ready to ship**, add these two lines back to `src/App.tsx`:
+
+1. Import at the top (after the other imports):
+   ```tsx
+   import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
+   ```
+
+2. Component inside the root `<div>` (before `{/* Global styles */}`):
+   ```tsx
+   <WebSyncBridge />
+   ```
+
+These were removed in v1.10.60 because the sync files weren't committed yet and broke CI. Make sure `src/shared/sync/` is committed before pushing.
+
 ## Deployment
 
 Both apps deploy automatically on push to `main`:
