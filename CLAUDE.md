@@ -641,6 +641,12 @@ All three export buttons (copy, download backup, import) live in a single `<div 
   [contenteditable="true"], .cursor-text { cursor: text; }
   ```
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
+- **Safari toolbar tinting (v2.1.16+)** - Safari's toolbar/tab bar tints to match the page background. Three things keep it in sync:
+  1. `index.html` IIFE sets `theme-color` meta + `<html>`/`<body>` background on initial load (from localStorage, hex format)
+  2. `ThemeContext.tsx` effect updates all three on every bg color change (converts HSL→hex, updates meta + `documentElement.style.backgroundColor` + `body.style.backgroundColor`)
+  3. Mobile `main.tsx` overrides all to `#000000` (mobile always has black chrome)
+
+  **Must use hex format** — Safari handles hex more reliably than HSL for `theme-color`. The meta tag has `id="theme-color-meta"` for fast lookup.
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, scramble state, etc. **Exception: zen and minizen modes** — these are ephemeral focus states that reset on refresh (see below).
 
 ### Zen/Minizen Refresh Behavior (v1.10.37+)
