@@ -20,7 +20,10 @@ function fetchPublicIp(): Promise<string> {
         sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
         return ip.trim();
       })
-      .catch(() => 'unknown');
+      .catch(() => {
+        ipPromise = null;
+        return 'unknown';
+      });
   }
   return ipPromise;
 }

@@ -47,6 +47,7 @@ export function useMobileSync(): MobileSyncHandle {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
+  const hiddenRef = useRef(false);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -133,7 +134,7 @@ export function useMobileSync(): MobileSyncHandle {
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectTimer.current) return;
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || hiddenRef.current) return;
     reconnectTimer.current = setTimeout(() => {
       reconnectTimer.current = null;
       connect();
@@ -176,6 +177,8 @@ export function useMobileSync(): MobileSyncHandle {
     // When phone comes back, reconnect.
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
+        // Block reconnect before closing — onclose fires scheduleReconnect
+        hiddenRef.current = true;
         // Close immediately — desktop's 500ms grace will clear live state
         wsRef.current?.close();
         wsRef.current = null;
@@ -186,7 +189,7 @@ export function useMobileSync(): MobileSyncHandle {
         }
         backoffRef.current = 1000;
       } else if (document.visibilityState === 'visible') {
-        // Reconnect immediately
+        hiddenRef.current = false;
         backoffRef.current = 1000;
         connect();
       }
