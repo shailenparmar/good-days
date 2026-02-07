@@ -44,7 +44,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   }
 
   // Indicator sizes based on role
-  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 12;
+  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 24;
   const needleHeight = (role === 'alpha' || role === 'local-drag') ? 16 : role === 'beta' ? 8 : 4;
 
   // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
