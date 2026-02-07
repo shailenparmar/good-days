@@ -56,6 +56,21 @@ function getUnpairedPhonesInGroup(ip: string, excludeId?: string): string[] {
   });
 }
 
+// Pick the laptop that most recently claimed focus (sent claim-laptop).
+// Falls back to first laptop if none have claimed.
+function pickBestLaptop(laptops: string[]): string {
+  let bestId = laptops[0];
+  let bestTime = 0;
+  for (const id of laptops) {
+    const c = clients.get(id);
+    if (c?.lastClaimTime && c.lastClaimTime > bestTime) {
+      bestTime = c.lastClaimTime;
+      bestId = id;
+    }
+  }
+  return bestId;
+}
+
 function replayStreamToLaptop(phoneId: string, laptopId: string) {
   const phone = clients.get(phoneId);
   const laptop = clients.get(laptopId);
@@ -156,16 +171,13 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 
     if (laptops.length === 0) {
       send(ws, { type: 'no-candidates' });
-    } else if (laptops.length === 1) {
-      // Auto-pair: one phone + one laptop on same network
-      pairClients(clientId, laptops[0]);
     } else {
-      // Multiple laptops — send candidates
-      const candidateList = laptops.map(id => ({
-        id,
-        colorway: clients.get(id)?.colorway,
-      }));
-      send(ws, { type: 'candidates', laptops: candidateList });
+      // Auto-pair with the most recently focused laptop (or the only one)
+      const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
+      if (laptops.length > 1) {
+        console.log(`[relay] auto-pairing phone with focused laptop ${bestLaptop.slice(0,8)} (${laptops.length} candidates)`);
+      }
+      pairClients(clientId, bestLaptop);
     }
   } else {
     // Laptop registering — check for waiting phones
@@ -176,17 +188,12 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 
       // Re-evaluate pairing for this phone
       const allLaptops = getUnpairedLaptopsInGroup(publicIp, phoneId);
-      if (allLaptops.length === 1) {
-        pairClients(phoneId, allLaptops[0]);
+      if (allLaptops.length > 0) {
+        const bestLaptop = allLaptops.length === 1 ? allLaptops[0] : pickBestLaptop(allLaptops);
+        pairClients(phoneId, bestLaptop);
         if (phone.streaming) {
-          replayStreamToLaptop(phoneId, allLaptops[0]);
+          replayStreamToLaptop(phoneId, bestLaptop);
         }
-      } else if (allLaptops.length > 1) {
-        const candidateList = allLaptops.map(id => ({
-          id,
-          colorway: clients.get(id)?.colorway,
-        }));
-        send(phone.ws, { type: 'candidates', laptops: candidateList });
       }
     }
   }
@@ -195,6 +202,10 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 function handleClaimLaptop(clientId: string) {
   const client = clients.get(clientId);
   if (!client || client.role !== 'laptop') return;
+
+  // Always record focus time — used to pick focused browser during phone pairing
+  client.lastClaimTime = Date.now();
+
   if (client.partnerId) return; // Already paired, nothing to claim
 
   // Cross-browser laptop takeover: steal the phone from another laptop on the same IP.
@@ -363,14 +374,9 @@ function handleDisconnect(clientId: string) {
             const laptops = getUnpairedLaptopsInGroup(publicIp, partnerId);
             if (laptops.length === 0) {
               send(phoneNow.ws, { type: 'no-candidates' });
-            } else if (laptops.length === 1) {
-              pairClients(partnerId, laptops[0]);
             } else {
-              const candidateList = laptops.map(id => ({
-                id,
-                colorway: clients.get(id)?.colorway,
-              }));
-              send(phoneNow.ws, { type: 'candidates', laptops: candidateList });
+              const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
+              pairClients(partnerId, bestLaptop);
             }
           }
         }, HANDOFF_GRACE_MS);
@@ -407,14 +413,9 @@ function handleDisconnect(clientId: string) {
         const laptops = getUnpairedLaptopsInGroup(publicIp, phoneId);
         if (laptops.length === 0) {
           send(phone.ws, { type: 'no-candidates' });
-        } else if (laptops.length === 1) {
-          pairClients(phoneId, laptops[0]);
         } else {
-          const candidateList = laptops.map(id => ({
-            id,
-            colorway: clients.get(id)?.colorway,
-          }));
-          send(phone.ws, { type: 'candidates', laptops: candidateList });
+          const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
+          pairClients(phoneId, bestLaptop);
         }
       }
     }

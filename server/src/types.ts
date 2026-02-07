@@ -42,6 +42,8 @@ export interface ClientRecord {
   partnerId?: string;
   colorway?: ColorPayload;
   streaming: boolean;
+  // Last time this laptop sent claim-laptop (used to pick focused browser)
+  lastClaimTime?: number;
   // Stream state snapshots (stored on phone records for handoff replay)
   lastColors?: ColorPayload;
   lastStreamSide?: 'text' | 'background';
