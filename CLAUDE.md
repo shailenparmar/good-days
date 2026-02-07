@@ -64,6 +64,10 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 
 The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync`. A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).
 
+### Disconnect Grace Period (v2.1.0+)
+
+When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (500ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms — reduced to 500ms for snappier disconnect feedback.
+
 ### Future: WebRTC DataChannel Migration
 
 The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
