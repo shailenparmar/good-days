@@ -1,73 +1,27 @@
-# React + TypeScript + Vite
+# [good days](https://gdays.day)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+welcome to good days, your time-capsule journal oasis.
 
-Currently, two official plugins are available:
+## privacy
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+entries are not sent to a server. a developer couldn't view your writing even if they wanted to.
 
-## React Compiler
+everything added lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.
 
-## Expanding the ESLint configuration
+as a safety guarantee, the entire product is open source.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## features
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+a new page spawns at midnight; old logs are set in stone.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \time delivers a stamp. settings and about join forces for a poweruser menu.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+i hope this app disappears into your life. here's to many colorways and many more good days.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+\- shai
