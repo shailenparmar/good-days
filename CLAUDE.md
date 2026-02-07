@@ -42,6 +42,14 @@ Server code: `server/src/relay.ts`, deployed via `server/Dockerfile` + `server/f
 
 To redeploy: `cd server && fly deploy`
 
+### WebSocket Keep-Alive (v2.1.6+)
+
+The relay server pings each client every 30 seconds (`ws.ping()`). If no pong is received within 10 seconds, the connection is terminated (`ws.terminate()`) and the stale client record is cleaned up.
+
+**Why this is critical:** Without pings, idle desktop connections silently die (Fly.io proxy timeout, network change, laptop sleep). The server still holds a ghost client record. When the phone connects and looks for laptops, it finds the ghost — or the ghost was already cleaned up by a failed `send()`, but the desktop client doesn't know it's disconnected. The desktop's `onclose` never fires, so it never reconnects. Result: user must refresh to get live mode working.
+
+With pings, stale connections are detected within 40 seconds (30s interval + 10s timeout). The `ws.terminate()` fires the client's `onclose`, triggering automatic reconnect.
+
 ### DNS (Cloudflare)
 
 | Type | Name | Target | Proxy |
