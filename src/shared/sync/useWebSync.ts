@@ -7,7 +7,7 @@ const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
 const DEVICE_ID_KEY = 'wsDeviceId';
 const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
-const GRACE_MS = 500;
+const GRACE_MS = 200;
 
 function getOrCreateDeviceId(): string {
   let id = localStorage.getItem(DEVICE_ID_KEY);
