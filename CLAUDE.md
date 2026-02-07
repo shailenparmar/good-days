@@ -2598,7 +2598,7 @@ Old icons backed up at `public/icon-backup/`.
 
 ## Easter Eggs
 
-The app has 13 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
+The app has 8 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
 
 ### Easter Egg List
 
@@ -2608,32 +2608,27 @@ The app has 13 discoverable easter eggs + 1 secret final egg. The count displays
 | 2 | `powerstatMode` | Open settings + about panels together |
 | 3 | `superscramble` | Settings + about + scramble all active |
 | 4 | `superscrambleTyping` | Type while in superscramble (theme randomizes) |
-| 5 | `scrambleHotkeyOn` | Activate the scramble hotkey in powerstat |
-| 6 | `minizenMode` | Enter minizen mode (click header in wide mode) |
-| 7 | `zenMode` | Enter zen mode (click footer) |
-| 8 | `timeCommand` | Use `\time` in the editor |
-| 9 | `scrambleHotkeyUsed` | Actually use the scramble hotkey (Option/Alt+S) |
-| 10 | `spacebarRand` | Press spacebar while on rand button in preset grid |
-| 11 | `arrowKeyPresets` | Navigate presets with arrow keys |
-| 12 | `selectColorText` | Click on the color stats area (HSL/HEX values) |
-| 13 | `resetBlackout` | See the blackout screen on reset confirmation |
-| SECRET | `clickedEggCounter` | Click on "12.5/13" to complete (see below) |
+| 5 | `zenMode` | Enter zen mode (click footer) |
+| 6 | `timeCommand` | Use `\time` in the editor |
+| 7 | `spacebarRand` | Press spacebar while on rand button in preset grid |
+| 8 | `selectColorText` | Click copy or paste in the color stats widget |
+| SECRET | `clickedEggCounter` | Click on "7.5/8" to complete (see below) |
 
-### The 12.5/13 Gag
+### The 7.5/8 Gag
 
-When the user finds all 13 regular eggs, the counter shows **"12.5/13 easter eggs"** instead of "13/13". The final egg is clicking on this incomplete counter:
+When the user finds all 8 regular eggs, the counter shows **"7.5/8 easter eggs"** instead of "8/8". The final egg is clicking on this incomplete counter:
 
-1. User finds all 13 regular eggs → shows "12.5/13"
-2. User clicks "12.5/13" → marks secret egg + rainbow animation + bold sweep animation
-3. Counter now shows "13/13"
+1. User finds all 8 regular eggs → shows "7.5/8"
+2. User clicks "7.5/8" → marks secret egg + rainbow animation + bold sweep animation
+3. Counter now shows "8/8"
 
-**The gag**: The 13th egg IS clicking on the counter. You can't complete the collection without clicking it.
+**The gag**: The 8th egg IS clicking on the counter. You can't complete the collection without clicking it.
 
-After completing, clicking "13/13" replays both animations. Click anywhere or press any key to stop.
+After completing, clicking "8/8" replays both animations. Click anywhere or press any key to stop.
 
 ### Easter Egg Click Animation
 
-When clicking "13/13 easter eggs", two animations play simultaneously:
+When clicking "8/8 easter eggs", two animations play simultaneously:
 
 1. **Rainbow mode**: Text color cycles through hue 0-360° (5 second full cycle)
 2. **Bold sweep**: Text does the signature bold left→right, unbold left→right animation (loops continuously)
@@ -2650,13 +2645,13 @@ The bold sweep is tied to `isRainbowMode`:
 | File | Purpose |
 |------|---------|
 | `src/shared/utils/easterEggs.ts` | Egg definitions, tracking, count logic |
-| `src/features/statistics/components/StatsDisplay.tsx` | Display logic, 12.5 gag, rainbow animation |
+| `src/features/statistics/components/StatsDisplay.tsx` | Display logic, 7.5 gag, rainbow animation |
 
 ### Implementation Notes
 
-- `getEasterEggCount()` returns `total: 13` (hides the secret 14th egg)
+- `getEasterEggCount()` returns `total: 8` (hides the secret 9th egg)
 - `isEasterEggFound('clickedEggCounter')` checks if secret is found
-- Display shows "12.5" when `found === total && !hasSecretEgg`
+- Display shows "7.5" when `found === total && !hasSecretEgg`
 - Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress
 
 ## Versioning
