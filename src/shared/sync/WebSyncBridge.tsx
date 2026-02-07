@@ -48,7 +48,11 @@ export function WebSyncBridge() {
 
     if (wasNull && syncState.livePreset) {
       log('NEW PAIRING — auto-selecting [live]');
+      const liveIndex = theme.presets.length + theme.customPresets.length;
       theme.setIsLiveActive(true);
+      theme.setSelectedPreset(null);
+      theme.setSelectedCustomPreset(null);
+      theme.setActivePresetIndex(liveIndex);
       theme.applyPreset({
         hue: syncState.livePreset.hue,
         sat: syncState.livePreset.sat,
@@ -74,12 +78,28 @@ export function WebSyncBridge() {
     }
   }, [syncState.livePreset, theme.isLiveActive]);
 
+  // Bridge streaming state into ThemeContext
+  useEffect(() => {
+    theme.setIsLiveStreaming(syncState.isStreaming);
+  }, [syncState.isStreaming]);
+
   // Clear isLiveActive when livePreset goes null
   useEffect(() => {
     if (!syncState.livePreset) {
       theme.setIsLiveActive(false);
+      theme.setIsLiveStreaming(false);
     }
   }, [syncState.livePreset]);
+
+  // Handle save-preset from phone
+  const prevSaveRef = useRef(0);
+  useEffect(() => {
+    if (syncState.saveRequested > prevSaveRef.current) {
+      prevSaveRef.current = syncState.saveRequested;
+      log('SAVE-PRESET from phone');
+      theme.saveCustomPreset();
+    }
+  }, [syncState.saveRequested]);
 
   // Debug overlay
   return (

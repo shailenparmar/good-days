@@ -3,15 +3,16 @@ import { useTheme } from '../context/ThemeContext';
 
 interface ColorPickerProps {
   type: 'text' | 'background';
-  vertical?: boolean;
-  huePosition?: 'left' | 'right';
-  height?: number;
+  part: 'sl' | 'hue';
 }
 
-export function ColorPicker({ type, vertical, huePosition, height }: ColorPickerProps) {
+export function ColorPicker({ type, part }: ColorPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
   // Track active listeners for cleanup on unmount
-  const listenersRef = useRef<{ move: ((e: MouseEvent) => void) | null; up: (() => void) | null }>({ move: null, up: null });
+  const listenersRef = useRef<{
+    move: ((e: MouseEvent | TouchEvent) => void) | null;
+    up: ((e?: MouseEvent | TouchEvent) => void) | null;
+  }>({ move: null, up: null });
   const {
     hue, saturation, lightness,
     bgHue, bgSaturation, bgLightness,
@@ -32,139 +33,150 @@ export function ColorPicker({ type, vertical, huePosition, height }: ColorPicker
   useEffect(() => {
     return () => {
       if (listenersRef.current.move) {
-        document.removeEventListener('mousemove', listenersRef.current.move);
+        document.removeEventListener('mousemove', listenersRef.current.move as EventListener);
+        document.removeEventListener('touchmove', listenersRef.current.move as EventListener);
       }
       if (listenersRef.current.up) {
-        document.removeEventListener('mouseup', listenersRef.current.up);
+        document.removeEventListener('mouseup', listenersRef.current.up as EventListener);
+        document.removeEventListener('touchend', listenersRef.current.up as EventListener);
+        document.removeEventListener('touchcancel', listenersRef.current.up as EventListener);
       }
     };
   }, []);
 
-  const handlePickerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const updateColor = (clientX: number, clientY: number) => {
-      if (!pickerRef.current) return;
-      const rect = pickerRef.current.getBoundingClientRect();
-      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-      const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
+  const startDrag = (clientX: number, clientY: number) => {
+    if (part === 'sl') {
+      const updateColor = (cx: number, cy: number) => {
+        if (!pickerRef.current) return;
+        const rect = pickerRef.current.getBoundingClientRect();
+        const x = Math.max(0, Math.min(cx - rect.left, rect.width));
+        const y = Math.max(0, Math.min(cy - rect.top, rect.height));
+        setSat(Math.round((x / rect.width) * 100));
+        setLight(Math.round(100 - (y / rect.height) * 100));
+      };
 
-      const newSat = (x / rect.width) * 100;
-      const newLight = 100 - (y / rect.height) * 100;
+      updateColor(clientX, clientY);
 
-      setSat(Math.round(newSat));
-      setLight(Math.round(newLight));
-    };
+      const handleMove = (e: MouseEvent | TouchEvent) => {
+        const pt = 'touches' in e ? e.touches[0] : e;
+        if (pt) updateColor(pt.clientX, pt.clientY);
+      };
+      const handleUp = () => {
+        document.removeEventListener('mousemove', handleMove as EventListener);
+        document.removeEventListener('mouseup', handleUp);
+        document.removeEventListener('touchmove', handleMove as EventListener);
+        document.removeEventListener('touchend', handleUp);
+        document.removeEventListener('touchcancel', handleUp);
+        listenersRef.current = { move: null, up: null };
+      };
 
-    updateColor(e.clientX, e.clientY);
+      listenersRef.current = { move: handleMove, up: handleUp };
+      document.addEventListener('mousemove', handleMove as EventListener);
+      document.addEventListener('mouseup', handleUp);
+      document.addEventListener('touchmove', handleMove as EventListener, { passive: false });
+      document.addEventListener('touchend', handleUp);
+      document.addEventListener('touchcancel', handleUp);
+    } else {
+      const updateHue = (cy: number) => {
+        if (!pickerRef.current) return;
+        const rect = pickerRef.current.getBoundingClientRect();
+        const y = Math.max(0, Math.min(cy - rect.top, rect.height));
+        setHueValue(Math.round((1 - y / rect.height) * 360));
+      };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      updateColor(e.clientX, e.clientY);
-    };
+      updateHue(clientY);
 
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      listenersRef.current = { move: null, up: null };
-    };
+      const handleMove = (e: MouseEvent | TouchEvent) => {
+        const pt = 'touches' in e ? e.touches[0] : e;
+        if (pt) updateHue(pt.clientY);
+      };
+      const handleUp = () => {
+        document.removeEventListener('mousemove', handleMove as EventListener);
+        document.removeEventListener('mouseup', handleUp);
+        document.removeEventListener('touchmove', handleMove as EventListener);
+        document.removeEventListener('touchend', handleUp);
+        document.removeEventListener('touchcancel', handleUp);
+        listenersRef.current = { move: null, up: null };
+      };
 
-    // Store refs for cleanup
-    listenersRef.current = { move: handleMouseMove, up: handleMouseUp };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+      listenersRef.current = { move: handleMove, up: handleUp };
+      document.addEventListener('mousemove', handleMove as EventListener);
+      document.addEventListener('mouseup', handleUp);
+      document.addEventListener('touchmove', handleMove as EventListener, { passive: false });
+      document.addEventListener('touchend', handleUp);
+      document.addEventListener('touchcancel', handleUp);
+    }
   };
 
-  const thumbColor = isText ? getColor() : getBgColor();
-  const thumbStyle = `
-    .hue-slider-${type}::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: ${thumbColor};
-      border: 2px solid ${thumbColor};
-    }
-    .hue-slider-${type}::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: ${thumbColor};
-      border: 2px solid ${thumbColor};
-    }
-  `;
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    startDrag(e.clientX, e.clientY);
+  };
 
-  const hueSlider = (
-    <input
-      type="range"
-      min="0"
-      max="360"
-      value={currentHue}
-      onChange={(e) => setHueValue(Number(e.target.value))}
-      onMouseUp={(e) => e.currentTarget.blur()}
-      onKeyDown={(e) => e.preventDefault()}
-      tabIndex={-1}
-      className={`rounded appearance-none hue-slider-${type}`}
-      style={vertical ? {
-        writingMode: 'vertical-lr',
-        direction: 'rtl',
-        width: '20px',
-        height: '100%',
-        background: 'linear-gradient(to top, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
-      } : {
-        width: '100%',
-        height: '8px',
-        background: 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
-      }}
-    />
-  );
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (touch) startDrag(touch.clientX, touch.clientY);
+  };
 
-  const slSquare = (
+  if (part === 'hue') {
+    // Hue indicator Y position: 0° at bottom, 360° at top
+    const indicatorTop = ((360 - currentHue) / 360) * 100;
+
+    return (
+      <div
+        ref={pickerRef}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        className="relative rounded"
+        style={{
+          width: '100%',
+          aspectRatio: '1',
+          overflow: 'visible',
+          zIndex: 1,
+          background: 'linear-gradient(to top, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
+        }}
+      >
+        {/* Hue needle */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            right: 0,
+            top: `${indicatorTop}%`,
+            height: '16px',
+            transform: 'translateY(-50%)',
+            backgroundColor: 'black',
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
     <div
       ref={pickerRef}
-      onMouseDown={handlePickerMouseDown}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
       className="relative rounded"
       style={{
-        ...(vertical ? { flex: 1, height: '100%' } : { width: '100%', height: '80px' }),
+        width: '100%',
+        aspectRatio: '1',
+        overflow: 'visible',
+        zIndex: 2,
         background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`,
       }}
     >
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: '16px',
-          height: '16px',
+          width: '32px',
+          height: '32px',
           left: `${currentSat}%`,
           top: `${100 - currentLight}%`,
           transform: 'translate(-50%, -50%)',
-          backgroundColor: vertical
-            ? (isText ? getColor() : getBgColor())
-            : (isText ? getBgColor() : getColor()),
+          backgroundColor: isText ? getBgColor() : getColor(),
         }}
       />
-    </div>
-  );
-
-  if (vertical) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '4px', height: height ?? 192, flex: 1, minWidth: 0 }}>
-        <style>{thumbStyle}</style>
-        {huePosition === 'left' ? (
-          <>{hueSlider}{slSquare}</>
-        ) : (
-          <>{slSquare}{hueSlider}</>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <style>{thumbStyle}</style>
-      <div className="mb-1">
-        {hueSlider}
-      </div>
-      <div>
-        {slSquare}
-      </div>
     </div>
   );
 }

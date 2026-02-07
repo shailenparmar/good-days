@@ -54,11 +54,13 @@ export interface PresetActions {
 export interface LiveSyncState {
   livePreset: ColorPreset | null;
   isLiveActive: boolean;
+  isLiveStreaming: boolean;
 }
 
 export interface LiveSyncActions {
   setLivePreset: (preset: ColorPreset | null) => void;
   setIsLiveActive: (active: boolean) => void;
+  setIsLiveStreaming: (streaming: boolean) => void;
   saveLivePreset: () => void;
 }
 

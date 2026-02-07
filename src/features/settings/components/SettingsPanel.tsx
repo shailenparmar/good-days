@@ -44,7 +44,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   // Suppress unused variable warning
   void scrambleSeed;
-  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness, isLiveActive } = useTheme();
+  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   // Stable hover for scramble hotkey button
   const { hovered: hotkeyButtonHovered, containerProps: hotkeyContainerProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
@@ -142,17 +142,12 @@ export function SettingsPanel({
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
-          {isLiveActive ? (
-            <div style={{ display: 'flex', gap: '8px', height: '192px' }}>
-              <ColorPicker type="text" vertical huePosition="left" height={192} />
-              <ColorPicker type="background" vertical huePosition="right" height={192} />
-            </div>
-          ) : (
-            <>
-              <ColorPicker type="text" />
-              <ColorPicker type="background" />
-            </>
-          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <ColorPicker type="text" part="sl" />
+            <ColorPicker type="background" part="sl" />
+            <ColorPicker type="text" part="hue" />
+            <ColorPicker type="background" part="hue" />
+          </div>
         </div>
       </div>
 

@@ -91,6 +91,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Live sync state
   const [livePreset, setLivePreset] = useState<ColorPreset | null>(null);
   const [isLiveActive, setIsLiveActive] = useState(false);
+  const [isLiveStreaming, setIsLiveStreaming] = useState(false);
 
   const saveLivePreset = () => {
     if (!livePreset) return;
@@ -330,8 +331,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Live sync
     livePreset,
     isLiveActive,
+    isLiveStreaming,
     setLivePreset,
     setIsLiveActive,
+    setIsLiveStreaming,
     saveLivePreset,
   };
 

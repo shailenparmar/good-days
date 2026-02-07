@@ -224,6 +224,15 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
       case 'stream-stop':
         handleStreamStop(clientId);
         break;
+
+      case 'save-preset': {
+        const sc = clients.get(clientId);
+        if (sc?.partnerId) {
+          const partner = clients.get(sc.partnerId);
+          if (partner) send(partner.ws, { type: 'save-preset' });
+        }
+        break;
+      }
     }
   });
 

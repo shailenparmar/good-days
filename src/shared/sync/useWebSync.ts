@@ -24,6 +24,7 @@ export interface WebSyncState {
   livePreset: ColorPayload | null;
   streamSide: 'text' | 'background' | null;
   isStreaming: boolean;
+  saveRequested: number;
 }
 
 export function useWebSync(currentColorway: ColorPayload | undefined) {
@@ -31,6 +32,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
     livePreset: null,
     streamSide: null,
     isStreaming: false,
+    saveRequested: 0,
   });
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -40,6 +42,8 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
   const backoffRef = useRef(1000);
   const destroyLeaderRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
+  const colorwayRef = useRef(currentColorway);
+  colorwayRef.current = currentColorway;
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -70,7 +74,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
           graceTimer.current = null;
         }
 
-        const colorway = currentColorway || undefined;
+        const colorway = colorwayRef.current || undefined;
         console.log('[ws-sync] registering as laptop, ip=', ip, 'secret=', secret || 'none');
         sendMsg({
           type: 'register',
@@ -93,10 +97,10 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
           case 'paired':
             localStorage.setItem(SECRET_KEY, msg.secret);
             // Initialize live preset with current laptop colors
-            if (currentColorway) {
+            if (colorwayRef.current) {
               setState(prev => ({
                 ...prev,
-                livePreset: prev.livePreset || { ...currentColorway },
+                livePreset: prev.livePreset || { ...colorwayRef.current! },
               }));
             }
             break;
@@ -126,6 +130,13 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
               isStreaming: false,
             }));
             break;
+
+          case 'save-preset':
+            setState(prev => ({
+              ...prev,
+              saveRequested: prev.saveRequested + 1,
+            }));
+            break;
         }
       };
 
@@ -143,14 +154,14 @@ export function useWebSync(currentColorway: ColorPayload | undefined) {
     } catch {
       scheduleReconnect();
     }
-  }, [sendMsg, currentColorway]);
+  }, [sendMsg]);
 
   const startGrace = useCallback(() => {
     if (graceTimer.current) return;
     graceTimer.current = setTimeout(() => {
       graceTimer.current = null;
       if (mountedRef.current) {
-        setState({ livePreset: null, streamSide: null, isStreaming: false });
+        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, saveRequested: prev.saveRequested }));
       }
     }, GRACE_MS);
   }, []);
