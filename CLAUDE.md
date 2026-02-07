@@ -1221,12 +1221,12 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 
 **Max tilt angle**: ±10° to reach extremes (20° total range)
 
-The sat/light square shows two marker types (v1.10.61+):
+The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 
 | Shape | Meaning | When |
 |-------|---------|------|
-| **Filled circle** (20px) | Active — being controlled by tilt, or tilt feedback on home | Home (tilt feedback), picker (active color) |
-| **Hollow circle** (20px, 4px border) | Inactive color position | Picker only (the color not being adjusted) |
+| **Filled circle** (40px) | Active — being controlled by tilt, or tilt feedback on home | Home (tilt feedback), picker (active color) |
+| **Hollow circle** (40px, 8px border) | Inactive color position | Picker only (the color not being adjusted) |
 
 **Home screen:** Single filled dot showing tilt position (accelerometer feedback).
 
