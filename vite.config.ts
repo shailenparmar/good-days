@@ -7,6 +7,12 @@ import path from 'path'
 export default defineConfig({
   server: {
     allowedHosts: true,
+    proxy: {
+      '/ws': {
+        target: 'http://localhost:3001',
+        ws: true,
+      },
+    },
   },
   plugins: [
     react(),

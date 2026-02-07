@@ -51,6 +51,17 @@ export interface PresetActions {
   randomizeTheme: () => void;
 }
 
+export interface LiveSyncState {
+  livePreset: ColorPreset | null;
+  isLiveActive: boolean;
+}
+
+export interface LiveSyncActions {
+  setLivePreset: (preset: ColorPreset | null) => void;
+  setIsLiveActive: (active: boolean) => void;
+  saveLivePreset: () => void;
+}
+
 export interface ColorwayTracking {
   uniqueColorways: number;
   seenColorways: Set<string>;

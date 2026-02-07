@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
-import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking } from '../types';
+import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions } from '../types';
 
 export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 215, sat: 100, light: 0, bgHue: 28, bgSat: 100, bgLight: 83 },
@@ -10,7 +10,7 @@ export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 116, sat: 100, light: 53, bgHue: 96, bgSat: 100, bgLight: 0 },
 ];
 
-interface ThemeContextValue extends ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking {}
+interface ThemeContextValue extends ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions {}
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -87,6 +87,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const preset1Key = `${preset1.hue}-${preset1.sat}-${preset1.light}-${preset1.bgHue}-${preset1.bgSat}-${preset1.bgLight}`;
     return new Set([preset1Key]);
   });
+
+  // Live sync state
+  const [livePreset, setLivePreset] = useState<ColorPreset | null>(null);
+  const [isLiveActive, setIsLiveActive] = useState(false);
+
+  const saveLivePreset = () => {
+    if (!livePreset) return;
+    setCustomPresets(prev => [...prev, { ...livePreset }]);
+    setSelectedPreset(null);
+    setSelectedCustomPreset(null);
+  };
 
   const colorwayOnSettingsOpen = useRef<string>('');
   const hasLoadedFromStorage = useRef(false);
@@ -316,6 +327,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     trackColorway,
     trackCurrentColorway,
     getColorwayKey,
+    // Live sync
+    livePreset,
+    isLiveActive,
+    setLivePreset,
+    setIsLiveActive,
+    saveLivePreset,
   };
 
   return (

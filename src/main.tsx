@@ -1,6 +1,7 @@
 import { StrictMode, useState, useEffect, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { useMobileSync } from './shared/sync/useMobileSync'
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -92,7 +93,7 @@ function MobileScreen() {
   });
 
   // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
-  const [editing, setEditing] = useState<'seeking' | 'adjusting' | null>(null);
+  const [editing, setEditing] = useState<'adjusting' | null>(null);
 
   // Touch Y positions for hue indicators (0-1)
   const [, setBgTouchY] = useState(0);
@@ -134,6 +135,10 @@ function MobileScreen() {
   const [activeDot, setActiveDot] = useState<'text' | 'bg'>('text');
   const colorsRef = useRef(colors);
   colorsRef.current = colors;
+
+  // WebSocket live sync
+  const sync = useMobileSync();
+  const lastWsSendRef = useRef(0);
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
@@ -210,10 +215,32 @@ function MobileScreen() {
 
     if (activeSide.current === 'left') {
       setTextTouchY(clampedY);
-      setColors(prev => ({ ...prev, hue: newHue }));
+      setColors(prev => {
+        const next = { ...prev, hue: newHue };
+        // Send hue change over WS
+        if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
+          const now = Date.now();
+          if (now - lastWsSendRef.current >= 16) {
+            lastWsSendRef.current = now;
+            sync.sendColorUpdate(next);
+          }
+        }
+        return next;
+      });
     } else {
       setBgTouchY(clampedY);
-      setColors(prev => ({ ...prev, bgHue: newHue }));
+      setColors(prev => {
+        const next = { ...prev, bgHue: newHue };
+        // Send hue change over WS
+        if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
+          const now = Date.now();
+          if (now - lastWsSendRef.current >= 16) {
+            lastWsSendRef.current = now;
+            sync.sendColorUpdate(next);
+          }
+        }
+        return next;
+      });
     }
     return true;
   }, []);
@@ -221,7 +248,7 @@ function MobileScreen() {
   // When picker appears, snap indicator to current finger position
   // Poll until ref is actually set - don't rely on arbitrary RAF count
   useEffect(() => {
-    if ((editing !== 'seeking' && editing !== 'adjusting') || !liveTouch.current) return;
+    if (editing !== 'adjusting' || !liveTouch.current) return;
 
     let cancelled = false;
     const tryProcess = () => {
@@ -266,39 +293,6 @@ function MobileScreen() {
       setTiltY(Math.max(-1, Math.min(1, betaDelta / maxTilt)));
       setTiltX(Math.max(-1, Math.min(1, gammaDelta / maxTilt)));
 
-      // Only update colors when picking
-      // SEEKING: dot moves freely (tiltX/tiltY updated above), check if dot reached target square
-      if (editingRef.current === 'seeking') {
-        const cur = colorsRef.current;
-        const tiltPosX = Math.max(-1, Math.min(1, gammaDelta / maxTilt));
-        const tiltPosY = Math.max(-1, Math.min(1, betaDelta / maxTilt));
-        // Target square position (the color we're trying to dock with)
-        const targetPosX = activeSide.current === 'left'
-          ? (cur.sat - 50) / 50
-          : (cur.bgSat - 50) / 50;
-        const targetPosY = activeSide.current === 'left'
-          ? -(cur.light - 50) / 50
-          : -(cur.bgLight - 50) / 50;
-
-        // Square-to-square overlap check (AABB collision)
-        // Squares are 16px, dotTravel is 116px, so half-size in normalized space = 16 / 2 / 116 ≈ 0.069
-        const halfSize = 16 / 2 / 116;
-        const overlapX = Math.abs(tiltPosX - targetPosX) < halfSize * 2;
-        const overlapY = Math.abs(tiltPosY - targetPosY) < halfSize * 2;
-
-        if (overlapX && overlapY) {
-          // Snap baseline so current orientation maps to target position
-          // This makes the cursor "become" the target — no color jump on dock
-          baseline.current.gamma = gamma - targetPosX * maxTilt;
-          baseline.current.beta = beta - targetPosY * maxTilt;
-          setTiltX(targetPosX);
-          setTiltY(targetPosY);
-
-          setEditing('adjusting');
-          if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
-        }
-      }
-
       // ADJUSTING: tilt controls active color's sat/light
       if (editingRef.current === 'adjusting') {
         const tiltNormX = Math.max(-1, Math.min(1, gammaDelta / maxTilt));
@@ -308,17 +302,39 @@ function MobileScreen() {
         const newLight = Math.round(50 - tiltNormY * 50);
 
         if (activeSide.current === 'left') {
-          setColors(prev => ({
-            ...prev,
-            sat: Math.max(0, Math.min(100, newSat)),
-            light: Math.max(0, Math.min(100, newLight)),
-          }));
+          setColors(prev => {
+            const next = {
+              ...prev,
+              sat: Math.max(0, Math.min(100, newSat)),
+              light: Math.max(0, Math.min(100, newLight)),
+            };
+            // Low-latency WS send (16ms throttle, bypasses React batching)
+            if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
+              const now = Date.now();
+              if (now - lastWsSendRef.current >= 16) {
+                lastWsSendRef.current = now;
+                sync.sendColorUpdate(next);
+              }
+            }
+            return next;
+          });
         } else {
-          setColors(prev => ({
-            ...prev,
-            bgSat: Math.max(0, Math.min(100, newSat)),
-            bgLight: Math.max(0, Math.min(100, newLight)),
-          }));
+          setColors(prev => {
+            const next = {
+              ...prev,
+              bgSat: Math.max(0, Math.min(100, newSat)),
+              bgLight: Math.max(0, Math.min(100, newLight)),
+            };
+            // Low-latency WS send (16ms throttle, bypasses React batching)
+            if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
+              const now = Date.now();
+              if (now - lastWsSendRef.current >= 16) {
+                lastWsSendRef.current = now;
+                sync.sendColorUpdate(next);
+              }
+            }
+            return next;
+          });
         }
       }
     };
@@ -348,11 +364,10 @@ function MobileScreen() {
           const midX = (leftRect.right + rightRect.left) / 2;
           const newSide = touch.clientX < midX ? 'left' : 'right';
           if (newSide !== activeSide.current) {
-            // Switching sides - haptic tick, go back to seeking
+            // Switching sides - haptic tick, color jumps to current tilt position
             if (navigator.vibrate) navigator.vibrate(5);
             activeSide.current = newSide;
             setActiveDot(newSide === 'left' ? 'text' : 'bg');
-            setEditing('seeking');
           }
         }
 
@@ -379,6 +394,9 @@ function MobileScreen() {
       setEditing(null);
       liveTouch.current = null;
       barsMounted.current = 0;
+
+      // Stop WS streaming
+      sync.stopStream();
     };
 
     // Handlers attached on mount - always listening
@@ -398,6 +416,11 @@ function MobileScreen() {
     e.preventDefault();
     if (navigator.vibrate) navigator.vibrate(10);
     setActiveDot(side === 'left' ? 'text' : 'bg');
+
+    // Start WS streaming
+    if (sync.pairingState === 'paired') {
+      sync.startStream(side === 'left' ? 'text' : 'background');
+    }
 
     // Set which side we're controlling
     activeSide.current = side;
@@ -420,7 +443,7 @@ function MobileScreen() {
       else setBgTouchY(relY);
     }
 
-    setEditing('seeking');
+    setEditing('adjusting');
   };
 
   // Reset tilt baseline - captures current orientation as new zero point
@@ -634,7 +657,7 @@ function MobileScreen() {
     const bgPosY = -(colors.bgLight - 50) / 50;
 
     const isHome = editing === null;
-    const isPickerScreen = editing === 'seeking' || editing === 'adjusting';
+    const isPickerScreen = editing === 'adjusting';
 
     return (
       <div
@@ -649,45 +672,23 @@ function MobileScreen() {
 
         {isHome && (
           <>
-            {/* Two X's showing text and bg positions (locked) */}
-            {xMarker(textPosX, textPosY, textColor, dotTravel)}
-            {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
-            {/* Hollow circle - moves with tilt, nothing happens */}
-            {hollowCircleMarker(tiltX, tiltY, textColor, dotTravel)}
+            {/* Single filled dot - tilt feedback */}
+            {dotMarker(tiltX, tiltY, textColor, dotTravel)}
           </>
         )}
 
-        {isPickerScreen && editing === 'seeking' && (
+        {isPickerScreen && (
           <>
-            {/* SEEKING: hollow circle (cursor) + hollow circle (target) + other X (locked) */}
-            {/* Two hollow circles collide → filled circle */}
-            {hollowCircleMarker(tiltX, tiltY, textColor, dotTravel)}
-            {activeDot === 'text' ? (
-              <>
-                {hollowCircleMarker(textPosX, textPosY, textColor, dotTravel)}
-                {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
-              </>
-            ) : (
-              <>
-                {hollowCircleMarker(bgPosX, bgPosY, textColor, dotTravel)}
-                {xMarker(textPosX, textPosY, textColor, dotTravel)}
-              </>
-            )}
-          </>
-        )}
-
-        {isPickerScreen && editing === 'adjusting' && (
-          <>
-            {/* ADJUSTING: active dot (LIVE) + other X (locked) */}
+            {/* Filled dot = active (being controlled), hollow circle = inactive */}
             {activeDot === 'text' ? (
               <>
                 {dotMarker(textPosX, textPosY, textColor, dotTravel)}
-                {xMarker(bgPosX, bgPosY, textColor, dotTravel)}
+                {hollowCircleMarker(bgPosX, bgPosY, textColor, dotTravel)}
               </>
             ) : (
               <>
                 {dotMarker(bgPosX, bgPosY, textColor, dotTravel)}
-                {xMarker(textPosX, textPosY, textColor, dotTravel)}
+                {hollowCircleMarker(textPosX, textPosY, textColor, dotTravel)}
               </>
             )}
           </>
@@ -696,7 +697,7 @@ function MobileScreen() {
     );
   };
 
-  const isPicking = editing === 'seeking' || editing === 'adjusting';
+  const isPicking = editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
 
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
@@ -728,7 +729,7 @@ function MobileScreen() {
         </div>
 
         {/* Button area - same position as home screen buttons */}
-        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
@@ -797,7 +798,7 @@ function MobileScreen() {
             </div>
           </div>
           {/* Invisible buttons set the correct height */}
-          <div style={{ visibility: 'hidden', padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ visibility: 'hidden', padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
             <div style={getButtonStyle(false, 'full')}>&nbsp;</div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
             <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left')}>&nbsp;</div><div style={getButtonStyle(false, 'right')}>&nbsp;</div></div>
@@ -857,7 +858,7 @@ function MobileScreen() {
           {tiltSquare(252, false)}
         </div>
 
-        <div style={{ padding: '0 0 60px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.reset = true; setResetPressed(true); }}
             onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.reset = false; setResetPressed(false); } }}
@@ -908,6 +909,95 @@ function MobileScreen() {
             >
               <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
             </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      {/* ===== MOBILE DEBUG OVERLAY ===== */}
+      <div style={{
+        position: 'fixed',
+        top: 8,
+        left: 8,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.85)',
+        color: '#0f0',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        padding: '6px 8px',
+        borderRadius: '4px',
+        maxWidth: '200px',
+        pointerEvents: 'none',
+        lineHeight: 1.4,
+      }}>
+        <div>pair: {sync.pairingState}</div>
+        <div>ws: {sync.wsRef.current ? (sync.wsRef.current.readyState === WebSocket.OPEN ? 'OPEN' : 'connecting') : 'null'}</div>
+        <div>streaming: {sync.isStreamingRef.current ? 'yes' : 'no'}</div>
+        <div>candidates: {sync.candidates.length}</div>
+      </div>
+
+      {/* ===== PAIRING SCREEN (visible when multiple laptops available) ===== */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#000',
+          visibility: sync.pairingState === 'pairing' ? 'visible' : 'hidden',
+          zIndex: sync.pairingState === 'pairing' ? 30 : -3,
+          ...safeAreaStyle,
+        }}
+      >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+        <span
+          style={titleStyle}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
+          onTouchEnd={() => setTitlePressed(false)}
+          onTouchCancel={() => setTitlePressed(false)}
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
+          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+            which one is yours?
+          </span>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+            gap: '12px',
+            width: '100%',
+            maxWidth: '320px',
+          }}>
+            {sync.candidates.map((laptop) => {
+              const cw = laptop.colorway;
+              const swatchBg = cw ? `hsl(${cw.bgHue}, ${cw.bgSat}%, ${cw.bgLight}%)` : bgColor;
+              const swatchText = cw ? `hsl(${cw.hue}, ${cw.sat}%, ${cw.light}%)` : textColor;
+              return (
+                <div
+                  key={laptop.id}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    if (navigator.vibrate) navigator.vibrate(10);
+                    sync.selectCandidate(laptop.id);
+                  }}
+                  style={{
+                    backgroundColor: swatchBg,
+                    border: `3px solid ${swatchText}`,
+                    borderRadius: '12px',
+                    padding: '20px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'monospace',
+                    fontWeight: 800,
+                    fontSize: '20px',
+                    color: swatchText,
+                  }}
+                >
+                  good days
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

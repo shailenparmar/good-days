@@ -25,7 +25,12 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     setSelectedPreset, setSelectedCustomPreset, setActivePresetIndex,
     applyPreset, saveCustomPreset, deleteCustomPreset, randomizeTheme,
     getColor,
+    livePreset, isLiveActive, setIsLiveActive, saveLivePreset,
   } = useTheme();
+
+  // Live slot shifts rand/save indices by 1 when present
+  const hasLive = livePreset !== null;
+  const liveSlotCount = hasLive ? 1 : 0;
 
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +127,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         return;
       }
 
-      const totalPresets = presets.length + customPresets.length + 2; // default + custom + rand + save
+      const totalPresets = presets.length + customPresets.length + liveSlotCount + 2; // default + custom + live? + rand + save
       const totalDefaultAndCustom = presets.length + customPresets.length;
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -183,20 +188,30 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         }, 0);
 
         // Auto-apply the preset when navigating
+        const liveIndex = totalDefaultAndCustom; // index of live slot (if present)
         if (newIndex < presets.length) {
           const preset = presets[newIndex];
           applyPreset(preset);
           setSelectedPreset(newIndex);
           setSelectedCustomPreset(null);
+          setIsLiveActive(false);
         } else if (newIndex < totalDefaultAndCustom) {
           const customIndex = newIndex - presets.length;
           const preset = customPresets[customIndex];
           applyPreset(preset);
           setSelectedPreset(null);
           setSelectedCustomPreset(customIndex);
+          setIsLiveActive(false);
+        } else if (hasLive && newIndex === liveIndex) {
+          // Navigated to [live] slot
+          applyPreset(livePreset);
+          setSelectedPreset(null);
+          setSelectedCustomPreset(null);
+          setIsLiveActive(true);
         } else {
           setSelectedPreset(null);
           setSelectedCustomPreset(null);
+          setIsLiveActive(false);
         }
       } else if ((e.key === ' ' || e.key === 'Enter') && activePresetIndex !== null) {
         // Space/Enter = click behavior (save current colors to preset)
@@ -229,11 +244,14 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
             bgLight: bgLightness,
           };
           setCustomPresets(newCustomPresets);
-        } else if (activePresetIndex === totalDefaultAndCustom) {
+        } else if (hasLive && activePresetIndex === totalDefaultAndCustom) {
+          // [live] slot — save it as custom preset
+          saveLivePreset();
+        } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
           // Rand
           markEasterEggFound('spacebarRand');
           randomizeTheme();
-        } else if (activePresetIndex === totalDefaultAndCustom + 1) {
+        } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
           // Save
           saveCustomPreset();
         }
@@ -247,7 +265,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset]);
+  }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset, hasLive, livePreset, isLiveActive, setIsLiveActive, saveLivePreset, liveSlotCount]);
 
   // Handle delete key and Cmd+Z undo for presets
   useEffect(() => {
@@ -445,9 +463,52 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           );
         })}
 
+        {/* [live] swatch — only visible when paired */}
+        {hasLive && (() => {
+          const liveIndex = presets.length + customPresets.length;
+          const liveTextColor = `hsl(${livePreset.hue}, ${livePreset.sat}%, ${livePreset.light}%)`;
+          const liveBgColor = `hsl(${livePreset.bgHue}, ${livePreset.bgSat}%, ${livePreset.bgLight}%)`;
+          const isActive = activePresetIndex === liveIndex;
+
+          return (
+            <button
+              key={`live-${isActive ? pulseKey : 0}`}
+              data-preset-index={liveIndex}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setPresetClickCount(c => c + 1);
+                if (isLiveActive) {
+                  // Already active — save as numbered custom preset
+                  saveLivePreset();
+                } else {
+                  // Select [live], apply its colors
+                  applyPreset(livePreset);
+                  setSelectedPreset(null);
+                  setSelectedCustomPreset(null);
+                  setIsLiveActive(true);
+                  setActivePresetIndex(liveIndex);
+                }
+              }}
+              className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${isActive ? 'preset-pulse' : ''}`}
+              style={{
+                backgroundColor: liveBgColor,
+                borderColor: liveTextColor,
+                borderWidth: '3px',
+                borderStyle: 'solid',
+                color: liveTextColor,
+                outline: 'none',
+                borderRadius: '6px',
+              }}
+            >
+              {s('live')}
+            </button>
+          );
+        })()}
+
         {/* Rand button */}
         {(() => {
-          const randIndex = presets.length + customPresets.length;
+          const randIndex = presets.length + customPresets.length + liveSlotCount;
           const textColor = `hsl(${randomPreview.hue}, ${randomPreview.sat}%, ${randomPreview.light}%)`;
 
           return (
@@ -477,7 +538,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
         {/* Save button */}
         {(() => {
-          const saveIndex = presets.length + customPresets.length + 1;
+          const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
           const textColor = getColor();
 
           return (

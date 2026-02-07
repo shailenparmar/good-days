@@ -1,0 +1,206 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { createLeaderElection } from './leaderElection';
+import { getWsUrl } from './protocol';
+import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
+
+const IP_CACHE_KEY = 'wsPublicIp';
+const SECRET_KEY = 'wsSecret';
+const GRACE_MS = 2500;
+
+async function fetchPublicIp(): Promise<string> {
+  const cached = sessionStorage.getItem(IP_CACHE_KEY);
+  if (cached) return cached;
+  try {
+    const resp = await fetch('https://api.ipify.org?format=text');
+    const ip = await resp.text();
+    sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
+    return ip.trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+export interface WebSyncState {
+  livePreset: ColorPayload | null;
+  streamSide: 'text' | 'background' | null;
+  isStreaming: boolean;
+}
+
+export function useWebSync(currentColorway: ColorPayload | undefined) {
+  const [state, setState] = useState<WebSyncState>({
+    livePreset: null,
+    streamSide: null,
+    isStreaming: false,
+  });
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const isLeaderRef = useRef(false);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backoffRef = useRef(1000);
+  const destroyLeaderRef = useRef<(() => void) | null>(null);
+  const mountedRef = useRef(true);
+
+  const sendMsg = useCallback((msg: ClientMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  const connect = useCallback(async () => {
+    if (!isLeaderRef.current || !mountedRef.current) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
+
+    const url = getWsUrl();
+    if (!url) return;
+
+    const ip = await fetchPublicIp();
+    const secret = localStorage.getItem(SECRET_KEY) || undefined;
+
+    try {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('[ws-sync] connected to', url);
+        backoffRef.current = 1000;
+        // Clear grace timer on reconnect
+        if (graceTimer.current) {
+          clearTimeout(graceTimer.current);
+          graceTimer.current = null;
+        }
+
+        const colorway = currentColorway || undefined;
+        console.log('[ws-sync] registering as laptop, ip=', ip, 'secret=', secret || 'none');
+        sendMsg({
+          type: 'register',
+          role: 'laptop',
+          publicIp: ip,
+          secret,
+          colorway,
+        });
+      };
+
+      ws.onmessage = (e) => {
+        if (!mountedRef.current) return;
+        let msg: ServerMessage;
+        try {
+          msg = JSON.parse(e.data);
+        } catch { return; }
+
+        console.log('[ws-sync] received:', msg.type, msg);
+        switch (msg.type) {
+          case 'paired':
+            localStorage.setItem(SECRET_KEY, msg.secret);
+            // Initialize live preset with current laptop colors
+            if (currentColorway) {
+              setState(prev => ({
+                ...prev,
+                livePreset: prev.livePreset || { ...currentColorway },
+              }));
+            }
+            break;
+
+          case 'unpaired':
+            startGrace();
+            break;
+
+          case 'color-update':
+            setState(prev => ({
+              ...prev,
+              livePreset: msg.colors,
+            }));
+            break;
+
+          case 'stream-start':
+            setState(prev => ({
+              ...prev,
+              streamSide: msg.side,
+              isStreaming: true,
+            }));
+            break;
+
+          case 'stream-stop':
+            setState(prev => ({
+              ...prev,
+              isStreaming: false,
+            }));
+            break;
+        }
+      };
+
+      ws.onclose = (ev) => {
+        console.log('[ws-sync] closed, code=', ev.code, 'reason=', ev.reason);
+        wsRef.current = null;
+        startGrace();
+        scheduleReconnect();
+      };
+
+      ws.onerror = (ev) => {
+        console.log('[ws-sync] error', ev);
+        ws.close();
+      };
+    } catch {
+      scheduleReconnect();
+    }
+  }, [sendMsg, currentColorway]);
+
+  const startGrace = useCallback(() => {
+    if (graceTimer.current) return;
+    graceTimer.current = setTimeout(() => {
+      graceTimer.current = null;
+      if (mountedRef.current) {
+        setState({ livePreset: null, streamSide: null, isStreaming: false });
+      }
+    }, GRACE_MS);
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectTimer.current) return;
+    if (!isLeaderRef.current || !mountedRef.current) return;
+    reconnectTimer.current = setTimeout(() => {
+      reconnectTimer.current = null;
+      connect();
+    }, backoffRef.current);
+    backoffRef.current = Math.min(backoffRef.current * 2, 10000);
+  }, [connect]);
+
+  // Leader election + connection lifecycle
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const election = createLeaderElection(
+      () => {
+        isLeaderRef.current = true;
+        connect();
+      },
+      () => {
+        isLeaderRef.current = false;
+        wsRef.current?.close();
+        wsRef.current = null;
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+      },
+    );
+    destroyLeaderRef.current = election.destroy;
+
+    return () => {
+      mountedRef.current = false;
+      election.destroy();
+      wsRef.current?.close();
+      wsRef.current = null;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      if (graceTimer.current) {
+        clearTimeout(graceTimer.current);
+        graceTimer.current = null;
+      }
+    };
+  }, [connect]);
+
+  return state;
+}
