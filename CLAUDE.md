@@ -115,11 +115,13 @@ Only one desktop tab holds the WebSocket connection at a time (the "leader"). Sw
 
 Code location: `src/shared/sync/leaderElection.ts`
 
-### Cross-Browser Switching (v2.1.8–2.1.11)
+### Cross-Browser Switching (v2.1.8–2.1.13)
 
 BroadcastChannel only works within a single browser. Chrome and Safari on the same machine are invisible to each other. Two relay-level mechanisms handle cross-browser switching:
 
-**Laptop takeover (v2.1.11):** When the user switches desktop browsers (e.g. Chrome → Safari), the focused browser sends `claim-laptop` to the relay on `window.focus`. The relay transfers the phone pairing from the old laptop to the new one. The phone doesn't know anything changed — color updates seamlessly flow to the focused browser. Code: `handleClaimLaptop()` in `relay.ts`, focus listener in `useWebSync.ts`.
+**Laptop takeover (v2.1.11, v2.1.13):** When the user switches desktop browsers (e.g. Chrome → Safari), the focused browser sends `claim-laptop` to the relay. The relay transfers the phone pairing from the old laptop to the new one. The phone doesn't know anything changed — color updates seamlessly flow to the focused browser. `claim-laptop` is sent in two places: (1) `window.focus` event (covers switching between already-loaded browsers), and (2) immediately after `register` in `ws.onopen` if `document.hasFocus()` is true (covers initial page load where focus event never fires). Code: `handleClaimLaptop()` in `relay.ts`, focus listener + onopen in `useWebSync.ts`.
+
+**Colorway stats (v2.1.12):** `applyPreset` skips `trackColorway()` when `isLiveStreaming` is true. Without this, every color-update from the phone (60fps) would inflate the unique colorways count. Live colorways are tracked in `saveCustomPreset()` instead (when the user presses save on the phone).
 
 **Phone takeover (v2.1.9–2.1.10):** When a new phone connects from the same IP and all laptops are paired with other phones (e.g. Chrome PWA backgrounded but WS still open), the relay evicts the stale phone and directly pairs the new one with the freed laptop. No candidates screen. Code: phone takeover block in `handleRegister()` in `relay.ts`.
 
