@@ -438,6 +438,15 @@ function writeEntryToStorage(entry: JournalEntry): void {
  */
 export function deleteSingleEntry(date: string): void {
   log('deleteSingleEntry: deleting', { date });
+
+  // Cancel any pending debounced save for this date to prevent zombie resurrection
+  const pending = pendingSaves.get(date);
+  if (pending) {
+    clearTimeout(pending.timer);
+    pendingSaves.delete(date);
+    log('deleteSingleEntry: cancelled pending save', { date });
+  }
+
   if (fallbackMode) {
     // Fallback: read all, remove one, write all back
     const entries = parseLocalStorageEntries().filter(e => e.date !== date);

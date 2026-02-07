@@ -18,6 +18,7 @@ import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 import { VERSION } from '@shared/version';
 import { logAction } from '@shared/logger';
+import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -662,6 +663,8 @@ function AppContent() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+      {/* WebSocket live sync bridge */}
+      <WebSyncBridge />
       {/* Global styles */}
       <style>
         {`
@@ -878,6 +881,7 @@ function AppContent() {
           isScrambled={isScrambled}
           onInput={handleInput}
           editorRef={editorRef}
+          externalContentVersion={journal.externalContentVersion}
           onClick={() => {
             if (isNarrow) {
               closePanels();

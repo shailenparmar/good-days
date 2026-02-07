@@ -26,6 +26,20 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
   const [keyboardFocusedEntry, setKeyboardFocusedEntry] = useState<string | null>(null);
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
+  // Clear stale interaction states when selected date changes (e.g. auto-focus to today)
+  useEffect(() => {
+    setHoveredEntry(null);
+    setClickedEntry(null);
+    setKeyboardFocusedEntry(null);
+  }, [selectedDate]);
+
+  // Clear click state on any mouseup (handles mousedown-then-scroll-away)
+  useEffect(() => {
+    const handleMouseUp = () => setClickedEntry(null);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
   // Clear keyboard focus when settings opens
   useEffect(() => {
     if (settingsOpen) {

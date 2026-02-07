@@ -34,6 +34,7 @@ export function useJournalEntries() {
     return saved || getTodayDate();
   });
   const [currentContent, setCurrentContent] = useState<string>('');
+  const [externalContentVersion, setExternalContentVersion] = useState(0);
 
   const previousDate = useRef<string | null>(null);
   const lastTypedTime = useRef<number>(
@@ -121,9 +122,10 @@ export function useJournalEntries() {
         return updated;
       });
 
-      // If we're viewing this date, update the displayed content
+      // If we're viewing this date, update the displayed content + signal editor to reload
       if (selectedDateRef.current === date) {
         setCurrentContent(htmlToText(entry.content || ''));
+        setExternalContentVersion(v => v + 1);
       }
     });
 
@@ -295,7 +297,7 @@ export function useJournalEntries() {
 
     const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
     const content = entry?.content || '';
-    setCurrentContent(content);
+    setCurrentContent(htmlToText(content));
     return content;
   }, [selectedDate]);
 
@@ -311,5 +313,6 @@ export function useJournalEntries() {
     saveTitle,
     reloadEntries,
     lastTypedTime,
+    externalContentVersion,
   };
 }

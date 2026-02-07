@@ -33,6 +33,7 @@ interface JournalEditorProps {
   isScrambled: boolean;
   onInput: (content: string) => void;
   editorRef: React.RefObject<HTMLTextAreaElement | null>;
+  externalContentVersion?: number;
   onClick?: () => void;
 }
 
@@ -42,6 +43,7 @@ export function JournalEditor({
   isScrambled,
   onInput,
   editorRef,
+  externalContentVersion,
   onClick,
 }: JournalEditorProps) {
   const { getColor, getBgColor } = useTheme();
@@ -82,9 +84,13 @@ export function JournalEditor({
       .replace(/&quot;/g, '"');
   };
 
-  // Load content when date changes
+  // Load content when date changes or another tab updates current date
+  const prevVersionRef = useRef(externalContentVersion);
   useEffect(() => {
-    if (loadedDateRef.current === selectedDate) return;
+    const isExternalUpdate = externalContentVersion !== prevVersionRef.current;
+    prevVersionRef.current = externalContentVersion;
+
+    if (loadedDateRef.current === selectedDate && !isExternalUpdate) return;
 
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
@@ -92,20 +98,21 @@ export function JournalEditor({
     const textContent = stripHtml(content);
     setValue(textContent);
 
-    // Restore scroll position after content loads
-    // Use double requestAnimationFrame to ensure content is fully rendered
-    const savedScrollTop = scrollPosition.get(selectedDate);
-    if (savedScrollTop > 0) {
-      requestAnimationFrame(() => {
+    // Restore scroll position after content loads (only on date change, not external sync)
+    if (!isExternalUpdate) {
+      const savedScrollTop = scrollPosition.get(selectedDate);
+      if (savedScrollTop > 0) {
         requestAnimationFrame(() => {
-          if (editorRef.current) {
-            editorRef.current.scrollTop = savedScrollTop;
-          }
+          requestAnimationFrame(() => {
+            if (editorRef.current) {
+              editorRef.current.scrollTop = savedScrollTop;
+            }
+          });
         });
-      });
+      }
     }
     loadedDateRef.current = selectedDate;
-  }, [entries, selectedDate, editorRef, scrollPosition]);
+  }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
@@ -222,13 +229,13 @@ export function JournalEditor({
     return () => clearTimeout(timer);
   }, [showPlaceholder, boldCount, animPhase]);
 
-  // Reset animation when placeholder appears
+  // Reset animation when placeholder appears or date changes
   useEffect(() => {
     if (showPlaceholder) {
       setBoldCount(0);
       setAnimPhase('bold');
     }
-  }, [showPlaceholder]);
+  }, [showPlaceholder, selectedDate]);
 
   return (
     <div
