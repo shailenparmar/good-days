@@ -1043,13 +1043,13 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │          good days             │  ← title, one line
 │                                │
 │        ┌────────┐              │
-│        │ ✕ ■ ✕  │              │  ← 2 X's (text/bg positions) +
-│        └────────┘              │     calibration square (tilt feedback)
+│        │   ●    │              │  ← Single filled dot
+│        └────────┘              │     (tilt feedback)
 │                                │
 ├────────────────────────────────┤
 │      recalibrate tilt          │  ← Full-width button (edge-to-edge)
 ├───────────────┬────────────────┤
-│     text      │   background   │  ← Split button (enters seeking)
+│     text      │   background   │  ← Split button (enters adjusting)
 ├───────────────┼────────────────┤
 │     copy      │     paste      │  ← Split button
 └───────────────┴────────────────┘
@@ -1062,8 +1062,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │                                │
 │            white               │
 │   gray ┌────────┐ vivid       │  ← square centered, labels fully
-│        │ ■/● ✕  │             │     outside bounds. Markers: see
-│        └────────┘              │     Two-Dot Seeking/Docking System
+│        │  ● ○   │             │     outside bounds. ● = active,
+│        └────────┘              │     ○ = inactive color
 │            black               │
 │                                │
 │  txt: #78cc33  bg: #c8ff00    │  ← Hex codes with labels (16px monospace bold)
@@ -1146,19 +1146,16 @@ Tilt values use **absolute mapping** from the phone's orientation when picking s
 
 **Max tilt angle**: ±10° to reach extremes (20° total range)
 
-The sat/light square shows three marker types (v1.10.47+):
+The sat/light square shows two marker types (v1.10.61+):
 
 | Shape | Meaning | When |
 |-------|---------|------|
-| **Hollow circle** (20px, 4px border) | Cursor or target — "hollow + hollow = filled" | Home tilt feedback, seeking cursor, seeking target |
-| **X** (20px, 4px bars) | Locked position, not interactive | Both colors on home, other color during seeking/adjusting |
-| **Filled circle** (20px) | LIVE — actively adjusting a color via tilt | Adjusting phase only |
+| **Filled circle** (20px) | Active — being controlled by tilt, or tilt feedback on home | Home (tilt feedback), picker (active color) |
+| **Hollow circle** (20px, 4px border) | Inactive color position | Picker only (the color not being adjusted) |
 
-**Visual logic:** Two hollow circles collide → become one filled circle. This represents "I found it, now I AM it."
+**Home screen:** Single filled dot showing tilt position (accelerometer feedback).
 
-**Home screen markers:** Two X's (text and bg sat/light positions) + hollow circle (moves with tilt, shows accelerometer feedback)
-
-**Seeking/Adjusting phases:** See "Two-Dot Seeking/Docking System" below.
+**Picker screen:** Filled dot = active color being controlled, hollow circle = other color's position.
 
 - L corner brackets: 32×4px, positioned OUTSIDE the marker travel area (v1.10.48+) — they frame the pure square space where markers can move
 - No + crosshair (removed in v1.10.26)
@@ -1167,38 +1164,23 @@ The sat/light square shows three marker types (v1.10.47+):
 - No sat/light number stats (removed in v1.10.7)
 - Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
 
-### Two-Dot Seeking/Docking System (v1.10.26+)
+### Direct Adjusting (v1.10.61+)
 
-The picker uses a **seek-then-adjust** mechanic that prevents accidental color changes. Tilt only controls sat/light after you deliberately dock with the target.
+The picker goes directly to adjusting — no seeking/docking phase. Pressing "text" or "background" immediately enters adjusting mode. The active color jumps to the current tilt position (color jump is the accepted tradeoff for keeping tilt calibration true — center = center).
 
-**Editing state machine:** `null` (home) → `'seeking'` → `'adjusting'` → `'seeking'` (on side switch) → ...
-
-**Phases:**
-
-| Phase | Marker moves? | Colors change? | Markers shown |
-|-------|-----------|----------------|---------------|
-| **Home** | Hollow circle moves with tilt | No | 2 X's (text/bg positions) + hollow circle (tilt feedback) |
-| **Seeking** | Hollow circle (cursor) moves with tilt | No (hue bars still work) | Hollow circle (cursor) + hollow circle (target) + X (other color, locked) |
-| **Adjusting** | Filled circle moves with tilt | Yes, active color's sat/light | Filled circle (LIVE) + X (other color, locked) |
+**Editing state machine:** `null` (home) → `'adjusting'` → `null` (on release)
 
 **Flow:**
-1. Press "text" button → enters **seeking** for text color
-2. Tilt to guide hollow circle cursor toward text's hollow circle target — nothing changes yet
-3. Circles overlap (within ~14px) → **docking**: haptic buzz, cursor snaps to target position, transitions to **adjusting**
-4. Now tilt controls text sat/light. Circle is filled (LIVE). Bg shown as locked X.
-5. Slide thumb to bg hue bar → back to **seeking** for bg. Text position freezes as X.
-6. Guide cursor to bg's target circle → dock → adjusting bg.
-7. Lift finger → back to home.
+1. Press "text" button → enters **adjusting** for text color immediately
+2. Tilt controls text sat/light. Filled dot shows active position. Bg shown as hollow circle.
+3. Slide thumb to bg hue bar → switches to adjusting bg. Color jumps to current tilt position.
+4. Lift finger → back to home.
 
-**Contact detection** (v1.10.28+) uses AABB (axis-aligned bounding box) collision in the `deviceorientation` handler during seeking phase. Circles are 20px, dotTravel is 116px, so half-size in normalized space = 20/2/116 ≈ 0.086. Overlap occurs when both X and Y distances are less than the full marker size (halfSize × 2).
-
-**Snap-to-target (v1.10.52+):** On collision, the cursor snaps to the target's exact position by recalibrating the tilt baseline. This ensures no color jump when transitioning to adjusting mode — "I found it, now I AM it" at exactly where the color was.
-
-**Side switching** is detected in the global `touchmove` handler. When the finger crosses the midline between hue bars and `activeSide` changes, editing transitions from `adjusting` back to `seeking`. The `activeDot` state tracks which color ('text' | 'bg') is the current target.
+**Side switching** is detected in the global `touchmove` handler. When the finger crosses the midline between hue bars and `activeSide` changes, the active color switches. The new color jumps to the current tilt position.
 
 **Key state/refs:**
-- `editing`: `'seeking' | 'adjusting' | null` — current phase
-- `activeDot`: `'text' | 'bg'` — which color we're seeking/adjusting
+- `editing`: `'adjusting' | null` — current phase
+- `activeDot`: `'text' | 'bg'` — which color we're adjusting
 - `colorsRef`: ref mirroring `colors` state for use in orientation handler
 - `activeSide`: ref `'left' | 'right'` — which hue bar is active (left=text, right=bg)
 
@@ -1210,7 +1192,8 @@ All mobile buttons (including the permission screen "calibrate tilt" button) use
 - **Padding**: `14px 0` (vertical), flexbox centered
 - **Font**: monospace, weight 800, 20px
 - **Border**: 4px solid (2px on split interior edges), 12px radius
-- **Width**: Edge-to-edge (0px horizontal padding on button container, v1.10.20+)
+- **Width**: Constrained to match "good days" title width (`9ch` at title font size, v1.10.61+), centered with `alignSelf: 'center'`
+- **Bottom padding**: 44px on all screens (v1.10.61+, was 60px)
 
 **Button order** (top to bottom): recalibrate tilt → text|background → copy|paste
 
