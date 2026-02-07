@@ -1223,6 +1223,23 @@ When the user mousedowns/touchstarts on a picker square, `mousemove`/`touchmove`
 
 Code location: `src/features/theme/components/ColorPicker.tsx`
 
+### Desktop Drag During Live Streaming (v2.1.18+)
+
+When the phone is streaming colors at 60fps and the desktop user drags a color picker, the phone's `color-update` messages would fight the local drag setters, causing visible flicker. A `localDragRef` flag suppresses `applyPreset` in the WebSocket callback during desktop drags.
+
+**How it works:**
+1. Desktop `ColorPicker.startDrag()` sets `localDragRef.current = true`
+2. `WebSyncBridge.handleColorUpdate()` checks the flag — if true, calls `setLivePreset()` (so the phone's colors are tracked) but skips `applyPreset()` (so the local drag isn't overwritten)
+3. Desktop `handleUp()` sets `localDragRef.current = false`
+4. Next `color-update` from phone resumes normal `applyPreset()` flow
+
+**Key insight:** `setLivePreset` still runs during the drag, so the phone's latest colors are always tracked. When the user releases, the phone's colors resume immediately from wherever it left off.
+
+Code locations:
+- `localDragRef` + `setLocalDragging`: `ThemeContext.tsx`
+- Flag set/clear: `ColorPicker.tsx` (`startDrag` and both `handleUp` callbacks)
+- Flag check: `WebSyncBridge.tsx` (`handleColorUpdate` callback)
+
 ## Mobile Screen
 
 On mobile devices, the app shows a color picker using touch + accelerometer controls.
