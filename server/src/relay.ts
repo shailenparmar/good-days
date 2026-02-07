@@ -178,9 +178,12 @@ function handleDisconnect(clientId: string) {
   const client = clients.get(clientId);
   if (!client) return;
 
+  const publicIp = client.publicIp;
+  const partnerId = client.partnerId;
+
   // Notify partner
-  if (client.partnerId) {
-    const partner = clients.get(client.partnerId);
+  if (partnerId) {
+    const partner = clients.get(partnerId);
     if (partner) {
       partner.partnerId = undefined;
       send(partner.ws, { type: 'unpaired', reason: 'partner-disconnected' });
@@ -188,15 +191,58 @@ function handleDisconnect(clientId: string) {
   }
 
   // Remove from IP group
-  const group = ipGroups.get(client.publicIp);
+  const group = ipGroups.get(publicIp);
   if (group) {
     group.delete(clientId);
     if (group.size === 0) {
-      ipGroups.delete(client.publicIp);
+      ipGroups.delete(publicIp);
     }
   }
 
   clients.delete(clientId);
+
+  // Re-evaluate pairing for remaining unpaired clients in the same IP group.
+  // Handles cross-browser switching: e.g. phone Chrome disconnects, phone Safari
+  // was waiting with no-candidates — now the laptop is free and Safari can pair.
+  if (partnerId) {
+    const partner = clients.get(partnerId);
+    if (partner && !partner.partnerId) {
+      if (partner.role === 'laptop') {
+        // A phone disconnected — check if other unpaired phones can now pair
+        const phones = getUnpairedPhonesInGroup(publicIp);
+        for (const phoneId of phones) {
+          const phone = clients.get(phoneId);
+          if (!phone) continue;
+          const laptops = getUnpairedLaptopsInGroup(publicIp, phoneId);
+          if (laptops.length === 0) {
+            send(phone.ws, { type: 'no-candidates' });
+          } else if (laptops.length === 1) {
+            pairClients(phoneId, laptops[0]);
+          } else {
+            const candidateList = laptops.map(id => ({
+              id,
+              colorway: clients.get(id)?.colorway,
+            }));
+            send(phone.ws, { type: 'candidates', laptops: candidateList });
+          }
+        }
+      } else if (partner.role === 'phone') {
+        // A laptop disconnected — check if the phone can pair with another laptop
+        const laptops = getUnpairedLaptopsInGroup(publicIp, partnerId);
+        if (laptops.length === 0) {
+          send(partner.ws, { type: 'no-candidates' });
+        } else if (laptops.length === 1) {
+          pairClients(partnerId, laptops[0]);
+        } else {
+          const candidateList = laptops.map(id => ({
+            id,
+            colorway: clients.get(id)?.colorway,
+          }));
+          send(partner.ws, { type: 'candidates', laptops: candidateList });
+        }
+      }
+    }
+  }
 }
 
 const PING_INTERVAL = 30_000;  // Send ping every 30s
