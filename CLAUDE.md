@@ -195,6 +195,16 @@ The "ensure today's entry exists" effect in `useJournalEntries.ts` creates an em
 
 **Before v1.10.58:** The placeholder was created with `startedAt: Date.now()`, so if the app was open at midnight, `startedAt` would be ~12:00 AM even if the user didn't type until hours later.
 
+### State Sync Fixes (v1.10.60+)
+
+**EntrySidebar interaction state reset:** When `selectedDate` changes (from clicking, arrow keys, or auto-focus), `hoveredEntry`, `clickedEntry`, and `keyboardFocusedEntry` local states are all cleared. A document-level `mouseup` listener also clears `clickedEntry` to handle mousedown-then-scroll-away.
+
+**Multi-tab editor sync:** `useJournalEntries` exposes an `externalContentVersion` counter that increments when another tab saves the currently viewed date. `JournalEditor` uses this to bypass its `loadedDateRef` guard and reload content from the updated entries. Scroll position is preserved (not reset) on external syncs.
+
+**Zombie entry prevention:** `deleteSingleEntry()` in `journalStorage.ts` now cancels any pending debounced save for the deleted date before performing the delete. Previously, a 300ms debounced save could fire after the delete and re-write the entry.
+
+**reloadEntries htmlToText:** `reloadEntries()` (used after password unlock) now calls `htmlToText()` before setting `currentContent`, consistent with all other code paths.
+
 ### Error Boundary Emergency Save (v1.10.0+)
 
 If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending debounced writes to IndexedDB before showing the error screen.
