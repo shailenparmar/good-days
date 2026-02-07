@@ -16,12 +16,14 @@ export const EASTER_EGGS = [
 export type EasterEgg = typeof EASTER_EGGS[number];
 
 const STORAGE_KEY = 'easterEggsFound';
+const VALID_EGGS: Set<string> = new Set(EASTER_EGGS);
 
 function getFound(): Set<EasterEgg> {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return new Set(JSON.parse(saved) as EasterEgg[]);
+      const parsed = JSON.parse(saved) as string[];
+      return new Set(parsed.filter(e => VALID_EGGS.has(e)) as EasterEgg[]);
     }
   } catch {
     // ignore
@@ -47,10 +49,9 @@ export function isEasterEggFound(egg: EasterEgg): boolean {
 
 export function getEasterEggCount(): { found: number; total: number } {
   const found = getFound();
-  // Don't count the secret egg in found, and display total as 14
   const hasSecret = found.has('clickedEggCounter');
   return {
     found: hasSecret ? found.size - 1 : found.size,
-    total: EASTER_EGGS.length - 1, // 14, hiding the secret one
+    total: EASTER_EGGS.length - 1,
   };
 }
