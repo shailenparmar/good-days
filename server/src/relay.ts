@@ -199,10 +199,27 @@ function handleDisconnect(clientId: string) {
   clients.delete(clientId);
 }
 
+const PING_INTERVAL = 30_000;  // Send ping every 30s
+const PONG_TIMEOUT = 10_000;   // Close if no pong within 10s
+
 export function handleConnection(ws: WebSocket, publicIp: string) {
   const clientId = randomUUID();
   let registered = false;
+  let alive = true;
   console.log(`[relay] WS CONNECTED id=${clientId.slice(0,8)} socketIp=${publicIp}`);
+
+  // Keep-alive: ping every 30s, close if no pong within 10s
+  const pingInterval = setInterval(() => {
+    if (!alive) {
+      console.log(`[relay] PING TIMEOUT id=${clientId.slice(0,8)}`);
+      ws.terminate();
+      return;
+    }
+    alive = false;
+    ws.ping();
+  }, PING_INTERVAL);
+
+  ws.on('pong', () => { alive = true; });
 
   ws.on('message', (data) => {
     let msg: ClientMessage;
@@ -250,6 +267,6 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
     }
   });
 
-  ws.on('close', () => { console.log(`[relay] DISCONNECTED id=${clientId.slice(0,8)}`); handleDisconnect(clientId); });
-  ws.on('error', (err) => { console.log(`[relay] ERROR id=${clientId.slice(0,8)} ${err.message}`); handleDisconnect(clientId); });
+  ws.on('close', () => { clearInterval(pingInterval); console.log(`[relay] DISCONNECTED id=${clientId.slice(0,8)}`); handleDisconnect(clientId); });
+  ws.on('error', (err) => { clearInterval(pingInterval); console.log(`[relay] ERROR id=${clientId.slice(0,8)} ${err.message}`); handleDisconnect(clientId); });
 }
