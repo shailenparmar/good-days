@@ -177,6 +177,41 @@ When the phone is streaming colors and the user switches laptop tabs or browsers
 - `color-update` during grace (no laptop) → stored in `lastColors`, replayed to next laptop
 - `stream-stop` during grace → clears snapshots, new laptop pairs but not streaming
 
+### Learned Pairing Affinity (v2.1.23+)
+
+When a phone and laptop pair in a **1:1 environment** (exactly one phone + one laptop on the IP), the relay sends each device the other's `deviceId` via `partnerDeviceId` in the `paired` message. Both clients save this to localStorage (`wsDeviceId`, `wsPartnerDeviceId`). On future connections, `findAffinityMatch()` checks if any device on the same IP remembers this device (or vice versa), and pairs them automatically — even if secrets are lost.
+
+**Pairing priority (in order):**
+1. **Secret match** — shared token, strongest signal
+2. **Affinity match** — mutual (both claim each other) or one-sided (one side remembers)
+3. **Focus-based `pickBestLaptop`** — most recently focused browser
+4. **First available** — last resort
+
+**When affinity is learned:** Only when `pairClients` runs and the IP group has exactly 1 phone + 1 laptop. This check lives inside `pairClients` itself — no per-call-site logic needed.
+
+**When affinity is NOT learned:** If >1 phone or >1 laptop exists on the IP, the pairing could be a coin flip (e.g. Alice's phone paired with Bob's laptop). Sending `partnerDeviceId` would burn a wrong affinity into localStorage, so it's omitted.
+
+**Client-side (`useMobileSync.ts`, `useWebSync.ts`):**
+- `getOrCreateDeviceId()` — generates a persistent UUID in localStorage (`wsDeviceId`)
+- Sends `deviceId` + `partnerDeviceId` on every `register` message
+- Saves received `partnerDeviceId` on every `paired` message
+
+**Server-side (`relay.ts`):**
+- `findAffinityMatch()` — scans IP group for opposite-role devices with matching deviceIds. Prefers mutual matches (both claim each other) over one-sided
+- `pairClients()` — counts phones/laptops on IP, only includes `partnerDeviceId` in `paired` message if 1:1
+
+**Fields added to `types.ts` / `protocol.ts`:**
+- `ClientRecord`: `deviceId?`, `partnerDeviceId?`
+- `register` message: `deviceId?`, `partnerDeviceId?`
+- `paired` message: `partnerDeviceId?`
+
+**Edge cases:**
+- First-time multi-device (no affinities) → falls through to IP-based, same as before
+- Both devices remember each other (mutual) → strongest affinity signal, auto-pairs
+- One device cleared cache (one-sided) → still pairs via surviving side's claim
+- Both cleared cache → no affinity, falls back to IP-based
+- Relay restart → clients re-send deviceId + partnerDeviceId on reconnect
+
 ### Future: WebRTC DataChannel Migration
 
 The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
