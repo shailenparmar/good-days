@@ -83,8 +83,35 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 
   // IP-based pairing
   if (role === 'phone') {
-    const laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
+    let laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
     console.log(`[relay] phone: found ${laptops.length} unpaired laptop(s) in IP group ${publicIp}`);
+
+    // Phone takeover: if no unpaired laptops, evict stale phones from the same IP
+    // that are hogging a laptop (e.g. Chrome PWA backgrounded but WS still open).
+    // Most-recent phone wins — mirrors desktop leader election behavior.
+    if (laptops.length === 0) {
+      const group = ipGroups.get(publicIp);
+      if (group) {
+        for (const otherId of group) {
+          if (otherId === clientId) continue;
+          const other = clients.get(otherId);
+          if (other && other.role === 'phone' && other.partnerId) {
+            console.log(`[relay] phone takeover: evicting phone ${otherId.slice(0,8)} to free laptop ${other.partnerId.slice(0,8)}`);
+            const laptop = clients.get(other.partnerId);
+            if (laptop) {
+              laptop.partnerId = undefined;
+              send(laptop.ws, { type: 'unpaired', reason: 'phone-takeover' });
+            }
+            other.partnerId = undefined;
+            send(other.ws, { type: 'unpaired', reason: 'phone-takeover' });
+            break;
+          }
+        }
+        // Re-check after eviction
+        laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
+      }
+    }
+
     if (laptops.length === 0) {
       send(ws, { type: 'no-candidates' });
     } else if (laptops.length === 1) {
