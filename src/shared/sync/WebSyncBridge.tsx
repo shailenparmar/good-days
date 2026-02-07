@@ -32,16 +32,18 @@ export function WebSyncBridge() {
       bgSat: colors.bgSat,
       bgLight: colors.bgLight,
     });
-    if (t.isLiveActive) {
-      t.applyPreset({
-        hue: colors.hue,
-        sat: colors.sat,
-        light: colors.light,
-        bgHue: colors.bgHue,
-        bgSat: colors.bgSat,
-        bgLight: colors.bgLight,
-      });
-    }
+    // Always apply — if we're receiving color-update from the relay,
+    // we're paired and should render the phone's colors immediately.
+    // Don't gate on isLiveActive: the pairing effect sets it via an
+    // effect (async), but color-update can arrive before that fires.
+    t.applyPreset({
+      hue: colors.hue,
+      sat: colors.sat,
+      light: colors.light,
+      bgHue: colors.bgHue,
+      bgSat: colors.bgSat,
+      bgLight: colors.bgLight,
+    });
   }, []);
 
   const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
