@@ -619,8 +619,8 @@ function MobileScreen() {
   const getButtonStyle = (pressed: boolean, position: 'left' | 'right' | 'full' | 'center', role?: 'picker' | 'aux') => {
     const borderColor = `hsla(${colors.hue}, ${colors.sat}%, ${pressed ? 65 : colors.light}%, ${pressed ? 1 : 0.6})`;
     const fillColor = pressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
-    // In live mode: picker buttons (text|bg) double height, aux buttons (recal, copy/save/paste) half
-    const vPad = isLive ? (role === 'picker' ? 28 : role === 'aux' ? 7 : 14) : 14;
+    // Picker buttons (text|bg) double height, aux buttons (recal, copy/save/paste) half
+    const vPad = role === 'picker' ? 28 : role === 'aux' ? 7 : 14;
     const base: React.CSSProperties = {
       flex: (position === 'full') ? undefined : 1,
       width: position === 'full' ? '100%' : undefined,
@@ -660,7 +660,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '1.10.65';
+  const mobileVersion = '1.10.66';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
