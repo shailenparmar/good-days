@@ -43,9 +43,11 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     }
   }
 
-  // Indicator sizes based on role
-  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 24;
+  // Indicator sizes based on role (idle=1x, beta=2x, alpha/drag=4x)
+  const dotSize = (role === 'alpha' || role === 'local-drag') ? 48 : 12;
   const needleHeight = (role === 'alpha' || role === 'local-drag') ? 16 : role === 'beta' ? 8 : 4;
+  // When dragging SL, lift above hue pickers so dot is frontmost
+  const slZIndex = isDragging && part === 'sl' ? 10 : 2;
 
   // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
   useEffect(() => {
@@ -154,7 +156,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
           width: '100%',
           aspectRatio: '1',
           overflow: 'visible',
-          zIndex: 1,
+          zIndex: isDragging ? 10 : 1,
           background: 'linear-gradient(to top, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
         }}
       >
@@ -184,7 +186,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         width: '100%',
         aspectRatio: '1',
         overflow: 'visible',
-        zIndex: 2,
+        zIndex: slZIndex,
         background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`,
       }}
     >
