@@ -1226,7 +1226,7 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 | Shape | Meaning | When |
 |-------|---------|------|
 | **Filled circle** (40px) | Active — being controlled by tilt, or tilt feedback on home | Home (tilt feedback), picker (active color) |
-| **Hollow circle** (40px, 8px border) | Inactive color position | Picker only (the color not being adjusted) |
+| **Hollow circle** (40px, 4px border) | Inactive color position | Picker only (the color not being adjusted) |
 
 **Home screen:** Single filled dot showing tilt position (accelerometer feedback).
 
