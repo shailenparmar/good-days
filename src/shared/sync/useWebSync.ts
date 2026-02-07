@@ -226,8 +226,19 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     );
     destroyLeaderRef.current = election.destroy;
 
+    // Cross-browser focus claim: when this window gains focus, tell the relay
+    // to transfer the phone pairing here. BroadcastChannel only works within
+    // a single browser — this handles Chrome ↔ Safari switching on the desktop.
+    const handleFocus = () => {
+      if (isLeaderRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+        sendMsg({ type: 'claim-laptop' });
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       mountedRef.current = false;
+      window.removeEventListener('focus', handleFocus);
       election.destroy();
       wsRef.current?.close();
       wsRef.current = null;

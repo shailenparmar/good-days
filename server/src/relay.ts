@@ -154,6 +154,39 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   }
 }
 
+function handleClaimLaptop(clientId: string) {
+  const client = clients.get(clientId);
+  if (!client || client.role !== 'laptop') return;
+  if (client.partnerId) return; // Already paired, nothing to claim
+
+  // Cross-browser laptop takeover: steal the phone from another laptop on the same IP.
+  // Mirrors the in-browser focus-claim leader election, but works across Chrome/Safari.
+  const group = ipGroups.get(client.publicIp);
+  if (!group) return;
+
+  for (const otherId of group) {
+    if (otherId === clientId) continue;
+    const other = clients.get(otherId);
+    if (other && other.role === 'laptop' && other.partnerId) {
+      const phoneId = other.partnerId;
+      const phone = clients.get(phoneId);
+
+      console.log(`[relay] laptop takeover: ${clientId.slice(0,8)} stealing phone ${phoneId.slice(0,8)} from laptop ${otherId.slice(0,8)}`);
+
+      // Unpair old laptop
+      other.partnerId = undefined;
+      send(other.ws, { type: 'unpaired', reason: 'laptop-takeover' });
+
+      // Pair new laptop with the phone
+      if (phone) {
+        phone.partnerId = undefined;
+        pairClients(clientId, phoneId);
+      }
+      break;
+    }
+  }
+}
+
 function handlePairRequest(clientId: string, targetId: string) {
   const client = clients.get(clientId);
   const target = clients.get(targetId);
@@ -344,6 +377,10 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         }
         break;
       }
+
+      case 'claim-laptop':
+        handleClaimLaptop(clientId);
+        break;
     }
   });
 
