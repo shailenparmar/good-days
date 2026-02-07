@@ -178,7 +178,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
       return;
     }
 
-    const eggText = '13/13 easter eggs';
+    const eggText = '8/8 easter eggs';
     if (eggBoldCount >= eggText.length) {
       // Flip phase and reset count - keeps looping
       setEggAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
@@ -190,20 +190,20 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return () => clearTimeout(timer);
   }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
 
-  // Handle click on easter eggs text - the secret 15th egg!
-  // When user has all 13 regular eggs, shows "12.5/13" - clicking it completes the collection
+  // Handle click on easter eggs text - the secret 9th egg!
+  // When user has all 8 regular eggs, shows "7.5/8" - clicking it completes the collection
   const handleEasterEggsClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const eggCount = getEasterEggCount();
     const hasSecretEgg = isEasterEggFound('clickedEggCounter');
 
-    // If at 13/13 regular eggs but haven't clicked yet (showing 12.5/13)
+    // If at 8/8 regular eggs but haven't clicked yet (showing 7.5/8)
     if (eggCount.found === eggCount.total && !hasSecretEgg && !isRainbowMode) {
       markEasterEggFound('clickedEggCounter');
       setIsRainbowMode(true);
     }
-    // If already completed (13/13), can still trigger rainbow mode again
+    // If already completed (8/8), can still trigger rainbow mode again
     else if (eggCount.found === eggCount.total && hasSecretEgg && !isRainbowMode) {
       setIsRainbowMode(true);
     }
@@ -435,11 +435,13 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const bgLine = `bg: ${hslToHex(bgHue, bgSaturation, bgLightness)} h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
     const copyText = `${textLine}\n${bgLine}`;
     navigator.clipboard.writeText(copyText);
+    markEasterEggFound('selectColorText');
     setColorAreaHovered(false);
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
   // Handle paste button click - read from clipboard, apply, and create new preset
   const handleColorPaste = useCallback(async () => {
+    markEasterEggFound('selectColorText');
     try {
       let text = await navigator.clipboard.readText();
       // Decode URL-encoded clipboard text (mobile browsers may encode)
@@ -495,8 +497,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         setSelectedPreset(null);
         setSelectedCustomPreset(customPresets.length);
 
-        // Easter egg for successfully pasting a colorway
-        markEasterEggFound('selectColorText');
       }
     } catch {
       // Clipboard access denied or empty
@@ -578,9 +578,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {(() => {
                 const eggCount = getEasterEggCount();
                 const hasSecretEgg = isEasterEggFound('clickedEggCounter');
-                // Show 12.5/13 when all regular eggs found but secret not yet clicked
+                // Show 7.5/8 when all regular eggs found but secret not yet clicked
                 const displayFound = (eggCount.found === eggCount.total && !hasSecretEgg)
-                  ? '12.5'
+                  ? '7.5'
                   : String(eggCount.found);
                 const eggText = s(`${displayFound}/${eggCount.total} easter eggs`);
 

@@ -8,7 +8,6 @@ import { TimeDisplay } from './TimeDisplay';
 import { FunctionButton } from '@shared/components';
 import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
-import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { getItem, setItem } from '@shared/storage';
 import { logAction, exportLogs } from '@shared/logger';
 import { VERSION } from '@shared/version';
@@ -45,7 +44,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   // Suppress unused variable warning
   void scrambleSeed;
-  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness, isLiveActive } = useTheme();
   // Stable hover for scramble hotkey button
   const { hovered: hotkeyButtonHovered, containerProps: hotkeyContainerProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
@@ -76,10 +75,6 @@ export function SettingsPanel({
     }, 100);
   }, []);
 
-  // Easter egg: saw the blackout screen
-  useEffect(() => {
-    if (resetStep === 2) markEasterEggFound('resetBlackout');
-  }, [resetStep]);
 
 
   const handleResetApp = async () => {
@@ -147,8 +142,17 @@ export function SettingsPanel({
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
-          <ColorPicker type="text" />
-          <ColorPicker type="background" />
+          {isLiveActive ? (
+            <div style={{ display: 'flex', gap: '8px', height: '192px' }}>
+              <ColorPicker type="text" vertical huePosition="left" height={192} />
+              <ColorPicker type="background" vertical huePosition="right" height={192} />
+            </div>
+          ) : (
+            <>
+              <ColorPicker type="text" />
+              <ColorPicker type="background" />
+            </>
+          )}
         </div>
       </div>
 

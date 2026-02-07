@@ -18,6 +18,7 @@ import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 import { VERSION } from '@shared/version';
 import { logAction } from '@shared/logger';
+import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -392,16 +393,8 @@ function AppContent() {
   }, [isSuperscramble]);
 
   useEffect(() => {
-    if (minizen) markEasterEggFound('minizenMode');
-  }, [minizen]);
-
-  useEffect(() => {
     if (zenMode) markEasterEggFound('zenMode');
   }, [zenMode]);
-
-  useEffect(() => {
-    if (scrambleHotkeyActive) markEasterEggFound('scrambleHotkeyOn');
-  }, [scrambleHotkeyActive]);
 
   // Option/Alt+S hotkey for scramble toggle (when hotkey is activated)
   useEffect(() => {
@@ -412,7 +405,7 @@ function AppContent() {
       if (e.altKey && e.code === 'KeyS') {
         e.preventDefault();
         setIsScrambled(prev => !prev);
-        markEasterEggFound('scrambleHotkeyUsed');
+        // scramble hotkey toggled
       }
     };
 
@@ -662,6 +655,7 @@ function AppContent() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+      <WebSyncBridge />
       {/* Global styles */}
       <style>
         {`

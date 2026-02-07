@@ -133,7 +133,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         setKeyboardUseCount(c => c + 1);
-        markEasterEggFound('arrowKeyPresets');
+
 
         const cols = 5;
         let newIndex = activePresetIndex === null ? 0 : activePresetIndex;
@@ -367,6 +367,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
       setSelectedPreset(index);
       setSelectedCustomPreset(null);
       setActivePresetIndex(index);
+      setIsLiveActive(false);
     }
   };
 
@@ -393,6 +394,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
       setSelectedPreset(null);
       setSelectedCustomPreset(index);
       setActivePresetIndex(presets.length + index);
+      setIsLiveActive(false);
     }
   };
 
