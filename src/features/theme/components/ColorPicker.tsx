@@ -44,9 +44,8 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   }
 
   // Indicator sizes based on role
-  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 12;
-  const needleHeight = (role === 'alpha' || role === 'local-drag') ? 16 : role === 'beta' ? 8 : 4;
-  const useTransition = role !== 'local-drag';
+  const dotSize = (role === 'alpha' || role === 'local-drag') ? 64 : role === 'beta' ? 24 : 24;
+  const needleHeight = (role === 'alpha' || role === 'local-drag') ? 32 : role === 'beta' ? 16 : 8;
 
   // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
   useEffect(() => {
@@ -169,7 +168,6 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
             height: `${needleHeight}px`,
             transform: 'translateY(-50%)',
             backgroundColor: 'black',
-            transition: useTransition ? 'height 150ms ease' : undefined,
           }}
         />
       </div>
@@ -199,7 +197,6 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
           top: `${100 - currentLight}%`,
           transform: 'translate(-50%, -50%)',
           backgroundColor: isText ? getBgColor() : getColor(),
-          transition: useTransition ? 'width 150ms ease, height 150ms ease' : undefined,
         }}
       />
     </div>

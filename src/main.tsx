@@ -694,7 +694,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.0.4';
+  const mobileVersion = '2.0.5';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1056,28 +1056,6 @@ function MobileScreen() {
           </div>
         </div>
       </div>
-      </div>
-
-      {/* ===== MOBILE DEBUG OVERLAY ===== */}
-      <div style={{
-        position: 'fixed',
-        top: 8,
-        left: 8,
-        zIndex: 99999,
-        background: 'rgba(0,0,0,0.85)',
-        color: '#0f0',
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        padding: '6px 8px',
-        borderRadius: '4px',
-        maxWidth: '200px',
-        pointerEvents: 'none',
-        lineHeight: 1.4,
-      }}>
-        <div>pair: {sync.pairingState}</div>
-        <div>ws: {sync.wsRef.current ? (sync.wsRef.current.readyState === WebSocket.OPEN ? 'OPEN' : 'connecting') : 'null'}</div>
-        <div>streaming: {sync.isStreamingRef.current ? 'yes' : 'no'}</div>
-        <div>candidates: {sync.candidates.length}</div>
       </div>
 
       {/* ===== PAIRING SCREEN (visible when multiple laptops available) ===== */}

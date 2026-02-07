@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
 import type { ColorPayload } from './protocol';
@@ -9,12 +9,6 @@ export function WebSyncBridge() {
   themeRef.current = theme;
   const prevLiveRef = useRef<ColorPayload | null>(null);
   const skipBridgeRef = useRef(false);
-  const [debugLog, setDebugLog] = useState<string[]>(['init']);
-
-  const log = (msg: string) => {
-    console.log('[WebSyncBridge]', msg);
-    setDebugLog(prev => [...prev.slice(-8), msg]);
-  };
 
   const currentColorway: ColorPayload = {
     hue: theme.hue,
@@ -52,11 +46,6 @@ export function WebSyncBridge() {
 
   const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
 
-  // Log state changes
-  useEffect(() => {
-    log(`sync: live=${syncState.livePreset ? 'yes' : 'null'} streaming=${syncState.isStreaming} side=${syncState.streamSide}`);
-  }, [syncState.livePreset, syncState.isStreaming, syncState.streamSide]);
-
   // Bridge sync state into ThemeContext (skipped for color-update — handled by callback)
   useEffect(() => {
     if (skipBridgeRef.current) {
@@ -79,7 +68,6 @@ export function WebSyncBridge() {
     prevLiveRef.current = syncState.livePreset;
 
     if (wasNull && syncState.livePreset) {
-      log('NEW PAIRING — auto-selecting [live]');
       const liveIndex = theme.presets.length + theme.customPresets.length;
       theme.setIsLiveActive(true);
       theme.setSelectedPreset(null);
@@ -120,29 +108,9 @@ export function WebSyncBridge() {
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
-      log('SAVE-PRESET from phone');
       theme.saveCustomPreset();
     }
   }, [syncState.saveRequested]);
 
-  // Debug overlay
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: 8,
-      right: 8,
-      zIndex: 99999,
-      background: 'rgba(0,0,0,0.85)',
-      color: '#0f0',
-      fontFamily: 'monospace',
-      fontSize: '10px',
-      padding: '6px 8px',
-      borderRadius: '4px',
-      maxWidth: '260px',
-      pointerEvents: 'none',
-      lineHeight: 1.4,
-    }}>
-      {debugLog.map((l, i) => <div key={i}>{l}</div>)}
-    </div>
-  );
+  return null;
 }
