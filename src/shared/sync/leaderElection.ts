@@ -126,6 +126,7 @@ export function createLeaderElection(
   const handleFocus = () => {
     if (!isLeader) {
       channel?.postMessage({ type: 'focus-claim', tabId } satisfies LeaderMessage);
+      currentLeader = null;
       claim();
     }
   };
