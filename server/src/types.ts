@@ -42,4 +42,11 @@ export interface ClientRecord {
   partnerId?: string;
   colorway?: ColorPayload;
   streaming: boolean;
+  // Stream state snapshots (stored on phone records for handoff replay)
+  lastColors?: ColorPayload;
+  lastStreamSide?: 'text' | 'background';
+  lastStreamState?: {
+    alpha: { side: 'text' | 'background' };
+    beta: { side: 'text' | 'background' } | null;
+  };
 }

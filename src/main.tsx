@@ -108,6 +108,7 @@ function MobileScreen() {
   const [copyPressed, setCopyPressed] = useState(false);
   const [savePressed, setSavePressed] = useState(false);
   const [pastePressed, setPastePressed] = useState(false);
+  const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
   // iOS permission state
   const [needsPermission, setNeedsPermission] = useState(false);
@@ -132,6 +133,7 @@ function MobileScreen() {
 
   // Track button engagement for drag-off cancellation
   const buttonEngaged = useRef({ reset: false, copy: false, paste: false, save: false });
+  const candidateEngaged = useRef<string | null>(null);
 
 
   // Two-dot system: which color is the active dot during picking
@@ -694,7 +696,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.13';
+  const mobileVersion = '2.1.15';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1080,43 +1082,72 @@ function MobileScreen() {
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
             which one is yours?
           </span>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+            display: 'flex',
+            flexDirection: 'column',
             gap: '12px',
             width: '100%',
             maxWidth: '320px',
           }}>
-            {sync.candidates.map((laptop) => {
+            {sync.candidates.map((laptop, index) => {
               const cw = laptop.colorway;
-              const swatchBg = cw ? `hsl(${cw.bgHue}, ${cw.bgSat}%, ${cw.bgLight}%)` : bgColor;
-              const swatchText = cw ? `hsl(${cw.hue}, ${cw.sat}%, ${cw.light}%)` : textColor;
+              const candidateBg = cw ? `hsl(${cw.bgHue}, ${cw.bgSat}%, ${cw.bgLight}%)` : bgColor;
+              const candidateText = cw ? `hsl(${cw.hue}, ${cw.sat}%, ${cw.light}%)` : textColor;
+              const h = cw ? cw.hue : colors.hue;
+              const s = cw ? cw.sat : colors.sat;
+              const l = cw ? cw.light : colors.light;
+              const isPressed = pressedCandidate === laptop.id;
+              const borderColor = isPressed
+                ? `hsla(${h}, ${s}%, 65%, 1)`
+                : `hsla(${h}, ${s}%, ${l}%, 0.6)`;
+              const background = isPressed
+                ? `linear-gradient(hsla(${h}, ${s}%, ${l}%, 0.2), hsla(${h}, ${s}%, ${l}%, 0.2)), ${candidateBg}`
+                : candidateBg;
               return (
                 <div
                   key={laptop.id}
                   onTouchStart={(e) => {
                     e.preventDefault();
+                    candidateEngaged.current = laptop.id;
+                    setPressedCandidate(laptop.id);
                     if (navigator.vibrate) navigator.vibrate(10);
-                    sync.selectCandidate(laptop.id);
+                  }}
+                  onTouchMove={(e) => {
+                    if (!isTouchInside(e)) {
+                      candidateEngaged.current = null;
+                      setPressedCandidate(null);
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    if (candidateEngaged.current === laptop.id) {
+                      sync.selectCandidate(laptop.id);
+                    }
+                    candidateEngaged.current = null;
+                    setPressedCandidate(null);
+                  }}
+                  onTouchCancel={() => {
+                    candidateEngaged.current = null;
+                    setPressedCandidate(null);
                   }}
                   style={{
-                    backgroundColor: swatchBg,
-                    border: `3px solid ${swatchText}`,
+                    background,
+                    border: `4px solid ${borderColor}`,
                     borderRadius: '12px',
-                    padding: '20px 12px',
+                    padding: '14px 0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontFamily: 'monospace',
                     fontWeight: 800,
                     fontSize: '20px',
-                    color: swatchText,
+                    color: candidateText,
                   }}
                 >
-                  good days
+                  desktop {index + 1}
                 </div>
               );
             })}
