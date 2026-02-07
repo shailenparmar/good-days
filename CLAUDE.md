@@ -1230,13 +1230,24 @@ Alpha is always the thick needle. When beta is promoted to alpha, its needle gro
 All mobile buttons (including the permission screen "calibrate tilt" button) use the shared `getButtonStyle()` helper:
 - **Default**: 60% opacity border, transparent fill
 - **Pressed**: 100% opacity border, 65% lightness, 20% opacity fill
-- **Padding**: `14px 0` (vertical), flexbox centered
 - **Font**: monospace, weight 800, 20px
 - **Border**: 4px solid (2px on split interior edges), 12px radius
 - **Width**: Constrained to match "good days" title width (`9ch` at title font size, v1.10.61+), centered with `alignSelf: 'center'`
 - **Bottom padding**: 44px on all screens (v1.10.61+, was 60px)
 
-**Button order** (top to bottom): recalibrate tilt → text|background → copy|paste
+**Button order** (top to bottom): recalibrate tilt → text|background → copy|paste (+ save when live)
+
+**Button sizing by role (v1.10.66+):**
+
+`getButtonStyle` accepts an optional `role` parameter controlling vertical padding:
+
+| Role | Padding | Usage |
+|------|---------|-------|
+| `'picker'` | 28px (2x) | text\|background buttons — large touch target for the primary interaction |
+| `'aux'` | 7px (0.5x) | recalibrate tilt, copy, save, paste — smaller, less prominent |
+| (none) | 14px (1x) | calibrate tilt (permission screen) — standard size |
+
+This applies always (not gated on live mode). The picker buttons are the primary action, so they're visually dominant. The invisible spacer buttons on the picker screen and permission screen placeholders use matching roles to keep heights consistent across all three screens.
 
 ### Button Drag-Off Cancellation (v1.10.22+)
 
