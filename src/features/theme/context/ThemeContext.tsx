@@ -146,10 +146,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return Math.round(255 * c).toString(16).padStart(2, '0');
     };
     const hex = `#${f(0)}${f(8)}${f(4)}`;
-    const meta = document.getElementById('theme-color-meta');
-    if (meta) {
-      meta.setAttribute('content', hex);
-    }
+    // Safari ignores setAttribute on existing theme-color meta — must remove and re-insert
+    const existing = document.querySelector('meta[name="theme-color"]');
+    if (existing) existing.remove();
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.id = 'theme-color-meta';
+    meta.content = hex;
+    document.head.appendChild(meta);
     // Safari also uses the page background for toolbar tinting
     document.documentElement.style.backgroundColor = hex;
     document.body.style.backgroundColor = hex;
