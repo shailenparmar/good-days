@@ -5,7 +5,7 @@ import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
 const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
-const GRACE_MS = 2500;
+const GRACE_MS = 500;
 
 async function fetchPublicIp(): Promise<string> {
   const cached = sessionStorage.getItem(IP_CACHE_KEY);
