@@ -50,6 +50,52 @@ To redeploy: `cd server && fly deploy`
 
 **Must be DNS only** — Cloudflare proxy (orange cloud) causes Error 1033 since there's no Tunnel configured.
 
+### Latency Optimization: Flattened State Chain (v2.0.1+)
+
+Color updates from the phone follow a **direct callback** path instead of a React effect chain:
+
+**Before (3 render cycles):**
+1. `useWebSync` setState(livePreset) → render 1
+2. `WebSyncBridge` effect → `theme.setLivePreset()` → render 2
+3. `WebSyncBridge` effect → `theme.applyPreset()` → render 3
+
+**After (1 render cycle):**
+1. `ws.onmessage` → `useWebSync` setState + `onColorUpdate` callback calls `setLivePreset` + `applyPreset` → React 18 batches all setState → 1 render
+
+The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync`. A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).
+
+### Future: WebRTC DataChannel Migration
+
+The biggest remaining latency bottleneck is the **network round-trip through the Fly.io relay** (~20-80ms depending on location). A WebRTC DataChannel would establish a direct peer-to-peer connection between phone and laptop (same LAN), reducing latency to ~1-5ms.
+
+**Architecture:**
+1. Use the existing WebSocket relay as a **signaling server** for WebRTC offer/answer/ICE exchange
+2. Once the DataChannel is established, send color updates directly peer-to-peer
+3. Fall back to the relay if WebRTC fails (NAT traversal issues, etc.)
+
+**Implementation plan:**
+1. Add `RTCPeerConnection` setup in both `useMobileSync.ts` and `useWebSync.ts`
+2. Exchange SDP offers/answers via the relay WebSocket (new message types: `rtc-offer`, `rtc-answer`, `rtc-ice`)
+3. Add ICE candidate exchange
+4. Open a `RTCDataChannel` named `colors`
+5. Send `color-update` messages over the DataChannel instead of WebSocket
+6. Keep the WebSocket alive for signaling, pairing, save-preset, and as a fallback
+
+**New relay message types needed:**
+```typescript
+| { type: 'rtc-offer'; sdp: string }
+| { type: 'rtc-answer'; sdp: string }
+| { type: 'rtc-ice'; candidate: RTCIceCandidateInit }
+```
+
+**Considerations:**
+- STUN server needed for ICE (free: `stun:stun.l.google.com:19302`)
+- TURN server NOT needed if phone and laptop are on the same network (typical use case)
+- DataChannel messages can be binary (ArrayBuffer) instead of JSON for further savings (~negligible)
+- The relay fallback ensures it still works on different networks
+
+**Estimated effort:** Medium (half-day). The WebSocket relay stays as-is — just add passthrough for RTC signaling messages.
+
 ## Deployment
 
 Both apps deploy automatically on push to `main`:
