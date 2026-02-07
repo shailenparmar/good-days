@@ -44,10 +44,10 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   }
 
   // Indicator sizes based on role (idle=1x, beta=2x, alpha/drag=4x)
-  const dotSize = (role === 'alpha' || role === 'local-drag') ? 48 : 12;
+  const dotSize = (role === 'alpha' || role === 'local-drag') ? 32 : 16;
   const needleHeight = (role === 'alpha' || role === 'local-drag') ? 16 : role === 'beta' ? 8 : 4;
-  // When dragging SL, lift above hue pickers so dot is frontmost
-  const slZIndex = isDragging && part === 'sl' ? 10 : 2;
+  // SL dot beats everything when active (local drag or live alpha)
+  const slZIndex = part === 'sl' && (role === 'local-drag' || role === 'alpha') ? 10 : 2;
 
   // Cleanup listeners on unmount (prevents memory leak if unmounted mid-drag)
   useEffect(() => {
