@@ -1083,9 +1083,9 @@ Desktop color picker indicators dynamically reflect what the phone is doing. The
 
 | Role | When | SL dot | Hue needle |
 |------|------|--------|------------|
-| `idle` | No phone streaming, or this side not being controlled | 24px | 8px |
-| `beta` | Phone's beta finger is on this side | 24px | 16px |
-| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 64px | 32px |
+| `idle` | No phone streaming, or this side not being controlled | 12px | 4px |
+| `beta` | Phone's beta finger is on this side | 12px | 8px |
+| `alpha` / `local-drag` | Phone's alpha finger is on this side, or local desktop drag | 32px | 16px |
 
 Size changes are instant (no CSS transitions).
 
