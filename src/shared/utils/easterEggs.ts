@@ -5,7 +5,7 @@ export const EASTER_EGGS = [
   'scrambleTyping',      // typing in scramble mode
   'powerstatMode',       // settings + about open
   'superscramble',       // settings + about + scramble open
-  'superscrambleTyping', // typing while in superscramble (theme randomizes)
+  'liveControl',         // used live control (phone controls laptop)
   'zenMode',             // zen mode used
   'timeCommand',         // \time used
   'spacebarRand',        // spacebar held on rand

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
+import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
@@ -74,6 +75,7 @@ export function WebSyncBridge() {
     prevLiveRef.current = syncState.livePreset;
 
     if (wasNull && syncState.livePreset) {
+      markEasterEggFound('liveControl');
       const liveIndex = theme.presets.length + theme.customPresets.length;
       theme.setIsLiveActive(true);
       theme.setSelectedPreset(null);

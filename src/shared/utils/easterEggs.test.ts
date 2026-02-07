@@ -17,7 +17,7 @@ describe('easterEggs', () => {
         'scrambleTyping',
         'powerstatMode',
         'superscramble',
-        'superscrambleTyping',
+        'liveControl',
         'zenMode',
         'timeCommand',
         'spacebarRand',

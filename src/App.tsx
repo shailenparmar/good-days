@@ -621,7 +621,6 @@ function AppContent() {
     if (isSuperscramble) {
       randomizeTheme();
       setScrambleSeed(s => s + 1);
-      markEasterEggFound('superscrambleTyping');
     }
   };
 
