@@ -648,9 +648,12 @@ function MobileScreen() {
       if (found) {
         const newColors = { hue: txtH, sat: txtS, light: txtL, bgHue: bgH, bgSat: bgS, bgLight: bgL };
         setColors(newColors);
-        // One-shot sync to paired laptop (color-update only streams during picker, not home screen)
+        // One-shot sync to paired laptop — relay requires streaming flag,
+        // so briefly start/stop a stream to push the color through
         if (sync.pairingState === 'paired') {
+          sync.startStream('text');
           sync.sendColorUpdate(newColors);
+          sync.stopStream();
         }
       }
     }).catch(() => {});
@@ -703,7 +706,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.20';
+  const mobileVersion = '2.1.21';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
