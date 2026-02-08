@@ -134,11 +134,11 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             break;
 
           case 'color-update':
-            setState(prev => ({
-              ...prev,
-              livePreset: msg.colors,
-            }));
-            // Direct callback — bypasses React effect chain for low-latency path
+            // Only update React state for the initial color (null → value).
+            // Subsequent updates skip setState entirely — the onColorUpdate
+            // callback + rAF in WebSyncBridge handles rendering. This avoids
+            // a React render per WS message during 60fps streaming.
+            setState(prev => prev.livePreset ? prev : { ...prev, livePreset: msg.colors });
             onColorUpdateRef.current?.(msg.colors);
             break;
 

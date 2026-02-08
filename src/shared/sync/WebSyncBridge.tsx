@@ -11,6 +11,11 @@ export function WebSyncBridge() {
   const prevLiveRef = useRef<ColorPayload | null>(null);
   const skipBridgeRef = useRef(false);
 
+  // rAF-throttled color application: buffers the latest colors from WS
+  // and applies them once per animation frame, coalescing multiple messages.
+  const pendingColorsRef = useRef<ColorPayload | null>(null);
+  const rafIdRef = useRef(0);
+
   const currentColorway: ColorPayload = {
     hue: theme.hue,
     sat: theme.saturation,
@@ -20,36 +25,39 @@ export function WebSyncBridge() {
     bgLight: theme.bgLightness,
   };
 
-  // Direct callback from WebSocket — fires synchronously in ws.onmessage.
-  // React 18 batches all setState calls from this + useWebSync into ONE render.
+  // Callback from WebSocket — fires on every ws.onmessage.
+  // Only increments the hz counter and buffers colors. Actual React
+  // state updates are deferred to the next animation frame so multiple
+  // WS messages within one frame coalesce into a single render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
-    const t = themeRef.current;
-    t.colorUpdateCountRef.current++;
-    skipBridgeRef.current = true;
-    t.setLivePreset({
-      hue: colors.hue,
-      sat: colors.sat,
-      light: colors.light,
-      bgHue: colors.bgHue,
-      bgSat: colors.bgSat,
-      bgLight: colors.bgLight,
-    });
-    // Skip applyPreset while desktop user is dragging a color picker —
-    // otherwise phone's 60fps updates fight the local drag, causing flicker.
-    // livePreset still tracks the phone's colors so they resume on drag end.
-    if (t.localDragRef.current) return;
-    // Always apply — if we're receiving color-update from the relay,
-    // we're paired and should render the phone's colors immediately.
-    // Don't gate on isLiveActive: the pairing effect sets it via an
-    // effect (async), but color-update can arrive before that fires.
-    t.applyPreset({
-      hue: colors.hue,
-      sat: colors.sat,
-      light: colors.light,
-      bgHue: colors.bgHue,
-      bgSat: colors.bgSat,
-      bgLight: colors.bgLight,
-    });
+    themeRef.current.colorUpdateCountRef.current++;
+    pendingColorsRef.current = colors;
+    if (!rafIdRef.current) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = 0;
+        const c = pendingColorsRef.current;
+        if (!c) return;
+        const t = themeRef.current;
+        skipBridgeRef.current = true;
+        t.setLivePreset({
+          hue: c.hue, sat: c.sat, light: c.light,
+          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+        });
+        // Skip applyPreset while desktop user is dragging a color picker —
+        // otherwise phone's updates fight the local drag, causing flicker.
+        // livePreset still tracks the phone's colors so they resume on drag end.
+        if (t.localDragRef.current) return;
+        t.applyPreset({
+          hue: c.hue, sat: c.sat, light: c.light,
+          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+        });
+      });
+    }
+  }, []);
+
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => { if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current); };
   }, []);
 
   const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
