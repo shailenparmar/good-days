@@ -623,30 +623,25 @@ function AppContent() {
     }
   };
 
-  // Loading screen during IndexedDB init/migration
-  if (journal.isLoading) {
-    return (
-      <div
-        className="flex h-screen items-center justify-center"
-        style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
-      >
-        <span
-          className="text-base font-mono font-bold"
-          style={{ color: getColor() }}
-        >
-          loading...
-        </span>
-      </div>
-    );
-  }
-
-  // Lock screen (only show if password is set)
+  // Lock screen (only show if password is set) — must be before loading check
+  // because encryptionKeyReady stays false until password is entered,
+  // which means isLoading stays true forever and would block the lock screen
   if (auth.isLocked && auth.hasPassword) {
     return (
       <LockScreen
         passwordInput={auth.passwordInput}
         onPasswordChange={auth.setPasswordInput}
         onSubmit={handlePasswordSubmit}
+      />
+    );
+  }
+
+  // Wait for IndexedDB init/migration — blank screen, no text
+  if (journal.isLoading) {
+    return (
+      <div
+        className="h-screen"
+        style={{ backgroundColor: 'hsl(28, 100%, 83%)' }}
       />
     );
   }
