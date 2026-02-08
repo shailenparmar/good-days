@@ -146,9 +146,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const interval = setInterval(animate, 16); // ~60fps, full cycle in 5 seconds
 
     // Stop on click or keypress - but delay adding listeners so the starting click doesn't stop it
-    const stopRainbow = (e: MouseEvent | KeyboardEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
+    const stopRainbow = () => {
       setIsRainbowMode(false);
     };
 
