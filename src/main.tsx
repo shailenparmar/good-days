@@ -1,19 +1,26 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { MAINTENANCE, MESSAGE } from '@shared/maintenance'
 
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-if (isMobile) {
-  import('./features/mobile/MobileApp').then(({ default: MobileApp }) => {
-    createRoot(document.getElementById('root')!).render(<MobileApp />);
-  });
+// Maintenance mode: block the entire app with a fullscreen message
+if (MAINTENANCE && MESSAGE) {
+  const root = document.getElementById('root')!;
+  root.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(28,100%,83%)"><p style="color:hsl(215,100%,0%);font-family:monospace;font-weight:bold;font-size:16px">${MESSAGE}</p></div>`;
 } else {
-  import('./App.tsx').then(({ default: App }) => {
-    createRoot(document.getElementById('root')!).render(
-      <StrictMode>
-        <App />
-      </StrictMode>,
-    );
-  });
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    import('./features/mobile/MobileApp').then(({ default: MobileApp }) => {
+      createRoot(document.getElementById('root')!).render(<MobileApp />);
+    });
+  } else {
+    import('./App.tsx').then(({ default: App }) => {
+      createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+          <App />
+        </StrictMode>,
+      );
+    });
+  }
 }

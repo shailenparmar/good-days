@@ -20,7 +20,7 @@ export const ABOUT_COPY = {
     header: "features:",
     paragraphs: [
       "a new page spawns at midnight; old logs are set in stone.",
-      "every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about join forces for a poweruser menu.",
+      "keystrokes save in 300ms. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about join forces for a poweruser menu.",
       "write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.",
     ],
   },
