@@ -250,14 +250,19 @@ function AppContent() {
 
   // Title hover detection via coordinates (bypasses z-index overlay)
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const check = (e: MouseEvent) => {
       if (!titleRef.current) { setTitleHovered(false); return; }
       const rect = titleRef.current.getBoundingClientRect();
-      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-      setTitleHovered(inside);
+      setTitleHovered(e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
     };
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
+    // mousemove for ongoing tracking
+    document.addEventListener('mousemove', check);
+    // mouseover fires on page load in some browsers when cursor is over new content
+    document.addEventListener('mouseover', check);
+    return () => {
+      document.removeEventListener('mousemove', check);
+      document.removeEventListener('mouseover', check);
+    };
   }, []);
 
   useEffect(() => {
