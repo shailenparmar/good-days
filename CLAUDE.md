@@ -421,8 +421,12 @@ The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle
 
 ## Project Structure
 
-- `src/features/` - Feature-based modules (auth, journal, theme, settings, statistics, export)
+- `src/features/` - Feature-based modules (auth, journal, theme, settings, statistics, export, mobile)
+- `src/features/mobile/` - Mobile color picker app (code-split, loaded dynamically on mobile devices)
+- `src/hooks/` - App-level custom hooks (`useLayoutState`, `useMidnightTimer`)
 - `src/shared/` - Shared utilities and components
+- `src/shared/crypto.ts` - AES-GCM encryption utilities (used by auth, export, and storage)
+- `src/shared/utils/html.ts` - Centralized HTML-to-text stripping
 - `src/shared/copy/aboutCopy.ts` - Single source of truth for about page copy (used by AboutPanel + README)
 - `src/index.css` - Global styles including scrollbar-hide utility
 
@@ -509,7 +513,7 @@ At midnight, before clearing the editor and switching to the new day:
 
 This ensures the previous day's entry is persisted even if IndexedDB is slow or the tab closes right at midnight.
 
-Code location: `src/App.tsx` (midnight timeout handler)
+Code location: `src/hooks/useMidnightTimer.ts`
 
 ### startedAt Deferred Until First Keystroke (v1.10.58+)
 
@@ -635,7 +639,7 @@ New backups have no header (just encrypted content). Old backups with headers st
 - **Key derivation**: PBKDF2 with fixed app secret (non-extractable key)
 - **IV**: Random 12 bytes per encryption (stored with ciphertext)
 - **Salt**: `good-days-salt`
-- **Code location**: `src/features/export/utils/crypto.ts` (`encryptText`/`decryptText`)
+- **Code location**: `src/shared/crypto.ts` (`encryptText`/`decryptText`)
 
 Note: This is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
 
@@ -697,7 +701,7 @@ If re-encryption fails, entries remain encrypted with the old key and the old ha
 
 | File | Purpose |
 |------|---------|
-| `src/features/export/utils/crypto.ts` | All crypto primitives (key derivation, encrypt/decrypt, JWK) |
+| `src/shared/crypto.ts` | All crypto primitives (key derivation, encrypt/decrypt, JWK) |
 | `src/shared/storage/journalStorage.ts` | Encrypt on write, decrypt on read, re-encryption, migration |
 | `src/features/auth/hooks/useAuth.ts` | Key lifecycle, `initEncryptionKey()`, password transitions |
 | `src/shared/storage/index.ts` | localStorage XOR encryption |
@@ -1121,27 +1125,7 @@ The app automatically switches to a new day at midnight, saving the current entr
 
 Uses refs to avoid stale closures and a single timeout chain:
 
-```tsx
-// App.tsx
-const journalRef = useRef(journal);
-useEffect(() => { journalRef.current = journal; }, [journal]);
-const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-useEffect(() => {
-  const scheduleNextMidnight = () => {
-    const msUntilMidnight = /* calculate */;
-    midnightTimeoutRef.current = setTimeout(() => {
-      journalRef.current.saveEntry(content, Date.now());
-      journalRef.current.setSelectedDate(getTodayDate());
-      scheduleNextMidnight(); // Reschedule for next midnight
-    }, msUntilMidnight);
-  };
-  scheduleNextMidnight();
-  return () => {
-    if (midnightTimeoutRef.current) clearTimeout(midnightTimeoutRef.current);
-  };
-}, []); // Empty deps - uses refs for latest values
-```
+Extracted into `src/hooks/useMidnightTimer.ts`. Takes `editorRef` and `journalRef` as parameters, uses refs to avoid stale closures.
 
 **Why refs:** The `journal` object changes on every entry update. Without refs, the effect would re-run constantly, creating multiple timer chains that all fire at midnight (race condition).
 
@@ -1169,6 +1153,7 @@ When activated, Option/Alt+S toggles scramble from anywhere in the app. The hotk
 **Hover Flicker Fix:** Uses the `useStableHover` hook (see "The Hover Flicker Problem"). On hover, the bounding rect is captured. If the button shrinks and triggers mouseLeave while the cursor is still in the original rect, we stay hovered. No overlay div, no scroll blocking.
 
 Code location: `src/App.tsx` (hotkey listener), `src/features/settings/components/SettingsPanel.tsx` (toggle button)
+
 
 ## Function Menus
 
@@ -1480,7 +1465,7 @@ interface StreamingControls {
 
 **Data flow**: Phone touch handler → `sendStreamState()` → relay forwards → desktop `useWebSync` → `WebSyncBridge` → `ThemeContext.streamingControls` → `ColorPicker` reads it.
 
-**stream-state sent at 5 control-state change points in `src/main.tsx`**:
+**stream-state sent at 5 control-state change points in `src/features/mobile/MobileApp.tsx`**:
 1. `startPicking()` — initial alpha, no beta
 2. Single-finger crossover in `handleMove` — alpha side switched
 3. Beta touch detected in `handleStart` — beta joined
@@ -1799,7 +1784,7 @@ Tapping the feedback segment (middle area between "good days" title and buttons)
 
 **Title interaction:** Tapping the title shows the version (touchStart/touchEnd) — separate from randomize.
 
-Code: `handleRandomize` function + `onTouchEnd` on middle segment div in `src/main.tsx`.
+Code: `handleRandomize` function + `onTouchEnd` on middle segment div in `src/features/mobile/MobileApp.tsx`.
 
 ### Copy/Paste
 
@@ -1864,7 +1849,7 @@ The indicator's **centerline** is the true hue position. At the extremes (hue 0 
 
 Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
-**IMPORTANT:** `mobileVersion` in `src/main.tsx` must be bumped alongside `VERSION` in `src/shared/version.ts` on every push.
+**IMPORTANT:** `mobileVersion` in `src/features/mobile/MobileApp.tsx` must be bumped alongside `VERSION` in `src/shared/version.ts` on every push.
 
 ### Haptic Feedback
 
@@ -1889,7 +1874,7 @@ const safeAreaStyle: React.CSSProperties = {
 
 This ensures content doesn't overlap with device UI elements when added to home screen (PWA mode).
 
-Code location: `src/main.tsx`
+Code location: `src/features/mobile/MobileApp.tsx`
 
 ## Color Presets
 
@@ -2132,7 +2117,7 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | **Minizen** | Sidebar hidden, header + editor + footer visible (focused but oriented) |
 | **Zen** | Just editor. Pure writing, no distractions |
 
-### State Variables (in App.tsx)
+### State Variables (in `src/hooks/useLayoutState.ts` and App.tsx)
 
 | Variable | Purpose | Persisted | Default |
 |----------|---------|-----------|---------|
@@ -2582,7 +2567,7 @@ const exitMinizen = () => {
 };
 ```
 
-See `src/App.tsx` for full implementation including ESC handler and resize logic.
+See `src/hooks/useLayoutState.ts` for state machine and `src/App.tsx` for ESC handler.
 
 ### Key Principles
 
@@ -3264,7 +3249,7 @@ The bold sweep is tied to `isRainbowMode`:
 The version number is stored in `src/shared/version.ts` as `export const VERSION = 'x.y.z'` (imported by both `App.tsx` and `main.tsx`).
 
 When pushing changes:
-1. **ALWAYS increment the version number** in `src/shared/version.ts` AND `mobileVersion` in `src/main.tsx` before pushing
+1. **ALWAYS increment the version number** in `src/shared/version.ts` AND `mobileVersion` in `src/features/mobile/MobileApp.tsx` before pushing
    - Patch (x.y.Z): Bug fixes, small tweaks, any change at all
    - Minor (x.Y.0): New features, non-breaking changes
    - Major (X.0.0): Breaking changes, major rewrites

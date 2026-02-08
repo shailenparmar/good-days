@@ -642,9 +642,14 @@ export default function MobileApp() {
   // Set tilt button press state
   const [setTiltPressed, setSetTiltPressed] = useState(false);
 
-  // Title hold to show version
-  const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.3.27';
+  // Title hold to show version — persists across refresh so you don't have to re-press
+  const [titlePressed, setTitlePressed] = useState(() => sessionStorage.getItem('titlePressed') === '1');
+  const setTitlePressedPersist = (v: boolean) => {
+    setTitlePressed(v);
+    if (v) sessionStorage.setItem('titlePressed', '1');
+    else sessionStorage.removeItem('titlePressed');
+  };
+  const mobileVersion = '2.3.28';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -667,9 +672,9 @@ export default function MobileApp() {
   const title = (
     <span
       style={titleStyle}
-      onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
-      onTouchEnd={() => setTitlePressed(false)}
-      onTouchCancel={() => setTitlePressed(false)}
+      onTouchStart={(e) => { e.preventDefault(); setTitlePressedPersist(true); }}
+      onTouchEnd={() => setTitlePressedPersist(false)}
+      onTouchCancel={() => setTitlePressedPersist(false)}
     >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
   );
 
