@@ -3250,6 +3250,26 @@ Small settings that benefit from synchronous access:
 | Presets | `customPresets`, `selectedPreset`, `selectedCustomPreset` |
 | Other | `selectedDate`, `lastTypedTime` |
 
+### At-Rest localStorage Encryption (v2.2.0+)
+
+All values written through the `getItem`/`setItem` abstraction (`src/shared/storage/index.ts`) are encrypted at rest using a synchronous XOR cipher with a static app key. This is the same security philosophy as backup encryption — obfuscation that prevents casual reading of localStorage in DevTools. Anyone with source code access could decrypt.
+
+**How it works:**
+- `setItem` encrypts the value with a `$e:` prefix before writing to localStorage
+- `getItem` detects the prefix and decrypts; unencrypted values (pre-v2.2.0) are returned raw
+- Migration is seamless: old unencrypted values read fine, and encrypt on next write
+
+**Encrypted keys:** All keys that go through `getItem`/`setItem` — theme colors, presets, password hash/salt, statistics, UI state, scroll positions.
+
+**Not encrypted (bypass the abstraction):**
+- `gdays_actionLog` (debug logger, `src/shared/logger.ts`)
+- `wsDeviceId`, `wsSecret`, `wsPartnerDeviceId` (sync infrastructure, `useWebSync.ts`/`useMobileSync.ts`)
+- `easterEggsFound` (easter eggs, `src/shared/utils/easterEggs.ts`)
+
+**index.html IIFE:** Includes an inline `dec()` function mirroring the decrypt logic so pre-React background color reads (`bgHue`, `bgSaturation`, `bgLightness`) work with encrypted values.
+
+**Code location:** `src/shared/storage/index.ts` (encrypt/decrypt functions), `index.html` (inline decrypt for pre-React reads).
+
 ### Import/Export Behavior
 
 **Export**: Reads from current entries state (backed by IndexedDB).
