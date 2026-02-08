@@ -135,6 +135,38 @@ All expensive stats calculations in `StatsDisplay.tsx` are wrapped in `useMemo`:
 
 **Why this matters:** StatsDisplay consumes `useTheme()` and re-renders on every color change. During 60fps streaming, the unmemoized calculations (especially lexicon at O(N*M) with regex per word per entry) were running 60x/sec — 50-200ms per frame against a 16.67ms budget. With `useMemo`, they only recalculate when `entries` actually changes.
 
+### Streaming Effect Throttling (v2.3.19+)
+
+During 60fps streaming, two effects in `ThemeContext.tsx` are skipped to stay within the 16.67ms frame budget:
+
+| Effect | Cost per frame | Guard |
+|---|---|---|
+| Color save (6 × `setItem` with XOR encryption) | ~2ms | `if (isLiveStreaming) return` |
+| Safari toolbar (HSL→hex + 3 DOM writes) | ~1ms | `if (isLiveStreaming) return` |
+
+Both effects have `isLiveStreaming` as a dependency. When streaming stops, the dep flips false → effects fire → final colors are saved and toolbar is updated.
+
+**Why this is safe:** Visual colors are already updated by React inline styles (the flex container's `style={{ backgroundColor: ... }}`). The localStorage writes and toolbar DOM writes are persistence/cosmetic concerns that can wait until streaming ends.
+
+**History:** This was attempted in v2.3.15 but reverted because the user reported worse performance. That was before the v2.3.18 StatsDisplay memoization fix — the 50-200ms/frame StatsDisplay recalculations dwarfed the ~3ms savings. With StatsDisplay fixed, the ~3ms savings matter (reduces ~12-15ms/frame to ~9-12ms, safely within budget).
+
+### skipBridgeRef Disconnect Fix (v2.3.19+)
+
+The `skipBridgeRef` in `WebSyncBridge.tsx` prevents double-applying colors when both the rAF callback and the bridge effect try to set `theme.livePreset`. During streaming, the rAF callback sets `skipBridgeRef = true` every frame, but the bridge effect never fires (because `syncState.livePreset` doesn't change during streaming — `useWebSync` skips setState for ongoing color-updates). This leaves `skipBridgeRef` permanently true.
+
+**The bug:** When streaming ends and the phone disconnects, `syncState.livePreset` goes null → bridge effect fires → but `skipBridgeRef` is true → effect skips → `theme.setLivePreset(null)` never called → `theme.livePreset` stays stale → live button stays visible.
+
+**The fix:** The bridge effect now only skips non-null transitions. Null transitions (disconnect) always propagate regardless of `skipBridgeRef` state:
+
+```typescript
+if (skipBridgeRef.current) {
+  skipBridgeRef.current = false;
+  if (syncState.livePreset) return; // Only skip value→value, never value→null
+}
+```
+
+Code: `src/shared/sync/WebSyncBridge.tsx` (bridge effect, line ~65)
+
 ### Disconnect Grace Period (v2.1.0+)
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (200ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms → 500ms → 200ms (v2.1.28) for snappier disconnect feedback. Total latency from phone swipe-away to live icon gone: ~300ms.
