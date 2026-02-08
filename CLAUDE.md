@@ -255,20 +255,20 @@ When the desktop is in live streaming mode, the powerstats area shows real-time 
 
 | Stat | Description |
 |------|-------------|
-| **hue dist** | Cumulative shortest-arc hue distance (text + bg), in degrees |
-| **hsl dist** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
-| **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 6 decimal places |
-| **phone saves** | Number of times the phone's "save" button was pressed |
+| **hue travel** | Cumulative shortest-arc hue distance (text + bg), in degrees |
+| **color travel** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
+| **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 6 decimal places. Shows `--- hz` (null) when not actively streaming. |
+| **live saves** | Number of times the phone's "save" button was pressed (phone-only, not desktop saves) |
 
 **Architecture (v2.1.38):** The `useLiveStats` hook computes distances **locally from displayed theme values** — no WebSocket callbacks or WebSyncBridge prop threading. The hook receives `colors` (current theme HSL) and computes deltas in the render path (ref-only, zero allocations). A `requestAnimationFrame` loop flushes refs to React state at display refresh rate (~60fps) while streaming is active. This eliminates the callback chain latency and gives snappy, high-framerate stat updates.
 
-**Phone saves detection:** Instead of a callback from WebSyncBridge, the hook watches `customPresetsCount`. If it grows while `isLiveStreaming` is true, each increment counts as a phone save.
+**Live saves detection (v2.2.8):** WebSyncBridge calls `theme.incrementPhoneSaveCount()` when it receives a `save-preset` WebSocket message from the phone. `useLiveStats` reads `phoneSaveCount` directly from ThemeContext and adds it to the persisted base value. This ensures only phone-initiated saves are counted — desktop save button clicks, space/enter on the save preset are excluded.
 
-**Persistence:** `hueDistance`, `hslDistance`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `livePhoneSaves`) every 2 seconds and on `beforeunload`. The `updateHz` rate is live-only (computed from a sliding window, not persisted). rAF state updates are display-only; localStorage writes stay batched.
+**Persistence:** `hueDistance`, `hslDistance`, and `liveSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) every 2 seconds and on `beforeunload`. The `updateHz` rate is live-only (computed from a sliding window, not persisted). rAF state updates are display-only; localStorage writes stay batched.
 
-**WebSyncBridge:** Fully decoupled from live stats as of v2.1.38 — no callback props, no ref forwarding. It's a pure sync bridge again.
+**WebSyncBridge:** Bridges `save-preset` messages to ThemeContext via `incrementPhoneSaveCount()`. Otherwise fully decoupled from live stats — no callback props, no ref forwarding.
 
-Code location: `src/features/statistics/hooks/useLiveStats.ts`. Props: `App.tsx` passes theme colors + `customPresets.length` directly to the hook.
+Code location: `src/features/statistics/hooks/useLiveStats.ts`. Props: `App.tsx` passes `theme.phoneSaveCount` + theme colors directly to the hook.
 
 ### Future: WebRTC DataChannel Migration
 
