@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 
 // Feature imports
@@ -9,16 +9,17 @@ import { useStatistics, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
-import { getItem, setItem, removeItem } from '@shared/storage';
-import { saveAllJournalEntries, flushPendingSaves } from '@shared/storage/journalStorage';
+import { saveAllJournalEntries } from '@shared/storage/journalStorage';
 import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shared/utils/scramble';
-import { markEasterEggFound } from '@shared/utils/easterEggs';
-import { usePersisted } from '@shared/hooks';
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 import { VERSION } from '@shared/version';
 import { logAction } from '@shared/logger';
 import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
+
+// App-level hooks
+import { useLayoutState } from './hooks/useLayoutState';
+import { useMidnightTimer } from './hooks/useMidnightTimer';
 
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -92,219 +93,22 @@ function AppContent() {
   const theme = useTheme();
   const auth = useAuth();
   const journal = useJournalEntries(auth.encryptionKeyReady);
-
-  // If previous session was in a focus mode (zen/minizen), preFocusState has the panel
-  // state from before entering that mode. Use it to restore panels on refresh.
-  // This read + clear happens synchronously before useState initializers consume it.
-  const savedPanelState = (() => {
-    try {
-      const raw = getItem('preFocusState');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed) {
-          removeItem('preFocusState');
-          return parsed;
-        }
-      }
-    } catch { /* corrupted state, ignore */ }
-    return null;
-  })();
-
-  // Panel and scramble state - declared before useStatistics so we can pause it in superscramble
-  const [showDebugMenu, setShowDebugMenu] = useState(() => {
-    if (savedPanelState) return savedPanelState.showDebugMenu;
-    return getItem('showSettings') === 'true';
-  });
-  const [showAboutPanel, setShowAboutPanel] = useState(() => {
-    if (savedPanelState) return savedPanelState.showAboutPanel;
-    return getItem('showAbout') === 'true';
-  });
-  const [isScrambled, setIsScrambled] = useState(() => {
-    return getItem('isScrambled') === 'true';
-  });
-  const [scrambleHotkeyActive, setScrambleHotkeyActive] = useState(() => {
-    return getItem('scrambleHotkeyActive') === 'true';
-  });
-
-  // Superscramble: scramble + settings + about all open = chaos mode
-  const isSuperscramble = isScrambled && showDebugMenu && showAboutPanel;
+  const layout = useLayoutState();
 
   // Stats hook - paused in superscramble to prevent jitter
-  const stats = useStatistics(isSuperscramble);
-
-  // Responsive sidebar - collapse when window is narrow
-  const COLLAPSE_BREAKPOINT = 711;
-  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
-  // Sidebar visibility in narrow mode — persisted so refresh preserves it
-  const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(() => {
-    const narrow = window.innerWidth < 711;
-    if (!narrow) return false;
-    const saved = getItem('showSidebarInNarrow');
-    if (saved !== null) return saved === 'true';
-    // Fallback: show sidebar if panels are open (pre-persistence migration)
-    const panelsOpen = savedPanelState
-      ? (savedPanelState.showDebugMenu || savedPanelState.showAboutPanel)
-      : (getItem('showSettings') === 'true' || getItem('showAbout') === 'true');
-    return panelsOpen;
-  });
-  const [zenMode, setZenMode] = useState(false); // Full zen: just editor, hide everything (not persisted — refresh returns to base)
-  const [minizen, setMinizen] = useState(false); // Minizen: hide sidebar, keep header+footer (not persisted — refresh returns to base)
-
-  // Ref to track zenMode for ESC handler (avoids stale closure issues)
-  const zenModeRef = useRef(zenMode);
-  useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
+  const stats = useStatistics(layout.isSuperscramble);
 
   // Refs for journal functions (avoids stale closures in midnight timer)
   const journalRef = useRef(journal);
   useEffect(() => { journalRef.current = journal; }, [journal]);
-  const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Unified state saved before entering any focus mode (zen or minizen)
-  const [preFocusState, setPreFocusState] = usePersisted<{
-    minizen: boolean;
-    showSidebarInNarrow: boolean;
-    showDebugMenu: boolean;
-    showAboutPanel: boolean;
-  } | null>('preFocusState', null);
-  // Track if zen was entered from minizen (for proper exit behavior)
-  const [zenFromMinizen, setZenFromMinizen] = useState(false);
-  const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
-  const [editorKey, setEditorKey] = useState(0); // Increments to force editor remount after import
-  const [titleHovered, setTitleHovered] = useState(false);
-  const titleRef = useRef<HTMLDivElement>(null);
-  // State saved before narrowing window (panels close in narrow, restore on widen)
-  const [preNarrowState, setPreNarrowState] = useState<{
-    showDebugMenu: boolean;
-    showAboutPanel: boolean;
-    minizen: boolean;
-  } | null>(null);
 
-  // Exit zen mode and restore previous state (including panels)
-  const exitZen = useCallback(() => {
-    setZenMode(false);
-    if (zenFromMinizen) {
-      // Was in minizen before zen - go back to minizen, keep preFocusState for later
-      setZenFromMinizen(false);
-      // minizen is still true, preFocusState still has original state
-    } else if (preFocusState) {
-      // Was in full mode before zen - restore full state
-      setMinizen(preFocusState.minizen);
-      setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
-      setShowDebugMenu(preFocusState.showDebugMenu);
-      setShowAboutPanel(preFocusState.showAboutPanel);
-      setPreFocusState(null);
-    }
-  }, [preFocusState, setZenMode, zenFromMinizen]);
+  // Midnight timer
+  useMidnightTimer(editorRef, journalRef);
 
-  // Enter zen mode, saving current state (including panels) then closing panels
-  // If already in minizen (preFocusState exists), don't overwrite - just add zen on top
-  const enterZen = useCallback(() => {
-    if (minizen) {
-      // Entering zen from minizen - don't overwrite preFocusState, just track it
-      setZenFromMinizen(true);
-    } else {
-      // Not in minizen - save current state
-      setPreFocusState({
-        minizen,
-        showSidebarInNarrow,
-        showDebugMenu,
-        showAboutPanel,
-      });
-      setShowDebugMenu(false);
-      setShowAboutPanel(false);
-      setZenFromMinizen(false);
-    }
-    setZenMode(true);
-  }, [minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel, setZenMode]);
-
-  // Enter minizen mode, saving current state (including panels)
-  const enterMinizen = useCallback(() => {
-    setPreFocusState({
-      minizen,
-      showSidebarInNarrow,
-      showDebugMenu,
-      showAboutPanel,
-    });
-    setMinizen(true);
-    setShowDebugMenu(false);
-    setShowAboutPanel(false);
-  }, [minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel]);
-
-  // Exit minizen mode and restore previous state (including panels)
-  const exitMinizen = useCallback(() => {
-    setMinizen(false);
-    if (preFocusState) {
-      setShowSidebarInNarrow(preFocusState.showSidebarInNarrow);
-      setShowDebugMenu(preFocusState.showDebugMenu);
-      setShowAboutPanel(preFocusState.showAboutPanel);
-      setPreFocusState(null);
-    }
-  }, [preFocusState]);
-
-  // Centralized panel closing - used by multiple click handlers
-  const closePanels = useCallback(() => {
-    setShowDebugMenu(false);
-    setShowAboutPanel(false);
-  }, []);
-
-  // Title hover detection via coordinates (bypasses z-index overlay)
-  useEffect(() => {
-    const check = (e: MouseEvent) => {
-      if (!titleRef.current) { setTitleHovered(false); return; }
-      const rect = titleRef.current.getBoundingClientRect();
-      setTitleHovered(e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
-    };
-    // mousemove for ongoing tracking
-    document.addEventListener('mousemove', check);
-    // mouseover fires on page load in some browsers when cursor is over new content
-    document.addEventListener('mouseover', check);
-    return () => {
-      document.removeEventListener('mousemove', check);
-      document.removeEventListener('mouseover', check);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const narrow = window.innerWidth < COLLAPSE_BREAKPOINT;
-      const wasNarrow = isNarrow;
-      setIsNarrow(narrow);
-
-      // Mode transition handling
-      if (narrow !== wasNarrow) {
-        if (narrow && !wasNarrow) {
-          // Wide → Narrow: save state (panels + minizen), then close (no room for them)
-          // If in focus mode (zen/minizen), use preFocusState's values (what was open before focus mode)
-          const stateToSave = preFocusState
-            ? { showDebugMenu: preFocusState.showDebugMenu, showAboutPanel: preFocusState.showAboutPanel, minizen: preFocusState.minizen }
-            : { showDebugMenu, showAboutPanel, minizen };
-          setPreNarrowState(stateToSave);
-          closePanels();
-          // Clear focus mode state so exiting zen/minizen doesn't reopen panels
-          setPreFocusState(null);
-          setZenFromMinizen(false);
-          setMinizen(false);
-          setShowSidebarInNarrow(false);
-        } else if (!narrow && wasNarrow) {
-          // Narrow → Wide: restore state (panels + minizen) if not committed to narrow
-          // BUT NOT if in zen mode - zen should be pure, no panels
-          if (preNarrowState && !zenMode) {
-            setShowDebugMenu(preNarrowState.showDebugMenu);
-            setShowAboutPanel(preNarrowState.showAboutPanel);
-            setMinizen(preNarrowState.minizen);
-            setPreNarrowState(null);
-          }
-          setShowSidebarInNarrow(false);
-        }
-        // zenMode is preserved - if in zen, stay in zen
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isNarrow, closePanels, showDebugMenu, showAboutPanel, preNarrowState, preFocusState, zenMode]);
+  const [editorKey, setEditorKey] = useState(0);
+  const [scrambleSeed, setScrambleSeed] = useState(0);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
-
-  const [scrambleSeed, setScrambleSeed] = useState(0);
 
   // Sync global scramble seed for consistent rendering
   useEffect(() => {
@@ -314,170 +118,52 @@ function AppContent() {
   // Log app load (once on mount)
   useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
 
-  // Clean up stale focus mode keys from localStorage (zen/minizen no longer persisted)
-  useEffect(() => {
-    removeItem('zenMode');
-    removeItem('minizen');
-    removeItem('zenFromMinizen');
-  }, []);
-
-  // PWA resume handler — resets focus modes when standalone app resumes from background.
-  // In browsers, page reload (Cmd+R) triggers the IIFE which handles this. But in PWAs,
-  // "closing and reopening" often keeps the page in memory (no reload), so the IIFE never
-  // runs. This handler detects resume-from-background and does the same reset.
-  useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as { standalone?: boolean }).standalone === true;
-    if (!isStandalone) return;
-
-    let hiddenAt: number | null = null;
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        hiddenAt = Date.now();
-      } else if (document.visibilityState === 'visible' && hiddenAt) {
-        const elapsed = Date.now() - hiddenAt;
-        hiddenAt = null;
-
-        // Only reset if hidden for > 2 seconds (filters system overlays like notification center)
-        if (elapsed > 2000) {
-          const raw = getItem('preFocusState');
-          if (raw) {
-            try {
-              const saved = JSON.parse(raw);
-              if (saved) {
-                removeItem('preFocusState');
-                setZenMode(false);
-                setMinizen(false);
-                setZenFromMinizen(false);
-                setShowDebugMenu(saved.showDebugMenu);
-                setShowAboutPanel(saved.showAboutPanel);
-                setShowSidebarInNarrow(saved.showSidebarInNarrow);
-                setPreFocusState(null);
-              }
-            } catch { /* corrupted state, ignore */ }
-          }
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  // Save panel states to localStorage — but NOT when in a focus mode.
-  // When entering zen/minizen, panels close (showDebugMenu=false). If we wrote that to
-  // localStorage, we'd lose the pre-focus panel state. By skipping the write during focus
-  // modes, showSettings/showAbout always reflect what the user had open BEFORE focus mode.
-  // On refresh (zen/minizen reset to false), panels initialize from the preserved values.
-  useEffect(() => {
-    if (!zenMode && !minizen) {
-      setItem('showSettings', String(showDebugMenu));
-    }
-  }, [showDebugMenu, zenMode, minizen]);
-
-  useEffect(() => {
-    if (!zenMode && !minizen) {
-      setItem('showAbout', String(showAboutPanel));
-    }
-  }, [showAboutPanel, zenMode, minizen]);
-
-  useEffect(() => {
-    if (!zenMode && !minizen) {
-      setItem('showSidebarInNarrow', String(showSidebarInNarrow));
-    }
-  }, [showSidebarInNarrow, zenMode, minizen]);
-
-  // Save scramble state to localStorage
-  useEffect(() => {
-    setItem('isScrambled', String(isScrambled));
-  }, [isScrambled]);
-
-  // Save scramble hotkey state to localStorage
-  useEffect(() => {
-    setItem('scrambleHotkeyActive', String(scrambleHotkeyActive));
-  }, [scrambleHotkeyActive]);
-
-  // Easter egg tracking
-  useEffect(() => {
-    if (showDebugMenu && showAboutPanel) markEasterEggFound('powerstatMode');
-  }, [showDebugMenu, showAboutPanel]);
-
-  useEffect(() => {
-    if (isSuperscramble) markEasterEggFound('superscramble');
-  }, [isSuperscramble]);
-
-  useEffect(() => {
-    if (zenMode) markEasterEggFound('zenMode');
-  }, [zenMode]);
-
-  // Option/Alt+S hotkey for scramble toggle (when hotkey is activated)
-  // Always preventDefault to stop macOS from inserting "ß" into the editor
+  // Option/Alt+S hotkey for scramble toggle
   useEffect(() => {
     const handleHotkey = (e: KeyboardEvent) => {
-      // Use e.code for physical key (Alt+S produces "ß" on Mac, so e.key !== 's')
       if (e.altKey && e.code === 'KeyS') {
         e.preventDefault();
-        if (scrambleHotkeyActive) {
-          setIsScrambled(prev => !prev);
+        if (layout.scrambleHotkeyActive) {
+          layout.setIsScrambled(prev => !prev);
         }
       }
     };
 
     window.addEventListener('keydown', handleHotkey);
     return () => window.removeEventListener('keydown', handleHotkey);
-  }, [scrambleHotkeyActive]);
+  }, [layout.scrambleHotkeyActive]);
 
-
-  // ESC key behavior (priority order):
-  // 1. In zen mode: exit zen and restore previous state (even if in textarea!)
-  // 2. In minizen (wide): exit minizen (restore panels)
-  // 3. Function menus open: close them
-  // 4. In narrow mode with sidebar hidden: show sidebar
-  // 5. Base state (sidebar visible, no menus): lock the app
-  // DON'T act when:
-  // - User is in an input field (EXCEPT in zen mode - ESC should always exit zen)
-  // - ESC was already handled by another component (via e.defaultPrevented)
+  // ESC key behavior
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
-        // Don't act if ESC was already handled (e.g., by password settings)
         if (e.defaultPrevented) return;
 
-        // In zen mode: exit zen and restore previous state
-        // This check comes FIRST so ESC works even when focused in the editor
-        // Use ref to avoid stale closure issues
-        if (zenModeRef.current) {
-          exitZen();
+        if (layout.zenModeRef.current) {
+          layout.exitZen();
           return;
         }
 
-        // Don't act if user is in an input field (password inputs, etc.)
-        // But DO allow ESC from the journal textarea (editor) - it should lock
         const activeEl = document.activeElement;
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        // In minizen (wide only): exit minizen and restore panels
-        if (!isNarrow && minizen) {
-          exitMinizen();
+        if (!layout.isNarrow && layout.minizen) {
+          layout.exitMinizen();
           return;
         }
 
-        // Function menus open: close them (both at once)
-        if (showDebugMenu || showAboutPanel) {
-          closePanels();
+        if (layout.showDebugMenu || layout.showAboutPanel) {
+          layout.closePanels();
           return;
         }
 
-        // In narrow mode with sidebar hidden: show sidebar
-        if (isNarrow && !showSidebarInNarrow) {
-          setShowSidebarInNarrow(true);
-          setPreNarrowState(null); // Commit to narrow
+        if (layout.isNarrow && !layout.showSidebarInNarrow) {
+          layout.setShowSidebarInNarrow(true);
+          layout.setPreNarrowState(null);
           return;
         }
 
-        // Base state (sidebar visible, no menus): save and lock
         if (editorRef.current) {
           journal.saveEntry(editorRef.current.value || '', Date.now());
         }
@@ -486,57 +172,41 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [auth, journal, exitZen, exitMinizen, isNarrow, minizen, showSidebarInNarrow, showDebugMenu, showAboutPanel, closePanels]);
+  }, [auth, journal, layout]);
 
-  // Auto-focus editor when typing anywhere (unless in another input)
-  // If viewing a past entry, switches to today first then focuses editor
+  // Auto-focus editor when typing anywhere
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Skip if already handled by another component (e.g., preset grid)
       if (e.defaultPrevented) return;
 
-      // Skip if in input, or in a writable textarea (allow read-only = viewing old entry)
       const activeEl = document.activeElement;
       const tagName = activeEl?.tagName?.toLowerCase();
       if (tagName === 'input') return;
       if (tagName === 'textarea' && !(activeEl as HTMLTextAreaElement).readOnly) return;
 
-      // Skip if already in the editor on today (prevents cursor jumping to end while typing)
-      // Allow through if viewing old entry — handler will switch to today
       if (editorRef.current?.contains(activeEl) && journal.selectedDate === getTodayDate()) return;
-
-      // Skip if in any other contenteditable (e.g., title)
       if (activeEl instanceof HTMLElement && activeEl.isContentEditable) return;
-
-      // Skip modifier keys
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-      // When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
-      // Also preventDefault to stop browser default (e.g., Space scrolls page)
-      if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) {
+      if (layout.showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) {
         e.preventDefault();
         return;
       }
 
-      // Handle printable characters, Enter, Backspace, and Space
       const isPrintable = e.key.length === 1;
       const isEnterOrBackspace = e.key === 'Enter' || e.key === 'Backspace';
       if (!isPrintable && !isEnterOrBackspace) return;
 
-      // Close settings/about panels and sidebar if open (narrow mode only)
-      if (isNarrow) {
-        closePanels();
-        setShowSidebarInNarrow(false);
+      if (layout.isNarrow) {
+        layout.closePanels();
+        layout.setShowSidebarInNarrow(false);
       }
 
-      // If viewing a past entry, switch to today then defer focus
-      // (need to wait for React re-render so textarea becomes editable)
       const today = getTodayDate();
       if (journal.selectedDate !== today) {
         journal.setSelectedDate(today);
         e.preventDefault();
         const key = e.key;
-        // Double rAF to wait for React re-render
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (!editorRef.current) return;
@@ -544,7 +214,6 @@ function AppContent() {
             const len = editorRef.current.value.length;
             editorRef.current.selectionStart = len;
             editorRef.current.selectionEnd = len;
-            // Insert the triggering character (not for Backspace — just focus)
             if (key.length === 1) {
               document.execCommand('insertText', false, key);
             } else if (key === 'Enter') {
@@ -555,10 +224,8 @@ function AppContent() {
         return;
       }
 
-      // Focus the editor and move cursor to end
       if (editorRef.current) {
         editorRef.current.focus();
-        // Move cursor to end of content (textarea uses selectionStart/End)
         const len = editorRef.current.value.length;
         editorRef.current.selectionStart = len;
         editorRef.current.selectionEnd = len;
@@ -567,54 +234,13 @@ function AppContent() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [showDebugMenu, showAboutPanel, isNarrow, closePanels, journal.selectedDate, journal.setSelectedDate]);
-
-  // Note: Scramble/unscramble handling is done in JournalEditor
-
-  // Automatic midnight detection - uses refs to avoid stale closures
-  useEffect(() => {
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-
-      const msUntilMidnight = tomorrow.getTime() - now.getTime();
-
-      midnightTimeoutRef.current = setTimeout(() => {
-        logAction('app.midnight');
-        // Save current content using ref to get latest journal
-        if (editorRef.current) {
-          const content = editorRef.current.value || '';
-          if (content.trim()) {
-            journalRef.current.saveEntry(content, Date.now());
-          }
-        }
-        // Flush debounced saves immediately (don't wait 300ms)
-        flushPendingSaves();
-        // Switch to new day
-        journalRef.current.setSelectedDate(getTodayDate());
-        if (editorRef.current) {
-          editorRef.current.value = '';
-        }
-        scheduleNextMidnight();
-      }, msUntilMidnight);
-    };
-
-    scheduleNextMidnight();
-    return () => {
-      if (midnightTimeoutRef.current) {
-        clearTimeout(midnightTimeoutRef.current);
-      }
-    };
-  }, []); // Empty deps - uses refs for latest values
+  }, [layout.showDebugMenu, layout.showAboutPanel, layout.isNarrow, layout.closePanels, journal.selectedDate, journal.setSelectedDate]);
 
   // Handle password unlock
   const handlePasswordSubmit = async (e: React.FormEvent): Promise<boolean> => {
     const success = await auth.handlePasswordSubmit(e);
     if (success) {
       journal.reloadEntries();
-      // Editor content will be loaded by JournalEditor's useEffect when entries change
     }
     return success;
   };
@@ -622,20 +248,17 @@ function AppContent() {
   // Handle input with keystroke tracking
   const handleInput = (content: string) => {
     stats.incrementKeystrokes();
-    trackCurrentColorway(); // Track colorway on actual typing (not slider exploration)
+    trackCurrentColorway();
     journal.setCurrentContent(htmlToText(content));
     journal.saveEntry(content, Date.now());
 
-    // Superscramble: randomize theme and trigger global re-scramble on each keystroke
-    if (isSuperscramble) {
+    if (layout.isSuperscramble) {
       randomizeTheme();
       setScrambleSeed(s => s + 1);
     }
   };
 
-  // Lock screen (only show if password is set) — must be before loading check
-  // because encryptionKeyReady stays false until password is entered,
-  // which means isLoading stays true forever and would block the lock screen
+  // Lock screen
   if (auth.isLocked && auth.hasPassword) {
     return (
       <LockScreen
@@ -645,6 +268,8 @@ function AppContent() {
       />
     );
   }
+
+  const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
@@ -668,30 +293,28 @@ function AppContent() {
       </style>
 
       {/* Sidebar - hidden in zen mode, minizen (wide), or narrow (unless toggled) */}
-      {!zenMode && (isNarrow ? showSidebarInNarrow : !minizen) && (
+      {!layout.zenMode && (layout.isNarrow ? layout.showSidebarInNarrow : !layout.minizen) && (
       <div
         className="w-80 flex flex-col min-h-screen relative"
         style={{
           backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
           borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
         }}
-        onClick={closePanels}
+        onClick={layout.closePanels}
       >
-        {/* Clickable overlay for header zone - matches EntryHeader height */}
-        {/* Wide mode: toggle minizen | Narrow mode: close sidebar */}
-        {entryHeaderHeight > 0 && (
+        {/* Clickable overlay for header zone */}
+        {layout.entryHeaderHeight > 0 && (
           <div
             className="absolute top-0 left-0 right-0 z-50"
-            style={{ height: entryHeaderHeight }}
+            style={{ height: layout.entryHeaderHeight }}
             onClick={(e) => {
               e.stopPropagation();
-              if (isNarrow) {
-                // User is intentionally interacting in narrow mode, clear saved wide state
-                setShowSidebarInNarrow(false);
-                closePanels();
-                setPreNarrowState(null);
+              if (layout.isNarrow) {
+                layout.setShowSidebarInNarrow(false);
+                layout.closePanels();
+                layout.setPreNarrowState(null);
               } else {
-                enterMinizen(); // Enter minizen, saves panel state
+                layout.enterMinizen();
               }
             }}
           />
@@ -705,15 +328,15 @@ function AppContent() {
             borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <div className="p-4" ref={titleRef}>
+          <div className="p-4" ref={layout.titleRef}>
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-              {isSuperscramble
-                ? scrambleText(titleHovered ? `good days v${VERSION}` : 'good days')
-                : (titleHovered ? `good days v${VERSION}` : 'good days')}
+              {layout.isSuperscramble
+                ? scrambleText(layout.titleHovered ? `good days v${VERSION}` : 'good days')
+                : (layout.titleHovered ? `good days v${VERSION}` : 'good days')}
             </h1>
           </div>
 
-          {/* Stats - in powerstat mode, clicks here don't close panels (for selecting color text) */}
+          {/* Stats */}
           <div
             className="p-3 overflow-hidden"
             style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
@@ -722,8 +345,8 @@ function AppContent() {
               entries={journal.entries}
               totalKeystrokes={stats.totalKeystrokes}
               totalSecondsOnApp={stats.totalSecondsOnApp}
-              stacked={showDebugMenu && showAboutPanel}
-              superscramble={isSuperscramble}
+              stacked={stacked}
+              superscramble={layout.isSuperscramble}
               scrambleSeed={scrambleSeed}
             />
           </div>
@@ -740,11 +363,11 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             onSelectDate={(date) => {
               journal.setSelectedDate(date);
-              closePanels();
+              layout.closePanels();
             }}
-            settingsOpen={showDebugMenu}
-            stacked={showDebugMenu && showAboutPanel}
-            superscramble={isSuperscramble}
+            settingsOpen={layout.showDebugMenu}
+            stacked={stacked}
+            superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
           />
         </div>
@@ -757,43 +380,41 @@ function AppContent() {
             borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
           }}
         >
-          <FunctionButton onClick={() => setIsScrambled(!isScrambled)} isActive={isScrambled}>
-            {isScrambled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            <span>{isSuperscramble ? scrambleText(isScrambled ? 'unscramble' : 'scramble') : (isScrambled ? 'unscramble' : 'scramble')}</span>
+          <FunctionButton onClick={() => layout.setIsScrambled(!layout.isScrambled)} isActive={layout.isScrambled}>
+            {layout.isScrambled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            <span>{layout.isSuperscramble ? scrambleText(layout.isScrambled ? 'unscramble' : 'scramble') : (layout.isScrambled ? 'unscramble' : 'scramble')}</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => {
-            const opening = !showDebugMenu;
-            setShowDebugMenu(opening);
+            const opening = !layout.showDebugMenu;
+            layout.setShowDebugMenu(opening);
             if (opening) {
-              setZenMode(false); // Exit zen when opening panel
-              setMinizen(false); // Exit minizen too
-              setPreFocusState(null); // Clear saved focus state (direct exit, not via exitMinizen/exitZen)
-              setZenFromMinizen(false);
-              if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
+              layout.setZenMode(false);
+              layout.setMinizen(false);
+              layout.setPreFocusState(null);
+              layout.setZenFromMinizen(false);
+              if (layout.isNarrow) layout.setShowSidebarInNarrow(true);
             }
-            // Interacting with panels in narrow mode = commit to narrow, clear wide state
-            if (isNarrow) setPreNarrowState(null);
-          }} isActive={showDebugMenu} dataAttribute="settings-toggle">
+            if (layout.isNarrow) layout.setPreNarrowState(null);
+          }} isActive={layout.showDebugMenu} dataAttribute="settings-toggle">
             <Settings className="w-3 h-3" />
-            <span>{isSuperscramble ? scrambleText('settings') : 'settings'}</span>
+            <span>{layout.isSuperscramble ? scrambleText('settings') : 'settings'}</span>
           </FunctionButton>
 
           <FunctionButton onClick={() => {
-            const opening = !showAboutPanel;
-            setShowAboutPanel(opening);
+            const opening = !layout.showAboutPanel;
+            layout.setShowAboutPanel(opening);
             if (opening) {
-              setZenMode(false); // Exit zen when opening panel
-              setMinizen(false); // Exit minizen too
-              setPreFocusState(null); // Clear saved focus state (direct exit, not via exitMinizen/exitZen)
-              setZenFromMinizen(false);
-              if (isNarrow) setShowSidebarInNarrow(true); // Show sidebar for panel
+              layout.setZenMode(false);
+              layout.setMinizen(false);
+              layout.setPreFocusState(null);
+              layout.setZenFromMinizen(false);
+              if (layout.isNarrow) layout.setShowSidebarInNarrow(true);
             }
-            // Interacting with panels in narrow mode = commit to narrow, clear wide state
-            if (isNarrow) setPreNarrowState(null);
-          }} isActive={showAboutPanel} dataAttribute="about-toggle">
+            if (layout.isNarrow) layout.setPreNarrowState(null);
+          }} isActive={layout.showAboutPanel} dataAttribute="about-toggle">
             <Heart className="w-3 h-3" />
-            <span>{isSuperscramble ? scrambleText('about') : 'about'}</span>
+            <span>{layout.isSuperscramble ? scrambleText('about') : 'about'}</span>
           </FunctionButton>
         </div>
       </div>
@@ -801,7 +422,7 @@ function AppContent() {
 
       {/* Settings Panel */}
       <SettingsPanel
-        showDebugMenu={showDebugMenu}
+        showDebugMenu={layout.showDebugMenu}
         hasPassword={auth.hasPassword}
         verifyPassword={auth.verifyPassword}
         setPassword={auth.setPassword}
@@ -812,51 +433,48 @@ function AppContent() {
           logAction('app.import', { entryCount: entries.length });
           journal.setEntries(entries);
           saveAllJournalEntries(entries);
-          setEditorKey(k => k + 1); // Force editor remount to show imported content
+          setEditorKey(k => k + 1);
         }}
-        stacked={showDebugMenu && showAboutPanel}
-        superscramble={isSuperscramble}
+        stacked={stacked}
+        superscramble={layout.isSuperscramble}
         scrambleSeed={scrambleSeed}
-        scrambleHotkeyActive={scrambleHotkeyActive}
-        onToggleScrambleHotkey={() => setScrambleHotkeyActive(prev => !prev)}
+        scrambleHotkeyActive={layout.scrambleHotkeyActive}
+        onToggleScrambleHotkey={() => layout.setScrambleHotkeyActive(prev => !prev)}
       />
 
       {/* About Panel */}
-      <AboutPanel isOpen={showAboutPanel} stacked={showDebugMenu && showAboutPanel} superscramble={isSuperscramble} scrambleSeed={scrambleSeed} />
+      <AboutPanel isOpen={layout.showAboutPanel} stacked={stacked} superscramble={layout.isSuperscramble} scrambleSeed={scrambleSeed} />
 
       {/* Main Editor Area */}
       <div
         className="flex-1 flex flex-col overflow-hidden"
         style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
-        onClick={() => { if (isNarrow) closePanels(); }}
+        onClick={() => { if (layout.isNarrow) layout.closePanels(); }}
       >
         {/* Hide header in zen mode */}
-        {!zenMode && (
+        {!layout.zenMode && (
           <EntryHeader
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
-            superscramble={isSuperscramble}
+            superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
-            stacked={showDebugMenu && showAboutPanel}
+            stacked={stacked}
             onClick={(e) => {
-              e.stopPropagation(); // Prevent bubbling to container
-              if (isNarrow) {
-                // Narrow: toggle sidebar visibility
-                // User is intentionally interacting in narrow mode, clear saved wide state
-                setShowSidebarInNarrow(!showSidebarInNarrow);
-                closePanels();
-                setPreNarrowState(null);
+              e.stopPropagation();
+              if (layout.isNarrow) {
+                layout.setShowSidebarInNarrow(!layout.showSidebarInNarrow);
+                layout.closePanels();
+                layout.setPreNarrowState(null);
               } else {
-                // Wide: toggle minizen with state preservation
-                if (minizen) {
-                  exitMinizen();
+                if (layout.minizen) {
+                  layout.exitMinizen();
                 } else {
-                  enterMinizen();
+                  layout.enterMinizen();
                 }
               }
             }}
-            onHeightChange={setEntryHeaderHeight}
+            onHeightChange={layout.setEntryHeaderHeight}
           />
         )}
 
@@ -864,26 +482,26 @@ function AppContent() {
           key={editorKey}
           entries={journal.entries}
           selectedDate={journal.selectedDate}
-          isScrambled={isScrambled}
+          isScrambled={layout.isScrambled}
           onInput={handleInput}
           editorRef={editorRef}
           externalContentVersion={journal.externalContentVersion}
           onClick={() => {
-            if (isNarrow) {
-              closePanels();
-              setShowSidebarInNarrow(false);
+            if (layout.isNarrow) {
+              layout.closePanels();
+              layout.setShowSidebarInNarrow(false);
             }
           }}
         />
 
         {/* Hide footer in zen mode. Click footer to enter zen. */}
-        {!zenMode && (
+        {!layout.zenMode && (
           <EntryFooter
             currentContent={journal.currentContent}
-            superscramble={isSuperscramble}
+            superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={() => {
-              enterZen(); // saves state then closes panels
+              layout.enterZen();
             }}
           />
         )}

@@ -4,7 +4,7 @@
 
 import type { JournalEntry } from '@features/journal/types';
 import { logAction } from '@shared/logger';
-import { encryptWithKey, decryptWithKey } from '@features/export/utils/crypto';
+import { encryptWithKey, decryptWithKey } from '@shared/crypto';
 
 const DB_NAME = 'good-days';
 const DB_VERSION = 1;

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
 import { setPasswordProtectedFlag } from '@shared/storage/journalStorage';
 import { setEncryptionKey, getEncryptionMode, reEncryptAllEntries } from '@shared/storage/journalStorage';
-import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK } from '@features/export/utils/crypto';
+import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK } from '@shared/crypto';
 import { logAction } from '@shared/logger';
 
 const PASSWORD_KEY = 'passwordHash';

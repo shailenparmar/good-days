@@ -3,7 +3,7 @@ import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
 import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
-import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '../utils/crypto';
+import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '@shared/crypto';
 import { FunctionButton } from '@shared/components';
 import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';

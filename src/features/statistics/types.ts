@@ -1,3 +1,5 @@
+export type { JournalEntry } from '@features/journal';
+
 export interface StatisticsState {
   totalKeystrokes: number;
   totalSecondsOnApp: number;
@@ -5,11 +7,4 @@ export interface StatisticsState {
 
 export interface StatisticsActions {
   incrementKeystrokes: () => void;
-}
-
-export interface JournalEntry {
-  date: string;
-  content: string;
-  startedAt?: number;
-  lastModified?: number;
 }

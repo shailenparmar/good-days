@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test the htmlToText function
-import { htmlToText } from '@features/journal/hooks/useJournalEntries';
+import { htmlToText } from '@shared/utils/html';
 
 describe('htmlToText', () => {
   it('should convert basic HTML to text', () => {

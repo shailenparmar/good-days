@@ -1,5 +1,6 @@
 import type { JournalEntry } from '@features/journal';
 import type { BackupV1 } from './formatEntries';
+import { htmlToText } from '@shared/utils/html';
 
 interface ParsedEntry {
   date: string;
@@ -39,8 +40,8 @@ export function mergeJsonEntries(
       const existing = result[existingIndex];
 
       // Check if content is actually different
-      const existingText = stripHtml(existing.content).trim();
-      const importedText = stripHtml(imported.content).trim();
+      const existingText = htmlToText(existing.content).trim();
+      const importedText = htmlToText(imported.content).trim();
 
       const existingNormalized = normalizeForComparison(existingText);
       const importedNormalized = normalizeForComparison(importedText);
@@ -182,7 +183,7 @@ export function mergeEntries(
       const existing = result[existingIndex];
 
       // Check if content is actually different and not already contained
-      const existingText = stripHtml(existing.content).trim();
+      const existingText = htmlToText(existing.content).trim();
       const importedText = imported.content.trim();
 
       // Normalize for comparison (collapse whitespace differences from HTML conversion)
@@ -241,18 +242,6 @@ export function mergeEntries(
   result.sort((a, b) => b.date.localeCompare(a.date));
 
   return { entries: result, importedCount };
-}
-
-// Strip HTML tags to get plain text, preserving line breaks
-function stripHtml(html: string): string {
-  // Replace block elements and <br> with newlines before extracting text
-  const withLineBreaks = html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/p>/gi, '\n');
-  const div = document.createElement('div');
-  div.innerHTML = withLineBreaks;
-  return div.textContent || '';
 }
 
 // Normalize text for comparison (collapse all whitespace)
