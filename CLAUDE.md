@@ -1,5 +1,27 @@
 # Claude Code Instructions
 
+## TODO: Tauri Setup (Mac App Store)
+
+The native SwiftUI mac app (`macos/GoodDays/`) has been deleted. We're replacing it with **Tauri** — wraps the existing React web app in a native macOS WebView so the UX is pixel-identical.
+
+### What's done
+- Deleted `macos/GoodDays/` entirely (was never committed to git)
+- Removed native Mac app section from this CLAUDE.md
+
+### What's left
+1. **Install Rust** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
+2. **Install Tauri CLI** — `npm install -D @tauri-apps/cli@latest`
+3. **Init Tauri** — `npx tauri init` in the project root. Config it to:
+   - Use Vite dev server (`http://localhost:5173`) for dev
+   - Use `../dist` as the build output dir
+   - Bundle ID: something like `day.gdays.app`
+4. **Configure vite.config.ts** — No major changes needed. Existing config works. May need to conditionally disable PWA plugin when building for Tauri.
+5. **App icon** — Convert existing `icon.svg` to Tauri's icon format
+6. **Mac App Store signing** — Configure code signing + sandboxing for App Store submission
+
+### Key insight: storage works as-is
+IndexedDB + localStorage all work in Tauri's WKWebView. No code changes needed. Users migrating from the PWA would use the existing backup/import flow.
+
 ## Push Checklist (MANDATORY)
 
 **EVERY push requires ALL of these steps. No exceptions.**
@@ -27,25 +49,6 @@
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
-## Native Mac App (macos/GoodDays/)
-
-The native macOS app is a **separate codebase** (SwiftUI + SwiftData) that shares no code with the web app. They share the same crypto constants, WebSocket protocol, backup format, and default presets — all implemented independently.
-
-### Sync Policy
-
-**The Mac app is fully independent.** Only align when the user explicitly says "align the native app and web app". No automatic syncing, no proactive suggestions.
-
-### Key Shared Constants (must match exactly)
-
-| Constant | Web location | Mac location |
-|----------|-------------|--------------|
-| App secret | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
-| Backup salt | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
-| Encrypt salt | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
-| PBKDF2 iterations | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
-| WS protocol types | `src/shared/sync/protocol.ts` | `Services/WebSocketService.swift` |
-| Default presets | `src/features/theme/context/ThemeContext.tsx` | `Models/ColorPreset.swift` |
-| Backup JSON format | `src/features/export/utils/parseBackup.ts` | `Services/BackupService.swift` |
 
 ## WebSyncBridge (Live Sync)
 
@@ -501,6 +504,8 @@ Tabs communicate via `BroadcastChannel('good-days-sync')` to prevent silent over
 
 **Important:** BroadcastChannel is fully local (same-origin, same-device, same-browser). No network traffic. Falls back gracefully if unsupported (older Safari) — tabs just won't sync but nothing breaks.
 
+**Stale save cancellation (v2.3.31+):** When a tab receives a broadcast for a date, it cancels any pending debounced save for that date via `cancelPendingSave(date)` before reloading the entry. This prevents a stale local save (queued before the broadcast arrived) from firing after the reload and overwriting the other tab's newer content. Without this, two tabs editing today would ping-pong: Tab A saves → Tab B receives and overwrites editor → but Tab B's stale debounced save fires → overwrites Tab A's content → Tab A receives and overwrites → infinite loop.
+
 ### Write Debouncing (v1.10.0+)
 
 Every keystroke updates `entriesRef` in memory immediately, but IndexedDB writes are debounced by **300ms**. This batches rapid typing into one write instead of one per character.
@@ -510,6 +515,7 @@ Every keystroke updates `entriesRef` in memory immediately, but IndexedDB writes
 | Function | Purpose |
 |----------|---------|
 | `saveSingleEntry(entry)` | Queues a debounced write (300ms) |
+| `cancelPendingSave(date)` | Cancels a pending debounced save for one date (no write) |
 | `flushPendingSaves()` | Forces all pending writes immediately |
 
 **`flushPendingSaves()` is called in three places:**
@@ -564,6 +570,8 @@ The "ensure today" placeholder is **no longer persisted to IndexedDB**. It exist
 **EntrySidebar interaction state reset:** When `selectedDate` changes (from clicking, arrow keys, or auto-focus), `hoveredEntry`, `clickedEntry`, and `keyboardFocusedEntry` local states are all cleared. A document-level `mouseup` listener also clears `clickedEntry` to handle mousedown-then-scroll-away.
 
 **Multi-tab editor sync:** `useJournalEntries` exposes an `externalContentVersion` counter that increments when another tab saves the currently viewed date. `JournalEditor` uses this to bypass its `loadedDateRef` guard and reload content from the updated entries. Scroll position is preserved (not reset) on external syncs.
+
+**loadedDateRef async load guard (v2.3.31+):** `JournalEditor` tracks which date's content has been loaded into the textarea via `loadedDateRef`. Previously, on page refresh, the effect ran with `entries = []` (IndexedDB still loading), found no entry, set `value = ''`, and marked the date as loaded. When entries actually loaded from IndexedDB, the effect saw `loadedDateRef === selectedDate` and returned early — the real content was never displayed. Clicking away and back would work because it reset `loadedDateRef`. **Fix:** `loadedDateRef` is only set when `entry` is actually found. If entries is empty (still loading), the ref stays `null`, so the effect re-runs when entries populate.
 
 **Zombie entry prevention:** `deleteSingleEntry()` in `journalStorage.ts` now cancels any pending debounced save for the deleted date before performing the delete. Previously, a 300ms debounced save could fire after the delete and re-write the entry.
 
