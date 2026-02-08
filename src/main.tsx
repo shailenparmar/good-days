@@ -723,7 +723,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.37';
+  const mobileVersion = '2.1.38';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -972,7 +972,7 @@ function MobileScreen() {
               ref={leftBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('left'); const isAlpha = activeSide.current === 'left'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h * 0.25}px`, borderTop: `${h * 0.375}px solid black`, borderBottom: `${h * 0.375}px solid black`, boxSizing: 'content-box' as const, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('left'); const isAlpha = activeSide.current === 'left'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Right: background hue bar */}
@@ -980,7 +980,7 @@ function MobileScreen() {
               ref={rightBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('right'); const isAlpha = activeSide.current === 'right'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h * 0.25}px`, borderTop: `${h * 0.375}px solid black`, borderBottom: `${h * 0.375}px solid black`, boxSizing: 'content-box' as const, pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('right'); const isAlpha = activeSide.current === 'right'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />; })()}
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}

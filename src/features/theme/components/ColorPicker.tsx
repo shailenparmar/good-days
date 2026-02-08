@@ -164,18 +164,16 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
           background: 'linear-gradient(to top, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))',
         }}
       >
-        {/* Hue needle — hollow: 0.25×height transparent slit in the center */}
+        {/* Hue needle */}
         <div
           className="absolute pointer-events-none"
           style={{
             left: 0,
             right: 0,
             top: `${indicatorTop}%`,
-            height: `${needleHeight * 0.25}px`,
+            height: `${needleHeight}px`,
             transform: 'translateY(-50%)',
-            borderTop: `${needleHeight * 0.375}px solid black`,
-            borderBottom: `${needleHeight * 0.375}px solid black`,
-            boxSizing: 'content-box',
+            backgroundColor: 'black',
           }}
         />
       </div>

@@ -9,7 +9,7 @@ import type { JournalEntry } from '../types';
 interface LiveStatsData {
   hueDistance: number;
   hslDistance: number;
-  msgPerSec: number | null;
+  firehose: number;
   phoneSaves: number;
 }
 
@@ -719,7 +719,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} hsl dist`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.msgPerSec !== null ? liveSyncStats.msgPerSec : '--'} msg/s`)}
+                  {s(`${liveSyncStats.firehose.toLocaleString()} firehose`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   {s(`${liveSyncStats.phoneSaves} phone ${liveSyncStats.phoneSaves === 1 ? 'save' : 'saves'}`)}

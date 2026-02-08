@@ -132,8 +132,11 @@ function AppContent() {
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(isSuperscramble);
 
-  // Live-mode stats (cumulative hue/HSL distance, msg/s, phone saves)
-  const liveStats = useLiveStats(theme.isLiveStreaming);
+  // Live-mode stats (cumulative hue/HSL distance, firehose, phone saves)
+  const liveStats = useLiveStats(theme.isLiveStreaming, theme.customPresets.length, {
+    hue: theme.hue, sat: theme.saturation, light: theme.lightness,
+    bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
+  });
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -650,7 +653,7 @@ function AppContent() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
-      <WebSyncBridge onLiveColorUpdate={liveStats.recordColorUpdate} onLiveSavePreset={liveStats.recordSave} />
+      <WebSyncBridge />
       {/* Global styles */}
       <style>
         {`
@@ -730,7 +733,7 @@ function AppContent() {
               liveSyncStats={{
                 hueDistance: liveStats.hueDistance,
                 hslDistance: liveStats.hslDistance,
-                msgPerSec: liveStats.msgPerSec,
+                firehose: liveStats.firehose,
                 phoneSaves: liveStats.phoneSaves,
               }}
             />

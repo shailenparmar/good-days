@@ -4,21 +4,12 @@ import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { ColorPayload } from './protocol';
 
-interface WebSyncBridgeProps {
-  onLiveColorUpdate?: (colors: ColorPayload) => void;
-  onLiveSavePreset?: () => void;
-}
-
-export function WebSyncBridge({ onLiveColorUpdate, onLiveSavePreset }: WebSyncBridgeProps = {}) {
+export function WebSyncBridge() {
   const theme = useTheme();
   const themeRef = useRef(theme);
   themeRef.current = theme;
   const prevLiveRef = useRef<ColorPayload | null>(null);
   const skipBridgeRef = useRef(false);
-  const onLiveColorUpdateRef = useRef(onLiveColorUpdate);
-  onLiveColorUpdateRef.current = onLiveColorUpdate;
-  const onLiveSavePresetRef = useRef(onLiveSavePreset);
-  onLiveSavePresetRef.current = onLiveSavePreset;
 
   const currentColorway: ColorPayload = {
     hue: theme.hue,
@@ -32,7 +23,6 @@ export function WebSyncBridge({ onLiveColorUpdate, onLiveSavePreset }: WebSyncBr
   // Direct callback from WebSocket — fires synchronously in ws.onmessage.
   // React 18 batches all setState calls from this + useWebSync into ONE render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
-    onLiveColorUpdateRef.current?.(colors);
     const t = themeRef.current;
     skipBridgeRef.current = true;
     t.setLivePreset({
@@ -127,7 +117,6 @@ export function WebSyncBridge({ onLiveColorUpdate, onLiveSavePreset }: WebSyncBr
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
       theme.saveCustomPreset();
-      onLiveSavePresetRef.current?.();
     }
   }, [syncState.saveRequested]);
 
