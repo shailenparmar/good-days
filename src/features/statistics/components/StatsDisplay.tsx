@@ -5,6 +5,7 @@ import { scrambleText } from '@shared/utils/scramble';
 import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared/utils/easterEggs';
 import { getStorageEstimate } from '@shared/storage/journalStorage';
 import { getItem } from '@shared/storage';
+import { getStatusColors } from '@shared/utils/confirmColor';
 import type { JournalEntry } from '../types';
 
 function hslToHex(h: number, s: number, l: number): string {
@@ -114,6 +115,7 @@ function ColorButton({
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed, liveSyncStats }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
+  const { error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);
@@ -571,8 +573,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   <div
                     className="flex-1 px-3 py-2 text-xs font-mono font-bold text-center rounded select-none"
                     style={{
-                      color: getColor(),
-                      border: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`,
+                      color: errorColor,
+                      border: `3px solid ${errorColor}`,
                     }}
                   >
                     {s('invalid format')}
