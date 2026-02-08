@@ -28,61 +28,10 @@ type ColorState = {
 };
 
 function parseColorInput(input: string) {
-  const trimmed = input.trim().toLowerCase();
-  // Try new format: "txt: #rrggbb h234 s23 l99" or "bg: #rrggbb h234 s23 l99"
-  const newFormatMatch = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
-  if (newFormatMatch) {
-    const type = newFormatMatch[1] as 'txt' | 'bg';
-    return { type, h: parseInt(newFormatMatch[2]), s: parseInt(newFormatMatch[3]), l: parseInt(newFormatMatch[4]) };
-  }
-  // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
-  const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
-  if (labeledHexMatch) {
-    const type = labeledHexMatch[1] as 'txt' | 'bg';
-    const hex = labeledHexMatch[2];
-    const r = parseInt(hex.slice(0, 2), 16) / 255;
-    const g = parseInt(hex.slice(2, 4), 16) / 255;
-    const b = parseInt(hex.slice(4, 6), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    let h = 0, s = 0;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
-      }
-    }
-    return { type, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-  }
-  // Try bare HEX format: #rrggbb
-  const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    const r = parseInt(hex.slice(0, 2), 16) / 255;
-    const g = parseInt(hex.slice(2, 4), 16) / 255;
-    const b = parseInt(hex.slice(4, 6), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    let h = 0, s = 0;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
-      }
-    }
-    return { type: 'hsl' as const, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-  }
-  // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
-  const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
-  if (hslMatch) {
-    const type = hslMatch[1] as 'txt' | 'bg' | undefined;
-    return { type: type || 'hsl' as const, h: parseInt(hslMatch[2]), s: parseInt(hslMatch[3]), l: parseInt(hslMatch[4]) };
+  const trimmed = input.trim();
+  const match = trimmed.match(/^(txt|bg):\s*h(\d+)\s+s(\d+)\s+l(\d+)/i);
+  if (match) {
+    return { type: match[1].toLowerCase() as 'txt' | 'bg', h: parseInt(match[2]), s: parseInt(match[3]), l: parseInt(match[4]) };
   }
   return null;
 }
@@ -618,7 +567,7 @@ function MobileScreen() {
   // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
-    const text = `txt: ${hslToHex(colors.hue, colors.sat, colors.light)} h${colors.hue % 360} s${colors.sat} l${colors.light}\nbg: ${hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)} h${colors.bgHue % 360} s${colors.bgSat} l${colors.bgLight}`;
+    const text = `txt: h${colors.hue % 360} s${colors.sat} l${colors.light}\nbg: h${colors.bgHue % 360} s${colors.bgSat} l${colors.bgLight}`;
     // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -658,7 +607,6 @@ function MobileScreen() {
           found = true;
           if (parsed.type === 'txt') { txtH = parsed.h; txtS = parsed.s; txtL = parsed.l; }
           else if (parsed.type === 'bg') { bgH = parsed.h; bgS = parsed.s; bgL = parsed.l; }
-          else { txtH = parsed.h; txtS = parsed.s; txtL = parsed.l; }
         }
       }
       if (found) {
@@ -744,7 +692,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.2.9';
+  const mobileVersion = '2.3.0';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {

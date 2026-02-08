@@ -25,19 +25,6 @@ interface StatsDisplayProps {
   liveSyncStats?: LiveStatsData;
 }
 
-// Convert HSL to HEX
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 // Split button component for copy/paste
 function ColorButton({
   onClick,
@@ -374,87 +361,18 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Parse color values from pasted text
   // Supports: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or "120, 50%, 60%" or "#ff0000"
   const parseColorInput = useCallback((input: string) => {
-    const trimmed = input.trim().toLowerCase();
-
-    // Try new format: "txt: #rrggbb h234 s23 l99" or "bg: #rrggbb h234 s23 l99"
-    const newFormatMatch = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
-    if (newFormatMatch) {
-      const type = newFormatMatch[1] as 'txt' | 'bg';
-      return { type, h: parseInt(newFormatMatch[2]), s: parseInt(newFormatMatch[3]), l: parseInt(newFormatMatch[4]) };
+    const trimmed = input.trim();
+    const match = trimmed.match(/^(txt|bg):\s*h(\d+)\s+s(\d+)\s+l(\d+)/i);
+    if (match) {
+      return { type: match[1].toLowerCase() as 'txt' | 'bg', h: parseInt(match[2]), s: parseInt(match[3]), l: parseInt(match[4]) };
     }
-
-    // Try labeled HEX format: "txt: #rrggbb" or "bg: #rrggbb"
-    const labeledHexMatch = trimmed.match(/^(txt|bg):\s*#([0-9a-f]{6})/i);
-    if (labeledHexMatch) {
-      const type = labeledHexMatch[1] as 'txt' | 'bg';
-      const hex = labeledHexMatch[2];
-      const r = parseInt(hex.slice(0, 2), 16) / 255;
-      const g = parseInt(hex.slice(2, 4), 16) / 255;
-      const b = parseInt(hex.slice(4, 6), 16) / 255;
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
-      const l = (max + min) / 2;
-      let h = 0, s = 0;
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
-        }
-      }
-      return { type, h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-    }
-
-    // Try bare HEX format: #rrggbb
-    const hexMatch = trimmed.match(/#([0-9a-f]{6})/i);
-    if (hexMatch) {
-      const hex = hexMatch[1];
-      const r = parseInt(hex.slice(0, 2), 16) / 255;
-      const g = parseInt(hex.slice(2, 4), 16) / 255;
-      const b = parseInt(hex.slice(4, 6), 16) / 255;
-
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
-      const l = (max + min) / 2;
-      let h = 0, s = 0;
-
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
-        }
-      }
-
-      return {
-        type: 'hsl' as const,
-        h: Math.round(h * 360),
-        s: Math.round(s * 100),
-        l: Math.round(l * 100)
-      };
-    }
-
-    // Try HSL format: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or just "120, 50%, 60%"
-    const hslMatch = trimmed.match(/(?:(txt|bg):\s*)?(\d+),\s*(\d+)%?,\s*(\d+)%?/);
-    if (hslMatch) {
-      const type = hslMatch[1] as 'txt' | 'bg' | undefined;
-      return {
-        type: type || 'hsl' as const,
-        h: parseInt(hslMatch[2]),
-        s: parseInt(hslMatch[3]),
-        l: parseInt(hslMatch[4])
-      };
-    }
-
     return null;
   }, []);
 
   // Handle copy button click - copies hex + hsl color values to clipboard
   const handleColorCopy = useCallback(() => {
-    const textLine = `txt: ${hslToHex(hue, saturation, lightness)} h${hue % 360} s${saturation} l${lightness}`;
-    const bgLine = `bg: ${hslToHex(bgHue, bgSaturation, bgLightness)} h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
+    const textLine = `txt: h${hue % 360} s${saturation} l${lightness}`;
+    const bgLine = `bg: h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
     const copyText = `${textLine}\n${bgLine}`;
     navigator.clipboard.writeText(copyText);
     markEasterEggFound('selectColorText');
@@ -487,11 +405,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             bgH = parsed.h;
             bgS = parsed.s;
             bgL = parsed.l;
-          } else {
-            // Just HSL or HEX - apply to text by default
-            txtH = parsed.h;
-            txtS = parsed.s;
-            txtL = parsed.l;
           }
         }
       }
@@ -688,20 +601,14 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 )}
               </div>
               <div
-                className="grid grid-cols-2 gap-x-0 gap-y-1"
+                className="grid gap-y-1"
                 style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'hidden' : 'visible' }}
               >
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  txt: {hue}, {saturation}%, {lightness}%
+                  txt: h{hue} s{saturation} l{lightness}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {hslToHex(hue, saturation, lightness)}
-                </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  bg: {bgHue}, {bgSaturation}%, {bgLightness}%
-                </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {hslToHex(bgHue, bgSaturation, bgLightness)}
+                  bg: h{bgHue} s{bgSaturation} l{bgLightness}
                 </div>
               </div>
             </div>
@@ -717,7 +624,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   {s(`${Math.round(liveSyncStats.hueDistance).toLocaleString()}° hue travel`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} color travel`)}
+                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} sl travel`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   {s(liveSyncStats.updateHz !== null ? `${liveSyncStats.updateHz.toFixed(6)} hz` : '--- hz')}
