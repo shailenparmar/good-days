@@ -541,6 +541,24 @@ The "ensure today's entry exists" effect in `useJournalEntries.ts` creates an em
 
 **Before v1.10.58:** The placeholder was created with `startedAt: Date.now()`, so if the app was open at midnight, `startedAt` would be ~12:00 AM even if the user didn't type until hours later.
 
+### Ensure Today — In-Memory Only (v2.3.30+)
+
+The "ensure today" placeholder is **no longer persisted to IndexedDB**. It exists only in React state (for the sidebar) until the user actually types, at which point `saveEntry()` writes it.
+
+**The bug this fixes:** If an encrypted entry failed to decrypt (wrong key, transient error, etc.), `decryptEntry()` returned `null` and the entry was silently filtered out of the loaded list. The "ensure today" effect then saw no today entry → created an empty one → called `saveSingleEntry()` → **permanently overwrote the encrypted data** in IndexedDB with an empty plaintext entry. Content gone forever.
+
+**Two-layer protection:**
+1. **In-memory only:** The placeholder is never written to IndexedDB. Encrypted data is never overwritten by the placeholder.
+2. **Decryption failure guard:** If today's date specifically failed to decrypt, the effect skips entirely (no placeholder created). `hasDecryptionFailure(date)` checks a module-level `Set` in `journalStorage.ts` populated during `decryptEntry()` catch blocks.
+
+**Decryption failure tracking (`journalStorage.ts`):**
+- `decryptionFailures` Set tracks dates that failed to decrypt
+- Cleared at the start of each `initJournalStorage()` call
+- `hasDecryptionFailure(date)` exported for use by `useJournalEntries`
+- `getDecryptionFailures()` exported for diagnostics
+- Console warning + action log entry when failures occur
+- Logged as: `[gdays] N entries failed to decrypt and are hidden: YYYY-MM-DD, ...`
+
 ### State Sync Fixes (v1.10.60+)
 
 **EntrySidebar interaction state reset:** When `selectedDate` changes (from clicking, arrow keys, or auto-focus), `hoveredEntry`, `clickedEntry`, and `keyboardFocusedEntry` local states are all cleared. A document-level `mouseup` listener also clears `clickedEntry` to handle mousedown-then-scroll-away.
