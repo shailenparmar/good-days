@@ -744,7 +744,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.2.8';
+  const mobileVersion = '2.2.9';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1029,9 +1029,10 @@ function MobileScreen() {
         } as React.CSSProperties}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
-        onTouchEnd={(e) => { if (!(e.target as HTMLElement).closest('[data-buttons]')) handleRandomize(); }}
+        onTouchEnd={(e) => { if (!(e.target as HTMLElement).closest('[data-btn]')) handleRandomize(); }}
       >
         <span
+          data-btn
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
           onTouchEnd={() => setTitlePressed(false)}
@@ -1043,8 +1044,9 @@ function MobileScreen() {
           {tiltSquare(252, false)}
         </div>
 
-        <div data-buttons style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
+        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
           <div
+            data-btn
             onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.reset = true; setResetPressed(true); }}
             onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.reset = false; setResetPressed(false); } }}
             onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.reset) handleResetTilt(); buttonEngaged.current.reset = false; setResetPressed(false); }}
@@ -1056,12 +1058,14 @@ function MobileScreen() {
 
           <div style={{ display: 'flex' }}>
             <div
+              data-btn
               onTouchStart={startPicking('left')}
               style={getButtonStyle(false, 'left', 'picker')}
             >
               text
             </div>
             <div
+              data-btn
               onTouchStart={startPicking('right')}
               style={getButtonStyle(false, 'right', 'picker')}
             >
@@ -1070,12 +1074,13 @@ function MobileScreen() {
           </div>
 
           {pasteInvalid ? (
-            <div style={getButtonStyle(false, 'full', 'aux')}>
+            <div data-btn style={getButtonStyle(false, 'full', 'aux')}>
               invalid format
             </div>
           ) : (
             <div style={{ display: 'flex' }}>
               <div
+                data-btn
                 onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.copy = true; setCopyPressed(true); }}
                 onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.copy = false; setCopyPressed(false); } }}
                 onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.copy) handleCopy(); buttonEngaged.current.copy = false; setCopyPressed(false); }}
@@ -1086,6 +1091,7 @@ function MobileScreen() {
               </div>
               {isLive && (
                 <div
+                  data-btn
                   onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.save = true; setSavePressed(true); }}
                   onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.save = false; setSavePressed(false); } }}
                   onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.save) { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); } buttonEngaged.current.save = false; setSavePressed(false); }}
@@ -1096,6 +1102,7 @@ function MobileScreen() {
                 </div>
               )}
               <div
+                data-btn
                 onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.paste = true; setPastePressed(true); }}
                 onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
                 onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.paste) handlePaste(); buttonEngaged.current.paste = false; setPastePressed(false); }}
