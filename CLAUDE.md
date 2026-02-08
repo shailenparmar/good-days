@@ -142,11 +142,13 @@ During 60fps streaming, two effects in `ThemeContext.tsx` are skipped to stay wi
 | Effect | Cost per frame | Guard |
 |---|---|---|
 | Color save (6 × `setItem` with XOR encryption) | ~2ms | `if (isLiveStreaming) return` |
-| Safari toolbar (HSL→hex + 3 DOM writes) | ~1ms | `if (isLiveStreaming) return` |
+| Safari toolbar (HSL→hex + 3 DOM writes) | ~1ms | Sets `#000000` during streaming (v2.3.20+) |
 
-Both effects have `isLiveStreaming` as a dependency. When streaming stops, the dep flips false → effects fire → final colors are saved and toolbar is updated.
+Both effects have `isLiveStreaming` as a dependency. When streaming stops, the dep flips false → effects fire → final colors are saved and toolbar is restored to the computed bg color.
 
-**Why this is safe:** Visual colors are already updated by React inline styles (the flex container's `style={{ backgroundColor: ... }}`). The localStorage writes and toolbar DOM writes are persistence/cosmetic concerns that can wait until streaming ends.
+**Safari toolbar during streaming (v2.3.20+):** Instead of skipping the toolbar effect entirely (which caused a distracting color jump when streaming stopped), the toolbar is set to pure black (`#000000`) while streaming. When streaming ends, the effect re-runs with `isLiveStreaming=false` and computes the correct hex from the current bg HSL values. The flex container's inline `style={{ backgroundColor: ... }}` handles the visual background during streaming.
+
+**Why this is safe:** Visual colors are already updated by React inline styles (the flex container's `style={{ backgroundColor: ... }}`). The localStorage writes are persistence concerns that can wait until streaming ends.
 
 **History:** This was attempted in v2.3.15 but reverted because the user reported worse performance. That was before the v2.3.18 StatsDisplay memoization fix — the 50-200ms/frame StatsDisplay recalculations dwarfed the ~3ms savings. With StatsDisplay fixed, the ~3ms savings matter (reduces ~12-15ms/frame to ~9-12ms, safely within budget).
 
@@ -888,7 +890,7 @@ All three export buttons (copy, download backup, import) live in a single `<div 
   Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
 - **Safari toolbar tinting (v2.1.16+)** - Safari's toolbar/tab bar tints to match the page background. Three things keep it in sync:
   1. `index.html` IIFE sets `theme-color` meta + `<html>`/`<body>` background on initial load (from localStorage, hex format)
-  2. `ThemeContext.tsx` effect updates theme-color meta via `setAttribute` + syncs `documentElement.style.backgroundColor` + `body.style.backgroundColor` on every bg color change
+  2. `ThemeContext.tsx` effect updates theme-color meta via `setAttribute` + syncs `documentElement.style.backgroundColor` + `body.style.backgroundColor` on every bg color change. During live streaming (v2.3.20+), sets all three to `#000000` instead of computing from bg HSL — restores on stream end.
   3. Mobile `main.tsx` overrides all to `#000000` (mobile always has black chrome)
 
   **Must use hex format** — Safari handles hex more reliably than HSL for `theme-color`. The meta tag has `id="theme-color-meta"` for fast lookup.
