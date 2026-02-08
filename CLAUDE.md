@@ -42,6 +42,10 @@ Server code: `server/src/relay.ts`, deployed via `server/Dockerfile` + `server/f
 
 To redeploy: `cd server && fly deploy`
 
+### Server-Side IP Hashing (v2.1.37+)
+
+Raw client IPs are hashed immediately in `server/src/index.ts` using SHA-256 (truncated to 16 hex chars) before reaching application code. The relay never sees or logs raw IPs — only hashed tokens. Same-network devices produce the same hash, so IP-based grouping and pairing still works. Clients no longer send `publicIp` in the `register` message (field removed from protocol). The `fetchPublicIp()` function and `ipify.org` API calls were removed from both `useMobileSync.ts` and `useWebSync.ts`.
+
 ### WebSocket Keep-Alive (v2.1.6+)
 
 The relay server pings each client every 30 seconds (`ws.ping()`). If no pong is received within 10 seconds, the connection is terminated (`ws.terminate()`) and the stale client record is cleaned up.
@@ -229,6 +233,25 @@ When a phone and laptop pair in a **1:1 environment** (exactly one phone + one l
 - One device cleared cache (one-sided) → still pairs via surviving side's claim
 - Both cleared cache → no affinity, falls back to IP-based
 - Relay restart → clients re-send deviceId + partnerDeviceId on reconnect
+
+### Live Stats (v2.1.37+)
+
+When the desktop is in live streaming mode, the powerstats area shows real-time metrics in a 2x2 grid below the color stats:
+
+| Stat | Description |
+|------|-------------|
+| **hue dist** | Cumulative shortest-arc hue distance (text + bg), in degrees |
+| **hsl dist** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
+| **msg/s** | WebSocket messages per second (1-second sliding window) |
+| **phone saves** | Number of times the phone's "save" button was pressed |
+
+**Architecture:** The `useLiveStats` hook (`src/features/statistics/hooks/useLiveStats.ts`) uses a **hot-path ref pattern** — `recordColorUpdate()` and `recordSave()` only mutate refs (zero React state, zero localStorage, zero DOM). A 2-second flush interval copies refs to React state + localStorage. This keeps the 60fps WebSocket path allocation-free.
+
+**Persistence:** `hueDistance`, `hslDistance`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `livePhoneSaves`) and survive page reloads. `msg/s` is ephemeral (only shown during active streaming). A `beforeunload` handler flushes refs to localStorage.
+
+**Callbacks:** `WebSyncBridge` receives `onLiveColorUpdate` and `onLiveSavePreset` props, forwarded via refs to avoid re-renders. `onLiveColorUpdate` fires synchronously from `ws.onmessage` (same hot path as `handleColorUpdate`). `onLiveSavePreset` fires when `saveRequested` increments.
+
+Code location: `src/features/statistics/hooks/useLiveStats.ts`, props threaded through `App.tsx` → `WebSyncBridge` → `StatsDisplay`.
 
 ### Future: WebRTC DataChannel Migration
 
@@ -1298,7 +1321,7 @@ interface StreamingControls {
 4. Alpha lifts, beta promoted in `handleEnd` — new alpha, no beta
 5. Beta lifts, alpha continues in `handleEnd` — beta gone
 
-Both parts use `overflow: visible` so indicators can extend beyond the square bounds. SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping).
+SL uses `overflow: visible` so the dot can extend beyond the square bounds. Hue uses `overflow: hidden` so the needle clips at the edges (v2.1.37). SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping). The hue needle slit is 25% of needle height (transparent gap through center), with the remaining 75% split between top and bottom black borders.
 
 ### Drag Listener Cleanup
 
@@ -1628,7 +1651,7 @@ bg: #c8ff00 h84 s100 l88
 - `h, s%, l%` - plain HSL (applies to text)
 - `#rrggbb` - bare HEX (applies to text)
 
-**Paste validation (v2.1.32+):** When pasted clipboard content doesn't match any supported format, the paste button text changes to "invalid format" for 1.5 seconds, then reverts to "paste". No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
+**Paste validation (v2.1.32+, updated v2.1.37):** When pasted clipboard content doesn't match any supported format, the copy|paste split is replaced by a single full-width "invalid format" indicator for 1.5 seconds, then reverts to copy|paste. Mobile: rendered as a full-width button (same `getButtonStyle` with position `'full'`). Desktop: rendered as a full-width `<div>` with matching border styling. No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Dismisses on any click or keystroke. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
 
 **Paste-to-laptop sync (v2.1.20+, fixed v2.1.21):** When paired with a laptop, pasting a color on the mobile home screen sends a one-shot `color-update` to the laptop so it immediately reflects the pasted colors. Normally color updates only stream during the picker screen (60fps while dragging). The relay guards `color-update` behind `client.streaming` (relay.ts line 285), so the paste wraps the update in `startStream()` / `sendColorUpdate()` / `stopStream()` calls — a brief stream burst to push the color through.
 
