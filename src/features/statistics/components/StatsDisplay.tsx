@@ -577,16 +577,20 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 )}
               </div>
               <div
-                className="grid grid-cols-1 gap-y-1"
+                className="grid grid-cols-2 gap-x-0 gap-y-1"
                 style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'hidden' : 'visible' }}
               >
-                <div className="text-xs font-mono font-bold cursor-text flex justify-between" style={{ color: getColor() }}>
-                  <span>txt: {hslToHex(hue % 360, saturation, lightness)}</span>
-                  <span>h{hue % 360} s{saturation} l{lightness}</span>
+                <div className="text-xs font-mono font-bold cursor-text text-center" style={{ color: getColor() }}>
+                  txt: {hslToHex(hue % 360, saturation, lightness)}
                 </div>
-                <div className="text-xs font-mono font-bold cursor-text flex justify-between" style={{ color: getColor() }}>
-                  <span>bg: {hslToHex(bgHue % 360, bgSaturation, bgLightness)}</span>
-                  <span>h{bgHue % 360} s{bgSaturation} l{bgLightness}</span>
+                <div className="text-xs font-mono font-bold cursor-text text-center" style={{ color: getColor() }}>
+                  bg: {hslToHex(bgHue % 360, bgSaturation, bgLightness)}
+                </div>
+                <div className="text-xs font-mono font-bold cursor-text text-center" style={{ color: getColor() }}>
+                  h{hue % 360} s{saturation} l{lightness}
+                </div>
+                <div className="text-xs font-mono font-bold cursor-text text-center" style={{ color: getColor() }}>
+                  h{bgHue % 360} s{bgSaturation} l{bgLightness}
                 </div>
               </div>
             </div>
