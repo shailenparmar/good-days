@@ -869,10 +869,11 @@ The editor uses a `<textarea>` with CSS cursor styling.
 <style>
   {`
     .journal-textarea {
-      caret-color: ${getColor()};
+      caret-color: ${needsCustomCursor ? 'transparent' : getColor()};
     }
     @supports (caret-shape: block) {
       .journal-textarea {
+        caret-color: ${getColor()};
         caret-shape: block;
       }
     }
@@ -884,9 +885,21 @@ The editor uses a `<textarea>` with CSS cursor styling.
 
 | Browser | Cursor Appearance |
 |---------|-------------------|
-| Chrome 144+ | Block cursor |
-| Firefox | Block cursor |
-| Safari | Thin line (no `caret-shape` support yet) |
+| Chrome 144+ | Native block cursor (`caret-shape: block`) |
+| Firefox | Native block cursor (`caret-shape: block`) |
+| Safari | Custom block cursor via text overlay fallback (v2.1.35+) |
+
+### Safari Block Cursor Fallback (v2.1.35+)
+
+Safari doesn't support `caret-shape: block`. The fallback uses a text overlay approach:
+
+1. `CSS.supports('caret-shape', 'block')` detects lack of support → `needsCustomCursor = true`
+2. Native caret is hidden (`caret-color: transparent`), overridden back by `@supports` for Chrome/Firefox
+3. A `pointer-events-none` overlay div renders the full text transparently, with a colored `backgroundColor` block at the cursor position
+4. The overlay uses identical CSS classes (`p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words`) so word wrapping matches the textarea exactly
+5. `onSelect` tracks cursor position; `key={version}` restarts the blink animation on each movement (solid while typing, blinks after 1s idle)
+6. Scroll sync via the same `scrollTop` state used by the scramble overlay (`translateY(-${scrollTop}px)`)
+7. Hidden when: selection is not collapsed (text selected), or textarea is not focused
 
 ### Cursor Blink on Delete
 
@@ -902,7 +915,7 @@ The cursor blinks when deleting text. This is intentional - we let the browser h
 | Issue | Fix |
 |-------|-----|
 | Cursor wrong color | Check inline `<style>` tag in JournalEditor |
-| No block cursor | Browser may not support `caret-shape: block` (Safari) |
+| No block cursor | Check `needsCustomCursor` — Safari uses text overlay fallback |
 | Cursor blinks on delete | Expected behavior (tradeoff for working undo) |
 
 ### Key Files
