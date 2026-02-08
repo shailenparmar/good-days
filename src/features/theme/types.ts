@@ -61,7 +61,6 @@ export interface LiveSyncState {
   isLiveActive: boolean;
   isLiveStreaming: boolean;
   streamingControls: StreamingControls | null;
-  phoneSaveCount: number;
 }
 
 export interface LiveSyncActions {
@@ -70,10 +69,8 @@ export interface LiveSyncActions {
   setIsLiveStreaming: (streaming: boolean) => void;
   setStreamingControls: (controls: StreamingControls | null) => void;
   saveLivePreset: () => void;
-  incrementPhoneSaveCount: () => void;
   localDragRef: React.RefObject<boolean>;
   setLocalDragging: (dragging: boolean) => void;
-  colorUpdateCountRef: React.RefObject<number>;
 }
 
 export interface ColorwayTracking {

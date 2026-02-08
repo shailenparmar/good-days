@@ -30,7 +30,6 @@ export function WebSyncBridge() {
   // state updates are deferred to the next animation frame so multiple
   // WS messages within one frame coalesce into a single render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
-    themeRef.current.colorUpdateCountRef.current++;
     pendingColorsRef.current = colors;
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
@@ -124,10 +123,8 @@ export function WebSyncBridge() {
   const prevSaveRef = useRef(0);
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
-      const delta = syncState.saveRequested - prevSaveRef.current;
       prevSaveRef.current = syncState.saveRequested;
       theme.saveCustomPreset();
-      for (let i = 0; i < delta; i++) theme.incrementPhoneSaveCount();
     }
   }, [syncState.saveRequested]);
 

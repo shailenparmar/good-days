@@ -20,13 +20,6 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-interface LiveStatsData {
-  hueDistance: number;
-  hslDistance: number;
-  updateHz: number | null;
-  liveSaves: number;
-}
-
 interface StatsDisplayProps {
   entries: JournalEntry[];
   totalKeystrokes: number;
@@ -35,7 +28,6 @@ interface StatsDisplayProps {
   stacked?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
-  liveSyncStats?: LiveStatsData;
 }
 
 // Split button component for copy/paste
@@ -113,7 +105,7 @@ function ColorButton({
   );
 }
 
-export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed, liveSyncStats }: StatsDisplayProps) {
+export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
   const { error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
@@ -623,28 +615,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               </div>
             </div>
           </div>
-          {/* Live-mode stats */}
-          {liveSyncStats && (
-            <div
-              className="mt-3 pt-3"
-              style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
-            >
-              <div className="grid grid-cols-2 gap-x-0 gap-y-1">
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${Math.round(liveSyncStats.hueDistance).toLocaleString()}° hue travel`)}
-                </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} sl travel`)}
-                </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(liveSyncStats.updateHz !== null ? `${liveSyncStats.updateHz.toFixed(3)} hz` : '--- hz')}
-                </div>
-                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.liveSaves} live ${liveSyncStats.liveSaves === 1 ? 'save' : 'saves'}`)}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

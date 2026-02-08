@@ -5,7 +5,7 @@ import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
 import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter, htmlToText } from '@features/journal';
-import { useStatistics, useLiveStats, StatsDisplay } from '@features/statistics';
+import { useStatistics, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
@@ -131,12 +131,6 @@ function AppContent() {
 
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(isSuperscramble);
-
-  // Live-mode stats (cumulative hue/HSL distance, update hz, live saves)
-  const liveStats = useLiveStats(theme.isLiveStreaming, theme.phoneSaveCount, {
-    hue: theme.hue, sat: theme.saturation, light: theme.lightness,
-    bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
-  }, theme.colorUpdateCountRef);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -720,12 +714,6 @@ function AppContent() {
               stacked={showDebugMenu && showAboutPanel}
               superscramble={isSuperscramble}
               scrambleSeed={scrambleSeed}
-              liveSyncStats={{
-                hueDistance: liveStats.hueDistance,
-                hslDistance: liveStats.hslDistance,
-                updateHz: liveStats.updateHz,
-                liveSaves: liveStats.liveSaves,
-              }}
             />
           </div>
         </div>

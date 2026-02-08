@@ -93,13 +93,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
   const [streamingControls, setStreamingControls] = useState<StreamingControls | null>(null);
-  const [phoneSaveCount, setPhoneSaveCount] = useState(0);
-  const incrementPhoneSaveCount = () => setPhoneSaveCount(c => c + 1);
-
   // Desktop drag override: when true, incoming color-updates skip applyPreset
   const localDragRef = useRef(false);
-  // Counter incremented on every WS color-update message (for hz calculation)
-  const colorUpdateCountRef = useRef(0);
   const setLocalDragging = (dragging: boolean) => { localDragRef.current = dragging; };
 
   const saveLivePreset = () => {
@@ -362,16 +357,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     isLiveActive,
     isLiveStreaming,
     streamingControls,
-    phoneSaveCount,
     setLivePreset,
     setIsLiveActive,
     setIsLiveStreaming,
     setStreamingControls,
     saveLivePreset,
-    incrementPhoneSaveCount,
     localDragRef,
     setLocalDragging,
-    colorUpdateCountRef,
   };
 
   return (
