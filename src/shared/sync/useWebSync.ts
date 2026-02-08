@@ -232,6 +232,14 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
         }
+        // Clear live state immediately — this tab is no longer in control.
+        // The ws.onclose handler won't call startGrace() because wsRef was
+        // already set to null above, so the onclose race guard skips it.
+        if (graceTimer.current) {
+          clearTimeout(graceTimer.current);
+          graceTimer.current = null;
+        }
+        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested }));
       },
     );
     destroyLeaderRef.current = election.destroy;
