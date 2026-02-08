@@ -257,7 +257,7 @@ When the desktop is in live streaming mode, the powerstats area shows real-time 
 |------|-------------|
 | **hue travel** | Cumulative shortest-arc hue distance (text + bg), in degrees |
 | **color travel** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
-| **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 6 decimal places. Shows `--- hz` (null) when not actively streaming. |
+| **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 3 decimal places. Shows `--- hz` (null) when not actively streaming. |
 | **live saves** | Number of times the phone's "save" button was pressed (phone-only, not desktop saves) |
 
 **Architecture (v2.1.38):** The `useLiveStats` hook computes distances **locally from displayed theme values** — no WebSocket callbacks or WebSyncBridge prop threading. The hook receives `colors` (current theme HSL) and computes deltas in the render path (ref-only, zero allocations). A `requestAnimationFrame` loop flushes refs to React state at display refresh rate (~60fps) while streaming is active. This eliminates the callback chain latency and gives snappy, high-framerate stat updates.
