@@ -100,9 +100,23 @@ export function WebSyncBridge() {
     }
   }, [syncState.livePreset]);
 
-  // Bridge streaming state into ThemeContext
+  // Bridge streaming state into ThemeContext.
+  // Auto-switch selection to [live] when streaming starts, so the live
+  // button pulses while the phone is actively sending colors.
+  const prevStreamingRef = useRef(false);
   useEffect(() => {
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = syncState.isStreaming;
     theme.setIsLiveStreaming(syncState.isStreaming);
+
+    // Auto-select live on stream start (false → true) when paired
+    if (!wasStreaming && syncState.isStreaming && syncState.livePreset) {
+      const liveIndex = theme.presets.length + theme.customPresets.length;
+      theme.setIsLiveActive(true);
+      theme.setSelectedPreset(null);
+      theme.setSelectedCustomPreset(null);
+      theme.setActivePresetIndex(liveIndex);
+    }
   }, [syncState.isStreaming]);
 
   // Bridge streamingControls to ThemeContext

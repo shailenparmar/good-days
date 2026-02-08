@@ -480,9 +480,12 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 e.preventDefault();
                 e.stopPropagation();
                 setPresetClickCount(c => c + 1);
-                setPulseKey(k => k + 1);
-                if (!isLiveActive) {
-                  // Select [live], apply its colors
+                if (isLiveActive) {
+                  // Already active — restart pulse animation
+                  setPulseKey(k => k + 1);
+                } else {
+                  // Switch to live — don't increment shared pulseKey to avoid
+                  // remounting the previously-active button (visual border snap)
                   applyPreset(livePreset);
                   setSelectedPreset(null);
                   setSelectedCustomPreset(null);
@@ -520,6 +523,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 setPulseKey(k => k + 1);
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
+                setIsLiveActive(false);
               }}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === randIndex ? 'preset-pulse' : ''}`}
               style={{
@@ -551,6 +555,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 setPulseKey(k => k + 1);
                 saveCustomPreset();
                 setActivePresetIndex(saveIndex);
+                setIsLiveActive(false);
               }}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
               style={{
