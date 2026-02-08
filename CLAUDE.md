@@ -555,14 +555,104 @@ Validation is robust and backward-compatible:
 
 New backups have no header (just encrypted content). Old backups with headers still import fine.
 
-### Encryption Details
+### Encryption Details (Backups)
 
 - **Algorithm**: AES-GCM (256-bit key)
-- **Key derivation**: PBKDF2 with fixed app secret
+- **Key derivation**: PBKDF2 with fixed app secret (non-extractable key)
 - **IV**: Random 12 bytes per encryption (stored with ciphertext)
-- **Code location**: `src/features/export/utils/crypto.ts`
+- **Salt**: `good-days-salt`
+- **Code location**: `src/features/export/utils/crypto.ts` (`encryptText`/`decryptText`)
 
 Note: This is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
+
+### At-Rest Encryption (v2.2.0+)
+
+Journal entries in IndexedDB are encrypted with AES-256-GCM. The encryption level matches the user's security posture:
+
+| Password Set? | Key Source | Security Level |
+|---|---|---|
+| No | App-secret derived key | Obfuscation — stops casual DevTools snooping |
+| Yes | Password-derived key (PBKDF2) | Real security — entries unreadable without password |
+
+**On-disk shape in IndexedDB:**
+```typescript
+{
+  date: string,              // plaintext (keyPath, can't encrypt)
+  _enc: 'app' | 'password',  // which key encrypted this entry
+  _payload: string,           // base64 AES-GCM ciphertext of JSON { content, title }
+  startedAt?: number,         // plaintext (not sensitive)
+  lastModified?: number,      // plaintext (not sensitive)
+}
+```
+
+Only `content` and `title` are encrypted (sensitive text). Timestamps stay plaintext. Legacy entries (no `_enc` marker) are treated as plaintext and pass through.
+
+**Encryption key lifecycle:**
+
+| Has Password? | Session Active? | Flow |
+|---|---|---|
+| No | — | Derive app-secret key → load entries immediately |
+| Yes | Yes (JWK in sessionStorage) | Import JWK → load entries immediately |
+| Yes | No (fresh tab) | Show lock screen → user enters password → derive key, store JWK → load entries |
+| Yes | Cookie wipe | Dead man's switch fires → entries nuked |
+
+**Init order:** `useAuth` calls `initEncryptionKey()` on mount, which sets the encryption key in `journalStorage.ts`. `useJournalEntries` accepts `encryptionKeyReady` and defers `initJournalStorage()` until the key is available. When password-encrypted entries need the lock screen first, entries load after unlock via `reloadEntries()`.
+
+**Key derivation:**
+- App-secret key: PBKDF2 from `APP_SECRET` with salt `good-days-encrypt-salt` (extractable)
+- Password key: PBKDF2 from user password with same salt (extractable)
+- Both are separate from the backup key (different salt: `good-days-salt`, non-extractable)
+- Keys cached in module-level variables to avoid repeated 100k iterations
+
+**JWK session persistence:** Password-derived keys are exported as JWK and stored in `sessionStorage` (`gooddays_encryption_jwk`). Survives refresh, clears on tab close. On ESC lock, JWK is cleared from sessionStorage.
+
+**Password transition flows (ordering is critical — re-encrypt BEFORE updating hash):**
+- **Set password:** Derive password key → `reEncryptAllEntries(newKey, 'password')` → store password hash → store JWK
+- **Change password:** Derive new password key → `reEncryptAllEntries(newKey, 'password')` → update hash → update JWK
+- **Remove password:** Derive app key → `reEncryptAllEntries(appKey, 'app')` → remove hash → clear JWK
+
+If re-encryption fails, entries remain encrypted with the old key and the old hash is still valid. No data loss.
+
+**Plaintext migration:** On `initJournalStorage()`, if `encryptionMode` metadata is `'none'` (or missing) and a key is available, all entries are written back encrypted and the mode is updated. One-time, automatic.
+
+**Fallback mode:** Encryption is skipped in localStorage fallback mode (IndexedDB failure). The synchronous localStorage path doesn't support async crypto.
+
+**localStorage encryption (v2.2.0+):** `src/shared/storage/index.ts` encrypts all localStorage values with XOR cipher (static key `gdays-ls-cipher-v1`). Values prefixed with `$e:` are encrypted; unprefixed values are legacy plaintext (auto-decrypted on read). The `index.html` IIFE mirrors this decryption for pre-React theme loading.
+
+**Key files:**
+
+| File | Purpose |
+|------|---------|
+| `src/features/export/utils/crypto.ts` | All crypto primitives (key derivation, encrypt/decrypt, JWK) |
+| `src/shared/storage/journalStorage.ts` | Encrypt on write, decrypt on read, re-encryption, migration |
+| `src/features/auth/hooks/useAuth.ts` | Key lifecycle, `initEncryptionKey()`, password transitions |
+| `src/shared/storage/index.ts` | localStorage XOR encryption |
+
+**New exports from `journalStorage.ts`:**
+
+| Function | Purpose |
+|----------|---------|
+| `setEncryptionKey(key, mode)` | Set the active encryption key |
+| `reEncryptAllEntries(newKey, newMode)` | Re-encrypt all entries with a new key |
+| `getEncryptionMode()` | Read encryption mode from metadata |
+
+**New exports from `crypto.ts`:**
+
+| Function | Purpose |
+|----------|---------|
+| `getAppEncryptKey()` | Derive extractable app-secret key for at-rest encryption |
+| `encryptWithKey(plaintext, key)` | Encrypt with any CryptoKey |
+| `decryptWithKey(ciphertext, key)` | Decrypt with any CryptoKey |
+| `derivePasswordKey(password)` | Derive extractable key from user password |
+| `exportKeyToJWK(key)` / `importKeyFromJWK(jwk)` | JWK export/import for sessionStorage |
+
+**New exports from `useAuth.ts`:**
+
+| Function/Field | Purpose |
+|----------|---------|
+| `encryptionKeyReady` | Boolean — true when key is available for storage ops |
+| `changePassword(newPassword)` | Re-encrypt + update hash (for password change flow) |
+| `initEncryptionKey()` | Standalone init function (called on mount) |
 
 ### Import Conflict Handling
 
