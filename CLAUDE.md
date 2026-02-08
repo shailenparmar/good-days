@@ -484,6 +484,17 @@ The "ensure today's entry exists" effect in `useJournalEntries.ts` creates an em
 
 **reloadEntries htmlToText:** `reloadEntries()` (used after password unlock) now calls `htmlToText()` before setting `currentContent`, consistent with all other code paths.
 
+### Screen Copy Approval Policy
+
+**All user-facing copy and screens must be approved by the user.** Do not add new text screens without approval. Currently approved:
+- "something went wrong" (error boundary) — DEFAULT_PRESET_1 colors (black text on peach bg)
+
+The loading screen (IndexedDB init) is a blank DEFAULT_PRESET_1 background with no text. Any new screens or copy require user sign-off.
+
+### Lock Screen vs Loading Screen Order (v2.2.6+)
+
+The lock screen check (`auth.isLocked && auth.hasPassword`) MUST run before the loading check (`journal.isLoading`) in `AppContent`. Without this, password-protected users see an infinite blank screen because `encryptionKeyReady` stays `false` until the password is entered, which means `isLoading` stays `true` forever and blocks the lock screen from rendering.
+
 ### Error Boundary Emergency Save (v1.10.0+)
 
 If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending debounced writes to IndexedDB before showing the error screen.
@@ -1854,11 +1865,11 @@ When changing the default preset, update BOTH locations.
 
 ### Error Screen
 
-The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded colors:
-- Text: `hsl(116, 100%, 53%)` - bright green (#1fff0f)
-- Background: `hsl(0, 0%, 0%)` - black (#000000)
+The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded DEFAULT_PRESET_1 colors:
+- Text: `hsl(215, 100%, 0%)` - black
+- Background: `hsl(28, 100%, 83%)` - peach
 
-These are intentionally NOT tied to presets so the error screen always displays consistently.
+These are intentionally NOT tied to presets so the error screen always displays consistently. The "something went wrong" screen is the only user-approved copy screen.
 
 ### Preset Grid Layout
 
