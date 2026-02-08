@@ -1381,16 +1381,16 @@ The hover region must only cover the text content, not the spacing above it. Thi
 
 | State | Display |
 |-------|---------|
-| Not hovered | Color stats: `txt: h{N} s{N} l{N}` and `bg: h{N} s{N} l{N}` |
+| Not hovered | 2x2 grid: `txt: #hex` / `hN sN lN` (row 1), `bg: #hex` / `hN sN lN` (row 2) |
 | Hovered | Split buttons: `copy` (left) / `paste` (right) |
 
-**Copy**: Copies both colors to clipboard in HSL format:
+**Copy**: Copies both colors to clipboard with hex + HSL:
 ```
-txt: h96 s100 l50
-bg: h84 s100 l88
+txt: #1fff0f h116 s100 l53
+bg: #000000 h96 s100 l0
 ```
 
-**Paste**: Reads clipboard, parses color values, applies them, creates new preset. Only accepts the `txt: h{N} s{N} l{N}` / `bg: h{N} s{N} l{N}` format — no hex, no commas, no percent signs.
+**Paste**: Reads clipboard, parses color values, applies them, creates new preset. Only accepts the `txt: #hex hN sN lN` / `bg: #hex hN sN lN` format.
 
 Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
@@ -1762,23 +1762,23 @@ Code: `handleRandomize` function + `onTouchEnd` on home screen container + `data
 
 | Button | Action |
 |--------|--------|
-| `copy` | Copies `txt: h96 s100 l50\nbg: h84 s100 l88` to clipboard |
-| `paste` | Parses clipboard, applies colors. Only accepts `txt: h{N} s{N} l{N}` / `bg: h{N} s{N} l{N}` format. Shows "invalid format" for 1.5s if clipboard doesn't match (v2.1.32+) |
+| `copy` | Copies `txt: #hex hN sN lN\nbg: #hex hN sN lN` to clipboard |
+| `paste` | Parses clipboard, applies colors. Only accepts `txt: #hex hN sN lN` / `bg: #hex hN sN lN` format. Shows "invalid format" for 1.5s if clipboard doesn't match (v2.1.32+) |
 
-**Copy format (v2.3.0+):** HSL-only, no hex, no commas, no percent signs. Example:
+**Copy format (v2.3.9+):** Hex + HSL on each line. Example:
 ```
-txt: h96 s100 l50
-bg: h84 s100 l88
+txt: #1fff0f h116 s100 l53
+bg: #000000 h96 s100 l0
 ```
 
 **iOS copy method:** Uses textarea + `document.execCommand('copy')` instead of `navigator.clipboard.writeText()`. The Clipboard API on iOS Safari URL-encodes text when pasting into iMessage and other apps (`%20` for spaces, `%25` for `%`, etc.). The textarea approach writes pure plain text. Falls back to Clipboard API if execCommand fails.
 
 **Paste decoding:** Both mobile and desktop paste handlers run `decodeURIComponent()` on clipboard text before parsing, as a safety net for URL-encoded input.
 
-**Accepted paste format (v2.3.0+):**
-- `txt: h{N} s{N} l{N}` - text color HSL
-- `bg: h{N} s{N} l{N}` - background color HSL
-- All other formats (hex, comma-separated, bare values) are rejected as "invalid format"
+**Accepted paste format (v2.3.9+):**
+- `txt: #hex hN sN lN` - text color (hex + HSL)
+- `bg: #hex hN sN lN` - background color (hex + HSL)
+- All other formats (bare HSL, comma-separated, hex-only) are rejected as "invalid format"
 
 **Paste validation (v2.1.32+, updated v2.1.37):** When pasted clipboard content doesn't match any supported format, the copy|paste split is replaced by a single full-width "invalid format" indicator for 1.5 seconds, then reverts to copy|paste. Mobile: rendered as a full-width button (same `getButtonStyle` with position `'full'`). Desktop: rendered as a full-width `<div>` with matching border styling. No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Dismisses on any click or keystroke. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
 
