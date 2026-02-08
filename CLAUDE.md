@@ -1747,15 +1747,17 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 4. If granted, home screen shown
 5. If denied, tilt controls won't work (hue-only mode)
 
-### Tap-to-Randomize (v2.2.8+)
+### Tap-to-Randomize (v2.2.8+, expanded v2.2.9)
 
-Tapping anywhere **outside the button area** on the mobile home screen randomizes all 6 color values (text hue/sat/light + bg hue/sat/light) with haptic feedback (10ms vibrate). If paired with a laptop, sends a one-shot `color-update` via the `startStream → sendColorUpdate → stopStream` pattern (same as paste sync).
+Tapping anywhere on the mobile home screen randomizes all 6 color values (text hue/sat/light + bg hue/sat/light) with haptic feedback (10ms vibrate). If paired with a laptop, sends a one-shot `color-update` via the `startStream → sendColorUpdate → stopStream` pattern (same as paste sync).
 
-**Touch target:** The entire inner flex container (title + tilt square + dead space). The button area has `data-buttons` attribute; the `onTouchEnd` handler on the parent checks `e.target.closest('[data-buttons]')` to exclude button taps.
+**Touch target:** The entire inner flex container. Only the "good days" title and actual button faces are excluded — gaps between buttons (12px), sides of buttons, and the 44px bottom padding all trigger randomize. Each individual button and the title have `data-btn` attribute; the `onTouchEnd` handler on the parent checks `e.target.closest('[data-btn]')` to exclude them.
 
-**Title interaction:** Tapping the title triggers both the version display (brief flash via touchStart/touchEnd) and randomize (bubble to parent). This is intentional — the title is outside the buttons.
+**Why per-element marking (v2.2.9):** Previously `data-buttons` was on the button container div, which excluded the gaps too. Moving to `data-btn` on individual elements means only the actual interactive surfaces are excluded.
 
-Code: `handleRandomize` function + `onTouchEnd` on home screen container + `data-buttons` on button area in `src/main.tsx`.
+**Title interaction:** Tapping the title shows the version (touchStart/touchEnd) but does NOT randomize — it has `data-btn` to exclude it.
+
+Code: `handleRandomize` function + `onTouchEnd` on home screen container + `data-btn` on individual buttons/title in `src/main.tsx`.
 
 ### Copy/Paste
 
