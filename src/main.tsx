@@ -969,7 +969,6 @@ function MobileScreen() {
         } as React.CSSProperties}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
-        onTouchEnd={(e) => { if (!(e.target as HTMLElement).closest('[data-btn]')) handleRandomize(); }}
       >
         <span
           data-btn
@@ -979,8 +978,10 @@ function MobileScreen() {
           onTouchCancel={() => setTitlePressed(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        {/* Square complex - centered between title and buttons */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Square complex - centered between title and buttons (tap to randomize) */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onTouchEnd={() => handleRandomize()}
+        >
           {tiltSquare(252, false)}
         </div>
 
