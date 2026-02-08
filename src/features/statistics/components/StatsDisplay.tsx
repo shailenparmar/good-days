@@ -6,6 +6,13 @@ import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared
 import { getStorageEstimate } from '@shared/storage/journalStorage';
 import type { JournalEntry } from '../types';
 
+interface LiveStatsData {
+  hueDistance: number;
+  hslDistance: number;
+  msgPerSec: number | null;
+  phoneSaves: number;
+}
+
 interface StatsDisplayProps {
   entries: JournalEntry[];
   totalKeystrokes: number;
@@ -14,6 +21,7 @@ interface StatsDisplayProps {
   stacked?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
+  liveSyncStats?: LiveStatsData;
 }
 
 // Convert HSL to HEX
@@ -104,7 +112,7 @@ function ColorButton({
   );
 }
 
-export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
+export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed, liveSyncStats }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
@@ -643,26 +651,40 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 className="flex items-center"
                 style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'visible' : 'hidden' }}
               >
-                <ColorButton
-                  onClick={handleColorCopy}
-                  position="left"
-                  getColor={getColor}
-                  hue={hue}
-                  saturation={saturation}
-                  lightness={lightness}
-                >
-                  {s('copy')}
-                </ColorButton>
-                <ColorButton
-                  onClick={handleColorPaste}
-                  position="right"
-                  getColor={getColor}
-                  hue={hue}
-                  saturation={saturation}
-                  lightness={lightness}
-                >
-                  {pasteInvalid ? s('invalid format') : s('paste')}
-                </ColorButton>
+                {pasteInvalid ? (
+                  <div
+                    className="flex-1 px-3 py-2 text-xs font-mono font-bold text-center rounded select-none"
+                    style={{
+                      color: getColor(),
+                      border: `3px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`,
+                    }}
+                  >
+                    {s('invalid format')}
+                  </div>
+                ) : (
+                  <>
+                    <ColorButton
+                      onClick={handleColorCopy}
+                      position="left"
+                      getColor={getColor}
+                      hue={hue}
+                      saturation={saturation}
+                      lightness={lightness}
+                    >
+                      {s('copy')}
+                    </ColorButton>
+                    <ColorButton
+                      onClick={handleColorPaste}
+                      position="right"
+                      getColor={getColor}
+                      hue={hue}
+                      saturation={saturation}
+                      lightness={lightness}
+                    >
+                      {s('paste')}
+                    </ColorButton>
+                  </>
+                )}
               </div>
               <div
                 className="grid grid-cols-2 gap-x-0 gap-y-1"
@@ -683,6 +705,28 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               </div>
             </div>
           </div>
+          {/* Live-mode stats */}
+          {liveSyncStats && (
+            <div
+              className="mt-3 pt-3"
+              style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            >
+              <div className="grid grid-cols-2 gap-x-0 gap-y-1">
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {s(`${Math.round(liveSyncStats.hueDistance).toLocaleString()}° hue dist`)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} hsl dist`)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {s(`${liveSyncStats.msgPerSec !== null ? liveSyncStats.msgPerSec : '--'} msg/s`)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  {s(`${liveSyncStats.phoneSaves} phone ${liveSyncStats.phoneSaves === 1 ? 'save' : 'saves'}`)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

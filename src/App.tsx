@@ -5,7 +5,7 @@ import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@features/theme';
 import { useAuth, LockScreen } from '@features/auth';
 import { useJournalEntries, JournalEditor, EntrySidebar, EntryHeader, EntryFooter, htmlToText } from '@features/journal';
-import { useStatistics, StatsDisplay } from '@features/statistics';
+import { useStatistics, useLiveStats, StatsDisplay } from '@features/statistics';
 import { SettingsPanel, AboutPanel } from '@features/settings';
 
 // Shared imports
@@ -131,6 +131,9 @@ function AppContent() {
 
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(isSuperscramble);
+
+  // Live-mode stats (cumulative hue/HSL distance, msg/s, phone saves)
+  const liveStats = useLiveStats(theme.isLiveStreaming);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -647,7 +650,7 @@ function AppContent() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
-      <WebSyncBridge />
+      <WebSyncBridge onLiveColorUpdate={liveStats.recordColorUpdate} onLiveSavePreset={liveStats.recordSave} />
       {/* Global styles */}
       <style>
         {`
@@ -724,6 +727,12 @@ function AppContent() {
               stacked={showDebugMenu && showAboutPanel}
               superscramble={isSuperscramble}
               scrambleSeed={scrambleSeed}
+              liveSyncStats={{
+                hueDistance: liveStats.hueDistance,
+                hslDistance: liveStats.hslDistance,
+                msgPerSec: liveStats.msgPerSec,
+                phoneSaves: liveStats.phoneSaves,
+              }}
             />
           </div>
         </div>

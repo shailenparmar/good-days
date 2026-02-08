@@ -723,7 +723,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.35';
+  const mobileVersion = '2.1.37';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1046,43 +1046,49 @@ function MobileScreen() {
             </div>
           </div>
 
-          <div style={{ display: 'flex' }}>
-            <div
-              onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.copy = true; setCopyPressed(true); }}
-              onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.copy = false; setCopyPressed(false); } }}
-              onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.copy) handleCopy(); buttonEngaged.current.copy = false; setCopyPressed(false); }}
-              onTouchCancel={() => { buttonEngaged.current.copy = false; setCopyPressed(false); }}
-              style={getButtonStyle(copyPressed, 'left', 'aux')}
-            >
-              copy
+          {pasteInvalid ? (
+            <div style={getButtonStyle(false, 'full', 'aux')}>
+              invalid format
             </div>
-            {isLive && (
+          ) : (
+            <div style={{ display: 'flex' }}>
               <div
-                onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.save = true; setSavePressed(true); }}
-                onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.save = false; setSavePressed(false); } }}
-                onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.save) { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); } buttonEngaged.current.save = false; setSavePressed(false); }}
-                onTouchCancel={() => { buttonEngaged.current.save = false; setSavePressed(false); }}
-                style={getButtonStyle(savePressed, 'center', 'aux')}
+                onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.copy = true; setCopyPressed(true); }}
+                onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.copy = false; setCopyPressed(false); } }}
+                onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.copy) handleCopy(); buttonEngaged.current.copy = false; setCopyPressed(false); }}
+                onTouchCancel={() => { buttonEngaged.current.copy = false; setCopyPressed(false); }}
+                style={getButtonStyle(copyPressed, 'left', 'aux')}
               >
-                save
+                copy
               </div>
-            )}
-            <div
-              onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.paste = true; setPastePressed(true); }}
-              onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
-              onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.paste) handlePaste(); buttonEngaged.current.paste = false; setPastePressed(false); }}
-              onTouchCancel={() => { buttonEngaged.current.paste = false; setPastePressed(false); }}
-              style={{ ...getButtonStyle(pastePressed, 'right', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
-              role="button"
-              tabIndex={-1}
-              // @ts-expect-error -- writingSuggestions is a valid HTML attribute (iOS 18+) not yet in React types
-              writingSuggestions="false"
-              contentEditable={false}
-              spellCheck={false}
-            >
-              <span style={{ pointerEvents: 'none' }}>{pasteInvalid ? 'invalid format' : <>{'p'}{'a'}{'s'}{'t'}{'e'}</>}</span>
+              {isLive && (
+                <div
+                  onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.save = true; setSavePressed(true); }}
+                  onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.save = false; setSavePressed(false); } }}
+                  onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.save) { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); } buttonEngaged.current.save = false; setSavePressed(false); }}
+                  onTouchCancel={() => { buttonEngaged.current.save = false; setSavePressed(false); }}
+                  style={getButtonStyle(savePressed, 'center', 'aux')}
+                >
+                  save
+                </div>
+              )}
+              <div
+                onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.paste = true; setPastePressed(true); }}
+                onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.paste = false; setPastePressed(false); } }}
+                onTouchEnd={(e) => { e.preventDefault(); if (buttonEngaged.current.paste) handlePaste(); buttonEngaged.current.paste = false; setPastePressed(false); }}
+                onTouchCancel={() => { buttonEngaged.current.paste = false; setPastePressed(false); }}
+                style={{ ...getButtonStyle(pastePressed, 'right', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
+                role="button"
+                tabIndex={-1}
+                // @ts-expect-error -- writingSuggestions is a valid HTML attribute (iOS 18+) not yet in React types
+                writingSuggestions="false"
+                contentEditable={false}
+                spellCheck={false}
+              >
+                <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
       </div>

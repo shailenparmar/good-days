@@ -3,7 +3,6 @@ import { createLeaderElection } from './leaderElection';
 import { getWsUrl } from './protocol';
 import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
-const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
 const DEVICE_ID_KEY = 'wsDeviceId';
 const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
@@ -17,30 +16,6 @@ function getOrCreateDeviceId(): string {
   }
   return id;
 }
-
-// IP fetch runs eagerly on module load so it's cached before first connect()
-let ipPromise: Promise<string> | null = null;
-
-function fetchPublicIp(): Promise<string> {
-  const cached = sessionStorage.getItem(IP_CACHE_KEY);
-  if (cached) return Promise.resolve(cached);
-  if (!ipPromise) {
-    ipPromise = fetch('https://api.ipify.org?format=text')
-      .then(resp => resp.text())
-      .then(ip => {
-        sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
-        return ip.trim();
-      })
-      .catch(() => {
-        ipPromise = null;
-        return 'unknown';
-      });
-  }
-  return ipPromise;
-}
-
-// Start fetching immediately on module load
-fetchPublicIp();
 
 export interface WebSyncState {
   livePreset: ColorPayload | null;
@@ -82,14 +57,13 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     }
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(() => {
     if (!isLeaderRef.current || !mountedRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     const url = getWsUrl();
     if (!url) return;
 
-    const ip = await fetchPublicIp();
     const secret = localStorage.getItem(SECRET_KEY) || undefined;
 
     try {
@@ -112,11 +86,10 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         }
 
         const colorway = colorwayRef.current || undefined;
-        console.log('[ws-sync] registering as laptop, ip=', ip, 'secret=', secret || 'none');
+        console.log('[ws-sync] registering as laptop, secret=', secret || 'none');
         sendMsg({
           type: 'register',
           role: 'laptop',
-          publicIp: ip,
           secret,
           colorway,
           deviceId: getOrCreateDeviceId(),

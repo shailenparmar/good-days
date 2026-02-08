@@ -93,7 +93,10 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
             {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
           </p>
           <p>
-            {s("everything added lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.")}
+            {s("everything you write lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.")}
+          </p>
+          <p>
+            {s("note that live mode sends your current colorway through a relay server for device pairing.")}
           </p>
           <p>
             {s("however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}

@@ -9,7 +9,7 @@ export interface ColorPayload {
 
 // Client → Server
 export type ClientMessage =
-  | { type: 'register'; role: 'phone' | 'laptop'; publicIp: string; secret?: string; colorway?: ColorPayload; deviceId?: string; partnerDeviceId?: string }
+  | { type: 'register'; role: 'phone' | 'laptop'; secret?: string; colorway?: ColorPayload; deviceId?: string; partnerDeviceId?: string }
   | { type: 'pair-request'; targetId: string }
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }

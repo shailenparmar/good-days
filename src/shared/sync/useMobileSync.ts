@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWsUrl } from './protocol';
 import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
-const IP_CACHE_KEY = 'wsPublicIp';
 const SECRET_KEY = 'wsSecret';
 const DEVICE_ID_KEY = 'wsDeviceId';
 const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
@@ -14,19 +13,6 @@ function getOrCreateDeviceId(): string {
     localStorage.setItem(DEVICE_ID_KEY, id);
   }
   return id;
-}
-
-async function fetchPublicIp(): Promise<string> {
-  const cached = sessionStorage.getItem(IP_CACHE_KEY);
-  if (cached) return cached;
-  try {
-    const resp = await fetch('https://api.ipify.org?format=text');
-    const ip = await resp.text();
-    sessionStorage.setItem(IP_CACHE_KEY, ip.trim());
-    return ip.trim();
-  } catch {
-    return 'unknown';
-  }
 }
 
 export type PairingState = 'standalone' | 'pairing' | 'paired';
@@ -66,14 +52,13 @@ export function useMobileSync(): MobileSyncHandle {
     }
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(() => {
     if (!mountedRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     const url = getWsUrl();
     if (!url) return;
 
-    const ip = await fetchPublicIp();
     const secret = localStorage.getItem(SECRET_KEY) || undefined;
 
     try {
@@ -88,11 +73,10 @@ export function useMobileSync(): MobileSyncHandle {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
         }
-        console.log('[mobile-sync] registering as phone, ip=', ip, 'secret=', secret || 'none');
+        console.log('[mobile-sync] registering as phone, secret=', secret || 'none');
         sendMsg({
           type: 'register',
           role: 'phone',
-          publicIp: ip,
           secret,
           deviceId: getOrCreateDeviceId(),
           partnerDeviceId: localStorage.getItem(PARTNER_DEVICE_ID_KEY) || undefined,
