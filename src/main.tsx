@@ -677,6 +677,26 @@ function MobileScreen() {
     }).catch(() => {});
   };
 
+  // Randomize — tap anywhere outside buttons on home screen
+  const handleRandomize = () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    const newColors: ColorState = {
+      hue: Math.floor(Math.random() * 360),
+      sat: Math.floor(Math.random() * 101),
+      light: Math.floor(Math.random() * 101),
+      bgHue: Math.floor(Math.random() * 360),
+      bgSat: Math.floor(Math.random() * 101),
+      bgLight: Math.floor(Math.random() * 101),
+    };
+    setColors(newColors);
+    // One-shot sync to paired laptop
+    if (sync.pairingState === 'paired') {
+      sync.startStream('text');
+      sync.sendColorUpdate(newColors);
+      sync.stopStream();
+    }
+  };
+
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';
 
@@ -724,7 +744,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.2.4';
+  const mobileVersion = '2.2.8';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1008,7 +1028,9 @@ function MobileScreen() {
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
+        onTouchEnd={(e) => { if (!(e.target as HTMLElement).closest('[data-buttons]')) handleRandomize(); }}
+      >
         <span
           style={titleStyle}
           onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
@@ -1021,7 +1043,7 @@ function MobileScreen() {
           {tiltSquare(252, false)}
         </div>
 
-        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
+        <div data-buttons style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
           <div
             onTouchStart={(e) => { e.preventDefault(); buttonEngaged.current.reset = true; setResetPressed(true); }}
             onTouchMove={(e) => { if (!isTouchInside(e)) { buttonEngaged.current.reset = false; setResetPressed(false); } }}
