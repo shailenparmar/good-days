@@ -128,18 +128,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (savedBgLight !== null) setBgLightness(Number(savedBgLight));
   }, []);
 
-  // Save color settings
+  // Save color settings — skip during streaming for performance.
+  // At 60fps streaming, 6 XOR-encrypted localStorage writes per frame (~2ms)
+  // push the frame budget over 16.67ms. When streaming stops, isLiveStreaming
+  // flips false → this dep changes → effect fires → saves final colors.
   useEffect(() => {
+    if (isLiveStreaming) return;
     setItem('colorHue', String(hue));
     setItem('colorSaturation', String(saturation));
     setItem('colorLightness', String(lightness));
     setItem('bgHue', String(bgHue));
     setItem('bgSaturation', String(bgSaturation));
     setItem('bgLightness', String(bgLightness));
-  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
+  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness, isLiveStreaming]);
 
-  // Update Safari toolbar color + page background when background changes
+  // Update Safari toolbar color + page background when background changes.
+  // Skip during streaming — the flex container's inline style handles visual bg,
+  // and Safari toolbar tinting is irrelevant while the phone is in use.
   useEffect(() => {
+    if (isLiveStreaming) return;
     // Convert to hex — Safari handles hex more reliably than HSL for theme-color
     const s = bgSaturation / 100, l = bgLightness / 100;
     const a = s * Math.min(l, 1 - l);
@@ -156,7 +163,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Safari also uses the page background for toolbar tinting
     document.documentElement.style.backgroundColor = hex;
     document.body.style.backgroundColor = hex;
-  }, [bgHue, bgSaturation, bgLightness]);
+  }, [bgHue, bgSaturation, bgLightness, isLiveStreaming]);
 
   // Save presets
   useEffect(() => {

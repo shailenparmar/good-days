@@ -65,7 +65,12 @@ export function WebSyncBridge() {
   useEffect(() => {
     if (skipBridgeRef.current) {
       skipBridgeRef.current = false;
-      return;
+      // Only skip non-null transitions (color updates during streaming).
+      // Never skip null (disconnect) — skipBridgeRef stays true during streaming
+      // because the rAF callback sets it every frame but this effect doesn't fire
+      // (syncState.livePreset doesn't change during streaming). Without this guard,
+      // disconnect would be swallowed and live mode wouldn't drop.
+      if (syncState.livePreset) return;
     }
     theme.setLivePreset(syncState.livePreset ? {
       hue: syncState.livePreset.hue,
