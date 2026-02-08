@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
+import { ABOUT_COPY } from '@shared/copy/aboutCopy';
 
 interface AboutPanelProps {
   isOpen: boolean;
@@ -81,27 +82,21 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>
         <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
-          {s("welcome to good days, your time-capsule journal oasis.")}
+          {s(ABOUT_COPY.welcome)}
         </p>
       </div>
 
       {/* Privacy */}
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
-          <p>{s("privacy:")}</p>
+          <p>{s(ABOUT_COPY.privacy.header)}</p>
+          {ABOUT_COPY.privacy.paragraphs.slice(0, -1).map((p, i) => (
+            <p key={i}>{s(p)}</p>
+          ))}
           <p>
-            {s("entries are not sent to servers. a developer couldn't view your writing even if they wanted to.")}
-          </p>
-          <p>
-            {s("everything added lives encrypted or hashed on your hard drive in local browser storage — long-term data storage. the website pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.")}
-          </p>
-          <p>
-            {s("however, if you manually delete site data in browser settings, you'll clear the journal. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
-          </p>
-          <p>
-            {s("as a safety guarantee, the entire product is open source.")}{' '}
+            {s(ABOUT_COPY.privacy.paragraphs[ABOUT_COPY.privacy.paragraphs.length - 1])}{' '}
             <a
-              href="https://github.com/shailenparmar/good-days"
+              href={ABOUT_COPY.privacy.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
@@ -120,10 +115,10 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       {/* Features */}
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
-          <p>{s("features:")}</p>
-          <p>{s("a new page spawns at midnight; old logs are set in stone.")}</p>
-          <p>{s("every character saves instantly. draft while scrambled to slip prying eyes or writer's block. clicking the footer bows in to zen mode. hold spacebar on rand for chaotic good. \\time delivers a stamp. settings and about join forces for a poweruser menu.")}</p>
-          <p>{s("write untethered courtesy of a desktop download; the right end of a chrome address bar shelters an install button. in safari, bother the share icon for add to dock.")}</p>
+          <p>{s(ABOUT_COPY.features.header)}</p>
+          {ABOUT_COPY.features.paragraphs.map((p, i) => (
+            <p key={i}>{s(p)}</p>
+          ))}
         </div>
       </div>
 
@@ -131,10 +126,10 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       <div className="p-4">
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>
-            {s("i hope this app disappears into your life. here's to many colorways and many more good days.")}
+            {s(ABOUT_COPY.closing)}
           </p>
           <p className="mt-4">
-            {s("- shai")}
+            {s(ABOUT_COPY.signature)}
           </p>
         </div>
       </div>
