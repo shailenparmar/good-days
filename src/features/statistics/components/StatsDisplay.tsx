@@ -7,6 +7,18 @@ import { getStorageEstimate } from '@shared/storage/journalStorage';
 import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
 
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 interface LiveStatsData {
   hueDistance: number;
   hslDistance: number;
@@ -362,7 +374,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Supports: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or "120, 50%, 60%" or "#ff0000"
   const parseColorInput = useCallback((input: string) => {
     const trimmed = input.trim();
-    const match = trimmed.match(/^(txt|bg):\s*h(\d+)\s+s(\d+)\s+l(\d+)/i);
+    const match = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
     if (match) {
       return { type: match[1].toLowerCase() as 'txt' | 'bg', h: parseInt(match[2]), s: parseInt(match[3]), l: parseInt(match[4]) };
     }
@@ -371,8 +383,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   // Handle copy button click - copies hex + hsl color values to clipboard
   const handleColorCopy = useCallback(() => {
-    const textLine = `txt: h${hue % 360} s${saturation} l${lightness}`;
-    const bgLine = `bg: h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
+    const textLine = `txt: ${hslToHex(hue % 360, saturation, lightness)} h${hue % 360} s${saturation} l${lightness}`;
+    const bgLine = `bg: ${hslToHex(bgHue % 360, bgSaturation, bgLightness)} h${bgHue % 360} s${bgSaturation} l${bgLightness}`;
     const copyText = `${textLine}\n${bgLine}`;
     navigator.clipboard.writeText(copyText);
     markEasterEggFound('selectColorText');
@@ -601,14 +613,20 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                 )}
               </div>
               <div
-                className="grid gap-y-1"
+                className="grid grid-cols-2 gap-x-0 gap-y-1"
                 style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'hidden' : 'visible' }}
               >
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  txt: h{hue} s{saturation} l{lightness}
+                  txt: {hslToHex(hue % 360, saturation, lightness)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  bg: h{bgHue} s{bgSaturation} l{bgLightness}
+                  h{hue % 360} s{saturation} l{lightness}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  bg: {hslToHex(bgHue % 360, bgSaturation, bgLightness)}
+                </div>
+                <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
+                  h{bgHue % 360} s{bgSaturation} l{bgLightness}
                 </div>
               </div>
             </div>

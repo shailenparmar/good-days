@@ -29,7 +29,7 @@ type ColorState = {
 
 function parseColorInput(input: string) {
   const trimmed = input.trim();
-  const match = trimmed.match(/^(txt|bg):\s*h(\d+)\s+s(\d+)\s+l(\d+)/i);
+  const match = trimmed.match(/^(txt|bg):\s*#[0-9a-f]{6}\s+h(\d+)\s+s(\d+)\s+l(\d+)/i);
   if (match) {
     return { type: match[1].toLowerCase() as 'txt' | 'bg', h: parseInt(match[2]), s: parseInt(match[3]), l: parseInt(match[4]) };
   }
@@ -567,7 +567,7 @@ function MobileScreen() {
   // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
-    const text = `txt: h${colors.hue % 360} s${colors.sat} l${colors.light}\nbg: h${colors.bgHue % 360} s${colors.bgSat} l${colors.bgLight}`;
+    const text = `txt: ${hslToHex(colors.hue % 360, colors.sat, colors.light)} h${colors.hue % 360} s${colors.sat} l${colors.light}\nbg: ${hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)} h${colors.bgHue % 360} s${colors.bgSat} l${colors.bgLight}`;
     // Textarea + execCommand for plain text copy on iOS (clipboard API URL-encodes in iMessage)
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -692,7 +692,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.3.8';
+  const mobileVersion = '2.3.9';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
