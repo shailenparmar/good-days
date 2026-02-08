@@ -489,11 +489,11 @@ The "ensure today's entry exists" effect in `useJournalEntries.ts` creates an em
 **All user-facing copy and screens must be approved by the user.** Do not add new text screens without approval. Currently approved:
 - "something went wrong" (error boundary) — DEFAULT_PRESET_1 colors (black text on peach bg)
 
-The loading screen (IndexedDB init) is a blank DEFAULT_PRESET_1 background with no text. Any new screens or copy require user sign-off.
+There is no loading screen (v2.2.8+). The app renders immediately with empty entries; content pops in once IndexedDB loads. Any new screens or copy require user sign-off.
 
-### Lock Screen vs Loading Screen Order (v2.2.6+)
+### Lock Screen Must Be First Render Gate (v2.2.6+)
 
-The lock screen check (`auth.isLocked && auth.hasPassword`) MUST run before the loading check (`journal.isLoading`) in `AppContent`. Without this, password-protected users see an infinite blank screen because `encryptionKeyReady` stays `false` until the password is entered, which means `isLoading` stays `true` forever and blocks the lock screen from rendering.
+The lock screen check (`auth.isLocked && auth.hasPassword`) MUST be the first conditional return in `AppContent`. No other gates (loading, etc.) should come before it. Without this, password-protected users can't reach the lock screen because `encryptionKeyReady` stays `false` until the password is entered.
 
 ### Error Boundary Emergency Save (v1.10.0+)
 
@@ -3266,20 +3266,7 @@ The `metadata` store tracks migration state with a `migrated` key.
 
 ### Loading State
 
-The app shows a brief "loading..." screen while IndexedDB initializes:
-
-```tsx
-// App.tsx
-if (journal.isLoading) {
-  return (
-    <div className="flex h-screen items-center justify-center" style={{ backgroundColor }}>
-      <span className="text-base font-mono font-bold" style={{ color }}>loading...</span>
-    </div>
-  );
-}
-```
-
-The `useJournalEntries` hook exposes `isLoading` which is `true` until `initJournalStorage()` completes.
+There is no loading screen (v2.2.8+). The app renders the main UI immediately with empty entries; content pops in once `initJournalStorage()` completes. The `useJournalEntries` hook exposes `isLoading` which is `true` until init completes, but no gate blocks rendering.
 
 ### Migration Flow
 
