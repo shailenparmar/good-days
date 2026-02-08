@@ -256,7 +256,7 @@ When the desktop is in live streaming mode, the powerstats area shows real-time 
 | Stat | Description |
 |------|-------------|
 | **hue travel** | Cumulative shortest-arc hue distance (text + bg), in degrees |
-| **color travel** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
+| **sl travel** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
 | **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 3 decimal places. Shows `--- hz` (null) when not actively streaming. |
 | **live saves** | Number of times the phone's "save" button was pressed (phone-only, not desktop saves) |
 
@@ -1355,7 +1355,7 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
 ## Color Stats Copy/Paste
 
-In powerstat mode, the color stats area (txt/bg HSL and HEX values) shows copy/paste buttons on hover.
+In powerstat mode, the color stats area (txt/bg HSL values) shows copy/paste buttons on hover.
 
 ### Hover Region Structure
 
@@ -1381,16 +1381,16 @@ The hover region must only cover the text content, not the spacing above it. Thi
 
 | State | Display |
 |-------|---------|
-| Not hovered | Color stats: `txt: H, S%, L%` and HEX values |
+| Not hovered | Color stats: `txt: h{N} s{N} l{N}` and `bg: h{N} s{N} l{N}` |
 | Hovered | Split buttons: `copy` (left) / `paste` (right) |
 
-**Copy**: Copies both colors to clipboard in hex format:
+**Copy**: Copies both colors to clipboard in HSL format:
 ```
-txt: #78cc33
-bg: #c8ff00
+txt: h96 s100 l50
+bg: h84 s100 l88
 ```
 
-**Paste**: Reads clipboard, parses color values, applies them, creates new preset.
+**Paste**: Reads clipboard, parses color values, applies them, creates new preset. Only accepts the `txt: h{N} s{N} l{N}` / `bg: h{N} s{N} l{N}` format — no hex, no commas, no percent signs.
 
 Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
@@ -1763,28 +1763,23 @@ Code: `handleRandomize` function + `onTouchEnd` on home screen container + `data
 
 | Button | Action |
 |--------|--------|
-| `copy` | Copies `txt: #hex h96 s100 l50\nbg: #hex h84 s100 l88` to clipboard |
-| `paste` | Parses clipboard, applies colors (uses HSL values, ignores hex). Shows "invalid format" for 1.5s if clipboard doesn't match any valid format (v2.1.32+) |
+| `copy` | Copies `txt: h96 s100 l50\nbg: h84 s100 l88` to clipboard |
+| `paste` | Parses clipboard, applies colors. Only accepts `txt: h{N} s{N} l{N}` / `bg: h{N} s{N} l{N}` format. Shows "invalid format" for 1.5s if clipboard doesn't match (v2.1.32+) |
 
-**Copy format (v1.10.28+):** Includes both hex and HSL values. Example:
+**Copy format (v2.3.0+):** HSL-only, no hex, no commas, no percent signs. Example:
 ```
-txt: #78cc33 h96 s100 l50
-bg: #c8ff00 h84 s100 l88
+txt: h96 s100 l50
+bg: h84 s100 l88
 ```
 
 **iOS copy method:** Uses textarea + `document.execCommand('copy')` instead of `navigator.clipboard.writeText()`. The Clipboard API on iOS Safari URL-encodes text when pasting into iMessage and other apps (`%20` for spaces, `%25` for `%`, etc.). The textarea approach writes pure plain text. Falls back to Clipboard API if execCommand fails.
 
 **Paste decoding:** Both mobile and desktop paste handlers run `decodeURIComponent()` on clipboard text before parsing, as a safety net for URL-encoded input.
 
-**Supported paste formats (in priority order):**
-- `txt: #rrggbb h123 s45 l67` - new format with hex + HSL (HSL values used, hex ignored)
-- `bg: #rrggbb h123 s45 l67` - new format with hex + HSL (HSL values used, hex ignored)
-- `txt: #rrggbb` - text color HEX only
-- `bg: #rrggbb` - background color HEX only
-- `txt: h, s%, l%` - text color HSL (legacy)
-- `bg: h, s%, l%` - background color HSL (legacy)
-- `h, s%, l%` - plain HSL (applies to text)
-- `#rrggbb` - bare HEX (applies to text)
+**Accepted paste format (v2.3.0+):**
+- `txt: h{N} s{N} l{N}` - text color HSL
+- `bg: h{N} s{N} l{N}` - background color HSL
+- All other formats (hex, comma-separated, bare values) are rejected as "invalid format"
 
 **Paste validation (v2.1.32+, updated v2.1.37):** When pasted clipboard content doesn't match any supported format, the copy|paste split is replaced by a single full-width "invalid format" indicator for 1.5 seconds, then reverts to copy|paste. Mobile: rendered as a full-width button (same `getButtonStyle` with position `'full'`). Desktop: rendered as a full-width `<div>` with matching border styling. No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Dismisses on any click or keystroke. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
 
