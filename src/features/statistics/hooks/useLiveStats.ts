@@ -43,6 +43,7 @@ export function useLiveStats(
   isLiveStreaming: boolean,
   phoneSaveCount: number,
   colors: ThemeColors,
+  colorUpdateCountRef: React.RefObject<number>,
 ): LiveStats {
   // --- Persisted base values (loaded once from localStorage) ---
   const baseLiveSaves = useRef(Number(getItem('liveLiveSaves')) || 0);
@@ -60,12 +61,15 @@ export function useLiveStats(
   const prevColorsRef = useRef<ThemeColors | null>(null);
   // Ring buffer of message timestamps for hz calculation
   const msgTimestampsRef = useRef<number[]>([]);
+  // Last seen colorUpdateCount — used in rAF to detect new WS messages
+  const lastUpdateCountRef = useRef(colorUpdateCountRef.current);
 
   // Total live saves = persisted base + session phone saves
   const totalLiveSaves = baseLiveSaves.current + phoneSaveCount;
 
   // --- Compute deltas in render path (ref-only, no state) ---
-  if (isLiveStreaming) {
+  // Track travel from ANY color change (phone streaming OR desktop dragging)
+  {
     const prev = prevColorsRef.current;
     if (prev && (
       prev.hue !== colors.hue || prev.sat !== colors.sat || prev.light !== colors.light ||
@@ -77,11 +81,8 @@ export function useLiveStats(
       hslDistRef.current +=
         hslDist(prev.hue, prev.sat, prev.light, colors.hue, colors.sat, colors.light) +
         hslDist(prev.bgHue, prev.bgSat, prev.bgLight, colors.bgHue, colors.bgSat, colors.bgLight);
-      msgTimestampsRef.current.push(performance.now());
     }
     prevColorsRef.current = colors;
-  } else {
-    prevColorsRef.current = null;
   }
 
   // --- rAF loop: flush refs → state at display refresh rate while streaming ---
@@ -89,12 +90,24 @@ export function useLiveStats(
     if (!isLiveStreaming) {
       // Clear hz and buffer when not streaming
       msgTimestampsRef.current.length = 0;
+      lastUpdateCountRef.current = colorUpdateCountRef.current;
       setDisplay(d => ({ ...d, updateHz: null }));
       return;
     }
     let raf = 0;
     const tick = () => {
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
+
+      // Push timestamps for new WS messages since last tick
+      const currentCount = colorUpdateCountRef.current;
+      const newMessages = currentCount - lastUpdateCountRef.current;
+      if (newMessages > 0) {
+        const now = performance.now();
+        for (let i = 0; i < newMessages; i++) {
+          msgTimestampsRef.current.push(now);
+        }
+        lastUpdateCountRef.current = currentCount;
+      }
 
       // Compute hz from sliding window
       const now = performance.now();
@@ -119,14 +132,19 @@ export function useLiveStats(
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isLiveStreaming, totalLiveSaves]);
+  }, [isLiveStreaming, totalLiveSaves, colorUpdateCountRef]);
 
-  // Keep display.liveSaves in sync when not streaming (rAF not running)
+  // Sync travel + liveSaves when not streaming (rAF not running)
   useEffect(() => {
     if (!isLiveStreaming) {
-      setDisplay(d => d.liveSaves !== totalLiveSaves ? { ...d, liveSaves: totalLiveSaves } : d);
+      setDisplay(d => {
+        const hue = hueDistRef.current;
+        const hsl = hslDistRef.current;
+        if (d.hueDistance === hue && d.hslDistance === hsl && d.liveSaves === totalLiveSaves) return d;
+        return { ...d, hueDistance: hue, hslDistance: hsl, liveSaves: totalLiveSaves };
+      });
     }
-  }, [totalLiveSaves, isLiveStreaming]);
+  });
 
   // --- localStorage persist (2s interval) ---
   useEffect(() => {

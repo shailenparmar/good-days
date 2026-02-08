@@ -692,7 +692,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.3.4';
+  const mobileVersion = '2.3.7';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -865,7 +865,7 @@ function MobileScreen() {
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
             onTouchCancel={() => setSetTiltPressed(false)}
-            style={getButtonStyle(setTiltPressed, 'full')}
+            style={getButtonStyle(setTiltPressed, 'full', 'aux')}
           >
             calibrate tilt
           </div>

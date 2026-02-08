@@ -73,6 +73,7 @@ export interface LiveSyncActions {
   incrementPhoneSaveCount: () => void;
   localDragRef: React.RefObject<boolean>;
   setLocalDragging: (dragging: boolean) => void;
+  colorUpdateCountRef: React.RefObject<number>;
 }
 
 export interface ColorwayTracking {

@@ -136,7 +136,7 @@ function AppContent() {
   const liveStats = useLiveStats(theme.isLiveStreaming, theme.phoneSaveCount, {
     hue: theme.hue, sat: theme.saturation, light: theme.lightness,
     bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
-  });
+  }, theme.colorUpdateCountRef);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;

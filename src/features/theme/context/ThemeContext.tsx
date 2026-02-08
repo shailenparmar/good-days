@@ -98,6 +98,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Desktop drag override: when true, incoming color-updates skip applyPreset
   const localDragRef = useRef(false);
+  // Counter incremented on every WS color-update message (for hz calculation)
+  const colorUpdateCountRef = useRef(0);
   const setLocalDragging = (dragging: boolean) => { localDragRef.current = dragging; };
 
   const saveLivePreset = () => {
@@ -369,6 +371,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     incrementPhoneSaveCount,
     localDragRef,
     setLocalDragging,
+    colorUpdateCountRef,
   };
 
   return (

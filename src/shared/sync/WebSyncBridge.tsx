@@ -24,6 +24,7 @@ export function WebSyncBridge() {
   // React 18 batches all setState calls from this + useWebSync into ONE render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
     const t = themeRef.current;
+    t.colorUpdateCountRef.current++;
     skipBridgeRef.current = true;
     t.setLivePreset({
       hue: colors.hue,
