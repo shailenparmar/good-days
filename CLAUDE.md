@@ -2370,6 +2370,7 @@ Certain interactions in narrow mode clear `preNarrowState`, meaning you've commi
 **Actions that commit (clear `preNarrowState`):**
 - Toggle sidebar (header click)
 - Open/close panel buttons
+- ESC to show sidebar (v2.3.17)
 
 **Actions that DON'T commit:**
 - Typing (content creation)
