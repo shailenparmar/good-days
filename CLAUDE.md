@@ -123,6 +123,18 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 **v2.1.7 fix:** `applyPreset` was previously gated behind `isLiveActive` in the callback. But `isLiveActive` is set by a React effect (async), so on reconnect, color-update messages could arrive before the effect fired. Colors were set in `livePreset` but never applied. Now `applyPreset` is called unconditionally — if the relay is forwarding color-update, we're paired by definition.
 
+### StatsDisplay Memoization (v2.3.18+)
+
+All expensive stats calculations in `StatsDisplay.tsx` are wrapped in `useMemo`:
+
+| Calculation | Complexity | Memoized on |
+|---|---|---|
+| `streak` | O(N) | `[entries]` |
+| `totalWords` | O(N) | `[entries]` |
+| `techStats` (maxStreak, lexicon, entriesPerWeek, totalLogins) | O(N*M) | `[entries, stacked]` |
+
+**Why this matters:** StatsDisplay consumes `useTheme()` and re-renders on every color change. During 60fps streaming, the unmemoized calculations (especially lexicon at O(N*M) with regex per word per entry) were running 60x/sec — 50-200ms per frame against a 16.67ms budget. With `useMemo`, they only recalculate when `entries` actually changes.
+
 ### Disconnect Grace Period (v2.1.0+)
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (200ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms → 500ms → 200ms (v2.1.28) for snappier disconnect feedback. Total latency from phone swipe-away to live icon gone: ~300ms.
