@@ -27,6 +27,26 @@
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
+## Native Mac App (macos/GoodDays/)
+
+The native macOS app is a **separate codebase** (SwiftUI + SwiftData) that shares no code with the web app. They share the same crypto constants, WebSocket protocol, backup format, and default presets — all implemented independently.
+
+### Sync Policy
+
+**The Mac app is fully independent.** Only align when the user explicitly says "align the native app and web app". No automatic syncing, no proactive suggestions.
+
+### Key Shared Constants (must match exactly)
+
+| Constant | Web location | Mac location |
+|----------|-------------|--------------|
+| App secret | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
+| Backup salt | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
+| Encrypt salt | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
+| PBKDF2 iterations | `src/shared/crypto.ts` | `Services/CryptoService.swift` |
+| WS protocol types | `src/shared/sync/protocol.ts` | `Services/WebSocketService.swift` |
+| Default presets | `src/features/theme/context/ThemeContext.tsx` | `Models/ColorPreset.swift` |
+| Backup JSON format | `src/features/export/utils/parseBackup.ts` | `Services/BackupService.swift` |
+
 ## WebSyncBridge (Live Sync)
 
 The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.10.67+). The `src/shared/sync/` directory contains all sync files, and `WebSyncBridge` is imported and rendered in `App.tsx`.
@@ -1922,13 +1942,13 @@ When settings is open, presets can be controlled with the keyboard:
 | Backspace / Delete | Delete the active preset |
 | Cmd+Z / Ctrl+Z | Undo last preset deletion |
 
-#### Preset Deletion Undo
+#### Preset Deletion Undo (multi-level, v2.3.29+)
 
-Single-level undo for preset deletion. A `lastDeletedPresetRef` in `PresetGrid.tsx` stores the last deleted preset's data (colors, array index, type). On Cmd+Z / Ctrl+Z, the preset is spliced back at its original index, re-applied, and re-selected.
+Multi-level undo for preset deletion. A `deletedPresetsStackRef` (array) in `PresetGrid.tsx` stores all deleted presets' data (colors, array index, type). Each Cmd+Z / Ctrl+Z pops the most recent deletion and splices it back at its original index.
 
 | Scenario | Behavior |
 |----------|----------|
-| Delete twice, then undo | Only the second deletion is undoable |
+| Delete 3, then Cmd+Z 3 times | All three restored in reverse order |
 | Close settings, reopen, Cmd+Z | No undo (ref cleared on unmount) |
 | Cmd+Z with nothing deleted | No-op |
 | Cmd+Z while typing in editor | Browser native undo (handler skips input/textarea/contentEditable) |
