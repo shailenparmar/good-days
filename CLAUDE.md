@@ -123,18 +123,6 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 **v2.1.7 fix:** `applyPreset` was previously gated behind `isLiveActive` in the callback. But `isLiveActive` is set by a React effect (async), so on reconnect, color-update messages could arrive before the effect fired. Colors were set in `livePreset` but never applied. Now `applyPreset` is called unconditionally — if the relay is forwarding color-update, we're paired by definition.
 
-### Streaming Frame Budget Optimization (v2.3.15+)
-
-During live streaming, periodic background work (localStorage writes, timer-driven React state updates) can overflow the 16ms frame budget and cause dropped frames. Two optimizations reduce this overhead:
-
-**1. Skip localStorage color writes during streaming (`ThemeContext.tsx`):**
-The color save effect writes 6 localStorage keys on every color change. At 60fps streaming, that's 360 writes/sec. The `isLiveStreaming` guard skips these writes entirely. When streaming stops (`isLiveStreaming` flips false), the effect re-runs and persists the final colors.
-
-**2. Pause statistics timer during streaming (`useStatistics.ts`):**
-A 1-second `setInterval` updates `totalSecondsOnApp` via `setState` + localStorage write. During streaming, this React state update can land in the same frame as a color update, doubling the render work. The `isLiveStreaming` parameter (passed from `App.tsx` via `theme.isLiveStreaming`) pauses the interval. When streaming stops, the interval restarts with fresh `baseSecondsRef` + `appSessionStart`, so no time is lost.
-
-**Safari toolbar updates are NOT skipped** — they're cheap DOM writes (`setAttribute` + `style.backgroundColor`) and the page background must stay visually in sync during streaming.
-
 ### Disconnect Grace Period (v2.1.0+)
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (200ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms → 500ms → 200ms (v2.1.28) for snappier disconnect feedback. Total latency from phone swipe-away to live icon gone: ~300ms.
