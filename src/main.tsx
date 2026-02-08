@@ -108,6 +108,8 @@ function MobileScreen() {
   const [copyPressed, setCopyPressed] = useState(false);
   const [savePressed, setSavePressed] = useState(false);
   const [pastePressed, setPastePressed] = useState(false);
+  const [pasteInvalid, setPasteInvalid] = useState(false);
+  const pasteInvalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
   // iOS permission state
@@ -655,6 +657,10 @@ function MobileScreen() {
           sync.sendColorUpdate(newColors);
           sync.stopStream();
         }
+      } else {
+        if (pasteInvalidTimer.current) clearTimeout(pasteInvalidTimer.current);
+        setPasteInvalid(true);
+        pasteInvalidTimer.current = setTimeout(() => setPasteInvalid(false), 1500);
       }
     }).catch(() => {});
   };
@@ -706,7 +712,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.28';
+  const mobileVersion = '2.1.31';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1063,7 +1069,7 @@ function MobileScreen() {
               contentEditable={false}
               spellCheck={false}
             >
-              <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
+              <span style={{ pointerEvents: 'none' }}>{pasteInvalid ? 'invalid format' : <>{'p'}{'a'}{'s'}{'t'}{'e'}</>}</span>
             </div>
           </div>
         </div>

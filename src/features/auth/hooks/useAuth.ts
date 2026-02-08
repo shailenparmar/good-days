@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
+import { setPasswordProtectedFlag } from '@shared/storage/journalStorage';
 import { logAction } from '@shared/logger';
 
 const PASSWORD_KEY = 'passwordHash';
@@ -153,6 +154,7 @@ export function useAuth() {
     setItem(PASSWORD_SALT_KEY, salt);
     setItem(PASSWORD_KEY, hash);
     setHasPassword(true);
+    setPasswordProtectedFlag(true);
     logAction('auth.password.set');
     return true;
   }, []);
@@ -162,6 +164,7 @@ export function useAuth() {
     removeItem(PASSWORD_SALT_KEY);
     setHasPassword(false);
     setIsLocked(false);
+    setPasswordProtectedFlag(false);
     logAction('auth.password.removed');
   }, []);
 

@@ -319,6 +319,39 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       log('initJournalStorage: cleared stale localStorage backup');
     }
 
+    // Dead man's switch: if password protection flag is set but no password hash
+    // exists in localStorage, someone cleared cookies/site data. Wipe entries.
+    const passwordProtected = await new Promise<boolean>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readonly');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.get('passwordProtected');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result?.value === true);
+    });
+
+    if (passwordProtected && localStorage.getItem('passwordHash') === null) {
+      log('initJournalStorage: password protection flag set but no password hash — clearing entries (cookie wipe detected)');
+      logAction('storage.init.cookieWipeDetected');
+      // Clear all entries
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
+        const store = transaction.objectStore(ENTRIES_STORE);
+        const request = store.clear();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+      // Clear the flag too (clean slate)
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(METADATA_STORE, 'readwrite');
+        const store = transaction.objectStore(METADATA_STORE);
+        const request = store.clear();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+      db.close();
+      return [];
+    }
+
     logAction('storage.init.done', { entryCount: indexedDBEntries.length, fallback: false });
     db.close();
     return indexedDBEntries;
@@ -394,6 +427,14 @@ export function saveSingleEntry(entry: JournalEntry): void {
   }, SAVE_DEBOUNCE_MS);
 
   pendingSaves.set(entry.date, { entry, timer });
+}
+
+/** Cancel all pending debounced saves without writing (called during reset) */
+export function cancelPendingSaves(): void {
+  for (const [, { timer }] of pendingSaves) {
+    clearTimeout(timer);
+  }
+  pendingSaves.clear();
 }
 
 /** Flush all debounced saves immediately (called on beforeunload) */
@@ -549,6 +590,47 @@ export async function loadSingleEntry(date: string): Promise<JournalEntry | null
     return entry;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Set the passwordProtected flag in IndexedDB metadata.
+ * Used as a "dead man's switch" — if this flag is true but no passwordHash
+ * exists in localStorage, entries self-destruct (someone cleared cookies).
+ */
+export async function setPasswordProtectedFlag(value: boolean): Promise<void> {
+  try {
+    const db = await openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readwrite');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.put({ key: 'passwordProtected', value });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+    db.close();
+  } catch (error) {
+    log('setPasswordProtectedFlag: failed', error);
+  }
+}
+
+/**
+ * Get the passwordProtected flag from IndexedDB metadata.
+ */
+export async function getPasswordProtectedFlag(): Promise<boolean> {
+  try {
+    const db = await openDatabase();
+    const result = await new Promise<boolean>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readonly');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.get('passwordProtected');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result?.value === true);
+    });
+    db.close();
+    return result;
+  } catch {
+    return false;
   }
 }
 

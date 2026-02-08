@@ -9,6 +9,7 @@ import { FunctionButton } from '@shared/components';
 import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { getItem, setItem } from '@shared/storage';
+import { cancelPendingSaves, clearJournalStorage } from '@shared/storage/journalStorage';
 import { logAction, exportLogs } from '@shared/logger';
 import { VERSION } from '@shared/version';
 import type { JournalEntry } from '@features/journal';
@@ -85,9 +86,17 @@ export function SettingsPanel({
     logAction('settings.reset');
     // Prevent beforeunload from saving entries back to localStorage
     (window as { __resettingApp?: boolean }).__resettingApp = true;
-    // Actually reset the app
+
+    // Cancel any pending debounced saves (don't flush — we're deleting everything)
+    cancelPendingSaves();
+
+    // Clear IndexedDB stores first (works even with other open connections)
+    try { await clearJournalStorage(); } catch {}
+
+    // Clear localStorage
     localStorage.clear();
-    // Clear IndexedDB and wait for it to complete before reloading
+
+    // Delete entire database + reload
     const deleteRequest = indexedDB.deleteDatabase('good-days');
     deleteRequest.onsuccess = () => location.reload();
     deleteRequest.onerror = () => location.reload();

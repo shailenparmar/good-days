@@ -397,15 +397,15 @@ function AppContent() {
   }, [zenMode]);
 
   // Option/Alt+S hotkey for scramble toggle (when hotkey is activated)
+  // Always preventDefault to stop macOS from inserting "ß" into the editor
   useEffect(() => {
-    if (!scrambleHotkeyActive) return;
-
     const handleHotkey = (e: KeyboardEvent) => {
       // Use e.code for physical key (Alt+S produces "ß" on Mac, so e.key !== 's')
       if (e.altKey && e.code === 'KeyS') {
         e.preventDefault();
-        setIsScrambled(prev => !prev);
-        // scramble hotkey toggled
+        if (scrambleHotkeyActive) {
+          setIsScrambled(prev => !prev);
+        }
       }
     };
 

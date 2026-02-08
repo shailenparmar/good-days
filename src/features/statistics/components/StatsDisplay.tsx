@@ -119,6 +119,8 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
   // Color stats hover state
   const [colorAreaHovered, setColorAreaHovered] = useState(false);
+  const [pasteInvalid, setPasteInvalid] = useState(false);
+  const pasteInvalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -497,6 +499,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         setSelectedPreset(null);
         setSelectedCustomPreset(customPresets.length);
 
+      } else {
+        if (pasteInvalidTimer.current) clearTimeout(pasteInvalidTimer.current);
+        setPasteInvalid(true);
+        pasteInvalidTimer.current = setTimeout(() => setPasteInvalid(false), 1500);
       }
     } catch {
       // Clipboard access denied or empty
@@ -647,7 +653,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   saturation={saturation}
                   lightness={lightness}
                 >
-                  {s('paste')}
+                  {pasteInvalid ? s('invalid format') : s('paste')}
                 </ColorButton>
               </div>
               <div
