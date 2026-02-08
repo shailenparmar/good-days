@@ -242,14 +242,14 @@ When the desktop is in live streaming mode, the powerstats area shows real-time 
 |------|-------------|
 | **hue dist** | Cumulative shortest-arc hue distance (text + bg), in degrees |
 | **hsl dist** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
-| **firehose** | Cumulative count of color changes received during live streaming |
+| **hz** | Real-time update frequency (updates/sec) via 2-second sliding window of `performance.now()` timestamps, displayed with 6 decimal places |
 | **phone saves** | Number of times the phone's "save" button was pressed |
 
 **Architecture (v2.1.38):** The `useLiveStats` hook computes distances **locally from displayed theme values** — no WebSocket callbacks or WebSyncBridge prop threading. The hook receives `colors` (current theme HSL) and computes deltas in the render path (ref-only, zero allocations). A `requestAnimationFrame` loop flushes refs to React state at display refresh rate (~60fps) while streaming is active. This eliminates the callback chain latency and gives snappy, high-framerate stat updates.
 
 **Phone saves detection:** Instead of a callback from WebSyncBridge, the hook watches `customPresetsCount`. If it grows while `isLiveStreaming` is true, each increment counts as a phone save.
 
-**Persistence:** `hueDistance`, `hslDistance`, `firehose`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `liveFirehose`, `livePhoneSaves`) every 2 seconds and on `beforeunload`. rAF state updates are display-only; localStorage writes stay batched.
+**Persistence:** `hueDistance`, `hslDistance`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `livePhoneSaves`) every 2 seconds and on `beforeunload`. The `updateHz` rate is live-only (computed from a sliding window, not persisted). rAF state updates are display-only; localStorage writes stay batched.
 
 **WebSyncBridge:** Fully decoupled from live stats as of v2.1.38 — no callback props, no ref forwarding. It's a pure sync bridge again.
 
