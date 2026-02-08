@@ -22,6 +22,18 @@ The native SwiftUI mac app (`macos/GoodDays/`) has been deleted. We're replacing
 ### Key insight: storage works as-is
 IndexedDB + localStorage all work in Tauri's WKWebView. No code changes needed. Users migrating from the PWA would use the existing backup/import flow.
 
+## Maintenance Mode (v2.3.32+)
+
+A quick-deploy gate that replaces the entire app with a fullscreen message. Used when fixing critical bugs so users don't hit broken state.
+
+**Config file:** `src/shared/maintenance.ts`
+- `MAINTENANCE` — boolean flag
+- `MESSAGE` — the text shown (e.g. `'[under construction]'`)
+
+**How it works:** `main.tsx` checks the flag before any React code loads. When enabled, it renders a static `innerHTML` screen (peach bg `hsl(28,100%,83%)`, black mono bold text — same style as the ErrorBoundary "something went wrong" screen). No React, no components, no app code runs.
+
+**Workflow:** User says "push [under construction]" (or any bracketed message) → set `MAINTENANCE = true` and `MESSAGE = '[under construction]'` → bump version → push. User says "take it down" → set `MAINTENANCE = false`, `MESSAGE = ''` → push.
+
 ## Push Checklist (MANDATORY)
 
 **EVERY push requires ALL of these steps. No exceptions.**
