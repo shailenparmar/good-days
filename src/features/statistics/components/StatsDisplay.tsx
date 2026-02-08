@@ -129,17 +129,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   const [colorAreaHovered, setColorAreaHovered] = useState(false);
   const [pasteInvalid, setPasteInvalid] = useState(false);
 
-  // Dismiss "invalid format" on any keystroke or click
-  useEffect(() => {
-    if (!pasteInvalid) return;
-    const dismiss = () => { setPasteInvalid(false); setColorAreaHovered(false); };
-    window.addEventListener('keydown', dismiss, true);
-    window.addEventListener('mousedown', dismiss, true);
-    return () => {
-      window.removeEventListener('keydown', dismiss, true);
-      window.removeEventListener('mousedown', dismiss, true);
-    };
-  }, [pasteInvalid]);
+  // pasteInvalid is dismissed by mouseLeave on the color stats hover region
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -570,7 +560,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               }}
               onClick={(e) => e.stopPropagation()}
               onMouseEnter={() => setColorAreaHovered(true)}
-              onMouseLeave={() => { if (!pasteInvalid) setColorAreaHovered(false); }}
+              onMouseLeave={() => { setPasteInvalid(false); setColorAreaHovered(false); }}
             >
               {/* Both elements in same grid cell - container sizes to larger one */}
               <div
