@@ -1977,7 +1977,7 @@ The bold sweep animation runs across all three lines sequentially.
 
 ### "started at" Time Display (v2.1.29+)
 
-The entry header shows "started at HH:MM" by default. Seconds are only shown when the powerstats menu is open (`stacked` prop = `showDebugMenu && showAboutPanel`), displaying "started at HH:MM:SS". Works in both 12-hour and 24-hour formats. In powerstats mode, the TimeDisplay component additionally shows tenths of milliseconds (HH:MM:SS.X).
+The entry header shows "started at HH:MM" by default. Seconds are only shown when the powerstats menu is open (`stacked` prop = `showDebugMenu && showAboutPanel`), displaying "started at HH:MM:SS". Works in both 12-hour and 24-hour formats.
 
 Code location: `src/features/journal/components/EntryHeader.tsx`
 
