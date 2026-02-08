@@ -102,6 +102,10 @@ The phone immediately closes its WebSocket when the page goes hidden (home scree
 
 Without this, the WS would stay open until the OS kills it or the server times it out, leaving the desktop stuck in live mode for seconds after the phone is backgrounded.
 
+### WebSocket onclose Race Guard (v2.1.32+)
+
+Both `useMobileSync.ts` and `useWebSync.ts` now guard `ws.onclose` with `if (wsRef.current === ws)`. This prevents a stale WebSocket's `onclose` from nulling a newer connection's ref. Race condition: visibility change or leader election creates a new WS before the old one's `onclose` fires. Without the guard, the stale `onclose` would set `wsRef.current = null`, breaking the new connection.
+
 ### Focus-Aware Leader Election (v2.1.1+)
 
 Only one desktop tab holds the WebSocket connection at a time (the "leader"). Switching to a different browser tab immediately transfers leadership — the focused tab broadcasts a `focus-claim` message and the old leader yields unconditionally. This means the phone always connects to whichever tab you're looking at.
@@ -945,7 +949,7 @@ The scramble hotkey is a power user feature, only available in **powerstat mode*
 | Deactivated | "scramble hotkey deactivated" | (no change) |
 | Activated | "scramble hotkey activated" | "option/alt + s" |
 
-When activated, Option/Alt+S toggles scramble from anywhere in the app.
+When activated, Option/Alt+S toggles scramble from anywhere in the app. The hotkey listener always calls `preventDefault()` on Alt+S regardless of activation state (v2.1.32+) to prevent macOS from inserting "ß" into the editor.
 
 **Hover Flicker Fix:** Uses the `useStableHover` hook (see "The Hover Flicker Problem"). On hover, the bounding rect is captured. If the button shrinks and triggers mouseLeave while the cursor is still in the original rect, we stay hovered. No overlay div, no scroll blocking.
 
@@ -1574,7 +1578,7 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 | Button | Action |
 |--------|--------|
 | `copy` | Copies `txt: #hex h96 s100 l50\nbg: #hex h84 s100 l88` to clipboard |
-| `paste` | Parses clipboard, applies colors (uses HSL values, ignores hex) |
+| `paste` | Parses clipboard, applies colors (uses HSL values, ignores hex). Shows "invalid format" for 1.5s if clipboard doesn't match any valid format (v2.1.32+) |
 
 **Copy format (v1.10.28+):** Includes both hex and HSL values. Example:
 ```
@@ -1595,6 +1599,8 @@ bg: #c8ff00 h84 s100 l88
 - `bg: h, s%, l%` - background color HSL (legacy)
 - `h, s%, l%` - plain HSL (applies to text)
 - `#rrggbb` - bare HEX (applies to text)
+
+**Paste validation (v2.1.32+):** When pasted clipboard content doesn't match any supported format, the paste button text changes to "invalid format" for 1.5 seconds, then reverts to "paste". No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
 
 **Paste-to-laptop sync (v2.1.20+, fixed v2.1.21):** When paired with a laptop, pasting a color on the mobile home screen sends a one-shot `color-update` to the laptop so it immediately reflects the pasted colors. Normally color updates only stream during the picker screen (60fps while dragging). The relay guards `color-update` behind `client.streaming` (relay.ts line 285), so the paste wraps the update in `startStream()` / `sendColorUpdate()` / `stopStream()` calls — a brief stream burst to push the color through.
 
@@ -2479,6 +2485,21 @@ This pattern ensures the handler always sees the current zenMode value without r
 1. **Wide + full view** - Sidebar visible, no panels, not in minizen/zen
 2. **Narrow + sidebar visible** - No panels open
 3. **After password saved** - Label says "esc to lock", `isSaving=true`
+
+### Password Dead Man's Switch (v2.1.32+)
+
+If a user has password protection enabled and then clears cookies/site data (which wipes localStorage but not IndexedDB), the journal entries self-destruct on next load. This prevents someone from bypassing the password by clearing browser data.
+
+**How it works:**
+1. When a password is set, `setPasswordProtectedFlag(true)` writes `{ key: 'passwordProtected', value: true }` to the IndexedDB metadata store
+2. When a password is removed, `setPasswordProtectedFlag(false)` clears it
+3. On `initJournalStorage()`, if the flag is `true` but `localStorage.getItem('passwordHash')` is `null`, all entries and metadata are cleared from IndexedDB and an empty array is returned
+
+Code: `setPasswordProtectedFlag()` in `journalStorage.ts`, called from `useAuth.ts` on set/remove password. Detection logic in `initJournalStorage()`.
+
+### App Reset Fix (v2.1.32+)
+
+The "reset app" flow in SettingsPanel now calls `cancelPendingSaves()` before clearing storage. Previously, a pending debounced save could fire after `localStorage.clear()` / IndexedDB delete and re-write an entry. Also clears IndexedDB stores explicitly before deleting the database, ensuring clean teardown even with other open connections.
 
 ### Password Focus Behavior (IMPORTANT)
 
