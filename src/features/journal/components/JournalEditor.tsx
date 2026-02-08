@@ -130,7 +130,9 @@ export function JournalEditor({
         });
       }
     }
-    loadedDateRef.current = selectedDate;
+    // Only mark as loaded if we actually found the entry
+    // (entries might still be loading from IndexedDB on initial mount)
+    if (entry) loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
   // Handle scroll - persist position and sync overlay

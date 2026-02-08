@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
-import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry, hasDecryptionFailure } from '@shared/storage/journalStorage';
+import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry, hasDecryptionFailure, cancelPendingSave } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import { htmlToText } from '@shared/utils/html';
 import { logAction } from '@shared/logger';
@@ -77,7 +77,11 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
 
   useEffect(() => {
     const unsubscribe = onEntrySaved(async (date: string) => {
-      // Another tab saved this date - reload it from storage
+      // Another tab saved this date - cancel any stale local debounced save
+      // to prevent our old content from overwriting the other tab's newer save
+      cancelPendingSave(date);
+
+      // Reload from storage
       const entry = await loadSingleEntry(date);
       if (!entry) return;
 

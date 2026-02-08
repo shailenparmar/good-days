@@ -602,6 +602,15 @@ export function saveSingleEntry(entry: JournalEntry): void {
   pendingSaves.set(entry.date, { entry, timer });
 }
 
+/** Cancel a pending debounced save for a specific date without writing (called on external sync) */
+export function cancelPendingSave(date: string): void {
+  const pending = pendingSaves.get(date);
+  if (pending) {
+    clearTimeout(pending.timer);
+    pendingSaves.delete(date);
+  }
+}
+
 /** Cancel all pending debounced saves without writing (called during reset) */
 export function cancelPendingSaves(): void {
   for (const [, { timer }] of pendingSaves) {

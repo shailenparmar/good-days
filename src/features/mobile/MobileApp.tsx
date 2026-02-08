@@ -649,7 +649,7 @@ export default function MobileApp() {
     if (v) sessionStorage.setItem('titlePressed', '1');
     else sessionStorage.removeItem('titlePressed');
   };
-  const mobileVersion = '2.3.30';
+  const mobileVersion = '2.3.31';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
