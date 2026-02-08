@@ -2,6 +2,7 @@ import { StrictMode, useState, useEffect, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { useMobileSync } from './shared/sync/useMobileSync'
+import { setItem } from './shared/storage'
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -184,7 +185,7 @@ function MobileScreen() {
 
   // Persist colors
   useEffect(() => {
-    localStorage.setItem('mobileColors', JSON.stringify(colors));
+    setItem('mobileColors', JSON.stringify(colors));
   }, [colors]);
 
   // Update theme-color meta — always black so Safari chrome + safe areas stay black
@@ -723,7 +724,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.2.0';
+  const mobileVersion = '2.2.1';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -955,8 +956,8 @@ function MobileScreen() {
             </div>
             {/* HSL row - sits on top of spectra */}
             <div style={{ display: 'flex' }}>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.hue % 360} s{Math.min(99, colors.sat)} l{Math.min(99, colors.light)}</span>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.bgHue % 360} s{Math.min(99, colors.bgSat)} l{Math.min(99, colors.bgLight)}</span>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.hue % 360} s{colors.sat} l{colors.light}</span>
+              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</span>
             </div>
           </div>
           {/* Invisible buttons set the correct height */}

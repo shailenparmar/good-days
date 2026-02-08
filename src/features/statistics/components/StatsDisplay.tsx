@@ -4,6 +4,7 @@ import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
 import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared/utils/easterEggs';
 import { getStorageEstimate } from '@shared/storage/journalStorage';
+import { getItem } from '@shared/storage';
 import type { JournalEntry } from '../types';
 
 interface LiveStatsData {
@@ -358,7 +359,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     const lexicon = calculateLexicon();
 
     // Login count from localStorage
-    const totalLogins = Number(localStorage.getItem('totalLogins') || '0');
+    const totalLogins = Number(getItem('totalLogins') || '0');
 
     return {
       entriesPerWeek,
