@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTheme } from '@features/theme';
 import { formatTimeSpent } from '@shared/utils/date';
 import { scrambleText } from '@shared/utils/scramble';
@@ -259,100 +259,82 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     });
   }, [stacked, superscramble]);
 
-  const calculateStreak = () => {
+  // Memoize expensive stats calculations — these depend only on entries,
+  // not colors. Without memoization, they recalculate on every color change
+  // during 60fps streaming (O(N*M) lexicon + O(N log N) sort = 50-200ms/frame).
+  const streak = useMemo(() => {
     if (entries.length === 0) return 0;
-    let streak = 0;
+    let s = 0;
     const currentDate = new Date();
 
     while (true) {
       const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       if (entries.find(e => e.date === dateStr)) {
-        streak++;
+        s++;
         currentDate.setDate(currentDate.getDate() - 1);
       } else {
         break;
       }
     }
-    return streak;
-  };
+    return s;
+  }, [entries]);
 
-  const calculateTotalWords = () => {
+  const totalWords = useMemo(() => {
     return entries.reduce((sum, e) => {
       const words = (e.content || '').split(/\s+/).filter(Boolean).length;
       return sum + words;
     }, 0);
-  };
+  }, [entries]);
 
-  const streak = calculateStreak();
-  const totalWords = calculateTotalWords();
+  const techStats = useMemo(() => {
+    if (!stacked) return null;
 
-  // Calculate max streak ever
-  const calculateMaxStreak = () => {
-    if (entries.length === 0) return 0;
+    // Max streak
     let maxStreak = 0;
-    let currentStreak = 0;
+    if (entries.length > 0) {
+      let currentStreak = 0;
+      const sortedDates = entries.map(e => e.date).sort();
 
-    // Sort entries by date
-    const sortedDates = entries.map(e => e.date).sort();
-
-    for (let i = 0; i < sortedDates.length; i++) {
-      if (i === 0) {
-        currentStreak = 1;
-      } else {
-        const prevDate = new Date(sortedDates[i - 1]);
-        const currDate = new Date(sortedDates[i]);
-        const diffDays = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 1) {
-          currentStreak++;
-        } else {
+      for (let i = 0; i < sortedDates.length; i++) {
+        if (i === 0) {
           currentStreak = 1;
-        }
-      }
-      maxStreak = Math.max(maxStreak, currentStreak);
-    }
-    return maxStreak;
-  };
+        } else {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const diffDays = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Calculate unique words (lexicon)
-  const calculateLexicon = () => {
+          if (diffDays === 1) {
+            currentStreak++;
+          } else {
+            currentStreak = 1;
+          }
+        }
+        maxStreak = Math.max(maxStreak, currentStreak);
+      }
+    }
+
+    // Lexicon
     const allWords = new Set<string>();
     entries.forEach(e => {
       const words = (e.content || '')
         .toLowerCase()
-        .replace(/<[^>]*>/g, ' ') // strip HTML
+        .replace(/<[^>]*>/g, ' ')
         .split(/\s+/)
-        .filter(w => w.length > 0 && /^[a-z]+$/.test(w)); // only alphabetic words
+        .filter(w => w.length > 0 && /^[a-z]+$/.test(w));
       words.forEach(w => allWords.add(w));
     });
-    return allWords.size;
-  };
+    const lexicon = allWords.size;
 
-  // Hardcore technical stats
-  const calculateTechnicalStats = () => {
-    // First entry date for "age"
+    // Age + entries per week
     const firstEntryDate = entries.length > 0 ? entries[entries.length - 1].date : null;
     const journalAgeMs = firstEntryDate ? Date.now() - new Date(firstEntryDate).getTime() : 0;
-
-    // Entries per week (minimum 1 week to avoid inflated extrapolation)
     const weeksActive = Math.max(1, journalAgeMs / (1000 * 60 * 60 * 24 * 7));
     const entriesPerWeek = (entries.length / weeksActive).toFixed(2);
 
-    const maxStreak = calculateMaxStreak();
-    const lexicon = calculateLexicon();
-
-    // Login count from localStorage
     const totalLogins = Number(getItem('totalLogins') || '0');
 
-    return {
-      entriesPerWeek,
-      maxStreak,
-      lexicon,
-      totalLogins,
-    };
-  };
-
-  const techStats = stacked ? calculateTechnicalStats() : null;
+    return { entriesPerWeek, maxStreak, lexicon, totalLogins };
+  }, [entries, stacked]);
 
   // Parse color values from pasted text
   // Supports: "txt: 120, 50%, 60%" or "bg: 200, 80%, 90%" or "120, 50%, 60%" or "#ff0000"
