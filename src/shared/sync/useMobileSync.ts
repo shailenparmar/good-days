@@ -135,9 +135,14 @@ export function useMobileSync(): MobileSyncHandle {
       };
 
       ws.onclose = () => {
-        wsRef.current = null;
-        isStreamingRef.current = false;
-        scheduleReconnect();
+        // Only clear ref and reconnect if this is still the active WS.
+        // Prevents a stale onclose from nulling a newer connection's ref
+        // (race: hidden→visible creates new WS before old onclose fires).
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+          isStreamingRef.current = false;
+          scheduleReconnect();
+        }
       };
 
       ws.onerror = () => {

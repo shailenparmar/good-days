@@ -197,9 +197,14 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
 
       ws.onclose = (ev) => {
         console.log('[ws-sync] closed, code=', ev.code, 'reason=', ev.reason);
-        wsRef.current = null;
-        startGrace();
-        scheduleReconnect();
+        // Only clear ref and reconnect if this is still the active WS.
+        // Prevents a stale onclose from nulling a newer connection's ref
+        // (race: visibility/leader change creates new WS before old onclose fires).
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+          startGrace();
+          scheduleReconnect();
+        }
       };
 
       ws.onerror = (ev) => {
