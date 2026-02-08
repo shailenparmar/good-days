@@ -457,7 +457,6 @@ function AppContent() {
         // Function menus open: close them (both at once)
         if (showDebugMenu || showAboutPanel) {
           closePanels();
-          if (isNarrow) setPreNarrowState(null); // Commit to narrow
           return;
         }
 
