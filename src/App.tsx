@@ -135,13 +135,17 @@ function AppContent() {
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < COLLAPSE_BREAKPOINT);
-  // If in narrow mode and panels are open on load, show sidebar
+  // Sidebar visibility in narrow mode — persisted so refresh preserves it
   const [showSidebarInNarrow, setShowSidebarInNarrow] = useState(() => {
     const narrow = window.innerWidth < 711;
+    if (!narrow) return false;
+    const saved = getItem('showSidebarInNarrow');
+    if (saved !== null) return saved === 'true';
+    // Fallback: show sidebar if panels are open (pre-persistence migration)
     const panelsOpen = savedPanelState
       ? (savedPanelState.showDebugMenu || savedPanelState.showAboutPanel)
       : (getItem('showSettings') === 'true' || getItem('showAbout') === 'true');
-    return narrow && panelsOpen;
+    return panelsOpen;
   });
   const [zenMode, setZenMode] = useState(false); // Full zen: just editor, hide everything (not persisted — refresh returns to base)
   const [minizen, setMinizen] = useState(false); // Minizen: hide sidebar, keep header+footer (not persisted — refresh returns to base)
@@ -377,6 +381,12 @@ function AppContent() {
       setItem('showAbout', String(showAboutPanel));
     }
   }, [showAboutPanel, zenMode, minizen]);
+
+  useEffect(() => {
+    if (!zenMode && !minizen) {
+      setItem('showSidebarInNarrow', String(showSidebarInNarrow));
+    }
+  }, [showSidebarInNarrow, zenMode, minizen]);
 
   // Save scramble state to localStorage
   useEffect(() => {
