@@ -72,8 +72,6 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       ref={scrollRef}
       onScroll={handleScroll}
       className="flex flex-col h-screen overflow-y-auto scrollbar-hide"
-      contentEditable
-      suppressContentEditableWarning
       style={{
         width: `${aboutWidth}px`,
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
