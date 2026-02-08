@@ -129,8 +129,8 @@ function AppContent() {
   // Superscramble: scramble + settings + about all open = chaos mode
   const isSuperscramble = isScrambled && showDebugMenu && showAboutPanel;
 
-  // Stats hook - paused in superscramble to prevent jitter, skip interval during live streaming
-  const stats = useStatistics(isSuperscramble, theme.isLiveStreaming);
+  // Stats hook - paused in superscramble to prevent jitter
+  const stats = useStatistics(isSuperscramble);
 
   // Responsive sidebar - collapse when window is narrow
   const COLLAPSE_BREAKPOINT = 711;
@@ -457,12 +457,14 @@ function AppContent() {
         // Function menus open: close them (both at once)
         if (showDebugMenu || showAboutPanel) {
           closePanels();
+          if (isNarrow) setPreNarrowState(null); // Commit to narrow
           return;
         }
 
         // In narrow mode with sidebar hidden: show sidebar
         if (isNarrow && !showSidebarInNarrow) {
           setShowSidebarInNarrow(true);
+          setPreNarrowState(null); // Commit to narrow
           return;
         }
 
