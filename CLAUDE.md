@@ -253,26 +253,9 @@ When a phone and laptop pair in a **1:1 environment** (exactly one phone + one l
 - Both cleared cache → no affinity, falls back to IP-based
 - Relay restart → clients re-send deviceId + partnerDeviceId on reconnect
 
-### Live Stats (v2.1.37+, rewritten v2.1.38)
+### Live Stats (removed in v2.3.12)
 
-When the desktop is in live streaming mode, the powerstats area shows real-time metrics in a 2x2 grid below the color stats:
-
-| Stat | Description |
-|------|-------------|
-| **hue travel** | Cumulative shortest-arc hue distance (text + bg), in degrees |
-| **sl travel** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
-| **hz** | Real-time WebSocket message rate (messages/sec) via 2-second sliding window, displayed with 3 decimal places. Measures actual `color-update` WS messages received (via `colorUpdateCountRef` in ThemeContext, incremented by WebSyncBridge), not just color-change renders. Shows `--- hz` (null) when not actively streaming. |
-| **live saves** | Number of times the phone's "save" button was pressed (phone-only, not desktop saves) |
-
-**Architecture (v2.1.38, hz fix v2.3.7, throttle v2.3.8):** The `useLiveStats` hook computes distances **locally from displayed theme values**. The hook receives `colors` (current theme HSL) and computes deltas in the render path (ref-only, zero allocations). A `requestAnimationFrame` loop runs at 60fps for timestamp tracking, but **throttles React state updates to every 200ms (~5fps)**. Without this throttle, `setDisplay()` at 60fps forced a full App re-render every frame on top of color-update re-renders, dropping frames during live streaming. **Hz measurement** uses `colorUpdateCountRef` from ThemeContext — a ref incremented by WebSyncBridge on every `color-update` WebSocket message. The rAF loop reads the counter each tick at full rate, pushes timestamps for new messages, and computes rate from the sliding window. This measures actual WS message rate, not just color-change rate (holding still no longer shows 0).
-
-**Live saves detection (v2.2.8):** WebSyncBridge calls `theme.incrementPhoneSaveCount()` when it receives a `save-preset` WebSocket message from the phone. `useLiveStats` reads `phoneSaveCount` directly from ThemeContext and adds it to the persisted base value. This ensures only phone-initiated saves are counted — desktop save button clicks, space/enter on the save preset are excluded.
-
-**Persistence:** `hueDistance`, `hslDistance`, and `liveSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) every 2 seconds and on `beforeunload`. The `updateHz` rate is live-only (computed from a sliding window, not persisted). rAF state updates are display-only; localStorage writes stay batched.
-
-**WebSyncBridge:** Bridges `save-preset` messages to ThemeContext via `incrementPhoneSaveCount()`. Also increments `theme.colorUpdateCountRef` on every `color-update` message for hz measurement.
-
-Code location: `src/features/statistics/hooks/useLiveStats.ts`. Props: `App.tsx` passes `theme.phoneSaveCount` + theme colors directly to the hook.
+The live stats section (hue travel, sl travel, hz, live saves) was removed from the powerstat display. The `useLiveStats` hook in `src/features/statistics/hooks/useLiveStats.ts` is now orphaned (not imported anywhere). `phoneSaveCount`, `incrementPhoneSaveCount`, and `colorUpdateCountRef` were removed from ThemeContext since they existed solely for live stats. WebSyncBridge no longer increments `colorUpdateCountRef` or calls `incrementPhoneSaveCount`. The orphaned localStorage keys (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) will persist harmlessly in existing users' browsers.
 
 ### Future: WebRTC DataChannel Migration
 
