@@ -627,7 +627,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                   {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} sl travel`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(liveSyncStats.updateHz !== null ? `${liveSyncStats.updateHz.toFixed(6)} hz` : '--- hz')}
+                  {s(liveSyncStats.updateHz !== null ? `${liveSyncStats.updateHz.toFixed(3)} hz` : '--- hz')}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   {s(`${liveSyncStats.liveSaves} live ${liveSyncStats.liveSaves === 1 ? 'save' : 'saves'}`)}
