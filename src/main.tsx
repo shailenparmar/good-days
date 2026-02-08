@@ -692,7 +692,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.3.12';
+  const mobileVersion = '2.3.14';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -915,18 +915,10 @@ function MobileScreen() {
 
         {/* Hue bars - sized to match home screen button area */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
-          {/* Live color values - hex row (with txt:/bg: labels) above, hsl row sitting on top of spectra */}
+          {/* Live color values - full format (matches copy format) sitting on top of spectra */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', pointerEvents: 'none', zIndex: 3 }}>
-            {/* Hex row with labels */}
-            <div style={{ display: 'flex' }}>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>txt: {hslToHex(colors.hue, colors.sat, colors.light)}</span>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>bg: {hslToHex(colors.bgHue, colors.bgSat, colors.bgLight)}</span>
-            </div>
-            {/* HSL row - sits on top of spectra */}
-            <div style={{ display: 'flex' }}>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.hue % 360} s{colors.sat} l{colors.light}</span>
-              <span style={{ flex: 1, textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</span>
-            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>txt: {hslToHex(colors.hue % 360, colors.sat, colors.light)} h{colors.hue % 360} s{colors.sat} l{colors.light}</div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>bg: {hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)} h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</div>
           </div>
           {/* Invisible buttons set the correct height */}
           <div style={{ visibility: 'hidden', padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
