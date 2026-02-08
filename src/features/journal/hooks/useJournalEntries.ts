@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
-import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry } from '@shared/storage/journalStorage';
+import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry, hasDecryptionFailure } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import { htmlToText } from '@shared/utils/html';
 import { logAction } from '@shared/logger';
@@ -115,6 +115,13 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const todayEntry = entries.find(e => e.date === today);
 
     if (!todayEntry && entries.length > 0) {
+      // If today's entry failed to decrypt, do NOT create an empty placeholder —
+      // that would overwrite the encrypted data in IndexedDB with empty content.
+      if (hasDecryptionFailure(today)) {
+        logAction('journal.ensureToday.skipped', { reason: 'decryptionFailure', date: today });
+        return;
+      }
+
       const newTodayEntry: JournalEntry = {
         date: today,
         content: '',
@@ -123,8 +130,9 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
 
       entriesRef.current = newEntries;
       setEntries(newEntries);
-      // Only save the new today entry (safe for multi-tab)
-      saveSingleEntry(newTodayEntry);
+      // Don't persist the empty placeholder to IndexedDB — it's only needed in memory
+      // for the sidebar. When the user types, saveEntry() will persist it.
+      // This prevents overwriting existing encrypted data that we couldn't decrypt.
     }
   }, [entries, isLoading]);
 

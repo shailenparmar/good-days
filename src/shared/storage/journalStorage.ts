@@ -14,6 +14,9 @@ const METADATA_STORE = 'metadata';
 // Track if we're in fallback mode (IndexedDB failed, using localStorage)
 let fallbackMode = false;
 
+// Track dates that failed decryption (prevents "ensure today" from overwriting encrypted data)
+const decryptionFailures = new Set<string>();
+
 // --- Encryption state ---
 
 let currentKey: CryptoKey | null = null;
@@ -103,7 +106,8 @@ async function decryptEntry(record: unknown): Promise<JournalEntry | null> {
     };
     return isValidEntry(entry) ? entry : null;
   } catch {
-    log('decryptEntry: failed to decrypt', { date: r.date });
+    log('decryptEntry: FAILED TO DECRYPT — entry will be invisible but preserved in IndexedDB', { date: r.date });
+    decryptionFailures.add(r.date as string);
     return null;
   }
 }
@@ -391,9 +395,27 @@ async function markMigrated(db: IDBDatabase): Promise<void> {
  *
  * Falls back to localStorage if IndexedDB fails
  */
+/**
+ * Check if a date had a decryption failure during the last load.
+ * Used to prevent "ensure today" from overwriting encrypted data with empty content.
+ */
+export function hasDecryptionFailure(date: string): boolean {
+  return decryptionFailures.has(date);
+}
+
+/**
+ * Get all dates that had decryption failures during the last load.
+ */
+export function getDecryptionFailures(): string[] {
+  return Array.from(decryptionFailures);
+}
+
 export async function initJournalStorage(): Promise<JournalEntry[]> {
   log('initJournalStorage: starting');
   logAction('storage.init');
+
+  // Clear previous decryption failures on fresh load
+  decryptionFailures.clear();
 
   // Request persistent storage so Chrome/Firefox/Android won't evict data under storage pressure
   // (Safari ignores this - its 7-day inactivity policy is not overridable)
@@ -446,6 +468,14 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
     // Load from IndexedDB (decrypts transparently)
     const indexedDBEntries = await getEntriesFromIndexedDB(db);
     log('initJournalStorage: loaded from IndexedDB', { entryCount: indexedDBEntries.length, dates: indexedDBEntries.map(e => e.date) });
+
+    // Surface decryption failures prominently
+    if (decryptionFailures.size > 0) {
+      const failedDates = Array.from(decryptionFailures);
+      log('initJournalStorage: WARNING — decryption failed for entries', { dates: failedDates, count: failedDates.length });
+      logAction('storage.decryptionFailure', { dates: failedDates, count: failedDates.length });
+      console.warn(`[gdays] ${failedDates.length} entries failed to decrypt and are hidden: ${failedDates.join(', ')}. Data is preserved in IndexedDB.`);
+    }
 
     // Clean up any stale localStorage backup from older versions
     if (localStorageEntries.length > 0 && alreadyMigrated) {
