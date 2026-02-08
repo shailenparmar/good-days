@@ -48,6 +48,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
   const destroyLeaderRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
   const lastWsActivityRef = useRef(Date.now());
+  const hiddenAtRef = useRef(0);
   const colorwayRef = useRef(currentColorway);
   colorwayRef.current = currentColorway;
 
@@ -245,18 +246,30 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     };
     window.addEventListener('focus', handleFocus);
 
-    // Wake-from-sleep detection: when the page becomes visible, check if the
-    // WebSocket is stale. The server pings every 30s — if we haven't received
-    // anything in 45s, the connection is dead (laptop was sleeping) but the
-    // browser doesn't know yet. Force close and reconnect immediately.
+    // Wake-from-sleep / PWA-resume detection: when the page becomes visible,
+    // check if the WebSocket needs reconnecting. Three triggers:
+    // 1. stale: no WS activity in 45s (missed a server ping cycle)
+    // 2. dead: wsRef is null or readyState > OPEN
+    // 3. pwaFrozen: PWA was hidden > 3s — Chrome freezes backgrounded PWAs
+    //    and kills the WS server-side, but readyState still shows OPEN
+    //    (onclose never fires for frozen pages). Don't trust readyState.
     const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
       if (document.visibilityState !== 'visible' || !isLeaderRef.current) return;
 
       const stale = Date.now() - lastWsActivityRef.current > 45_000;
       const dead = !wsRef.current || wsRef.current.readyState > WebSocket.OPEN;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || (window.navigator as { standalone?: boolean }).standalone === true;
+      const pwaFrozen = isStandalone && hiddenAtRef.current > 0
+        && (Date.now() - hiddenAtRef.current > 3_000);
 
-      if (stale || dead) {
-        console.log('[ws-sync] wake detected, reconnecting (stale=%s, dead=%s)', stale, dead);
+      if (stale || dead || pwaFrozen) {
+        console.log('[ws-sync] wake detected, reconnecting (stale=%s, dead=%s, pwaFrozen=%s)', stale, dead, pwaFrozen);
+        hiddenAtRef.current = 0;
         backoffRef.current = 1000;
         if (reconnectTimer.current) {
           clearTimeout(reconnectTimer.current);
