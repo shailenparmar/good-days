@@ -2139,7 +2139,7 @@ The app has two layout modes (wide/narrow) and two focus states (minizen/zen).
 | `isNarrow` | `true` when window < 711px | No (computed) | — |
 | `zenMode` | Full zen: just editor, hide everything else | **No** (v1.10.37+) | `false` |
 | `minizen` | Minizen: hide sidebar, keep header+footer (wide only) | **No** (v1.10.37+) | `false` |
-| `showSidebarInNarrow` | Override to show sidebar in narrow mode | No | `false` (but `true` on load if panels are open) |
+| `showSidebarInNarrow` | Override to show sidebar in narrow mode | **Yes** (v2.3.25+) | `false` (reads from localStorage, falls back to panels-open check) |
 | `showDebugMenu` | Settings panel open | Yes | `false` |
 | `showAboutPanel` | About panel open | Yes | `false` |
 | `preFocusState` | Saved state before entering zen/minizen (for restore) | Yes | `null` |
@@ -3406,7 +3406,7 @@ Small settings that benefit from synchronous access:
 | Category | Keys |
 |----------|------|
 | Theme | `colorHue`, `bgHue`, `saturation`, `lightness`, `bgSaturation`, `bgLightness` |
-| UI state | `showSettings`, `showAbout`, `isScrambled`, `scrambleHotkeyActive`, `preFocusState` |
+| UI state | `showSettings`, `showAbout`, `showSidebarInNarrow`, `isScrambled`, `scrambleHotkeyActive`, `preFocusState` |
 | Auth | `passwordHash` |
 | Statistics | `totalKeystrokes`, `totalSecondsOnApp`, `totalLogins` |
 | Easter eggs | `easterEggs` |
