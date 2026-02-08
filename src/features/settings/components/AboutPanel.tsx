@@ -93,7 +93,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
             {s("entries are not sent to servers. a developer couldn't view your writing even if they wanted to.")}
           </p>
           <p>
-            {s("everything added lives encrypted or hashed on your hard drive in IndexedDB — local storage for long-term data. the website pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.")}
+            {s("everything added lives encrypted or hashed on your hard drive in local browser storage — long-term data storage. the website pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.")}
           </p>
           <p>
             {s("however, if you manually delete site data in browser settings, you'll clear the journal. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
