@@ -417,8 +417,7 @@ On init, the app calls `navigator.storage.persist()` to request the browser prot
 At midnight, before clearing the editor and switching to the new day:
 1. `saveEntry()` is called (updates `entriesRef` immediately, queues debounced write)
 2. `flushPendingSaves()` forces the IndexedDB write to start immediately
-3. Sync `localStorage.setItem` backup of all entries (guaranteed to complete before next line)
-4. Only then does the editor clear and date switch
+3. Only then does the editor clear and date switch
 
 This ensures the previous day's entry is persisted even if IndexedDB is slow or the tab closes right at midnight.
 
@@ -461,11 +460,11 @@ To debug a user's storage issue:
 2. Refresh the page (logs `initJournalStorage` with entry count and dates)
 3. Check if expected entries are listed
 
-### beforeunload Backup
+### beforeunload Flush (v2.1.35+)
 
-On tab close, entries are written to localStorage as a backup (IndexedDB writes are async and may not complete). On next load, localStorage backup is merged with IndexedDB, preferring newer `lastModified` timestamps.
+On tab close, `flushPendingSaves()` fires all pending debounced IndexedDB writes immediately. This is best-effort (async writes may not complete before the tab closes), but since writes are debounced at 300ms, at most a few keystrokes are at risk.
 
-The `beforeunload` handler is wrapped in try-catch to handle `QuotaExceededError` if localStorage is full. If it fails, the flush to IndexedDB is still the primary safety net.
+**Removed in v2.1.35:** The previous `beforeunload` handler also wrote all entries as plaintext JSON to `localStorage` (`journalEntries` key) as a synchronous backup. This was removed because it stored all journal content in plaintext, completely bypassing password protection. The merge-on-init logic that recovered these backups was also removed.
 
 ## Backup & Import
 
@@ -2507,9 +2506,13 @@ This pattern ensures the handler always sees the current zenMode value without r
 If a user has password protection enabled and then clears cookies/site data (which wipes localStorage but not IndexedDB), the journal entries self-destruct on next load. This prevents someone from bypassing the password by clearing browser data.
 
 **How it works:**
-1. When a password is set, `setPasswordProtectedFlag(true)` writes `{ key: 'passwordProtected', value: true }` to the IndexedDB metadata store
-2. When a password is removed, `setPasswordProtectedFlag(false)` clears it
+1. When a password is set, `await setPasswordProtectedFlag(true)` writes `{ key: 'passwordProtected', value: true }` to the IndexedDB metadata store
+2. When a password is removed, `await setPasswordProtectedFlag(false)` clears it
 3. On `initJournalStorage()`, if the flag is `true` but `localStorage.getItem('passwordHash')` is `null`, all entries and metadata are cleared from IndexedDB and an empty array is returned
+
+**Important:** `setPasswordProtectedFlag()` is `await`ed in both `setPassword()` and `removePassword()` (v2.1.35+). Previously it was fire-and-forget, meaning the flag write could fail silently or not complete before tab close.
+
+Both `setPassword()` and `removePassword()` also clear `sessionStorage.removeItem(SESSION_UNLOCKED_KEY)` to invalidate any stale session unlock state (v2.1.35+).
 
 Code: `setPasswordProtectedFlag()` in `journalStorage.ts`, called from `useAuth.ts` on set/remove password. Detection logic in `initJournalStorage()`.
 
@@ -3149,40 +3152,6 @@ Check metadata store for 'migrated' flag
 ```
 
 **Safety guarantee**: localStorage is ONLY deleted after IndexedDB write is verified by reading back and comparing entry count.
-
-### Merge Logic (beforeunload Backup)
-
-**Problem**: `saveAllJournalEntries()` is fire-and-forget async. If user closes tab quickly, the IndexedDB write may not complete.
-
-**Solution**: The `beforeunload` event writes entries to localStorage as a synchronous backup:
-
-```tsx
-// useJournalEntries.ts
-const handleBeforeUnload = () => {
-  if (entriesRef.current.length > 0) {
-    localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
-  }
-};
-```
-
-On next load, if localStorage has data AND migration already happened, we merge:
-
-```tsx
-// journalStorage.ts - mergeEntries()
-function mergeEntries(indexedDBEntries, localStorageEntries) {
-  // For each entry, keep the one with newer lastModified timestamp
-  // localStorage entries take precedence if timestamps are equal
-  // (they're from beforeunload, potentially more recent)
-}
-```
-
-**Merge steps**:
-1. Create map of IndexedDB entries by date
-2. For each localStorage entry:
-   - If date not in IndexedDB → add it
-   - If date exists → compare `lastModified`, keep newer
-3. Write merged result to IndexedDB
-4. Clear localStorage
 
 ### Fallback Mode
 
