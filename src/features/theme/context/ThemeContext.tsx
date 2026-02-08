@@ -128,15 +128,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (savedBgLight !== null) setBgLightness(Number(savedBgLight));
   }, []);
 
-  // Save color settings
+  // Save color settings — skip during live streaming (6 writes × 60fps = 360/sec)
   useEffect(() => {
+    if (isLiveStreaming) return;
     setItem('colorHue', String(hue));
     setItem('colorSaturation', String(saturation));
     setItem('colorLightness', String(lightness));
     setItem('bgHue', String(bgHue));
     setItem('bgSaturation', String(bgSaturation));
     setItem('bgLightness', String(bgLightness));
-  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
+  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness, isLiveStreaming]);
 
   // Update Safari toolbar color + page background when background changes
   useEffect(() => {

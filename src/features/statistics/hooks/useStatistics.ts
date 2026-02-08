@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getItem, setItem } from '@shared/storage';
 
-export function useStatistics(paused: boolean = false) {
+export function useStatistics(paused: boolean = false, isLiveStreaming: boolean = false) {
   const [totalKeystrokes, setTotalKeystrokes] = useState(() => {
     const saved = getItem('totalKeystrokes');
     return saved ? Number(saved) : 0;
@@ -27,14 +27,14 @@ export function useStatistics(paused: boolean = false) {
     setItem('totalSecondsOnApp', String(totalSecondsOnApp));
   }, [totalSecondsOnApp]);
 
-  // Track time spent on app (update every second) - paused in superscramble
+  // Track time spent on app (update every second) - paused in superscramble and live streaming
   useEffect(() => {
     const savedSeconds = getItem('totalSecondsOnApp');
     baseSecondsRef.current = savedSeconds ? Number(savedSeconds) : 0;
     appSessionStart.current = Date.now();
 
-    // Don't run interval if paused
-    if (paused) return;
+    // Don't run interval if paused or live streaming (setState + localStorage every 1s hurts frame budget)
+    if (paused || isLiveStreaming) return;
 
     const interval = setInterval(() => {
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
@@ -45,7 +45,7 @@ export function useStatistics(paused: boolean = false) {
     return () => {
       clearInterval(interval);
     };
-  }, [paused]);
+  }, [paused, isLiveStreaming]);
 
   // Save before app closes
   useEffect(() => {
