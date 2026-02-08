@@ -3243,7 +3243,7 @@ The bold sweep is tied to `isRainbowMode`:
 - `getFound()` filters stored eggs against `EASTER_EGGS` to ignore stale entries from older versions (v2.1.24 fix — old removed eggs in localStorage were inflating the count past 8)
 - `isEasterEggFound('clickedEggCounter')` checks if secret is found
 - Display shows "7.5" when `found === total && !hasSecretEgg`
-- Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress
+- Rainbow mode: hue cycles 360° in 5 seconds, stops on click/keypress. Dismiss handler does NOT call `stopPropagation`/`preventDefault` (v2.3.19) — the dismissing keystroke flows through to the auto-type handler so the character isn't lost
 
 ## Versioning
 
