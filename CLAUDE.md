@@ -1368,7 +1368,7 @@ The hover region must only cover the text content, not the spacing above it. Thi
 
 | State | Display |
 |-------|---------|
-| Not hovered | 2x2 grid: `txt: #hex` / `hN sN lN` (row 1), `bg: #hex` / `hN sN lN` (row 2) |
+| Not hovered | Full format: `txt: #hex hN sN lN` (row 1), `bg: #hex hN sN lN` (row 2) |
 | Hovered | Split buttons: `copy` (left) / `paste` (right) |
 
 **Copy**: Copies both colors to clipboard with hex + HSL:
@@ -1503,8 +1503,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        └────────┘              │     ○ = inactive color
 │            black               │
 │                                │
-│  txt: #78cc33  bg: #c8ff00    │  ← Hex codes with labels (16px monospace bold)
-│  h96 s100 l50  h84 s100 l88   │  ← HSL values (sits on spectra top)
+│ txt: #78cc33 h96 s100 l50     │  ← Full format color stats (16px monospace bold)
+│ bg: #c8ff00 h84 s100 l88     │  ← Matches copy/paste format
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
 │  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 8px divider)
 │                ┃              │
@@ -1557,13 +1557,13 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 **Hex codes and spectra layout (v1.10.28+):**
 
-The picker displays hex codes with `txt:` and `bg:` prefixes, plus an HSL row below. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top). No "text"/"background" labels on spectra (v1.10.28+).
+The picker displays color stats in full format (v2.3.14+): each line shows `txt:` or `bg:` prefix + hex + HSL, matching the copy/paste format exactly. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top). No "text"/"background" labels on spectra (v1.10.28+).
 
 ```
 Picker bottom section:
 ┌────────────────────────────────┐
-│  txt: #78cc33   bg: #c8ff00   │ ← Hex codes with labels (16px monospace bold)
-│  h96 s100 l50   h84 s100 l88  │ ← HSL values (sits on top of spectra)
+│ txt: #78cc33 h96 s100 l50     │ ← Full format (16px monospace bold)
+│ bg: #c8ff00 h84 s100 l88     │ ← Full format (matches copy format)
 │ ──────────────╋───────────────│ ← Hue indicators (center-based, clip at edges)
 │  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 8px divider)
 │               ┃               │ ← No labels here (removed in v1.10.28)
