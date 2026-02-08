@@ -66,6 +66,21 @@ When a laptop sleeps, the WebSocket connection dies on the server (killed by kee
 
 Code: `handleVisibility` listener + `lastWsActivityRef` in `useWebSync.ts`.
 
+### PWA Freeze-Resilient Reconnect (v2.2.7+)
+
+Chrome aggressively freezes backgrounded PWA JavaScript. The relay kills the WebSocket (keep-alive timeout), but the frozen client never processes the close frame — `onclose` never fires and `readyState` still shows `OPEN`. When the user clicks back into the PWA, the 45-second staleness check may not trigger (if backgrounded < 45s), and the `readyState` check says "still open." Result: zombie WebSocket, no pairing, user must refresh.
+
+**Fix:** `handleVisibility` now tracks `hiddenAtRef` (set on `visibilitychange: hidden`). When the page becomes visible in standalone/PWA mode (`display-mode: standalone`), if hidden > 3 seconds, force-close and reconnect regardless of staleness or readyState. The 3-second threshold avoids unnecessary reconnects for instant app switches while catching all frozen connections (server kills after 40s).
+
+**Three reconnect triggers (OR'd):**
+1. `stale` — no WS activity in 45s (original wake-from-sleep check)
+2. `dead` — wsRef null or readyState > OPEN
+3. `pwaFrozen` — standalone mode + hidden > 3s (new)
+
+Normal desktop tabs still use the 45s staleness check only. PWA mode is more aggressive because Chrome's freeze behavior makes `readyState` unreliable.
+
+Code: `hiddenAtRef` + `isStandalone` + `pwaFrozen` check in `handleVisibility`, `useWebSync.ts`.
+
 ### WebSocket onclose Race Fix (v2.1.31+)
 
 When the phone goes background then foreground (or the desktop does visibility/leader changes), a race condition could silently kill the new WebSocket connection:
