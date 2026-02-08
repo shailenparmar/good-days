@@ -112,10 +112,14 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 2. `WebSyncBridge` effect → `theme.setLivePreset()` → render 2
 3. `WebSyncBridge` effect → `theme.applyPreset()` → render 3
 
-**After (1 render cycle):**
-1. `ws.onmessage` → `useWebSync` setState + `onColorUpdate` callback calls `setLivePreset` + `applyPreset` → React 18 batches all setState → 1 render
+**After (1 render per animation frame, v2.3.11+):**
+1. `ws.onmessage` → `onColorUpdate` callback increments `colorUpdateCountRef` + buffers latest colors in a ref
+2. `useWebSync` skips setState for ongoing color-updates (only updates on initial null→value transition)
+3. `requestAnimationFrame` callback reads buffered colors → calls `setLivePreset` + `applyPreset` → 1 render
 
-The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync`. A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).
+Multiple WS messages arriving within the same animation frame are coalesced — only the latest colors are applied. This caps React renders at the display refresh rate instead of the WS message rate, preventing periodic timer work (localStorage writes, statistics ticks) from overflowing the frame budget and causing dropped frames.
+
+The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync` but only mutates refs (no setState). A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).
 
 **v2.1.7 fix:** `applyPreset` was previously gated behind `isLiveActive` in the callback. But `isLiveActive` is set by a React effect (async), so on reconnect, color-update messages could arrive before the effect fired. Colors were set in `livePreset` but never applied. Now `applyPreset` is called unconditionally — if the relay is forwarding color-update, we're paired by definition.
 
