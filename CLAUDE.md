@@ -62,6 +62,20 @@ When a laptop sleeps, the WebSocket connection dies on the server (killed by kee
 
 Code: `handleVisibility` listener + `lastWsActivityRef` in `useWebSync.ts`.
 
+### WebSocket onclose Race Fix (v2.1.31+)
+
+When the phone goes background then foreground (or the desktop does visibility/leader changes), a race condition could silently kill the new WebSocket connection:
+
+1. `hidden` handler: calls `ws.close()`, sets `wsRef.current = null`
+2. `visible` handler: creates new WS, sets `wsRef.current = newWs`
+3. Old WS's `onclose` fires asynchronously, sets `wsRef.current = null` (kills new WS ref!)
+4. New WS opens, `sendMsg(register)` finds `wsRef.current` is null, registration silently dropped
+5. Phone appears connected but relay never gets registration, no pairing, no sync
+
+**Fix:** `onclose` now checks `wsRef.current === ws` before clearing the ref. If a newer WS already replaced it, the stale `onclose` is a no-op. Applied in both `useMobileSync.ts` and `useWebSync.ts`.
+
+**Symptoms before fix:** Desktop rapid connect-disconnect cycling in relay logs; phone connections with no REGISTER message; mobile live control failing after any background/foreground cycle.
+
 ### DNS (Cloudflare)
 
 | Type | Name | Target | Proxy |
