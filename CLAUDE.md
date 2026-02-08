@@ -95,6 +95,16 @@ When the phone goes background then foreground (or the desktop does visibility/l
 
 **Symptoms before fix:** Desktop rapid connect-disconnect cycling in relay logs; phone connections with no REGISTER message; mobile live control failing after any background/foreground cycle.
 
+### Leader Handoff State Cleanup (v2.3.23+)
+
+When a tab loses leadership (user switches focus to another tab), the `onLoseLeadership` callback closes the WebSocket and sets `wsRef.current = null`. The subsequent `ws.onclose` event checks `wsRef.current === ws` (the onclose race guard), but since `wsRef` is already `null`, the guard skips `startGrace()`. Result: `livePreset` is never cleared, and the old tab keeps showing the [live] button even though it's no longer connected.
+
+**Fix:** `onLoseLeadership` now clears live state directly (sets `livePreset: null`, clears `isStreaming`, `streamingControls`, etc.) and cancels any pending grace timer. This is an immediate clear (not a grace period) because losing leadership is definitive — the tab is giving up control.
+
+**Symptoms before fix:** Both Chrome tabs showing [live] button, but only the focused one responding to phone color updates.
+
+Code: `onLoseLeadership` callback in `useWebSync.ts` (line ~227).
+
 ### DNS (Cloudflare)
 
 | Type | Name | Target | Proxy |
