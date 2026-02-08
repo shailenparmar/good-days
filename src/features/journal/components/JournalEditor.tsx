@@ -64,6 +64,14 @@ export function JournalEditor({
   // Track scroll for scramble overlay sync
   const [scrollTop, setScrollTop] = useState(0);
 
+  // Safari block cursor fallback (caret-shape: block not supported)
+  const needsFakeCursor = useMemo(() => {
+    return typeof CSS === 'undefined' || !CSS.supports('caret-shape', 'block');
+  }, []);
+  const [fakeCursor, setFakeCursor] = useState<{
+    top: number; left: number; height: number; width: number; version: number;
+  } | null>(null);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
@@ -114,12 +122,60 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
+  // Measure fake cursor position (Safari block cursor fallback)
+  // Synchronous measurement — no RAF delay, so cursor overlay moves
+  // in the same frame as the native caret would, eliminating flicker.
+  const measureCursor = useCallback(() => {
+    if (!needsFakeCursor) return;
+    const textarea = editorRef.current;
+    if (!textarea || document.activeElement !== textarea) {
+      setFakeCursor(null);
+      return;
+    }
+    const { selectionStart, selectionEnd } = textarea;
+    if (selectionStart !== selectionEnd) {
+      setFakeCursor(null);
+      return;
+    }
+    const computed = getComputedStyle(textarea);
+    const mirror = document.createElement('div');
+    mirror.style.position = 'absolute';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflow = 'hidden';
+    ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+     'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing',
+     'textIndent', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+     'boxSizing'].forEach(prop => {
+      (mirror.style as any)[prop] = (computed as any)[prop];
+    });
+    mirror.style.width = `${textarea.offsetWidth}px`;
+    document.body.appendChild(mirror);
+    mirror.textContent = textarea.value.substring(0, selectionStart);
+    const marker = document.createElement('span');
+    marker.textContent = textarea.value[selectionStart] || '\u00a0';
+    mirror.appendChild(marker);
+    setFakeCursor({
+      top: marker.offsetTop - textarea.scrollTop,
+      left: marker.offsetLeft,
+      height: marker.offsetHeight,
+      width: marker.offsetWidth || parseFloat(computed.fontSize) * 0.6,
+      version: Date.now(),
+    });
+    document.body.removeChild(mirror);
+  }, [needsFakeCursor]);
+
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
     if (!editorRef.current) return;
 
     // Immediately sync overlay scroll (no debounce for smooth visual)
     setScrollTop(editorRef.current.scrollTop);
+    measureCursor();
 
     // Debounce scroll position save (100ms)
     if (scrollSaveTimeout.current !== null) {
@@ -131,7 +187,7 @@ export function JournalEditor({
       }
       scrollSaveTimeout.current = null;
     }, 100);
-  }, [editorRef, selectedDate, scrollPosition]);
+  }, [editorRef, selectedDate, scrollPosition, measureCursor]);
 
   // Handle input changes
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -246,12 +302,17 @@ export function JournalEditor({
       <style>
         {`
           .journal-textarea {
-            caret-color: ${getColor()};
+            caret-color: ${needsFakeCursor ? 'transparent' : getColor()};
           }
           @supports (caret-shape: block) {
             .journal-textarea {
+              caret-color: ${getColor()};
               caret-shape: block;
             }
+          }
+          @keyframes fakeCursorBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
           }
         `}
       </style>
@@ -264,8 +325,9 @@ export function JournalEditor({
         onPaste={isToday ? handlePaste : undefined}
         onKeyDown={handleKeyDown}
         onScroll={handleScroll}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onSelect={measureCursor}
+        onFocus={() => { setIsFocused(true); measureCursor(); }}
+        onBlur={() => { setIsFocused(false); setFakeCursor(null); }}
         readOnly={!isToday}
         wrap="soft"
         className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
@@ -284,6 +346,23 @@ export function JournalEditor({
             {scrambledValue}
           </div>
         </div>
+      )}
+
+      {/* Safari block cursor fallback */}
+      {needsFakeCursor && fakeCursor && isFocused && (
+        <div
+          key={fakeCursor.version}
+          style={{
+            position: 'absolute',
+            top: fakeCursor.top,
+            left: fakeCursor.left,
+            width: fakeCursor.width,
+            height: fakeCursor.height,
+            backgroundColor: getColor(),
+            pointerEvents: 'none',
+            animation: 'fakeCursorBlink 1s step-end infinite',
+          }}
+        />
       )}
 
       {/* Placeholder */}

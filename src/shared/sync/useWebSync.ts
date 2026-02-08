@@ -100,6 +100,11 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         console.log('[ws-sync] connected to', url);
         backoffRef.current = 1000;
         lastWsActivityRef.current = Date.now();
+        // Cancel any pending reconnect timer — connection succeeded before it fired
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
         // Clear grace timer on reconnect
         if (graceTimer.current) {
           clearTimeout(graceTimer.current);
@@ -293,10 +298,33 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // Periodic stale detection: catches dead connections even when
+    // the tab stays hidden (minimized window, secondary monitor).
+    // Complements the visibilitychange handler which only runs on show.
+    const staleCheckInterval = setInterval(() => {
+      if (!isLeaderRef.current || !mountedRef.current) return;
+      const stale = Date.now() - lastWsActivityRef.current > 45_000;
+      const dead = !wsRef.current || wsRef.current.readyState > WebSocket.OPEN;
+      if (stale || dead) {
+        console.log('[ws-sync] periodic stale check: reconnecting (stale=%s, dead=%s)', stale, dead);
+        backoffRef.current = 1000;
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+        connect();
+      }
+    }, 60_000);
+
     return () => {
       mountedRef.current = false;
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(staleCheckInterval);
       election.destroy();
       wsRef.current?.close();
       wsRef.current = null;

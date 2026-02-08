@@ -576,13 +576,6 @@ function AppContent() {
         }
         // Flush debounced saves immediately (don't wait 300ms)
         flushPendingSaves();
-        // Sync localStorage backup in case IndexedDB write is still in-flight
-        try {
-          const entries = journalRef.current.entries;
-          if (entries.length > 0) {
-            localStorage.setItem('journalEntries', JSON.stringify(entries));
-          }
-        } catch { /* localStorage full - IndexedDB flush is our primary */ }
         // Switch to new day
         journalRef.current.setSelectedDate(getTodayDate());
         if (editorRef.current) {

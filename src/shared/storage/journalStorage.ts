@@ -207,43 +207,9 @@ async function markMigrated(db: IDBDatabase): Promise<void> {
 }
 
 /**
- * Merge localStorage backup with IndexedDB entries
- * localStorage entries take precedence (they're from beforeunload, potentially newer)
- */
-function mergeEntries(indexedDBEntries: JournalEntry[], localStorageEntries: JournalEntry[]): JournalEntry[] {
-  // Create a map of IndexedDB entries by date
-  const entriesByDate = new Map<string, JournalEntry>();
-  for (const entry of indexedDBEntries) {
-    entriesByDate.set(entry.date, entry);
-  }
-
-  // Merge localStorage entries (prefer localStorage if lastModified is newer or equal)
-  for (const lsEntry of localStorageEntries) {
-    const idbEntry = entriesByDate.get(lsEntry.date);
-    if (!idbEntry) {
-      // Entry only in localStorage - add it
-      entriesByDate.set(lsEntry.date, lsEntry);
-    } else {
-      // Entry in both - prefer the one with newer lastModified
-      const lsModified = lsEntry.lastModified || 0;
-      const idbModified = idbEntry.lastModified || 0;
-      if (lsModified >= idbModified) {
-        entriesByDate.set(lsEntry.date, lsEntry);
-      }
-    }
-  }
-
-  // Convert back to sorted array
-  const merged = Array.from(entriesByDate.values());
-  merged.sort((a, b) => b.date.localeCompare(a.date));
-  return merged;
-}
-
-/**
  * Initialize journal storage
  * - Opens IndexedDB
  * - Migrates from localStorage if needed
- * - Merges any localStorage backup (from beforeunload) with IndexedDB
  * - Returns all entries
  *
  * Falls back to localStorage if IndexedDB fails
@@ -298,23 +264,8 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
     const indexedDBEntries = await getEntriesFromIndexedDB(db);
     log('initJournalStorage: loaded from IndexedDB', { entryCount: indexedDBEntries.length, dates: indexedDBEntries.map(e => e.date) });
 
-    // Check for localStorage backup (from beforeunload) and merge if present
-    // This handles the case where IndexedDB async write didn't complete before tab close
+    // Clean up any stale localStorage backup from older versions
     if (localStorageEntries.length > 0 && alreadyMigrated) {
-      const mergedEntries = mergeEntries(indexedDBEntries, localStorageEntries);
-
-      // If merge changed anything, update IndexedDB and clear localStorage
-      if (mergedEntries.length !== indexedDBEntries.length ||
-          mergedEntries.some((e, i) => e.lastModified !== indexedDBEntries[i]?.lastModified)) {
-        log('initJournalStorage: merging localStorage backup', { indexedDBCount: indexedDBEntries.length, localStorageCount: localStorageEntries.length, mergedCount: mergedEntries.length });
-        logAction('storage.init.merge', { idbCount: indexedDBEntries.length, lsCount: localStorageEntries.length, mergedCount: mergedEntries.length });
-        await writeEntriesToIndexedDB(db, mergedEntries);
-        localStorage.removeItem('journalEntries');
-        db.close();
-        return mergedEntries;
-      }
-
-      // No changes needed, but still clear stale localStorage
       localStorage.removeItem('journalEntries');
       log('initJournalStorage: cleared stale localStorage backup');
     }

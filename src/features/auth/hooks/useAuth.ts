@@ -154,17 +154,20 @@ export function useAuth() {
     setItem(PASSWORD_SALT_KEY, salt);
     setItem(PASSWORD_KEY, hash);
     setHasPassword(true);
-    setPasswordProtectedFlag(true);
+    await setPasswordProtectedFlag(true);
+    // Invalidate stale session unlock flag so new password requires entry
+    sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
     logAction('auth.password.set');
     return true;
   }, []);
 
-  const removePassword = useCallback(() => {
+  const removePassword = useCallback(async () => {
     removeItem(PASSWORD_KEY);
     removeItem(PASSWORD_SALT_KEY);
     setHasPassword(false);
     setIsLocked(false);
-    setPasswordProtectedFlag(false);
+    sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+    await setPasswordProtectedFlag(false);
     logAction('auth.password.removed');
   }, []);
 

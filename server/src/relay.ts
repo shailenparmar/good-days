@@ -226,6 +226,17 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
             }
             other.partnerId = undefined;
             send(other.ws, { type: 'unpaired', reason: 'phone-takeover' });
+            // Cancel any handoff grace timers for the evicted phone or freed laptop
+            if (handoffTimers.has(otherId)) {
+              clearTimeout(handoffTimers.get(otherId)!);
+              handoffTimers.delete(otherId);
+              console.log(`[relay] handoff grace cancelled for evicted phone ${otherId.slice(0,8)}`);
+            }
+            if (handoffTimers.has(freedLaptopId)) {
+              clearTimeout(handoffTimers.get(freedLaptopId)!);
+              handoffTimers.delete(freedLaptopId);
+              console.log(`[relay] handoff grace cancelled for freed laptop ${freedLaptopId.slice(0,8)}`);
+            }
             // Directly pair with the freed laptop — no candidates screen
             if (laptop && !laptop.partnerId) {
               pairClients(clientId, freedLaptopId);
@@ -437,6 +448,12 @@ function handleDisconnect(clientId: string) {
           const phoneNow = clients.get(partnerId);
           if (phoneNow && !phoneNow.partnerId) {
             // Grace expired, no new laptop showed up. Unpair phone now.
+            // Clear stale stream state so a later laptop reconnect doesn't replay expired data
+            phoneNow.lastColors = undefined;
+            phoneNow.lastStreamSide = undefined;
+            phoneNow.lastStreamState = undefined;
+            phoneNow.streaming = false;
+
             console.log(`[relay] handoff grace expired for phone ${partnerId.slice(0,8)} — sending unpaired`);
             send(phoneNow.ws, { type: 'unpaired', reason: 'partner-disconnected' });
 
@@ -519,6 +536,8 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
     try {
       msg = JSON.parse(data.toString());
     } catch {
+      const preview = data.toString().slice(0, 120);
+      console.log(`[relay] MALFORMED JSON id=${clientId.slice(0,8)}: ${preview}`);
       return;
     }
 
@@ -526,7 +545,7 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
       case 'register':
         if (registered) return;
         registered = true;
-        handleRegister(clientId, ws, msg.role, msg.publicIp || publicIp, msg.secret, msg.colorway, msg.deviceId, msg.partnerDeviceId);
+        handleRegister(clientId, ws, msg.role, publicIp, msg.secret, msg.colorway, msg.deviceId, msg.partnerDeviceId);
         break;
 
       case 'pair-request':
@@ -564,6 +583,19 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
     }
   });
 
-  ws.on('close', () => { clearInterval(pingInterval); console.log(`[relay] DISCONNECTED id=${clientId.slice(0,8)}`); handleDisconnect(clientId); });
-  ws.on('error', (err) => { clearInterval(pingInterval); console.log(`[relay] ERROR id=${clientId.slice(0,8)} ${err.message}`); handleDisconnect(clientId); });
+  let disconnected = false;
+  ws.on('close', () => {
+    if (disconnected) return;
+    disconnected = true;
+    clearInterval(pingInterval);
+    console.log(`[relay] DISCONNECTED id=${clientId.slice(0,8)}`);
+    handleDisconnect(clientId);
+  });
+  ws.on('error', (err) => {
+    if (disconnected) return;
+    disconnected = true;
+    clearInterval(pingInterval);
+    console.log(`[relay] ERROR id=${clientId.slice(0,8)} ${err.message}`);
+    handleDisconnect(clientId);
+  });
 }

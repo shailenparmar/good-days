@@ -109,7 +109,6 @@ function MobileScreen() {
   const [savePressed, setSavePressed] = useState(false);
   const [pastePressed, setPastePressed] = useState(false);
   const [pasteInvalid, setPasteInvalid] = useState(false);
-  const pasteInvalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
   // iOS permission state
@@ -168,6 +167,20 @@ function MobileScreen() {
 
   const textColor = `hsl(${colors.hue}, ${colors.sat}%, ${colors.light}%)`;
   const bgColor = `hsl(${colors.bgHue}, ${colors.bgSat}%, ${colors.bgLight}%)`;
+
+  // Dismiss "invalid format" on any interaction
+  useEffect(() => {
+    if (!pasteInvalid) return;
+    const dismiss = () => setPasteInvalid(false);
+    window.addEventListener('keydown', dismiss, true);
+    window.addEventListener('touchstart', dismiss, true);
+    window.addEventListener('mousedown', dismiss, true);
+    return () => {
+      window.removeEventListener('keydown', dismiss, true);
+      window.removeEventListener('touchstart', dismiss, true);
+      window.removeEventListener('mousedown', dismiss, true);
+    };
+  }, [pasteInvalid]);
 
   // Persist colors
   useEffect(() => {
@@ -658,9 +671,7 @@ function MobileScreen() {
           sync.stopStream();
         }
       } else {
-        if (pasteInvalidTimer.current) clearTimeout(pasteInvalidTimer.current);
         setPasteInvalid(true);
-        pasteInvalidTimer.current = setTimeout(() => setPasteInvalid(false), 1500);
       }
     }).catch(() => {});
   };
@@ -712,7 +723,7 @@ function MobileScreen() {
 
   // Title hold to show version
   const [titlePressed, setTitlePressed] = useState(false);
-  const mobileVersion = '2.1.33';
+  const mobileVersion = '2.1.35';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {

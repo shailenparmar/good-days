@@ -171,10 +171,10 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
             left: 0,
             right: 0,
             top: `${indicatorTop}%`,
-            height: `${needleHeight * 0.25}px`,
+            height: `${needleHeight * 0.5}px`,
             transform: 'translateY(-50%)',
-            borderTop: `${needleHeight * 0.375}px solid black`,
-            borderBottom: `${needleHeight * 0.375}px solid black`,
+            borderTop: `${needleHeight * 0.25}px solid black`,
+            borderBottom: `${needleHeight * 0.25}px solid black`,
             boxSizing: 'content-box',
           }}
         />

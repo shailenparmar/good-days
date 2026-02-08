@@ -44,7 +44,7 @@ export function useJournalEntries() {
     })()
   );
 
-  // Track latest state in refs for beforeunload (can't access state in event handlers)
+  // Track latest state in refs (saveEntry needs synchronous access, not stale closure)
   const entriesRef = useRef<JournalEntry[]>(entries);
   const pendingSaveRef = useRef<{ content: string; date: string } | null>(null);
 
@@ -75,22 +75,11 @@ export function useJournalEntries() {
     };
   }, []); // Only run on mount
 
-  // Force save before closing - use sync localStorage as backup
+  // Flush debounced saves before tab closes (best-effort, async)
   useEffect(() => {
     const handleBeforeUnload = () => {
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
-      // Flush any debounced saves to IndexedDB (best-effort, async)
       flushPendingSaves();
-      // Sync backup to localStorage (IndexedDB writes may not complete before tab closes)
-      if (entriesRef.current.length > 0) {
-        logAction('journal.beforeunload', { entryCount: entriesRef.current.length });
-        try {
-          localStorage.setItem('journalEntries', JSON.stringify(entriesRef.current));
-        } catch (e) {
-          console.error('[gdays] beforeunload: localStorage backup failed', e);
-          logAction('journal.beforeunload.fail');
-        }
-      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);

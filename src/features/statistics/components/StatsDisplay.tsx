@@ -120,7 +120,18 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
   // Color stats hover state
   const [colorAreaHovered, setColorAreaHovered] = useState(false);
   const [pasteInvalid, setPasteInvalid] = useState(false);
-  const pasteInvalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dismiss "invalid format" on any keystroke or click
+  useEffect(() => {
+    if (!pasteInvalid) return;
+    const dismiss = () => { setPasteInvalid(false); setColorAreaHovered(false); };
+    window.addEventListener('keydown', dismiss, true);
+    window.addEventListener('mousedown', dismiss, true);
+    return () => {
+      window.removeEventListener('keydown', dismiss, true);
+      window.removeEventListener('mousedown', dismiss, true);
+    };
+  }, [pasteInvalid]);
 
   // Helper to scramble text in superscramble (scrambleSeed forces re-render)
   const s = (text: string) => superscramble ? scrambleText(text) : text;
@@ -498,16 +509,13 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         // Select the new preset
         setSelectedPreset(null);
         setSelectedCustomPreset(customPresets.length);
-
+        setColorAreaHovered(false);
       } else {
-        if (pasteInvalidTimer.current) clearTimeout(pasteInvalidTimer.current);
         setPasteInvalid(true);
-        pasteInvalidTimer.current = setTimeout(() => setPasteInvalid(false), 1500);
       }
     } catch {
       // Clipboard access denied or empty
     }
-    setColorAreaHovered(false);
   }, [parseColorInput, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset]);
 
   if (horizontal) {
@@ -628,12 +636,12 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               }}
               onClick={(e) => e.stopPropagation()}
               onMouseEnter={() => setColorAreaHovered(true)}
-              onMouseLeave={() => setColorAreaHovered(false)}
+              onMouseLeave={() => { if (!pasteInvalid) setColorAreaHovered(false); }}
             >
               {/* Both elements in same grid cell - container sizes to larger one */}
               <div
                 className="flex items-center"
-                style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'visible' : 'hidden' }}
+                style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'visible' : 'hidden' }}
               >
                 <ColorButton
                   onClick={handleColorCopy}
@@ -658,7 +666,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               </div>
               <div
                 className="grid grid-cols-2 gap-x-0 gap-y-1"
-                style={{ gridRow: 1, gridColumn: 1, visibility: colorAreaHovered ? 'hidden' : 'visible' }}
+                style={{ gridRow: 1, gridColumn: 1, visibility: (colorAreaHovered || pasteInvalid) ? 'hidden' : 'visible' }}
               >
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
                   txt: {hue}, {saturation}%, {lightness}%

@@ -83,6 +83,11 @@ export function useMobileSync(): MobileSyncHandle {
       ws.onopen = () => {
         console.log('[mobile-sync] connected to', url);
         backoffRef.current = 1000;
+        // Cancel any pending reconnect timer — connection succeeded before it fired
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
         console.log('[mobile-sync] registering as phone, ip=', ip, 'secret=', secret || 'none');
         sendMsg({
           type: 'register',
