@@ -143,10 +143,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness, isLiveStreaming]);
 
   // Update Safari toolbar color + page background when background changes.
-  // During streaming, set to pure black (the flex container's inline style handles
-  // visual bg). When streaming stops, restore to the computed color.
+  // During live mode, set to pure black (the flex container's inline style handles
+  // visual bg). When live mode ends (phone disconnects), restore to the computed color.
   useEffect(() => {
-    if (isLiveStreaming) {
+    if (isLiveActive) {
       const meta = document.getElementById('theme-color-meta');
       if (meta) meta.setAttribute('content', '#000000');
       document.documentElement.style.backgroundColor = '#000000';
@@ -169,7 +169,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Safari also uses the page background for toolbar tinting
     document.documentElement.style.backgroundColor = hex;
     document.body.style.backgroundColor = hex;
-  }, [bgHue, bgSaturation, bgLightness, isLiveStreaming]);
+  }, [bgHue, bgSaturation, bgLightness, isLiveActive]);
 
   // Save presets
   useEffect(() => {
