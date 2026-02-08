@@ -1424,7 +1424,7 @@ The hover region must only cover the text content, not the spacing above it. Thi
 
 | State | Display |
 |-------|---------|
-| Not hovered | Two-column: left `txt: #hex` / `bg: #hex`, right `hN sN lN` (v2.3.22+) |
+| Not hovered | 2x2 grid matching other stats: row 1 `txt: #hex` / `bg: #hex`, row 2 `hN sN lN` / `hN sN lN` — each centered in its column (v2.3.24+) |
 | Hovered | Split buttons: `copy` (left) / `paste` (right) |
 
 **Copy**: Copies both colors to clipboard with hex + HSL:
