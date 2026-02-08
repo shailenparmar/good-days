@@ -1927,16 +1927,22 @@ if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' 
 
 Active presets show a pulsing border animation (`preset-pulse` class). The animation resets to give visual feedback on interaction. This is done by incrementing a `pulseKey` state that's part of each button's React key — when the key changes, React remounts the element and the CSS animation restarts from 0%.
 
-**Style rule: EVERY clickable button in the preset grid must call `setPulseKey(k => k + 1)` in its onClick handler.** This includes numbered presets, custom presets, rand, save, live, and any future buttons. If a new button is added to the grid without this call, the pulse animation won't reset on click, which is a bug.
+**Style rule: Buttons that toggle between states (default presets, custom presets, live) only call `setPulseKey(k => k + 1)` when re-clicking an already-active button.** Buttons that always perform an action (rand, save) call it every click. This prevents the shared `pulseKey` from causing visual artifacts (border width snap from animated 4-6px to static 3px) on the previously-active button when switching selection.
 
 | Button type | Where pulse reset happens |
 |-------------|--------------------------|
 | Default presets | `handlePresetClick()` (when `wasActive`) |
 | Custom presets | `handleCustomPresetClick()` (when `wasActive`) |
+| live | Inline onClick (only when `isLiveActive` already true) |
 | rand | Inline onClick (every click) |
 | save | Inline onClick (every click) |
-| live | Inline onClick (every click) |
 | Space/Enter key | Keyboard handler (line ~220) |
+
+**`isLiveActive` clearing (v2.3.13+):** All buttons that switch away from live must call `setIsLiveActive(false)`. This includes `handlePresetClick`, `handleCustomPresetClick`, rand onClick, and save onClick.
+
+#### Auto-Switch to Live on Stream Start (v2.3.13+)
+
+When the phone starts streaming colors (user touches color picker), the desktop auto-switches the preset selection to `[live]` so the live button pulses. This happens in `WebSyncBridge.tsx` via a `prevStreamingRef` tracking the `false → true` transition of `syncState.isStreaming`. Previously, auto-select only happened on initial pairing (null → value transition of `livePreset`), meaning the user could click away from live and not see it re-pulse when streaming resumed.
 
 Code location: `src/features/theme/components/PresetGrid.tsx`
 
