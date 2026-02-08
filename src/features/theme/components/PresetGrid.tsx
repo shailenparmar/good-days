@@ -35,7 +35,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastDeletedPresetRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom' } | null>(null);
+  const deletedPresetsStackRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom' }[]>([]);
 
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
@@ -280,10 +280,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         return;
       }
 
-      // Cmd+Z / Ctrl+Z: undo last preset deletion
+      // Cmd+Z / Ctrl+Z: undo last preset deletion (supports multiple undos)
       if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey && showDebugMenu) {
-        const deleted = lastDeletedPresetRef.current;
-        if (!deleted) return;
+        const stack = deletedPresetsStackRef.current;
+        if (stack.length === 0) return;
+        const deleted = stack.pop()!;
         e.preventDefault();
 
         if (deleted.type === 'default') {
@@ -304,7 +305,6 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           setActivePresetIndex(presets.length + deleted.index);
         }
 
-        lastDeletedPresetRef.current = null;
         return;
       }
 
@@ -313,7 +313,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         if (activePresetIndex !== null && activePresetIndex < presets.length) {
           // Delete default preset — save to ref for undo
           e.preventDefault();
-          lastDeletedPresetRef.current = { preset: presets[activePresetIndex], index: activePresetIndex, type: 'default' };
+          deletedPresetsStackRef.current.push({ preset: presets[activePresetIndex], index: activePresetIndex, type: 'default' });
           const newPresets = presets.filter((_, i) => i !== activePresetIndex);
           setPresets(newPresets);
           // Move to next available preset or stay at end
@@ -333,7 +333,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           // Delete custom preset — save to ref for undo
           e.preventDefault();
           const customIndex = activePresetIndex - presets.length;
-          lastDeletedPresetRef.current = { preset: customPresets[customIndex], index: customIndex, type: 'custom' };
+          deletedPresetsStackRef.current.push({ preset: customPresets[customIndex], index: customIndex, type: 'custom' });
           deleteCustomPreset(customIndex);
         }
       }
