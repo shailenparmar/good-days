@@ -91,7 +91,7 @@ function AppContent() {
   // Feature hooks
   const theme = useTheme();
   const auth = useAuth();
-  const journal = useJournalEntries();
+  const journal = useJournalEntries(auth.encryptionKeyReady);
 
   // If previous session was in a focus mode (zen/minizen), preFocusState has the panel
   // state from before entering that mode. Use it to restore panels on refresh.
@@ -816,6 +816,7 @@ function AppContent() {
         hasPassword={auth.hasPassword}
         verifyPassword={auth.verifyPassword}
         setPassword={auth.setPassword}
+        changePassword={auth.changePassword}
         removePassword={auth.removePassword}
         entries={journal.entries}
         onImport={(entries) => {

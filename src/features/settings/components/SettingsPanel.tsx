@@ -19,6 +19,7 @@ interface SettingsPanelProps {
   hasPassword: boolean;
   verifyPassword: (password: string) => Promise<boolean>;
   setPassword: (password: string) => Promise<boolean>;
+  changePassword: (password: string) => Promise<boolean>;
   removePassword: () => void;
   entries: JournalEntry[];
   onImport: (entries: JournalEntry[]) => void;
@@ -34,6 +35,7 @@ export function SettingsPanel({
   hasPassword,
   verifyPassword,
   setPassword,
+  changePassword,
   removePassword,
   entries,
   onImport,
@@ -169,6 +171,7 @@ export function SettingsPanel({
           hasPassword={hasPassword}
           verifyPassword={verifyPassword}
           setPassword={setPassword}
+          changePassword={changePassword}
           removePassword={removePassword}
           superscramble={superscramble}
           scrambleSeed={scrambleSeed}

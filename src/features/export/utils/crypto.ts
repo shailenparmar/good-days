@@ -1,9 +1,20 @@
-// App-level encryption for backups
-// Uses AES-GCM with a derived key from a fixed passphrase
+// App-level encryption for backups and at-rest journal encryption
+// Uses AES-GCM with derived keys from fixed passphrase or user password
 
 const APP_SECRET = 'good-days-backup-v1-2026';
 
+// Separate salt for at-rest encryption (distinct from backup salt)
+const ENCRYPT_SALT = 'good-days-encrypt-salt';
+
+// --- Key caching ---
+
+let cachedBackupKey: CryptoKey | null = null;
+let cachedAppEncryptKey: CryptoKey | null = null;
+
+// Backup key (non-extractable, used for backup encrypt/decrypt)
 async function getKey(): Promise<CryptoKey> {
+  if (cachedBackupKey) return cachedBackupKey;
+
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -13,7 +24,7 @@ async function getKey(): Promise<CryptoKey> {
     ['deriveKey']
   );
 
-  return crypto.subtle.deriveKey(
+  cachedBackupKey = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: encoder.encode('good-days-salt'),
@@ -25,7 +36,116 @@ async function getKey(): Promise<CryptoKey> {
     false,
     ['encrypt', 'decrypt']
   );
+
+  return cachedBackupKey;
 }
+
+// App-secret key for at-rest encryption (extractable, for sessionStorage JWK export)
+export async function getAppEncryptKey(): Promise<CryptoKey> {
+  if (cachedAppEncryptKey) return cachedAppEncryptKey;
+
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(APP_SECRET),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  cachedAppEncryptKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(ENCRYPT_SALT),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable
+    ['encrypt', 'decrypt']
+  );
+
+  return cachedAppEncryptKey;
+}
+
+// --- Low-level encrypt/decrypt with any CryptoKey ---
+
+export async function encryptWithKey(plaintext: string, key: CryptoKey): Promise<string> {
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(plaintext)
+  );
+
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
+  return btoa(String.fromCharCode(...combined));
+}
+
+export async function decryptWithKey(ciphertext: string, key: CryptoKey): Promise<string> {
+  const decoder = new TextDecoder();
+  const combined = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const data = combined.slice(12);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  );
+
+  return decoder.decode(decrypted);
+}
+
+// --- Password key derivation ---
+
+export async function derivePasswordKey(password: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(ENCRYPT_SALT),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable (for JWK export to sessionStorage)
+    ['encrypt', 'decrypt']
+  );
+}
+
+// --- JWK export/import (for sessionStorage persistence) ---
+
+export async function exportKeyToJWK(key: CryptoKey): Promise<JsonWebKey> {
+  return crypto.subtle.exportKey('jwk', key);
+}
+
+export async function importKeyFromJWK(jwk: JsonWebKey): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable
+    ['encrypt', 'decrypt']
+  );
+}
+
+// --- Backup encryption (unchanged API, now cached) ---
 
 export async function encryptText(plaintext: string): Promise<string> {
   const encoder = new TextEncoder();

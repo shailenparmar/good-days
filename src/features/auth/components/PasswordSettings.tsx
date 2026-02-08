@@ -10,6 +10,7 @@ interface PasswordSettingsProps {
   hasPassword: boolean;
   verifyPassword: (password: string) => Promise<boolean>;
   setPassword: (password: string) => Promise<boolean>;
+  changePassword: (password: string) => Promise<boolean>;
   removePassword: () => void;
   superscramble?: boolean;
   scrambleSeed?: number;
@@ -84,7 +85,7 @@ function PasswordButton({
   );
 }
 
-export function PasswordSettings({ hasPassword, verifyPassword, setPassword, removePassword, superscramble, scrambleSeed }: PasswordSettingsProps) {
+export function PasswordSettings({ hasPassword, verifyPassword, setPassword, changePassword, removePassword, superscramble, scrambleSeed }: PasswordSettingsProps) {
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
 
@@ -377,7 +378,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, rem
 
       case 'confirm':
         if (input.trim() === newPasswordTemp) {
-          await setPassword(newPasswordTemp);
+          await changePassword(newPasswordTemp);
           setInput('');
           setNewPasswordTemp('');
           setIsSaving(true);

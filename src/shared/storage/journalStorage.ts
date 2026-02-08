@@ -1,8 +1,10 @@
 // IndexedDB storage for journal entries
 // Provides effectively unlimited storage compared to localStorage's 5MB limit
+// Entries are encrypted at rest (AES-GCM) — app-secret key or password-derived key
 
 import type { JournalEntry } from '@features/journal/types';
 import { logAction } from '@shared/logger';
+import { encryptWithKey, decryptWithKey } from '@features/export/utils/crypto';
 
 const DB_NAME = 'good-days';
 const DB_VERSION = 1;
@@ -11,6 +13,160 @@ const METADATA_STORE = 'metadata';
 
 // Track if we're in fallback mode (IndexedDB failed, using localStorage)
 let fallbackMode = false;
+
+// --- Encryption state ---
+
+let currentKey: CryptoKey | null = null;
+let keyMode: 'app' | 'password' = 'app';
+
+// Set the active encryption key (called by auth layer)
+export function setEncryptionKey(key: CryptoKey, mode: 'app' | 'password'): void {
+  currentKey = key;
+  keyMode = mode;
+}
+
+// Get the encryption mode from IndexedDB metadata
+export async function getEncryptionMode(): Promise<'app' | 'password' | 'none'> {
+  try {
+    const db = await openDatabase();
+    const result = await new Promise<string | null>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readonly');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.get('encryptionMode');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result?.value ?? null);
+    });
+    db.close();
+    return (result as 'app' | 'password') || 'none';
+  } catch {
+    return 'none';
+  }
+}
+
+// Set the encryption mode in IndexedDB metadata
+async function setEncryptionMode(db: IDBDatabase, mode: 'app' | 'password'): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(METADATA_STORE, 'readwrite');
+    const store = transaction.objectStore(METADATA_STORE);
+    const request = store.put({ key: 'encryptionMode', value: mode });
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+// --- Encrypt/decrypt entry helpers ---
+
+// Encrypted record shape in IndexedDB
+interface EncryptedRecord {
+  date: string;
+  _enc: 'app' | 'password';
+  _payload: string; // base64 AES-GCM ciphertext of JSON { content, title }
+  startedAt?: number;
+  lastModified?: number;
+}
+
+async function encryptEntry(entry: JournalEntry): Promise<EncryptedRecord> {
+  if (!currentKey) throw new Error('No encryption key set');
+  const payload = JSON.stringify({ content: entry.content, title: entry.title });
+  const encrypted = await encryptWithKey(payload, currentKey);
+  return {
+    date: entry.date,
+    _enc: keyMode,
+    _payload: encrypted,
+    startedAt: entry.startedAt,
+    lastModified: entry.lastModified,
+  };
+}
+
+async function decryptEntry(record: unknown): Promise<JournalEntry | null> {
+  if (typeof record !== 'object' || record === null) return null;
+  const r = record as Record<string, unknown>;
+
+  // Legacy plaintext entry (no _enc marker)
+  if (!r._enc) {
+    return isValidEntry(record) ? (record as JournalEntry) : null;
+  }
+
+  // Encrypted entry
+  if (typeof r._payload !== 'string' || typeof r.date !== 'string') return null;
+  if (!currentKey) return null;
+
+  try {
+    const decrypted = await decryptWithKey(r._payload, currentKey);
+    const { content, title } = JSON.parse(decrypted);
+    const entry: JournalEntry = {
+      date: r.date,
+      content: content ?? '',
+      title,
+      startedAt: typeof r.startedAt === 'number' ? r.startedAt : undefined,
+      lastModified: typeof r.lastModified === 'number' ? r.lastModified : undefined,
+    };
+    return isValidEntry(entry) ? entry : null;
+  } catch {
+    log('decryptEntry: failed to decrypt', { date: r.date });
+    return null;
+  }
+}
+
+// Re-encrypt all entries with a new key (called during password transitions)
+export async function reEncryptAllEntries(newKey: CryptoKey, newMode: 'app' | 'password'): Promise<void> {
+  if (fallbackMode) return; // Skip encryption in fallback mode
+
+  const db = await openDatabase();
+
+  // Read all raw records
+  const rawRecords = await new Promise<unknown[]>((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE, 'readonly');
+    const store = transaction.objectStore(ENTRIES_STORE);
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+
+  // Decrypt all with current key
+  const entries = (await Promise.all(rawRecords.map(r => decryptEntry(r)))).filter(
+    (e): e is JournalEntry => e !== null
+  );
+
+  // Switch to new key
+  const oldKey = currentKey;
+  const oldMode = keyMode;
+  currentKey = newKey;
+  keyMode = newMode;
+
+  try {
+    // Re-encrypt all with new key
+    const encrypted = await Promise.all(entries.map(e => encryptEntry(e)));
+
+    // Write back atomically
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
+      const store = transaction.objectStore(ENTRIES_STORE);
+      let completed = 0;
+      if (encrypted.length === 0) { resolve(); return; }
+      for (const record of encrypted) {
+        const request = store.put(record);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          completed++;
+          if (completed === encrypted.length) resolve();
+        };
+      }
+    });
+
+    // Update metadata
+    await setEncryptionMode(db, newMode);
+    db.close();
+    log('reEncryptAllEntries: done', { count: entries.length, mode: newMode });
+    logAction('storage.reencrypt', { count: entries.length, mode: newMode });
+  } catch (error) {
+    // Rollback key on failure
+    currentKey = oldKey;
+    keyMode = oldMode;
+    db.close();
+    throw error;
+  }
+}
 
 // Multi-tab sync via BroadcastChannel
 const TAB_ID = Math.random().toString(36).slice(2);
@@ -114,39 +270,52 @@ function parseLocalStorageEntries(): JournalEntry[] {
   }
 }
 
-// Get all entries from IndexedDB
+// Get all entries from IndexedDB (decrypts after read)
 async function getEntriesFromIndexedDB(db: IDBDatabase): Promise<JournalEntry[]> {
-  return new Promise((resolve, reject) => {
+  const rawRecords = await new Promise<unknown[]>((resolve, reject) => {
     const transaction = db.transaction(ENTRIES_STORE, 'readonly');
     const store = transaction.objectStore(ENTRIES_STORE);
     const request = store.getAll();
-
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      const entries = request.result.filter(isValidEntry);
-      // Sort by date descending (newest first)
-      entries.sort((a, b) => b.date.localeCompare(a.date));
-      resolve(entries);
-    };
+    request.onsuccess = () => resolve(request.result);
   });
+
+  // Decrypt all entries in parallel
+  if (currentKey) {
+    const decrypted = await Promise.all(rawRecords.map(r => decryptEntry(r)));
+    const entries = decrypted.filter((e): e is JournalEntry => e !== null);
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+    return entries;
+  }
+
+  // No key yet — filter for valid plaintext entries only
+  const entries = rawRecords.filter(isValidEntry) as JournalEntry[];
+  entries.sort((a, b) => b.date.localeCompare(a.date));
+  return entries;
 }
 
 // Write all entries to IndexedDB (upsert, no clear - safe for multi-tab)
+// Encrypts before write
 async function writeEntriesToIndexedDB(db: IDBDatabase, entries: JournalEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+
+  // Encrypt if key available
+  let records: (JournalEntry | EncryptedRecord)[];
+  if (currentKey) {
+    records = await Promise.all(entries.map(e => encryptEntry(e)));
+  } else {
+    records = entries;
+  }
+
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
     const store = transaction.objectStore(ENTRIES_STORE);
 
-    if (entries.length === 0) {
-      resolve();
-      return;
-    }
-
     let completed = 0;
-    const total = entries.length;
+    const total = records.length;
 
-    for (const entry of entries) {
-      const request = store.put(entry);
+    for (const record of records) {
+      const request = store.put(record);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         completed++;
@@ -158,12 +327,19 @@ async function writeEntriesToIndexedDB(db: IDBDatabase, entries: JournalEntry[])
   });
 }
 
-// Write a single entry to IndexedDB
+// Write a single entry to IndexedDB (encrypts before write)
 async function writeSingleEntryToIndexedDB(db: IDBDatabase, entry: JournalEntry): Promise<void> {
+  let record: JournalEntry | EncryptedRecord;
+  if (currentKey) {
+    record = await encryptEntry(entry);
+  } else {
+    record = entry;
+  }
+
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(ENTRIES_STORE, 'readwrite');
     const store = transaction.objectStore(ENTRIES_STORE);
-    const request = store.put(entry);
+    const request = store.put(record);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
@@ -210,6 +386,7 @@ async function markMigrated(db: IDBDatabase): Promise<void> {
  * Initialize journal storage
  * - Opens IndexedDB
  * - Migrates from localStorage if needed
+ * - Decrypts entries transparently
  * - Returns all entries
  *
  * Falls back to localStorage if IndexedDB fails
@@ -241,7 +418,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       log(`initJournalStorage: migrating ${localStorageEntries.length} entries from localStorage`);
       logAction('storage.init.migrate', { entryCount: localStorageEntries.length });
 
-      // Write to IndexedDB
+      // Write to IndexedDB (will encrypt if key is set)
       await writeEntriesToIndexedDB(db, localStorageEntries);
 
       // Verify the write
@@ -253,6 +430,12 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       // Mark as migrated and delete from localStorage
       await markMigrated(db);
       localStorage.removeItem('journalEntries');
+
+      // Set encryption mode if key is available
+      if (currentKey) {
+        await setEncryptionMode(db, keyMode);
+      }
+
       log('initJournalStorage: migration complete', { entryCount: verifiedEntries.length });
       logAction('storage.init.done', { entryCount: verifiedEntries.length, fallback: false });
 
@@ -260,7 +443,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       return verifiedEntries;
     }
 
-    // Load from IndexedDB
+    // Load from IndexedDB (decrypts transparently)
     const indexedDBEntries = await getEntriesFromIndexedDB(db);
     log('initJournalStorage: loaded from IndexedDB', { entryCount: indexedDBEntries.length, dates: indexedDBEntries.map(e => e.date) });
 
@@ -303,6 +486,15 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
       return [];
     }
 
+    // Encryption migration: if entries are plaintext but we have a key, encrypt them
+    const storedMode = await getEncryptionMode();
+    if (currentKey && (storedMode === 'none') && indexedDBEntries.length > 0) {
+      log('initJournalStorage: migrating plaintext entries to encrypted');
+      logAction('storage.init.encryptMigrate', { count: indexedDBEntries.length });
+      await writeEntriesToIndexedDB(db, indexedDBEntries);
+      await setEncryptionMode(db, keyMode);
+    }
+
     logAction('storage.init.done', { entryCount: indexedDBEntries.length, fallback: false });
     db.close();
     return indexedDBEntries;
@@ -325,7 +517,7 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
   log('saveAllJournalEntries: saving', { entryCount: entries.length, dates: entries.map(e => e.date) });
   logAction('storage.saveAll', { entryCount: entries.length });
   if (fallbackMode) {
-    // Fallback: use localStorage
+    // Fallback: use localStorage (skip encryption)
     localStorage.setItem('journalEntries', JSON.stringify(entries));
     log('saveAllJournalEntries: saved to localStorage (fallback)');
     return;
@@ -518,7 +710,7 @@ export function onEntrySaved(callback: EntrySavedCallback): () => void {
 }
 
 /**
- * Load a single entry from IndexedDB by date.
+ * Load a single entry from IndexedDB by date (decrypts after read).
  * Returns null if not found or if in fallback mode.
  */
 export async function loadSingleEntry(date: string): Promise<JournalEntry | null> {
@@ -527,18 +719,16 @@ export async function loadSingleEntry(date: string): Promise<JournalEntry | null
   }
   try {
     const db = await openDatabase();
-    const entry = await new Promise<JournalEntry | null>((resolve, reject) => {
+    const rawRecord = await new Promise<unknown>((resolve, reject) => {
       const transaction = db.transaction(ENTRIES_STORE, 'readonly');
       const store = transaction.objectStore(ENTRIES_STORE);
       const request = store.get(date);
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const result = request.result;
-        resolve(result && isValidEntry(result) ? result : null);
-      };
+      request.onsuccess = () => resolve(request.result ?? null);
     });
     db.close();
-    return entry;
+    if (!rawRecord) return null;
+    return await decryptEntry(rawRecord);
   } catch {
     return null;
   }

@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
 import { setPasswordProtectedFlag } from '@shared/storage/journalStorage';
+import { setEncryptionKey, getEncryptionMode, reEncryptAllEntries } from '@shared/storage/journalStorage';
+import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK } from '@features/export/utils/crypto';
 import { logAction } from '@shared/logger';
 
 const PASSWORD_KEY = 'passwordHash';
@@ -12,6 +14,9 @@ const LOGIN_COUNT_KEY = 'totalLogins';
 // Session unlock key - uses sessionStorage (not our custom storage)
 // sessionStorage persists across refresh but clears on window/tab close
 const SESSION_UNLOCKED_KEY = 'gooddays_session_unlocked';
+
+// Encryption key JWK stored in sessionStorage (survives refresh, not tab close)
+const ENCRYPTION_JWK_KEY = 'gooddays_encryption_jwk';
 
 // Generate a random salt
 function generateSalt(): string {
@@ -76,6 +81,39 @@ function migratePasswordIfNeeded(): void {
   setItem(PASSWORD_VERSION_KEY, String(CURRENT_PASSWORD_VERSION));
 }
 
+/**
+ * Initialize encryption key on app start.
+ * Returns { ready, needsPassword } to guide init flow.
+ */
+export async function initEncryptionKey(): Promise<{ ready: boolean; needsPassword: boolean }> {
+  const hasPass = getItem(PASSWORD_KEY) !== null;
+  const encMode = await getEncryptionMode();
+
+  if (!hasPass) {
+    // No password → use app-secret key
+    const appKey = await getAppEncryptKey();
+    setEncryptionKey(appKey, 'app');
+    return { ready: true, needsPassword: false };
+  }
+
+  // Has password — check if session has a stored JWK
+  const storedJwk = sessionStorage.getItem(ENCRYPTION_JWK_KEY);
+  if (storedJwk) {
+    try {
+      const jwk = JSON.parse(storedJwk);
+      const key = await importKeyFromJWK(jwk);
+      setEncryptionKey(key, encMode === 'password' ? 'password' : 'app');
+      return { ready: true, needsPassword: false };
+    } catch {
+      // JWK invalid — fall through to needsPassword
+      sessionStorage.removeItem(ENCRYPTION_JWK_KEY);
+    }
+  }
+
+  // No session key — need password to derive key
+  return { ready: false, needsPassword: true };
+}
+
 export function useAuth() {
   // Run migration on module load
   useState(() => {
@@ -85,6 +123,9 @@ export function useAuth() {
 
   // Check if user has a password set (persisted in IndexedDB/localStorage)
   const [hasPassword, setHasPassword] = useState(() => getItem(PASSWORD_KEY) !== null);
+
+  // Whether the encryption key is available for storage ops
+  const [encryptionKeyReady, setEncryptionKeyReady] = useState(false);
 
   // Lock state logic:
   // - Locked = has password AND not unlocked this session
@@ -98,6 +139,13 @@ export function useAuth() {
   });
 
   const [passwordInput, setPasswordInput] = useState('');
+
+  // Initialize encryption key on mount
+  useEffect(() => {
+    initEncryptionKey().then(({ ready }) => {
+      setEncryptionKeyReady(ready);
+    });
+  }, []);
 
   // Sync hasPassword with storage
   const refreshHasPassword = useCallback(() => {
@@ -124,12 +172,25 @@ export function useAuth() {
       setHasPassword(false);
       setIsLocked(false);
       setPasswordInput('');
+      // Fall back to app key
+      const appKey = await getAppEncryptKey();
+      setEncryptionKey(appKey, 'app');
+      setEncryptionKeyReady(true);
       return true; // Treat as successful unlock since there's no password
     }
 
     const inputHash = await hashPassword(passwordInput.trim(), storedSalt);
 
     if (timingSafeEqual(inputHash, storedHash)) {
+      // Derive encryption key from the entered password
+      const encKey = await derivePasswordKey(passwordInput.trim());
+      setEncryptionKey(encKey, 'password');
+
+      // Store JWK in sessionStorage for refresh persistence
+      const jwk = await exportKeyToJWK(encKey);
+      sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+
+      setEncryptionKeyReady(true);
       setIsLocked(false);
       sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
       setPasswordInput('');
@@ -149,12 +210,24 @@ export function useAuth() {
     const trimmed = newPassword.trim();
     if (trimmed.length === 0) return false;
 
+    // Derive new encryption key BEFORE setting password hash
+    const encKey = await derivePasswordKey(trimmed);
+
+    // Re-encrypt all entries with the new password key
+    await reEncryptAllEntries(encKey, 'password');
+
+    // Now set the password hash (AFTER re-encryption succeeds)
     const salt = generateSalt();
     const hash = await hashPassword(trimmed, salt);
     setItem(PASSWORD_SALT_KEY, salt);
     setItem(PASSWORD_KEY, hash);
     setHasPassword(true);
     await setPasswordProtectedFlag(true);
+
+    // Store JWK in sessionStorage
+    const jwk = await exportKeyToJWK(encKey);
+    sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+
     // Invalidate stale session unlock flag so new password requires entry
     sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
     logAction('auth.password.set');
@@ -162,11 +235,17 @@ export function useAuth() {
   }, []);
 
   const removePassword = useCallback(async () => {
+    // Derive app-secret key and re-encrypt with it BEFORE removing password hash
+    const appKey = await getAppEncryptKey();
+    await reEncryptAllEntries(appKey, 'app');
+
+    // Now remove the password hash (AFTER re-encryption succeeds)
     removeItem(PASSWORD_KEY);
     removeItem(PASSWORD_SALT_KEY);
     setHasPassword(false);
     setIsLocked(false);
     sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+    sessionStorage.removeItem(ENCRYPTION_JWK_KEY);
     await setPasswordProtectedFlag(false);
     logAction('auth.password.removed');
   }, []);
@@ -183,6 +262,7 @@ export function useAuth() {
     if (getItem(PASSWORD_KEY) !== null) {
       setIsLocked(true);
       sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+      sessionStorage.removeItem(ENCRYPTION_JWK_KEY);
       logAction('auth.lock');
     }
   }, []);
@@ -192,14 +272,42 @@ export function useAuth() {
     sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
   }, []);
 
+  // Change password: re-encrypt with new password key
+  const changePassword = useCallback(async (newPassword: string): Promise<boolean> => {
+    const trimmed = newPassword.trim();
+    if (trimmed.length === 0) return false;
+
+    // Derive new encryption key
+    const newEncKey = await derivePasswordKey(trimmed);
+
+    // Re-encrypt all entries with the new key (old key is still cached in journalStorage)
+    await reEncryptAllEntries(newEncKey, 'password');
+
+    // Now update the password hash (AFTER re-encryption succeeds)
+    const salt = generateSalt();
+    const hash = await hashPassword(trimmed, salt);
+    setItem(PASSWORD_SALT_KEY, salt);
+    setItem(PASSWORD_KEY, hash);
+    await setPasswordProtectedFlag(true);
+
+    // Update sessionStorage JWK
+    const jwk = await exportKeyToJWK(newEncKey);
+    sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+
+    logAction('auth.password.changed');
+    return true;
+  }, []);
+
   return {
     isLocked,
     passwordInput,
     hasPassword,
+    encryptionKeyReady,
     setPasswordInput,
     handlePasswordSubmit,
     setPassword,
     removePassword,
+    changePassword,
     verifyPassword,
     lock,
     unlock,

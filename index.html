@@ -16,15 +16,19 @@
       // Read saved theme from localStorage and apply BEFORE body paints
       (function() {
         function hslToHex(h,s,l){s/=100;l/=100;var a=s*Math.min(l,1-l);function f(n){var k=(n+h/30)%12;var c=l-a*Math.max(Math.min(k-3,9-k,1),-1);return Math.round(255*c).toString(16).padStart(2,'0');}return'#'+f(0)+f(8)+f(4);}
+        // Decrypt localStorage values (mirrors src/shared/storage/index.ts)
+        var EP='$e:',EK='gdays-ls-cipher-v1';
+        function dec(v){if(!v||v.indexOf(EP)!==0)return v;try{var e=v.slice(EP.length),b=atob(e),kb=[];for(var i=0;i<EK.length;i++)kb.push(EK.charCodeAt(i));var r=[];for(var i=0;i<b.length;i++)r.push(b.charCodeAt(i)^kb[i%kb.length]);return String.fromCharCode.apply(null,r)}catch(x){return v}}
+        function lsGet(k){return dec(localStorage.getItem(k))}
         var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         var h, s, l;
         if (isMobile) {
           // Mobile: always black behind safe areas (Dynamic Island + home indicator)
           h = 0; s = 0; l = 0;
         } else {
-          h = localStorage.getItem('bgHue');
-          s = localStorage.getItem('bgSaturation');
-          l = localStorage.getItem('bgLightness');
+          h = lsGet('bgHue');
+          s = lsGet('bgSaturation');
+          l = lsGet('bgLightness');
           h = h !== null ? parseFloat(h) : 28;
           s = s !== null ? parseFloat(s) : 100;
           l = l !== null ? parseFloat(l) : 83;

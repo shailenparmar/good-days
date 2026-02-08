@@ -4,13 +4,11 @@ welcome to good days, your time-capsule journal oasis.
 
 ## privacy
 
-entries are not sent to a server. a developer couldn't view your writing even if they wanted to.
+entries are not sent to servers. a developer couldn't view your writing even if they wanted to.
 
-everything you write lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.
+everything added lives encrypted or hashed on your hard drive in IndexedDB — local storage for long-term data. the website pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.
 
-note that live mode sends your current colorway through a relay server for device pairing.
-
-however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.
+however, if you manually delete site data in browser settings, you'll clear the journal. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.
 
 as a safety guarantee, the entire product is open source.
 

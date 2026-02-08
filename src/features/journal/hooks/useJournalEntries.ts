@@ -24,7 +24,7 @@ export function htmlToText(html: string): string {
   }
 }
 
-export function useJournalEntries() {
+export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // Start with empty entries - will be loaded async from IndexedDB
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,8 +53,12 @@ export function useJournalEntries() {
     entriesRef.current = entries;
   }, [entries]);
 
-  // Load entries from IndexedDB on mount
+  // Load entries from IndexedDB once encryption key is ready
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
+    if (!encryptionKeyReady || hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     let mounted = true;
 
     initJournalStorage().then(loadedEntries => {
@@ -73,7 +77,7 @@ export function useJournalEntries() {
     return () => {
       mounted = false;
     };
-  }, []); // Only run on mount
+  }, [encryptionKeyReady]); // Run when encryption key becomes ready
 
   // Flush debounced saves before tab closes (best-effort, async)
   useEffect(() => {

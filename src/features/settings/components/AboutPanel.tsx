@@ -71,7 +71,9 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
+      className="flex flex-col h-screen overflow-y-auto scrollbar-hide"
+      contentEditable
+      suppressContentEditableWarning
       style={{
         width: `${aboutWidth}px`,
         backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
@@ -90,16 +92,13 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>{s("privacy:")}</p>
           <p>
-            {s("entries are not sent to a server. a developer couldn't view your writing even if they wanted to.")}
+            {s("entries are not sent to servers. a developer couldn't view your writing even if they wanted to.")}
           </p>
           <p>
-            {s("everything you write lives on your hard drive in something called IndexedDB — local storage for long-term data. the website pulls from it to display your writing, but entries never leave the hardware on your device.")}
+            {s("everything added lives encrypted or hashed on your hard drive in IndexedDB — local storage for long-term data. the website pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.")}
           </p>
           <p>
-            {s("note that live mode sends your current colorway through a relay server for device pairing.")}
-          </p>
-          <p>
-            {s("however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
+            {s("however, if you manually delete site data in browser settings, you'll clear the journal. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure.")}
           </p>
           <p>
             {s("as a safety guarantee, the entire product is open source.")}{' '}
