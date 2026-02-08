@@ -365,7 +365,12 @@ The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle
 
 - `src/features/` - Feature-based modules (auth, journal, theme, settings, statistics, export)
 - `src/shared/` - Shared utilities and components
+- `src/shared/copy/aboutCopy.ts` - Single source of truth for about page copy (used by AboutPanel + README)
 - `src/index.css` - Global styles including scrollbar-hide utility
+
+### About Page ↔ README Sync (v2.2.4+)
+
+The about page copy and `README.md` are architecturally linked via `src/shared/copy/aboutCopy.ts`. `AboutPanel.tsx` imports from it; `scripts/generate-readme.ts` generates `README.md` from it. To update the about copy, edit `aboutCopy.ts` then run `npm run generate-readme` to regenerate the README.
 
 ## Storage Architecture
 
