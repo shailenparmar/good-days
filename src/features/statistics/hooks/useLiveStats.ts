@@ -85,7 +85,7 @@ export function useLiveStats(
     prevColorsRef.current = colors;
   }
 
-  // --- rAF loop: flush refs → state at display refresh rate while streaming ---
+  // --- rAF loop: track timestamps at full rate, throttle React updates ---
   useEffect(() => {
     if (!isLiveStreaming) {
       // Clear hz and buffer when not streaming
@@ -95,6 +95,8 @@ export function useLiveStats(
       return;
     }
     let raf = 0;
+    let lastDisplayUpdate = 0;
+    const DISPLAY_INTERVAL = 200; // Update React state at ~5fps (not 60fps)
     const tick = () => {
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
 
@@ -109,25 +111,28 @@ export function useLiveStats(
         lastUpdateCountRef.current = currentCount;
       }
 
-      // Compute hz from sliding window
       const now = performance.now();
-      const buf = msgTimestampsRef.current;
       // Prune entries older than window
+      const buf = msgTimestampsRef.current;
       while (buf.length > 0 && buf[0] < now - HZ_WINDOW_MS) {
         buf.shift();
       }
-      let hz: number | null = null;
-      if (buf.length >= 2) {
-        const spanSec = Math.max(now - buf[0], 1) / 1000;
-        hz = buf.length / spanSec;
-      }
 
-      setDisplay({
-        hueDistance: hueDistRef.current,
-        hslDistance: hslDistRef.current,
-        updateHz: hz,
-        liveSaves: totalLiveSaves,
-      });
+      // Only update React state at throttled rate to avoid 60fps App re-renders
+      if (now - lastDisplayUpdate >= DISPLAY_INTERVAL) {
+        lastDisplayUpdate = now;
+        let hz: number | null = null;
+        if (buf.length >= 2) {
+          const spanSec = Math.max(now - buf[0], 1) / 1000;
+          hz = buf.length / spanSec;
+        }
+        setDisplay({
+          hueDistance: hueDistRef.current,
+          hslDistance: hslDistRef.current,
+          updateHz: hz,
+          liveSaves: totalLiveSaves,
+        });
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
