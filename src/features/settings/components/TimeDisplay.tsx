@@ -86,7 +86,7 @@ export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDispla
     // Don't run interval in superscramble - freeze the display
     if (superscramble) return;
 
-    const interval = setInterval(() => setCurrentTime(new Date()), stacked ? 100 : 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, [stacked, superscramble]);
 
@@ -109,16 +109,8 @@ export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDispla
   let format12: string;
   let format24: string;
 
-  if (stacked) {
-    const ms = String(currentTime.getMilliseconds()).padStart(3, '0').slice(0, 1);
-    const ampm = time12.slice(-2);
-    const time12Base = time12.slice(0, -3);
-    format12 = `${time12Base}.${ms} ${ampm}`;
-    format24 = currentTime.toLocaleTimeString('en-US', { hour12: false }) + `.${ms}`;
-  } else {
-    format12 = time12;
-    format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
-  }
+  format12 = time12;
+  format24 = currentTime.toLocaleTimeString('en-US', { hour12: false });
 
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
