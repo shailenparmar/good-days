@@ -1265,6 +1265,8 @@ Desktop color picker indicators dynamically reflect what the phone is doing. The
 
 Size changes are instant (no CSS transitions).
 
+**Hollow hue needles (v2.1.34+):** All hue needles (desktop and mobile) have a transparent slit through the center, 25% of the needle height. This lets you see the hue gradient color through the needle. Implemented via `borderTop` + `borderBottom` (each 37.5% of total height) with `boxSizing: content-box` and transparent content area (25%). SL dots remain solid filled circles. Mobile dots are also unchanged.
+
 **Z-index layering**: Active element always wins. SL picker gets `zIndex: 10` when active (local drag OR live alpha). Hue picker gets `zIndex: 10` when actively dragged. At same z-index, SL dot wins over hue needle (earlier in DOM = top row). Static SL: `zIndex: 2`, static hue: `zIndex: 1`.
 
 **StreamingControls type** (in `src/features/theme/types.ts`):
