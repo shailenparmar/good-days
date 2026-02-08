@@ -64,13 +64,24 @@ export function JournalEditor({
   // Track scroll for scramble overlay sync
   const [scrollTop, setScrollTop] = useState(0);
 
-  // Safari block cursor fallback (caret-shape: block not supported)
-  const needsFakeCursor = useMemo(() => {
+  // Custom block cursor for Safari (no caret-shape: block support).
+  // Uses a text overlay approach: renders all text transparently with a colored
+  // block at the cursor position, matching the textarea's wrapping exactly.
+  const needsCustomCursor = useMemo(() => {
     return typeof CSS === 'undefined' || !CSS.supports('caret-shape', 'block');
   }, []);
-  const [fakeCursor, setFakeCursor] = useState<{
-    top: number; left: number; height: number; width: number; version: number;
-  } | null>(null);
+  const [cursorState, setCursorState] = useState({ pos: 0, version: 0, collapsed: true });
+
+  const updateCursorTracking = useCallback(() => {
+    if (!needsCustomCursor || !editorRef.current) return;
+    const el = editorRef.current;
+    setCursorState(prev => {
+      const pos = el.selectionStart;
+      const collapsed = el.selectionStart === el.selectionEnd;
+      if (prev.pos === pos && prev.collapsed === collapsed) return prev;
+      return { pos, version: prev.version + 1, collapsed };
+    });
+  }, [needsCustomCursor, editorRef]);
 
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
@@ -122,60 +133,12 @@ export function JournalEditor({
     loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
-  // Measure fake cursor position (Safari block cursor fallback)
-  // Synchronous measurement — no RAF delay, so cursor overlay moves
-  // in the same frame as the native caret would, eliminating flicker.
-  const measureCursor = useCallback(() => {
-    if (!needsFakeCursor) return;
-    const textarea = editorRef.current;
-    if (!textarea || document.activeElement !== textarea) {
-      setFakeCursor(null);
-      return;
-    }
-    const { selectionStart, selectionEnd } = textarea;
-    if (selectionStart !== selectionEnd) {
-      setFakeCursor(null);
-      return;
-    }
-    const computed = getComputedStyle(textarea);
-    const mirror = document.createElement('div');
-    mirror.style.position = 'absolute';
-    mirror.style.top = '0';
-    mirror.style.left = '-9999px';
-    mirror.style.visibility = 'hidden';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordWrap = 'break-word';
-    mirror.style.overflow = 'hidden';
-    ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-     'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing',
-     'textIndent', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-     'boxSizing'].forEach(prop => {
-      (mirror.style as any)[prop] = (computed as any)[prop];
-    });
-    mirror.style.width = `${textarea.offsetWidth}px`;
-    document.body.appendChild(mirror);
-    mirror.textContent = textarea.value.substring(0, selectionStart);
-    const marker = document.createElement('span');
-    marker.textContent = textarea.value[selectionStart] || '\u00a0';
-    mirror.appendChild(marker);
-    setFakeCursor({
-      top: marker.offsetTop - textarea.scrollTop,
-      left: marker.offsetLeft,
-      height: marker.offsetHeight,
-      width: marker.offsetWidth || parseFloat(computed.fontSize) * 0.6,
-      version: Date.now(),
-    });
-    document.body.removeChild(mirror);
-  }, [needsFakeCursor]);
-
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
     if (!editorRef.current) return;
 
     // Immediately sync overlay scroll (no debounce for smooth visual)
     setScrollTop(editorRef.current.scrollTop);
-    measureCursor();
 
     // Debounce scroll position save (100ms)
     if (scrollSaveTimeout.current !== null) {
@@ -187,7 +150,7 @@ export function JournalEditor({
       }
       scrollSaveTimeout.current = null;
     }, 100);
-  }, [editorRef, selectedDate, scrollPosition, measureCursor]);
+  }, [editorRef, selectedDate, scrollPosition]);
 
   // Handle input changes
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -293,6 +256,10 @@ export function JournalEditor({
     }
   }, [showPlaceholder, selectedDate]);
 
+  // Custom cursor: determine character at cursor position
+  const cursorChar = value[cursorState.pos];
+  const cursorCharIsReal = !!cursorChar && cursorChar !== '\n';
+
   return (
     <div
       className="flex-1 relative"
@@ -302,7 +269,7 @@ export function JournalEditor({
       <style>
         {`
           .journal-textarea {
-            caret-color: ${needsFakeCursor ? 'transparent' : getColor()};
+            caret-color: ${needsCustomCursor ? 'transparent' : getColor()};
           }
           @supports (caret-shape: block) {
             .journal-textarea {
@@ -310,7 +277,7 @@ export function JournalEditor({
               caret-shape: block;
             }
           }
-          @keyframes fakeCursorBlink {
+          @keyframes safari-cursor-blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
           }
@@ -325,9 +292,9 @@ export function JournalEditor({
         onPaste={isToday ? handlePaste : undefined}
         onKeyDown={handleKeyDown}
         onScroll={handleScroll}
-        onSelect={measureCursor}
-        onFocus={() => { setIsFocused(true); measureCursor(); }}
-        onBlur={() => { setIsFocused(false); setFakeCursor(null); }}
+        onSelect={needsCustomCursor ? updateCursorTracking : undefined}
+        onFocus={() => { setIsFocused(true); updateCursorTracking(); }}
+        onBlur={() => setIsFocused(false)}
         readOnly={!isToday}
         wrap="soft"
         className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
@@ -348,21 +315,35 @@ export function JournalEditor({
         </div>
       )}
 
-      {/* Safari block cursor fallback */}
-      {needsFakeCursor && fakeCursor && isFocused && (
-        <div
-          key={fakeCursor.version}
-          style={{
-            position: 'absolute',
-            top: fakeCursor.top,
-            left: fakeCursor.left,
-            width: fakeCursor.width,
-            height: fakeCursor.height,
-            backgroundColor: getColor(),
-            pointerEvents: 'none',
-            animation: 'fakeCursorBlink 1s step-end infinite',
-          }}
-        />
+      {/* Custom block cursor for Safari (no caret-shape: block support).
+          Renders all text transparent with a colored block at cursor position.
+          Wrapping matches the textarea exactly since styling is identical. */}
+      {needsCustomCursor && isFocused && cursorState.collapsed && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
+            style={{ transform: `translateY(-${scrollTop}px)` }}
+          >
+            <span style={{ color: 'transparent' }}>
+              {value.substring(0, cursorState.pos)}
+            </span>
+            <span
+              key={cursorState.version}
+              style={{
+                backgroundColor: getColor(),
+                animation: 'safari-cursor-blink 1s step-end infinite',
+              }}
+            >
+              {cursorCharIsReal
+                ? <span style={{ color: 'transparent' }}>{cursorChar}</span>
+                : '\u00A0'
+              }
+            </span>
+            <span style={{ color: 'transparent' }}>
+              {value.substring(cursorState.pos + (cursorCharIsReal ? 1 : 0))}
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Placeholder */}
