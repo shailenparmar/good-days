@@ -115,8 +115,10 @@ export function WebSyncBridge() {
   const prevSaveRef = useRef(0);
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
+      const delta = syncState.saveRequested - prevSaveRef.current;
       prevSaveRef.current = syncState.saveRequested;
       theme.saveCustomPreset();
+      for (let i = 0; i < delta; i++) theme.incrementPhoneSaveCount();
     }
   }, [syncState.saveRequested]);
 

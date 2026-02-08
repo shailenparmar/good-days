@@ -10,8 +10,8 @@ import type { JournalEntry } from '../types';
 interface LiveStatsData {
   hueDistance: number;
   hslDistance: number;
-  updateHz: number;
-  phoneSaves: number;
+  updateHz: number | null;
+  liveSaves: number;
 }
 
 interface StatsDisplayProps {
@@ -714,16 +714,16 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
             >
               <div className="grid grid-cols-2 gap-x-0 gap-y-1">
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${Math.round(liveSyncStats.hueDistance).toLocaleString()}° hue dist`)}
+                  {s(`${Math.round(liveSyncStats.hueDistance).toLocaleString()}° hue travel`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} hsl dist`)}
+                  {s(`${liveSyncStats.hslDistance >= 1000 ? Math.round(liveSyncStats.hslDistance).toLocaleString() : liveSyncStats.hslDistance.toFixed(1)} color travel`)}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.updateHz.toFixed(6)} hz`)}
+                  {s(liveSyncStats.updateHz !== null ? `${liveSyncStats.updateHz.toFixed(6)} hz` : '--- hz')}
                 </div>
                 <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-                  {s(`${liveSyncStats.phoneSaves} phone ${liveSyncStats.phoneSaves === 1 ? 'save' : 'saves'}`)}
+                  {s(`${liveSyncStats.liveSaves} live ${liveSyncStats.liveSaves === 1 ? 'save' : 'saves'}`)}
                 </div>
               </div>
             </div>

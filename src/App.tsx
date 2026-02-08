@@ -132,8 +132,8 @@ function AppContent() {
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(isSuperscramble);
 
-  // Live-mode stats (cumulative hue/HSL distance, update hz, phone saves)
-  const liveStats = useLiveStats(theme.isLiveStreaming, theme.customPresets.length, {
+  // Live-mode stats (cumulative hue/HSL distance, update hz, live saves)
+  const liveStats = useLiveStats(theme.isLiveStreaming, theme.phoneSaveCount, {
     hue: theme.hue, sat: theme.saturation, light: theme.lightness,
     bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
   });
@@ -636,16 +636,6 @@ function AppContent() {
     );
   }
 
-  // Wait for IndexedDB init/migration — blank screen, no text
-  if (journal.isLoading) {
-    return (
-      <div
-        className="h-screen"
-        style={{ backgroundColor: 'hsl(28, 100%, 83%)' }}
-      />
-    );
-  }
-
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
       <WebSyncBridge />
@@ -729,7 +719,7 @@ function AppContent() {
                 hueDistance: liveStats.hueDistance,
                 hslDistance: liveStats.hslDistance,
                 updateHz: liveStats.updateHz,
-                phoneSaves: liveStats.phoneSaves,
+                liveSaves: liveStats.liveSaves,
               }}
             />
           </div>

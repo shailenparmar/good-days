@@ -23,8 +23,8 @@ function hslDist(
 export interface LiveStats {
   hueDistance: number;
   hslDistance: number;
-  updateHz: number;
-  phoneSaves: number;
+  updateHz: number | null;
+  liveSaves: number;
 }
 
 /** Sliding window duration for hz calculation */
@@ -41,25 +41,28 @@ interface ThemeColors {
 
 export function useLiveStats(
   isLiveStreaming: boolean,
-  customPresetsCount: number,
+  phoneSaveCount: number,
   colors: ThemeColors,
 ): LiveStats {
-  // --- Persisted state (loaded once from localStorage) ---
+  // --- Persisted base values (loaded once from localStorage) ---
+  const baseLiveSaves = useRef(Number(getItem('liveLiveSaves')) || 0);
+
   const [display, setDisplay] = useState<LiveStats>(() => ({
     hueDistance: Number(getItem('liveHueDistance')) || 0,
     hslDistance: Number(getItem('liveHslDistance')) || 0,
-    updateHz: 0,
-    phoneSaves: Number(getItem('livePhoneSaves')) || 0,
+    updateHz: null,
+    liveSaves: baseLiveSaves.current,
   }));
 
   // --- Refs (mutated in render path — zero allocations) ---
   const hueDistRef = useRef(display.hueDistance);
   const hslDistRef = useRef(display.hslDistance);
-  const phoneSavesRef = useRef(display.phoneSaves);
   const prevColorsRef = useRef<ThemeColors | null>(null);
-  const prevPresetsRef = useRef(customPresetsCount);
   // Ring buffer of message timestamps for hz calculation
   const msgTimestampsRef = useRef<number[]>([]);
+
+  // Total live saves = persisted base + session phone saves
+  const totalLiveSaves = baseLiveSaves.current + phoneSaveCount;
 
   // --- Compute deltas in render path (ref-only, no state) ---
   if (isLiveStreaming) {
@@ -81,18 +84,12 @@ export function useLiveStats(
     prevColorsRef.current = null;
   }
 
-  // Detect phone saves from preset count growth during live mode
-  if (isLiveStreaming && customPresetsCount > prevPresetsRef.current) {
-    phoneSavesRef.current += customPresetsCount - prevPresetsRef.current;
-  }
-  prevPresetsRef.current = customPresetsCount;
-
   // --- rAF loop: flush refs → state at display refresh rate while streaming ---
   useEffect(() => {
     if (!isLiveStreaming) {
       // Clear hz and buffer when not streaming
       msgTimestampsRef.current.length = 0;
-      setDisplay(d => ({ ...d, updateHz: 0 }));
+      setDisplay(d => ({ ...d, updateHz: null }));
       return;
     }
     let raf = 0;
@@ -106,7 +103,7 @@ export function useLiveStats(
       while (buf.length > 0 && buf[0] < now - HZ_WINDOW_MS) {
         buf.shift();
       }
-      let hz = 0;
+      let hz: number | null = null;
       if (buf.length >= 2) {
         const spanSec = Math.max(now - buf[0], 1) / 1000;
         hz = buf.length / spanSec;
@@ -116,13 +113,20 @@ export function useLiveStats(
         hueDistance: hueDistRef.current,
         hslDistance: hslDistRef.current,
         updateHz: hz,
-        phoneSaves: phoneSavesRef.current,
+        liveSaves: totalLiveSaves,
       });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isLiveStreaming]);
+  }, [isLiveStreaming, totalLiveSaves]);
+
+  // Keep display.liveSaves in sync when not streaming (rAF not running)
+  useEffect(() => {
+    if (!isLiveStreaming) {
+      setDisplay(d => d.liveSaves !== totalLiveSaves ? { ...d, liveSaves: totalLiveSaves } : d);
+    }
+  }, [totalLiveSaves, isLiveStreaming]);
 
   // --- localStorage persist (2s interval) ---
   useEffect(() => {
@@ -130,11 +134,11 @@ export function useLiveStats(
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       setItem('liveHueDistance', String(hueDistRef.current));
       setItem('liveHslDistance', String(hslDistRef.current));
-      setItem('livePhoneSaves', String(phoneSavesRef.current));
+      setItem('liveLiveSaves', String(totalLiveSaves));
     };
     const id = setInterval(persist, 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [totalLiveSaves]);
 
   // --- beforeunload: flush to localStorage ---
   useEffect(() => {
@@ -142,11 +146,11 @@ export function useLiveStats(
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       setItem('liveHueDistance', String(hueDistRef.current));
       setItem('liveHslDistance', String(hslDistRef.current));
-      setItem('livePhoneSaves', String(phoneSavesRef.current));
+      setItem('liveLiveSaves', String(totalLiveSaves));
     };
     window.addEventListener('beforeunload', handle);
     return () => window.removeEventListener('beforeunload', handle);
-  }, []);
+  }, [totalLiveSaves]);
 
   return display;
 }
