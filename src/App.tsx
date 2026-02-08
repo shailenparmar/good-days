@@ -132,7 +132,7 @@ function AppContent() {
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(isSuperscramble);
 
-  // Live-mode stats (cumulative hue/HSL distance, firehose, phone saves)
+  // Live-mode stats (cumulative hue/HSL distance, update hz, phone saves)
   const liveStats = useLiveStats(theme.isLiveStreaming, theme.customPresets.length, {
     hue: theme.hue, sat: theme.saturation, light: theme.lightness,
     bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
@@ -733,7 +733,7 @@ function AppContent() {
               liveSyncStats={{
                 hueDistance: liveStats.hueDistance,
                 hslDistance: liveStats.hslDistance,
-                firehose: liveStats.firehose,
+                updateHz: liveStats.updateHz,
                 phoneSaves: liveStats.phoneSaves,
               }}
             />

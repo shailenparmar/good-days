@@ -23,9 +23,12 @@ function hslDist(
 export interface LiveStats {
   hueDistance: number;
   hslDistance: number;
-  firehose: number;
+  updateHz: number;
   phoneSaves: number;
 }
+
+/** Sliding window duration for hz calculation */
+const HZ_WINDOW_MS = 2000;
 
 interface ThemeColors {
   hue: number;
@@ -45,17 +48,18 @@ export function useLiveStats(
   const [display, setDisplay] = useState<LiveStats>(() => ({
     hueDistance: Number(getItem('liveHueDistance')) || 0,
     hslDistance: Number(getItem('liveHslDistance')) || 0,
-    firehose: Number(getItem('liveFirehose')) || 0,
+    updateHz: 0,
     phoneSaves: Number(getItem('livePhoneSaves')) || 0,
   }));
 
   // --- Refs (mutated in render path — zero allocations) ---
   const hueDistRef = useRef(display.hueDistance);
   const hslDistRef = useRef(display.hslDistance);
-  const firehoseRef = useRef(display.firehose);
   const phoneSavesRef = useRef(display.phoneSaves);
   const prevColorsRef = useRef<ThemeColors | null>(null);
   const prevPresetsRef = useRef(customPresetsCount);
+  // Ring buffer of message timestamps for hz calculation
+  const msgTimestampsRef = useRef<number[]>([]);
 
   // --- Compute deltas in render path (ref-only, no state) ---
   if (isLiveStreaming) {
@@ -70,7 +74,7 @@ export function useLiveStats(
       hslDistRef.current +=
         hslDist(prev.hue, prev.sat, prev.light, colors.hue, colors.sat, colors.light) +
         hslDist(prev.bgHue, prev.bgSat, prev.bgLight, colors.bgHue, colors.bgSat, colors.bgLight);
-      firehoseRef.current += 1;
+      msgTimestampsRef.current.push(performance.now());
     }
     prevColorsRef.current = colors;
   } else {
@@ -85,14 +89,33 @@ export function useLiveStats(
 
   // --- rAF loop: flush refs → state at display refresh rate while streaming ---
   useEffect(() => {
-    if (!isLiveStreaming) return;
+    if (!isLiveStreaming) {
+      // Clear hz and buffer when not streaming
+      msgTimestampsRef.current.length = 0;
+      setDisplay(d => ({ ...d, updateHz: 0 }));
+      return;
+    }
     let raf = 0;
     const tick = () => {
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
+
+      // Compute hz from sliding window
+      const now = performance.now();
+      const buf = msgTimestampsRef.current;
+      // Prune entries older than window
+      while (buf.length > 0 && buf[0] < now - HZ_WINDOW_MS) {
+        buf.shift();
+      }
+      let hz = 0;
+      if (buf.length >= 2) {
+        const spanSec = Math.max(now - buf[0], 1) / 1000;
+        hz = buf.length / spanSec;
+      }
+
       setDisplay({
         hueDistance: hueDistRef.current,
         hslDistance: hslDistRef.current,
-        firehose: firehoseRef.current,
+        updateHz: hz,
         phoneSaves: phoneSavesRef.current,
       });
       raf = requestAnimationFrame(tick);
@@ -107,7 +130,6 @@ export function useLiveStats(
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       setItem('liveHueDistance', String(hueDistRef.current));
       setItem('liveHslDistance', String(hslDistRef.current));
-      setItem('liveFirehose', String(firehoseRef.current));
       setItem('livePhoneSaves', String(phoneSavesRef.current));
     };
     const id = setInterval(persist, 2000);
@@ -120,7 +142,6 @@ export function useLiveStats(
       if ((window as { __resettingApp?: boolean }).__resettingApp) return;
       setItem('liveHueDistance', String(hueDistRef.current));
       setItem('liveHslDistance', String(hslDistRef.current));
-      setItem('liveFirehose', String(firehoseRef.current));
       setItem('livePhoneSaves', String(phoneSavesRef.current));
     };
     window.addEventListener('beforeunload', handle);
