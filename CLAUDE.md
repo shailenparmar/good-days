@@ -234,7 +234,7 @@ When a phone and laptop pair in a **1:1 environment** (exactly one phone + one l
 - Both cleared cache → no affinity, falls back to IP-based
 - Relay restart → clients re-send deviceId + partnerDeviceId on reconnect
 
-### Live Stats (v2.1.37+)
+### Live Stats (v2.1.37+, rewritten v2.1.38)
 
 When the desktop is in live streaming mode, the powerstats area shows real-time metrics in a 2x2 grid below the color stats:
 
@@ -242,16 +242,18 @@ When the desktop is in live streaming mode, the powerstats area shows real-time 
 |------|-------------|
 | **hue dist** | Cumulative shortest-arc hue distance (text + bg), in degrees |
 | **hsl dist** | Cumulative Euclidean distance in cylindrical HSL space (text + bg) |
-| **msg/s** | WebSocket messages per second (1-second sliding window) |
+| **firehose** | Cumulative count of color changes received during live streaming |
 | **phone saves** | Number of times the phone's "save" button was pressed |
 
-**Architecture:** The `useLiveStats` hook (`src/features/statistics/hooks/useLiveStats.ts`) uses a **hot-path ref pattern** — `recordColorUpdate()` and `recordSave()` only mutate refs (zero React state, zero localStorage, zero DOM). A 2-second flush interval copies refs to React state + localStorage. This keeps the 60fps WebSocket path allocation-free.
+**Architecture (v2.1.38):** The `useLiveStats` hook computes distances **locally from displayed theme values** — no WebSocket callbacks or WebSyncBridge prop threading. The hook receives `colors` (current theme HSL) and computes deltas in the render path (ref-only, zero allocations). A `requestAnimationFrame` loop flushes refs to React state at display refresh rate (~60fps) while streaming is active. This eliminates the callback chain latency and gives snappy, high-framerate stat updates.
 
-**Persistence:** `hueDistance`, `hslDistance`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `livePhoneSaves`) and survive page reloads. `msg/s` is ephemeral (only shown during active streaming). A `beforeunload` handler flushes refs to localStorage.
+**Phone saves detection:** Instead of a callback from WebSyncBridge, the hook watches `customPresetsCount`. If it grows while `isLiveStreaming` is true, each increment counts as a phone save.
 
-**Callbacks:** `WebSyncBridge` receives `onLiveColorUpdate` and `onLiveSavePreset` props, forwarded via refs to avoid re-renders. `onLiveColorUpdate` fires synchronously from `ws.onmessage` (same hot path as `handleColorUpdate`). `onLiveSavePreset` fires when `saveRequested` increments.
+**Persistence:** `hueDistance`, `hslDistance`, `firehose`, and `phoneSaves` are saved to localStorage (`liveHueDistance`, `liveHslDistance`, `liveFirehose`, `livePhoneSaves`) every 2 seconds and on `beforeunload`. rAF state updates are display-only; localStorage writes stay batched.
 
-Code location: `src/features/statistics/hooks/useLiveStats.ts`, props threaded through `App.tsx` → `WebSyncBridge` → `StatsDisplay`.
+**WebSyncBridge:** Fully decoupled from live stats as of v2.1.38 — no callback props, no ref forwarding. It's a pure sync bridge again.
+
+Code location: `src/features/statistics/hooks/useLiveStats.ts`. Props: `App.tsx` passes theme colors + `customPresets.length` directly to the hook.
 
 ### Future: WebRTC DataChannel Migration
 
@@ -1321,7 +1323,7 @@ interface StreamingControls {
 4. Alpha lifts, beta promoted in `handleEnd` — new alpha, no beta
 5. Beta lifts, alpha continues in `handleEnd` — beta gone
 
-SL uses `overflow: visible` so the dot can extend beyond the square bounds. Hue uses `overflow: hidden` so the needle clips at the edges (v2.1.37). SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping). The hue needle slit is 25% of needle height (transparent gap through center), with the remaining 75% split between top and bottom black borders.
+SL uses `overflow: visible` so the dot can extend beyond the square bounds. Hue uses `overflow: hidden` so the needle clips at the edges (v2.1.37+). SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping). The hue needle is a solid black bar (v2.1.38 — reverted from hollow slit). Sizing is standardized across mobile and desktop: alpha/local-drag 16px, beta 8px, idle 4px.
 
 ### Drag Listener Cleanup
 
