@@ -1849,6 +1849,8 @@ The indicator's **centerline** is the true hue position. At the extremes (hue 0 
 
 Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
 
+**Refresh persistence (v2.3.28+):** The pressed state is saved to `sessionStorage`. If you're holding the title to show the version and refresh the page, the version shows immediately on reload without needing to re-press. Cleared on touch end/cancel.
+
 **IMPORTANT:** `mobileVersion` in `src/features/mobile/MobileApp.tsx` must be bumped alongside `VERSION` in `src/shared/version.ts` on every push.
 
 ### Haptic Feedback
