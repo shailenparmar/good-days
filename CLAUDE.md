@@ -1713,8 +1713,7 @@ All mobile buttons (including the permission screen "calibrate tilt" button) use
 | Role | Padding | Usage |
 |------|---------|-------|
 | `'picker'` | 28px (2x) | text\|background buttons — large touch target for the primary interaction |
-| `'aux'` | 7px (0.5x) | recalibrate tilt, copy, save, paste — smaller, less prominent |
-| (none) | 14px (1x) | calibrate tilt (permission screen) — standard size |
+| `'aux'` | 7px (0.5x) | calibrate tilt, recalibrate tilt, copy, save, paste — smaller, less prominent |
 
 This applies always (not gated on live mode). The picker buttons are the primary action, so they're visually dominant. The invisible spacer buttons on the picker screen and permission screen placeholders use matching roles to keep heights consistent across all three screens.
 
