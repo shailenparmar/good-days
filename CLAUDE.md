@@ -22,6 +22,29 @@ The native SwiftUI mac app (`macos/GoodDays/`) has been deleted. We're replacing
 ### Key insight: storage works as-is
 IndexedDB + localStorage all work in Tauri's WKWebView. No code changes needed. Users migrating from the PWA would use the existing backup/import flow.
 
+## Entry Titles (v2.3.33+)
+
+Entries can be named with an optional title. The `title` field on `JournalEntry` existed since the type was defined; this version adds the UI.
+
+### How it works
+
+**Header** (`EntryHeader.tsx`):
+- Click the date text (e.g. "feb 8, 2026") to enter title editing mode
+- An inline input replaces the date — stretches to fill all space up to the "started at" text
+- Placeholder: "set title" with the standard bold/unbold sweep animation (83ms per char)
+- Enter or blur saves; Escape cancels
+- No character limit — type freely, long titles truncate with ellipsis when not editing
+- Once titled, the header shows the title instead of the date (no "date: title" format — just the title)
+- `onEditingChange` callback notifies `App.tsx` → sets `titleEditing` state → passes `hidePlaceholder` to `JournalEditor` so the editor's "start typing" placeholder hides while the title input has focus
+
+**Sidebar** (`EntrySidebar.tsx`):
+- Titled entries show the title as primary text (not the date)
+- On hover, titled entries split into two centered columns: `date | title` (separated by a 2px border)
+- Untitled entries show the date normally, no split on hover
+- Title editing is header-only — sidebar is display-only
+
+**Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
+
 ## Maintenance Mode (v2.3.32+)
 
 A quick-deploy gate that replaces the entire app with a fullscreen message. Used when fixing critical bugs so users don't hit broken state.
