@@ -46,22 +46,23 @@ export function mergeJsonEntries(
       const existingNormalized = normalizeForComparison(existingText);
       const importedNormalized = normalizeForComparison(importedText);
 
-      // Skip if: same content, empty import, or existing already contains imported text
-      if (existingNormalized !== importedNormalized && importedNormalized !== '' && !existingNormalized.includes(importedNormalized)) {
-        // Different content - append imported content with label
-        const importDate = new Date(importTimestamp);
-        const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit'
-        })} backup:\n\n`;
+      // Same/contained content — adopt imported title if existing has none
+      if (existingNormalized === importedNormalized || importedNormalized === '' || existingNormalized.includes(importedNormalized)) {
+        if (imported.title && !existing.title) {
+          result[existingIndex] = { ...existing, title: imported.title };
+          importedCount++;
+        }
+      } else {
+        // Different content - append with separator
+        // Preserve imported title in content if it would otherwise be lost
+        const lostTitle = (imported.title && existing.title && imported.title !== existing.title)
+          ? imported.title + '\n\n'
+          : '';
+        const separator = `\n\n---\n${lostTitle}`;
 
         result[existingIndex] = {
           ...existing,
-          content: existing.content + importLabel + imported.content,
+          content: existing.content + separator + imported.content,
           title: existing.title || imported.title,
           startedAt: imported.startedAt && (!existing.startedAt || imported.startedAt < existing.startedAt)
             ? imported.startedAt
@@ -192,16 +193,8 @@ export function mergeEntries(
 
       // Skip if: same content, empty import, or existing already contains imported text
       if (existingNormalized !== importedNormalized && importedNormalized !== '' && !existingNormalized.includes(importedNormalized)) {
-        // Different content - append imported content with label above it
-        const importDate = new Date(importTimestamp);
-        const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit'
-        })} backup:\n\n`;
+        // Different content - append with separator
+        const separator = '\n\n---\n';
 
         // Convert imported plain text to HTML (preserve line breaks)
         const importedHtml = imported.content
@@ -211,7 +204,7 @@ export function mergeEntries(
 
         result[existingIndex] = {
           ...existing,
-          content: existing.content + importLabel + importedHtml,
+          content: existing.content + separator + importedHtml,
           // Update startedAt if imported entry is older
           startedAt: imported.startedAt && (!existing.startedAt || imported.startedAt < existing.startedAt)
             ? imported.startedAt
