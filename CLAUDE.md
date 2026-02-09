@@ -1737,7 +1737,7 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 
 - L corner brackets: 32×4px, positioned OUTSIDE the marker travel area (v1.10.48+) — they frame the pure square space where markers can move
 - No + crosshair (removed in v1.10.26)
-- Edge midpoint labels (picker only): white (top), black (bottom), gray (left), vivid (right)
+- Edge midpoint labels (picker only): light (top), dark (bottom), muted (left), vivid (right)
 - Labels are fully outside the square bounds (v1.10.26+, were straddling edges), 16px monospace bold
 - No sat/light number stats (removed in v1.10.7)
 - Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
