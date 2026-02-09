@@ -813,12 +813,13 @@ If re-encryption fails, entries remain encrypted with the old key and the old ha
 | `changePassword(newPassword)` | Re-encrypt + update hash (for password change flow) |
 | `initEncryptionKey()` | Standalone init function (called on mount) |
 
-### Import Conflict Handling
+### Import Conflict Handling (v2.3.36+)
 
 When importing, entries are **merged** (not replaced). If an imported entry's date already exists:
 
-1. **Same content**: Skip (no change)
-2. **Different content**: Append imported content below existing with a separator
+1. **Same content**: Skip (no change). If imported has a title and existing doesn't, adopt it.
+2. **Different content**: Append imported content below existing with a `---` separator
+3. **Title preservation**: If both entries have different titles, the imported title (which would be lost since `existing.title` wins) is included as a line after the `---` separator
 
 ### Import `lastModified` Preservation (v1.10.0+)
 
@@ -838,29 +839,26 @@ Imported entries preserve their original `lastModified` timestamp from the backu
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
-The conflict separator format (one blank line above `---`):
+The conflict separator is a clean `---` with no metadata. If the imported entry's title would be lost (both entries have different titles), it's preserved after the separator:
 
 ```
 [existing content]
 
 ---
-from Jan 30, 2026, 10:30:45 AM backup:
+[imported content]
+```
+
+With a lost title:
+```
+[existing content]
+
+---
+a very rainy day
 
 [imported content]
 ```
 
 Code location: `src/features/export/utils/parseBackup.ts`
-
-```typescript
-const importLabel = `\n\n---\nfrom ${importDate.toLocaleDateString('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  second: '2-digit'
-})} backup:\n\n`;
-```
 
 ### Exact Match Handling
 
