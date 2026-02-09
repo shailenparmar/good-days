@@ -35,6 +35,7 @@ interface JournalEditorProps {
   editorRef: React.RefObject<HTMLTextAreaElement | null>;
   externalContentVersion?: number;
   onClick?: () => void;
+  hidePlaceholder?: boolean;
 }
 
 export function JournalEditor({
@@ -45,6 +46,7 @@ export function JournalEditor({
   editorRef,
   externalContentVersion,
   onClick,
+  hidePlaceholder,
 }: JournalEditorProps) {
   const { getColor, getBgColor } = useTheme();
 
@@ -230,8 +232,8 @@ export function JournalEditor({
   // Memoize scrambled text so it doesn't re-scramble on every render
   const scrambledValue = useMemo(() => scrambleText(value), [value]);
 
-  // Placeholder visibility
-  const showPlaceholder = isToday && !value && !isFocused;
+  // Placeholder visibility — hide when another input (title, password) has focus
+  const showPlaceholder = isToday && !value && !isFocused && !hidePlaceholder;
 
   // Placeholder animation
   useEffect(() => {

@@ -107,6 +107,7 @@ function AppContent() {
 
   const [editorKey, setEditorKey] = useState(0);
   const [scrambleSeed, setScrambleSeed] = useState(0);
+  const [titleEditing, setTitleEditing] = useState(false);
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
 
@@ -460,6 +461,7 @@ function AppContent() {
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
             stacked={stacked}
+            saveTitle={journal.saveTitle}
             onClick={(e) => {
               e.stopPropagation();
               if (layout.isNarrow) {
@@ -475,6 +477,7 @@ function AppContent() {
               }
             }}
             onHeightChange={layout.setEntryHeaderHeight}
+            onEditingChange={setTitleEditing}
           />
         )}
 
@@ -486,6 +489,7 @@ function AppContent() {
           onInput={handleInput}
           editorRef={editorRef}
           externalContentVersion={journal.externalContentVersion}
+          hidePlaceholder={titleEditing}
           onClick={() => {
             if (layout.isNarrow) {
               layout.closePanels();

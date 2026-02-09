@@ -118,6 +118,11 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
   const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
   const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
 
+  const selectEntry = (date: string) => {
+    setKeyboardFocusedEntry(null);
+    onSelectDate(date);
+  };
+
   return (
     <nav className="p-4 space-y-2" role="navigation" aria-label="Journal entries">
       {entries.map(entry => {
@@ -131,10 +136,10 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         const currentBg = (isSelected || isHovered) ? hoverBg : 'transparent';
 
         // In powerstat mode, show "1/28/2026 9:24 AM" format with startedAt time
-        let displayText: string;
+        let dateText: string;
         if (stacked && entry.startedAt) {
           const date = new Date(entry.startedAt);
-          displayText = date.toLocaleString('en-US', {
+          dateText = date.toLocaleString('en-US', {
             month: 'numeric',
             day: 'numeric',
             year: 'numeric',
@@ -143,8 +148,12 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             hour12: true
           });
         } else {
-          displayText = formatDate(entry.date);
+          dateText = formatDate(entry.date);
         }
+
+        const hasTitle = !!entry.title;
+        // Show split view on hover only if entry has a title
+        const showSplit = hasTitle && isHovered;
 
         return (
           <div
@@ -152,10 +161,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             ref={(el) => {
               if (el) buttonRefs.current.set(entry.date, el as unknown as HTMLButtonElement);
             }}
-            onClick={() => {
-              setKeyboardFocusedEntry(null);
-              onSelectDate(entry.date);
-            }}
+            onClick={() => selectEntry(entry.date)}
             onMouseEnter={() => {
               if (!keyboardFocusedEntry) {
                 setHoveredEntry(entry.date);
@@ -166,9 +172,9 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             onMouseUp={() => setClickedEntry(null)}
             tabIndex={-1}
             role="button"
-            aria-label={`Journal entry for ${displayText}${isSelected ? ', selected' : ''}`}
+            aria-label={`Journal entry for ${dateText}${entry.title ? `, ${entry.title}` : ''}${isSelected ? ', selected' : ''}`}
             aria-pressed={isSelected}
-            className="w-full text-center px-3 py-2 rounded font-mono font-extrabold outline-none focus:outline-none select-none"
+            className="w-full rounded font-mono font-extrabold outline-none focus:outline-none select-none"
             style={{
               fontSize: '14px',
               border: `3px solid ${currentBorderColor}`,
@@ -176,7 +182,27 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
               backgroundColor: currentBg,
             }}
           >
-            {s(displayText)}
+            {showSplit ? (
+              // Split view on hover: date | title
+              <div className="flex" style={{ minHeight: '36px' }}>
+                <div
+                  className="flex-1 flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
+                  style={{ borderRight: `2px solid ${currentBorderColor}` }}
+                >
+                  {s(dateText)}
+                </div>
+                <div className="flex-1 flex items-center justify-center overflow-hidden px-2 py-2">
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {s(entry.title!)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              // Single view: title or date
+              <div className="text-center px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                {s(hasTitle ? entry.title! : dateText)}
+              </div>
+            )}
           </div>
         );
       })}

@@ -13,15 +13,86 @@ interface EntryHeaderProps {
   stacked?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   onHeightChange?: (height: number) => void;
+  saveTitle?: (date: string, title: string) => void;
+  onEditingChange?: (editing: boolean) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, stacked, onClick, onHeightChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
   const headerRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+
+  // "set title" placeholder sweep animation
+  const [boldCount, setBoldCount] = useState(0);
+  const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
+  const placeholderText = 'set title';
+  const showPlaceholder = isEditingTitle && titleInput.length === 0;
+
+  useEffect(() => {
+    if (!showPlaceholder) return;
+    const nextCount = boldCount + 1;
+    if (boldCount >= placeholderText.length) {
+      setAnimPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setBoldCount(nextCount), 83);
+    return () => clearTimeout(timer);
+  }, [showPlaceholder, boldCount, animPhase]);
+
+  useEffect(() => {
+    if (showPlaceholder) {
+      setBoldCount(0);
+      setAnimPhase('bold');
+    }
+  }, [showPlaceholder]);
+
+  // Notify parent when editing state changes
+  useEffect(() => {
+    onEditingChange?.(isEditingTitle);
+  }, [isEditingTitle, onEditingChange]);
+
+  // Reset editing when selected date changes
+  useEffect(() => {
+    setIsEditingTitle(false);
+  }, [selectedDate]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingTitle) {
+      titleInputRef.current?.focus();
+    }
+  }, [isEditingTitle]);
+
+  const handleDateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const entry = entries.find(en => en.date === selectedDate);
+    setTitleInput(entry?.title || '');
+    setIsEditingTitle(true);
+  };
+
+  const handleTitleSave = () => {
+    if (saveTitle) {
+      saveTitle(selectedDate, titleInput);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+    }
+  };
 
   // Report height changes
   useEffect(() => {
@@ -81,6 +152,12 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, supersc
     }).toLowerCase();
   };
 
+  const dateText = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).toLowerCase();
+
   return (
     <div
       ref={headerRef}
@@ -99,14 +176,48 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, supersc
       }}
     >
       <div className="flex justify-between items-baseline select-none">
-        <h2 className="text-lg font-extrabold font-mono" style={{ color: getColor() }}>
-          {s(new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-          }).toLowerCase())}
-        </h2>
-        <p className="font-extrabold font-mono" style={{ color: getColor(), fontSize: '14px' }}>
+        {isEditingTitle ? (
+          <div className="relative flex-1 mr-2">
+            <input
+              ref={titleInputRef}
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={handleTitleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full text-lg font-extrabold font-mono bg-transparent outline-none border-none p-0 m-0"
+              style={{ color: getColor(), caretColor: getColor() }}
+            />
+            {showPlaceholder && (
+              <div
+                className="absolute top-0 left-0 text-lg font-mono pointer-events-none select-none"
+                style={{ color: getColor(), opacity: 0.85 }}
+              >
+                {animPhase === 'bold' ? (
+                  <>
+                    <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
+                    <span>{placeholderText.slice(boldCount)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{placeholderText.slice(0, boldCount)}</span>
+                    <span className="font-bold">{placeholderText.slice(boldCount)}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <h2
+            className="text-lg font-extrabold font-mono overflow-hidden text-ellipsis whitespace-nowrap flex-1 mr-2"
+            style={{ color: getColor() }}
+            onClick={saveTitle ? handleDateClick : undefined}
+          >
+            {s(entry?.title || dateText)}
+          </h2>
+        )}
+        <p className="font-extrabold font-mono whitespace-nowrap flex-shrink-0" style={{ color: getColor(), fontSize: '14px' }}>
           {s(getStartedAtText())}
         </p>
       </div>
