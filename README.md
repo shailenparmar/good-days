@@ -1,6 +1,6 @@
 # [good days](https://gdays.day)
 
-welcome to good days, your time-capsule journal oasis.
+welcome to good days, your analog journal oasis.
 
 ## privacy
 
