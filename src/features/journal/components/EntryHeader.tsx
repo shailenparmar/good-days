@@ -8,6 +8,7 @@ interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
+  isScrambled?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
   stacked?: boolean;
@@ -17,7 +18,7 @@ interface EntryHeaderProps {
   onEditingChange?: (editing: boolean) => void;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -214,7 +215,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, supersc
             style={{ color: getColor() }}
             onClick={saveTitle ? handleDateClick : undefined}
           >
-            {s(entry?.title || dateText)}
+            {entry?.title ? (isScrambled || superscramble ? scrambleText(entry.title) : entry.title) : s(dateText)}
           </h2>
         )}
         <p className="font-extrabold font-mono whitespace-nowrap flex-shrink-0" style={{ color: getColor(), fontSize: '14px' }}>

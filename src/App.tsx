@@ -368,6 +368,7 @@ function AppContent() {
             }}
             settingsOpen={layout.showDebugMenu}
             stacked={stacked}
+            isScrambled={layout.isScrambled}
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
           />
@@ -458,6 +459,7 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
+            isScrambled={layout.isScrambled}
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
             stacked={stacked}

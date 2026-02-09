@@ -10,11 +10,12 @@ interface EntrySidebarProps {
   onSelectDate: (date: string) => void;
   settingsOpen?: boolean;
   stacked?: boolean;
+  isScrambled?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
 }
 
-export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen, stacked, superscramble, scrambleSeed }: EntrySidebarProps) {
+export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen, stacked, isScrambled, superscramble, scrambleSeed }: EntrySidebarProps) {
   // Suppress unused variable warning - scrambleSeed triggers re-renders
   void scrambleSeed;
 
@@ -152,8 +153,6 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         }
 
         const hasTitle = !!entry.title;
-        // Show split view on hover only if entry has a title
-        const showSplit = hasTitle && isHovered;
 
         return (
           <div
@@ -174,7 +173,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             role="button"
             aria-label={`Journal entry for ${dateText}${entry.title ? `, ${entry.title}` : ''}${isSelected ? ', selected' : ''}`}
             aria-pressed={isSelected}
-            className="w-full rounded font-mono font-extrabold outline-none focus:outline-none select-none"
+            className="w-full text-center px-3 py-2 rounded font-mono font-extrabold outline-none focus:outline-none select-none overflow-hidden text-ellipsis whitespace-nowrap"
             style={{
               fontSize: '14px',
               border: `3px solid ${currentBorderColor}`,
@@ -182,27 +181,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
               backgroundColor: currentBg,
             }}
           >
-            {showSplit ? (
-              // Split view on hover: date | title
-              <div className="flex" style={{ minHeight: '36px' }}>
-                <div
-                  className="flex-1 flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
-                  style={{ borderRight: `2px solid ${currentBorderColor}` }}
-                >
-                  {s(dateText)}
-                </div>
-                <div className="flex-1 flex items-center justify-center overflow-hidden px-2 py-2">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                    {s(entry.title!)}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              // Single view: title or date
-              <div className="text-center px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap">
-                {s(hasTitle ? entry.title! : dateText)}
-              </div>
-            )}
+            {hasTitle ? (isScrambled || superscramble ? scrambleText(entry.title!) : entry.title!) : s(dateText)}
           </div>
         );
       })}
