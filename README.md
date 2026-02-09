@@ -6,7 +6,7 @@ welcome to good days, your analog journal oasis.
 
 entries are not sent to servers. a developer couldn't view your writing even if they wanted to.
 
-everything added lives encrypted or hashed on your hard drive in local browser storage. the app pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware. the only network activity is relaying the time since last refresh for live mode phone pairing. 
+everything added lives encrypted or hashed on your hard drive in local browser storage. the app pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware. the only network activity is relaying the time since last refresh for live mode pairing. 
 
 Safari is the only major browser with inactivity deletion (7 days); however, if you manually delete site data in any browser's settings, you'll clear the journal.
 
