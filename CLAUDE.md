@@ -813,13 +813,13 @@ If re-encryption fails, entries remain encrypted with the old key and the old ha
 | `changePassword(newPassword)` | Re-encrypt + update hash (for password change flow) |
 | `initEncryptionKey()` | Standalone init function (called on mount) |
 
-### Import Conflict Handling (v2.3.36+)
+### Import Conflict Handling (v2.3.37+)
 
-When importing, entries are **merged** (not replaced). If an imported entry's date already exists:
+Entries are treated as **units** (title + content). When importing, entries are **merged** (not replaced). If an imported entry's date already exists:
 
-1. **Same content**: Skip (no change). If imported has a title and existing doesn't, adopt it.
-2. **Different content**: Append imported content below existing with a `---` separator
-3. **Title preservation**: If both entries have different titles, the imported title (which would be lost since `existing.title` wins) is included as a line after the `---` separator
+1. **Exact match** (same content AND same title): Skip
+2. **Already appended**: The formatted import block (`--- title content`) is found in the existing text → skip (prevents duplicates on re-import)
+3. **Any difference** (content, title, or both): Append the imported entry below existing with a `---` separator. The imported title (if any) is always included after the `---`
 
 ### Import `lastModified` Preservation (v1.10.0+)
 
@@ -839,16 +839,8 @@ Imported entries preserve their original `lastModified` timestamp from the backu
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
-The conflict separator is a clean `---` with no metadata. If the imported entry's title would be lost (both entries have different titles), it's preserved after the separator:
+The conflict separator is a clean `---`. The imported entry's title (if any) always appears after the separator:
 
-```
-[existing content]
-
----
-[imported content]
-```
-
-With a lost title:
 ```
 [existing content]
 
@@ -857,6 +849,16 @@ a very rainy day
 
 [imported content]
 ```
+
+Without a title:
+```
+[existing content]
+
+---
+[imported content]
+```
+
+**Import block duplicate detection (v2.3.37+):** Instead of checking if the existing content *contains* the imported content (which would skip when existing is a superset), we check if the formatted import block (`--- title content`, normalized) already exists in the existing text. This only matches actual previous imports (content after a `---` separator), not organic content. This preserves fearless re-import while treating any actual difference as meaningful.
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
@@ -887,9 +889,9 @@ function normalizeForComparison(text: string): string {
 **Comparison flow:**
 1. Strip HTML from existing entry (preserving line breaks as `\n`)
 2. Normalize both existing and imported text (collapse whitespace)
-3. Check: same content? → skip. Contains imported? → skip. Otherwise → append.
-
-This prevents duplicate content from being appended during repeated imports.
+3. Compare titles (`(existing.title || '') === (imported.title || '')`)
+4. Build import block: `--- ${normalizedTitle} ${normalizedContent}`
+5. Skip if: empty import, exact match (content + title), or import block found in existing. Otherwise → append.
 
 ### Key Behaviors
 
@@ -921,8 +923,8 @@ The import button hover text change in powerstat mode is a literal string change
 No duplicate content. No corruption. No "did I already import this?" No thinking required.
 
 **Safeguards:**
-1. Same date + identical content → skip entirely
-2. Same date + existing already contains imported text → skip (prevents re-appending)
+1. Same date + identical entry (same content + same title) → skip entirely
+2. Same date + already appended (import block found in existing) → skip (prevents re-appending)
 3. Same date in multiple files → handled (Set tracks what's been added)
 4. Multi-file import → all merge cleanly into one result
 
