@@ -26,9 +26,9 @@ export function CornerBrackets({ size: _size, color, showLabels }: CornerBracket
       {/* Edge midpoint labels - only in picker, fully outside the square */}
       {showLabels && (
         <>
-          <span style={{ ...labelStyle, top: 0, left: '50%', transform: 'translate(-50%, -100%)' }}>white</span>
-          <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 100%)' }}>black</span>
-          <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-100%, -50%)' }}>gray</span>
+          <span style={{ ...labelStyle, top: 0, left: '50%', transform: 'translate(-50%, -100%)' }}>light</span>
+          <span style={{ ...labelStyle, top: 'auto', bottom: 0, left: '50%', transform: 'translate(-50%, 100%)' }}>dark</span>
+          <span style={{ ...labelStyle, left: 0, top: '50%', transform: 'translate(-100%, -50%)' }}>muted</span>
           <span style={{ ...labelStyle, right: 0, left: 'auto', top: '50%', transform: 'translate(100%, -50%)' }}>vivid</span>
         </>
       )}
