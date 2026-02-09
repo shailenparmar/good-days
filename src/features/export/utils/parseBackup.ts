@@ -39,26 +39,30 @@ export function mergeJsonEntries(
       const existingIndex = result.findIndex(e => e.date === imported.date);
       const existing = result[existingIndex];
 
-      // Check if content is actually different
+      // Compare entries as units (title + content)
       const existingText = htmlToText(existing.content).trim();
       const importedText = htmlToText(imported.content).trim();
 
       const existingNormalized = normalizeForComparison(existingText);
       const importedNormalized = normalizeForComparison(importedText);
+      const titlesMatch = (existing.title || '') === (imported.title || '');
 
-      // Same/contained content — adopt imported title if existing has none
-      if (existingNormalized === importedNormalized || importedNormalized === '' || existingNormalized.includes(importedNormalized)) {
-        if (imported.title && !existing.title) {
-          result[existingIndex] = { ...existing, title: imported.title };
-          importedCount++;
-        }
+      // Build the import block for duplicate detection
+      const importBlock = imported.title
+        ? `--- ${normalizeForComparison(imported.title)} ${importedNormalized}`
+        : `--- ${importedNormalized}`;
+
+      // Skip if: empty import, exact match (same content + title), or already appended
+      if (
+        importedNormalized === '' ||
+        (existingNormalized === importedNormalized && titlesMatch) ||
+        existingNormalized.includes(importBlock)
+      ) {
+        // no-op: nothing new to import
       } else {
-        // Different content - append with separator
-        // Preserve imported title in content if it would otherwise be lost
-        const lostTitle = (imported.title && existing.title && imported.title !== existing.title)
-          ? imported.title + '\n\n'
-          : '';
-        const separator = `\n\n---\n${lostTitle}`;
+        // Different entry - append as a unit with separator
+        const importedTitle = imported.title ? imported.title + '\n\n' : '';
+        const separator = `\n\n---\n${importedTitle}`;
 
         result[existingIndex] = {
           ...existing,
@@ -183,16 +187,24 @@ export function mergeEntries(
       const existingIndex = result.findIndex(e => e.date === imported.date);
       const existing = result[existingIndex];
 
-      // Check if content is actually different and not already contained
+      // Compare content
       const existingText = htmlToText(existing.content).trim();
       const importedText = imported.content.trim();
 
-      // Normalize for comparison (collapse whitespace differences from HTML conversion)
       const existingNormalized = normalizeForComparison(existingText);
       const importedNormalized = normalizeForComparison(importedText);
 
-      // Skip if: same content, empty import, or existing already contains imported text
-      if (existingNormalized !== importedNormalized && importedNormalized !== '' && !existingNormalized.includes(importedNormalized)) {
+      // Build import block for duplicate detection
+      const importBlock = `--- ${importedNormalized}`;
+
+      // Skip if: empty import, exact match, or already appended
+      if (
+        importedNormalized === '' ||
+        existingNormalized === importedNormalized ||
+        existingNormalized.includes(importBlock)
+      ) {
+        // no-op: nothing new to import
+      } else {
         // Different content - append with separator
         const separator = '\n\n---\n';
 
@@ -205,7 +217,6 @@ export function mergeEntries(
         result[existingIndex] = {
           ...existing,
           content: existing.content + separator + importedHtml,
-          // Update startedAt if imported entry is older
           startedAt: imported.startedAt && (!existing.startedAt || imported.startedAt < existing.startedAt)
             ? imported.startedAt
             : existing.startedAt,
