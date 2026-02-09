@@ -39,9 +39,9 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Sidebar** (`EntrySidebar.tsx`):
 - Titled entries show the title as primary text (not the date)
-- On hover, titled entries split into two centered columns: `date | title` (separated by a 2px border)
-- Untitled entries show the date normally, no split on hover
+- Untitled entries show the date normally
 - Title editing is header-only — sidebar is display-only
+- **Scramble support (v2.3.35+):** Titles (user content) are scrambled in regular scramble mode. Dates are NOT scrambled (structural, not content). In superscramble, everything scrambles as before.
 
 **Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
 
