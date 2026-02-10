@@ -974,7 +974,7 @@ export default function MobileApp() {
             width: '9ch',
             alignSelf: 'center',
           }}>
-            {sync.candidates.map((laptop, index) => {
+            {sync.candidates.map((laptop) => {
               const h = colors.hue;
               const s = colors.sat;
               const l = colors.light;
