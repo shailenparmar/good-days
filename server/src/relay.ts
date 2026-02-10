@@ -129,6 +129,9 @@ function notifyWatchingPhones(ip: string) {
 }
 
 function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, deviceId?: string) {
+  // Track pending re-pair phone ID (set during same-device dedup, used after registration)
+  let rePairPhoneId: string | undefined;
+
   // Same-device dedup: if this deviceId already has a connection, close old one atomically
   if (deviceId && deviceConnections.has(deviceId)) {
     const oldClientId = deviceConnections.get(deviceId)!;
@@ -166,22 +169,11 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
       const oldPartnerId = oldClient.partnerId;
       clients.delete(oldClientId);
 
-      // If the old laptop had a paired phone, re-pair the phone with the new laptop after registration
+      // Save phone ID for synchronous re-pair after registration
       if (role === 'laptop' && oldPartnerId) {
         const phone = clients.get(oldPartnerId);
         if (phone && !phone.partnerId) {
-          // We'll pair after registering the new client below
-          // Store partnerId to pair after setup
-          setTimeout(() => {
-            const newClient = clients.get(clientId);
-            const phoneNow = clients.get(oldPartnerId);
-            if (newClient && phoneNow && !newClient.partnerId && !phoneNow.partnerId) {
-              pairClients(clientId, oldPartnerId);
-              if (phoneNow.streaming) {
-                replayStreamToLaptop(oldPartnerId, clientId);
-              }
-            }
-          }, 0);
+          rePairPhoneId = oldPartnerId;
         }
       }
     }
@@ -216,14 +208,22 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     send(ws, { type: 'registered', clientId, pairingCode: code });
     console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code || 'none'} clients=${clients.size}`);
 
+    // Synchronous re-pair: if dedup found a phone that was paired with the old tab,
+    // pair it with this new tab immediately (no setTimeout race)
+    if (rePairPhoneId) {
+      const phoneNow = clients.get(rePairPhoneId);
+      if (phoneNow && !record.partnerId && !phoneNow.partnerId) {
+        pairClients(clientId, rePairPhoneId);
+        if (phoneNow.streaming) {
+          replayStreamToLaptop(rePairPhoneId, clientId);
+        }
+      }
+    }
+
     // Check for unpaired phones waiting on same IP — re-evaluate pairing
-    // (setTimeout(0) handles the atomic re-pair case above; for fresh connects, do it inline)
     const phones = getUnpairedPhonesInGroup(publicIp, clientId);
     if (phones.length > 0) {
-      // Defer slightly so the atomic re-pair from dedup can settle first
-      setTimeout(() => {
-        notifyWatchingPhones(publicIp);
-      }, 10);
+      notifyWatchingPhones(publicIp);
     }
   } else {
     // Phone registering

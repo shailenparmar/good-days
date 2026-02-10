@@ -285,7 +285,6 @@ function AppContent() {
 
   return (
     <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
-      <WebSyncBridge />
       {/* Global styles */}
       <style>
         {`
@@ -544,6 +543,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
+        <WebSyncBridge />
         <AppContent />
       </ThemeProvider>
     </ErrorBoundary>
