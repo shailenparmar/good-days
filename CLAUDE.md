@@ -33,7 +33,7 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 - An inline input replaces the date — stretches to fill all space up to the "started at" text
 - Placeholder: "set title" with the standard bold/unbold sweep animation (83ms per char)
 - Enter, Tab, or blur saves; Escape cancels. Enter and Tab move focus to the editor textarea with cursor at end (via `requestAnimationFrame` + `editorRef`).
-- **Scramble overlay (v2.3.39+):** When scramble or superscramble is active, the title input text is transparent and an absolute-positioned overlay shows the scrambled title text. Same pattern as the editor scramble overlay.
+- **Scramble overlay (v2.3.39+, updated v2.3.40):** When scramble or superscramble is active, the title input text is transparent and an absolute-positioned overlay shows the scrambled title text. Same pattern as the editor scramble overlay. The overlay clips at the edge without ellipsis (matches the natural input scroll behavior).
 - No character limit — type freely, long titles truncate with ellipsis when not editing
 - Once titled, the header shows the title instead of the date (no "date: title" format — just the title)
 - `onEditingChange` callback notifies `App.tsx` → sets `titleEditing` state → passes `hidePlaceholder` to `JournalEditor` so the editor's "start typing" placeholder hides while the title input has focus
