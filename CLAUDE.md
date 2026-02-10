@@ -124,6 +124,44 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
 
+## CSS Custom Properties for Live Streaming (v2.4.6+)
+
+All inline HSL color styles throughout the app now reference CSS custom properties on `:root` instead of React state values. This enables zero-React-overhead color updates during live phone-to-desktop streaming.
+
+### CSS Variable Schema
+
+Six custom properties on `document.documentElement`:
+- `--h` (text hue, unitless), `--s` (text saturation, with `%`), `--l` (text lightness, with `%`)
+- `--bh` (bg hue, unitless), `--bs` (bg saturation, with `%`), `--bl` (bg lightness, with `%`)
+
+Usage: `hsl(var(--h), var(--s), var(--l))` — the `%` is baked into the variable value.
+
+### How It Works
+
+1. **Pre-React (`index.html` IIFE):** Reads all 6 color values from localStorage and sets CSS vars before React mounts. Prevents color flash.
+
+2. **ThemeContext:** A `useEffect` syncs CSS vars whenever React color state changes. `getColor()` and `getBgColor()` return static CSS variable strings (e.g. `hsl(var(--h), var(--s), var(--l))`). React sees the same string every render — no DOM attribute updates needed.
+
+3. **WebSyncBridge (streaming):** During live streaming, the rAF callback sets CSS vars directly on `document.documentElement` instead of calling `applyPreset`/`setLivePreset`. Zero React state updates per frame. When streaming ends (disconnect), final colors are synced back to React state for localStorage persistence.
+
+4. **Save during streaming:** `saveLivePreset` reads from `pendingColorsRef` (latest streamed colors) and syncs to React state before saving.
+
+### Common CSS Variable Patterns
+
+| Before | After |
+|--------|-------|
+| `` `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` `` | `hsl(var(--bh), var(--bs), var(--bl))` |
+| `` `hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` `` | `hsla(var(--h), var(--s), var(--l), 0.85)` |
+| `` `hsl(${bgHue}, ..., ${Math.min(100, bgLightness+2)}%)` `` | `hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))` |
+| `` `hsl(${hue}, ..., ${Math.max(0, lightness*0.65)}%)` `` | `hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))` |
+
+### Files NOT Converted (intentionally)
+
+- `PresetGrid.tsx` — uses preset object colors, not current theme
+- `MobileApp.tsx` — phone side, not affected by desktop streaming
+- `confirmColor.ts` — computational WCAG contrast, needs raw numbers
+- `StatsDisplay.tsx` color hex display — text output, not CSS styling
+
 ## WebSyncBridge (Live Sync)
 
 The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.10.67+). The `src/shared/sync/` directory contains all sync files, and `WebSyncBridge` is rendered in the `App` component (sibling of `AppContent`, inside `ThemeProvider`).
