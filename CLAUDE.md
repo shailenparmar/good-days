@@ -365,19 +365,34 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 
 Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` in `useWebSync.ts`.
 
-### Pairing Code Fallback (v2.4.0+, updated v2.4.8)
+### Pairing Code Fallback (v2.4.0+, updated v2.4.12)
 
 When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free.
 
-**Desktop:** Title always shows "good days" by default. On hover, shows the 3-digit pairing code (e.g. "234") if connected to relay and not in live mode; otherwise shows "good days v{VERSION}". This keeps the title clean when the user isn't actively pairing (v2.4.11+). **Code cleared on pairing (v2.4.8+):** The `pairingCode` state is set to `null` when the `paired` message is received. Previously the code was always visible whenever connected to relay.
+**Desktop:** Title always shows "good days" by default. On hover, shows the 3-digit pairing code **only when a phone is actively on the "enter your desktop code" screen** (v2.4.12+); otherwise shows "good days v{VERSION}". The code is never visible during normal use, live mode, or when no phone is actively trying to pair via code.
+
+**Relay-driven code visibility (v2.4.12+):** The relay tracks which phones are in code-entry mode via `phonesInCodeEntry` Set. When a phone enters or leaves the enter-code screen, the relay broadcasts `{ type: 'code-visible', visible: boolean }` to all connected laptops. Desktop `useWebSync` stores the pairing code in a ref on `registered`, but only exposes it via React state when `code-visible: true`. On `code-visible: false` or `paired`, state is cleared to null.
+
+**Phone enters code-entry when:**
+- 0 unpaired laptops on same IP during registration
+- 0 unpaired laptops after eviction re-check
+- 0 unpaired laptops after grace timer expiration
+- `enter-code` sent from `notifyWatchingPhones`
+
+**Phone leaves code-entry when:**
+- Successfully paired (via `pairClients`)
+- Phone disconnects (cleanup in `handleDisconnect`)
+- Candidates become available (2+ laptops, phone gets `candidates` message)
+
+**New laptop edge case:** When a laptop registers while phones are already in code-entry, it receives `code-visible: true` immediately after its `registered` message.
 
 **Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows centered "enter your desktop code" with a 3-digit numeric input (48px monospace, auto-submits on 3 digits). iOS keyboard pushes the title off screen naturally (no viewport hacks). On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs. **Auto-clear on submit (v2.4.8+):** Input auto-clears after 1 second so user can retry if code was wrong or connection failed. If pairing succeeds, the screen hides before the clear fires.
 
 **Relay error handling (v2.4.8+):** `handlePairByCode` now logs all exit paths (code not found, laptop disconnected, laptop already paired) and sends `enter-code` back to the phone on failure. This gives the phone a signal that the attempt failed (the enter-code re-receipt is harmless if already in that state).
 
-**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Cleared from desktop state on `paired` message.
+**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Desktop state driven by `code-visible` messages from relay (not by registration alone).
 
-Code: `assignPairingCode()`, `pairingCodes` Map, `handlePairByCode()` in `relay.ts`. `pairingCode` state in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
+Code: `assignPairingCode()`, `pairingCodes` Map, `phonesInCodeEntry` Set, `phoneEnterCodeEntry()`/`phoneLeaveCodeEntry()`/`broadcastCodeVisibility()` in `relay.ts`. `pairingCodeRef` + `code-visible` handler in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
 
 ### IP-Based Pairing (v2.4.0+, simplified from v2.1.x)
 
