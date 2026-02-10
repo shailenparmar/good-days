@@ -284,8 +284,7 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex h-screen wco-app-container" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
-      <div className="wco-drag-region" />
+    <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
       <WebSyncBridge />
       {/* Global styles */}
       <style>

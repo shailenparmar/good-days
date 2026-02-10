@@ -684,7 +684,7 @@ export default function MobileApp() {
     if (v) sessionStorage.setItem('titlePressed', '1');
     else sessionStorage.removeItem('titlePressed');
   };
-  const mobileVersion = '2.4.0';
+  const mobileVersion = '2.4.1';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -1032,7 +1032,7 @@ export default function MobileApp() {
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
           <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
-            enter code from laptop
+            what number is in your header?
           </span>
           <input
             type="text"

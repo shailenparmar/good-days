@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+const isElectronBuild = process.env.ELECTRON_BUILD === 'true'
+
 // https://vite.dev/config/
 export default defineConfig({
   server: {
@@ -16,7 +18,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    VitePWA({
+    ...(!isElectronBuild ? [VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
       workbox: {
@@ -27,7 +29,6 @@ export default defineConfig({
         short_name: 'good days',
         description: 'A journaling app for good days',
         background_color: '#000000',
-        display_override: ['window-controls-overlay'],
         display: 'standalone',
         icons: [
           {
@@ -50,7 +51,7 @@ export default defineConfig({
           },
         ],
       },
-    }),
+    })] : []),
   ],
   base: '/', // Custom domain (gdays.day) serves from root
   resolve: {

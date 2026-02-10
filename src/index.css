@@ -117,31 +117,3 @@ button:focus-visible {
 .scrollbar-hide::-webkit-scrollbar {
   display: none !important;
 }
-
-/* Window Controls Overlay — PWA title bar replacement */
-@media (display-mode: window-controls-overlay) {
-  /* Drag region: full-width strip matching titlebar height */
-  .wco-drag-region {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: env(titlebar-area-height, 0);
-    -webkit-app-region: drag;
-    z-index: 9999;
-  }
-
-  /* Push app content below the overlay */
-  .wco-app-container {
-    padding-top: env(titlebar-area-height, 0);
-  }
-
-  /* Keep interactive elements clickable within the drag region */
-  button,
-  input,
-  textarea,
-  a,
-  [role="button"] {
-    -webkit-app-region: no-drag;
-  }
-}
