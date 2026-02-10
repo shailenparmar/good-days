@@ -126,7 +126,9 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 
 ## WebSyncBridge (Live Sync)
 
-The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.10.67+). The `src/shared/sync/` directory contains all sync files, and `WebSyncBridge` is imported and rendered in `App.tsx`.
+The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.10.67+). The `src/shared/sync/` directory contains all sync files, and `WebSyncBridge` is rendered in the `App` component (sibling of `AppContent`, inside `ThemeProvider`).
+
+**Important:** `WebSyncBridge` renders at the `App` level, NOT inside `AppContent` (v2.4.5+). This ensures the WebSocket connects to the relay immediately on page load, even when the lock screen is showing. `sessionStorage` is per-tab, so new tabs start locked — if WebSyncBridge were gated behind the lock screen, the new tab's WS would never connect, and the phone pairing would stay on the old tab.
 
 ### Relay Server
 
@@ -301,8 +303,10 @@ Both `useMobileSync.ts` and `useWebSync.ts` now guard `ws.onclose` with `if (wsR
 Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Every desktop tab connects to the relay immediately on mount. The relay tracks `deviceConnections: Map<deviceId, clientId>`. When a second tab from the same device registers, the relay:
 
 1. Closes the old WS with code `4001` ("superseded")
-2. If the old tab was paired with a phone, re-pairs the phone with the new tab atomically (phone never sees `unpaired`)
+2. If the old tab was paired with a phone, re-pairs the phone with the new tab **synchronously** after registration (phone never sees `unpaired`)
 3. Replays stream state to the new tab if the phone was streaming
+
+**Synchronous re-pair (v2.4.5+):** The re-pair happens inline in `handleRegister` right after the new client is registered and `registered` is sent. Previously used `setTimeout(0)` which created a race window where `notifyWatchingPhones` could interfere. Now the `paired` message is sent immediately after `registered`, and `notifyWatchingPhones` correctly sees the phone as already paired.
 
 **Desktop handling of code 4001:** `useWebSync.ts` sets `dormantRef = true` on close code 4001 — clears all live state silently and stops reconnecting.
 
