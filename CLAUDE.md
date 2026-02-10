@@ -310,13 +310,13 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 
 Code: `deviceConnections` Map in `relay.ts`, `dormantRef` in `useWebSync.ts`.
 
-### Pairing Code Fallback (v2.4.0+)
+### Pairing Code Fallback (v2.4.0+, updated v2.4.3)
 
-When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 2-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,4), 16) % 100`, zero-padded. If taken, increments+wraps until free.
+When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free.
 
-**Desktop:** Title shows `g{code}d days` (e.g. "g93d days") when connected to relay. Falls back to "good days" when offline.
+**Desktop:** Title text replaces "good days" with the 3-digit code (e.g. "234") when connected to relay — same font, size, color. Falls back to "good days" when offline. Version hover still works on the code.
 
-**Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows a 2-digit numeric input. On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs.
+**Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows centered "enter your desktop code" with a 3-digit numeric input (48px monospace, auto-submits on 3 digits). iOS keyboard pushes the title off screen naturally (no viewport hacks). On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs.
 
 **Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`.
 
@@ -349,21 +349,26 @@ When a paired laptop disconnects, the relay delays unpairing the phone by `HANDO
 
 Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`.
 
-### Candidates Picker (v2.4.0+, redesigned)
+### Candidates Picker (v2.4.0+, redesigned v2.4.3)
 
 When 2+ unpaired desktops on same IP, phone shows a picker:
-- Header: `"{N} desktops found"`
-- Each item: `"desktop {N}"` with `"refreshed {X}s ago"` / `"refreshed {X}m ago"`
-- Styled with phone's current colors (no longer uses candidate colorway)
+- Header: "which one is yours?"
+- Each button shows only `"refreshed {X}s ago"` / `"refreshed {X} min ago"` — no "desktop N" label
+- Bold sweep animation (83ms/char) runs continuously on the refresh text
+- Buttons match mobile button width (`9ch` at `min(17vw, 70px)` font size), centered
+- Styled with phone's current colors, `getButtonStyle` border pattern (60% resting, 100%+fill on press)
 - Local `setInterval` every 1000ms increments age counters; server `candidates` messages reset to server values
+- Seconds tick live; switches to "X min ago" after 60s
 
 Code: pairing screen in `MobileApp.tsx`, `buildCandidatesList()` in `relay.ts`.
 
-### Code Entry Screen (v2.4.0+)
+### Code Entry Screen (v2.4.0+, updated v2.4.3)
 
 When 0 desktops on same IP, phone shows code entry:
-- Header: "enter code from laptop"
-- 2-digit numeric input (large monospace, auto-submits on 2 digits)
+- Header: "enter your desktop code" (centered, 20px monospace bold)
+- 3-digit numeric input (48px monospace, 4px themed border, auto-submits on 3 digits)
+- Input and label vertically centered in space below title (`flex: 1` + `justifyContent: center`)
+- iOS keyboard naturally pushes "good days" title off screen (accepted behavior)
 - Sends `pair-by-code` to relay, which looks up code in `pairingCodes` Map
 
 Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`.
