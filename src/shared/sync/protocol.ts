@@ -9,23 +9,22 @@ export interface ColorPayload {
 
 // Client → Server
 export type ClientMessage =
-  | { type: 'register'; role: 'phone' | 'laptop'; secret?: string; colorway?: ColorPayload; deviceId?: string; partnerDeviceId?: string }
+  | { type: 'register'; role: 'phone' | 'laptop'; deviceId?: string }
   | { type: 'pair-request'; targetId: string }
+  | { type: 'pair-by-code'; code: string }
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
-  | { type: 'save-preset' }
-  | { type: 'claim-laptop' };
+  | { type: 'save-preset' };
 
 // Server → Client
 export type ServerMessage =
-  | { type: 'registered'; clientId: string }
-  | { type: 'paired'; partnerId: string; secret: string; partnerDeviceId?: string }
+  | { type: 'registered'; clientId: string; pairingCode?: string }
+  | { type: 'paired'; partnerId: string }
   | { type: 'unpaired'; reason: string }
-  | { type: 'candidates'; laptops: Array<{ id: string; colorway?: ColorPayload }> }
-  | { type: 'candidate-update'; laptopId: string; colorway: ColorPayload }
-  | { type: 'no-candidates' }
+  | { type: 'candidates'; laptops: Array<{ id: string; connectedAgo: number }> }
+  | { type: 'enter-code' }
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }

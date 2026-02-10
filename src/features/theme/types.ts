@@ -61,6 +61,7 @@ export interface LiveSyncState {
   isLiveActive: boolean;
   isLiveStreaming: boolean;
   streamingControls: StreamingControls | null;
+  pairingCode: string | null;
 }
 
 export interface LiveSyncActions {
@@ -68,6 +69,7 @@ export interface LiveSyncActions {
   setIsLiveActive: (active: boolean) => void;
   setIsLiveStreaming: (streaming: boolean) => void;
   setStreamingControls: (controls: StreamingControls | null) => void;
+  setPairingCode: (code: string | null) => void;
   saveLivePreset: () => void;
   localDragRef: React.RefObject<boolean>;
   setLocalDragging: (dragging: boolean) => void;

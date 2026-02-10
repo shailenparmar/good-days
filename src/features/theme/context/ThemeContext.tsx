@@ -93,6 +93,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
   const [streamingControls, setStreamingControls] = useState<StreamingControls | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
   // Desktop drag override: when true, incoming color-updates skip applyPreset
   const localDragRef = useRef(false);
   const setLocalDragging = (dragging: boolean) => { localDragRef.current = dragging; };
@@ -370,10 +371,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     isLiveActive,
     isLiveStreaming,
     streamingControls,
+    pairingCode,
     setLivePreset,
     setIsLiveActive,
     setIsLiveStreaming,
     setStreamingControls,
+    setPairingCode,
     saveLivePreset,
     localDragRef,
     setLocalDragging,

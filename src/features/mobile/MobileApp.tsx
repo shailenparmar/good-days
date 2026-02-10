@@ -27,6 +27,12 @@ export default function MobileApp() {
   const [pasteInvalid, setPasteInvalid] = useState(false);
   const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
+  // Code entry state
+  const [codeInput, setCodeInput] = useState('');
+
+  // Candidate age counters (local timer increments these)
+  const [candidateAges, setCandidateAges] = useState<Map<string, number>>(new Map());
+
   // iOS permission state
   const [needsPermission, setNeedsPermission] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -608,6 +614,35 @@ export default function MobileApp() {
     }
   };
 
+  // Candidate age timer: increment each candidate's age counter every second while pairing
+  useEffect(() => {
+    if (sync.pairingState !== 'pairing') return;
+    // Reset ages from server data when candidates change
+    const initial = new Map<string, number>();
+    for (const c of sync.candidates) {
+      initial.set(c.id, c.connectedAgo);
+    }
+    setCandidateAges(initial);
+
+    const interval = setInterval(() => {
+      setCandidateAges(prev => {
+        const next = new Map(prev);
+        for (const [id, age] of next) {
+          next.set(id, age + 1);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sync.pairingState, sync.candidates]);
+
+  // Clear code input when leaving enter-code state
+  useEffect(() => {
+    if (sync.pairingState !== 'enter-code') {
+      setCodeInput('');
+    }
+  }, [sync.pairingState]);
+
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';
 
@@ -649,7 +684,7 @@ export default function MobileApp() {
     if (v) sessionStorage.setItem('titlePressed', '1');
     else sessionStorage.removeItem('titlePressed');
   };
-  const mobileVersion = '2.3.41';
+  const mobileVersion = '2.4.0';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -906,7 +941,7 @@ export default function MobileApp() {
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
           <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
-            which one is yours?
+            {sync.candidates.length} desktop{sync.candidates.length !== 1 ? 's' : ''} found
           </span>
           <div style={{
             display: 'flex',
@@ -916,19 +951,18 @@ export default function MobileApp() {
             maxWidth: '320px',
           }}>
             {sync.candidates.map((laptop, index) => {
-              const cw = laptop.colorway;
-              const candidateBg = cw ? `hsl(${cw.bgHue}, ${cw.bgSat}%, ${cw.bgLight}%)` : bgColor;
-              const candidateText = cw ? `hsl(${cw.hue}, ${cw.sat}%, ${cw.light}%)` : textColor;
-              const h = cw ? cw.hue : colors.hue;
-              const s = cw ? cw.sat : colors.sat;
-              const l = cw ? cw.light : colors.light;
+              const h = colors.hue;
+              const s = colors.sat;
+              const l = colors.light;
               const isPressed = pressedCandidate === laptop.id;
               const borderColor = isPressed
                 ? `hsla(${h}, ${s}%, 65%, 1)`
                 : `hsla(${h}, ${s}%, ${l}%, 0.6)`;
               const background = isPressed
-                ? `linear-gradient(hsla(${h}, ${s}%, ${l}%, 0.2), hsla(${h}, ${s}%, ${l}%, 0.2)), ${candidateBg}`
-                : candidateBg;
+                ? `hsla(${h}, ${s}%, ${l}%, 0.2)`
+                : 'transparent';
+              const age = candidateAges.get(laptop.id) ?? laptop.connectedAgo;
+              const ageText = age < 60 ? `${age}s ago` : `${Math.floor(age / 60)}m ago`;
               return (
                 <div
                   key={laptop.id}
@@ -960,21 +994,79 @@ export default function MobileApp() {
                     background,
                     border: `4px solid ${borderColor}`,
                     borderRadius: '12px',
-                    padding: '14px 0',
+                    padding: '14px 16px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'space-between',
                     fontFamily: 'monospace',
                     fontWeight: 800,
                     fontSize: '20px',
-                    color: candidateText,
+                    color: textColor,
                   }}
                 >
-                  desktop {index + 1}
+                  <span>desktop {index + 1}</span>
+                  <span style={{ fontSize: '14px', opacity: 0.6 }}>refreshed {ageText}</span>
                 </div>
               );
             })}
           </div>
+        </div>
+      </div>
+      </div>
+
+      {/* ===== CODE ENTRY SCREEN (visible when no desktops on same IP) ===== */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#000',
+          visibility: sync.pairingState === 'enter-code' ? 'visible' : 'hidden',
+          zIndex: sync.pairingState === 'enter-code' ? 30 : -3,
+          ...safeAreaStyle,
+        }}
+      >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+        {title}
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
+          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
+            enter code from laptop
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
+            value={codeInput}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+              setCodeInput(val);
+              if (val.length === 2) {
+                sync.pairByCode(val);
+              }
+            }}
+            style={{
+              fontFamily: 'monospace',
+              fontWeight: 800,
+              fontSize: '48px',
+              color: textColor,
+              backgroundColor: 'transparent',
+              border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`,
+              borderRadius: '12px',
+              textAlign: 'center',
+              width: '120px',
+              padding: '12px',
+              outline: 'none',
+              caretColor: textColor,
+              letterSpacing: '8px',
+            }}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
         </div>
       </div>
       </div>

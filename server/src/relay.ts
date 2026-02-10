@@ -5,6 +5,12 @@ import type { ClientMessage, ServerMessage, ClientRecord, ColorPayload } from '.
 const clients = new Map<string, ClientRecord>();
 const ipGroups = new Map<string, Set<string>>();
 
+// deviceId → clientId: tracks the active connection per device for same-device dedup
+const deviceConnections = new Map<string, string>();
+
+// pairingCode → clientId: tracks assigned codes for code-based pairing
+const pairingCodes = new Map<string, string>();
+
 // Handoff grace period: when a paired laptop disconnects, delay unpairing
 // the phone so a new laptop tab/browser can claim it seamlessly.
 const handoffTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -16,8 +22,29 @@ function send(ws: WebSocket, msg: ServerMessage) {
   }
 }
 
-function generateSecret(): string {
-  return randomUUID().replace(/-/g, '').slice(0, 16);
+function assignPairingCode(deviceId: string): string {
+  // Derive code from deviceId hash, zero-padded 2 digits
+  let code = parseInt(deviceId.slice(0, 4), 16) % 100;
+  let codeStr = String(code).padStart(2, '0');
+
+  // If taken, increment+wrap until free
+  let attempts = 0;
+  while (pairingCodes.has(codeStr) && attempts < 100) {
+    code = (code + 1) % 100;
+    codeStr = String(code).padStart(2, '0');
+    attempts++;
+  }
+
+  return codeStr;
+}
+
+function releasePairingCode(clientId: string) {
+  for (const [code, id] of pairingCodes) {
+    if (id === clientId) {
+      pairingCodes.delete(code);
+      break;
+    }
+  }
 }
 
 function pairClients(id1: string, id2: string) {
@@ -25,30 +52,13 @@ function pairClients(id1: string, id2: string) {
   const c2 = clients.get(id2);
   if (!c1 || !c2) return;
 
-  const secret = c1.secret || c2.secret || generateSecret();
   c1.partnerId = id2;
   c2.partnerId = id1;
-  c1.secret = secret;
-  c2.secret = secret;
 
-  // Only learn affinity (send partnerDeviceId) in unambiguous 1:1 environments.
-  // If there's more than 1 phone or 1 laptop on this IP, we can't be sure
-  // this pairing is correct, so don't burn a potentially wrong affinity.
-  const group = ipGroups.get(c1.publicIp);
-  let phones = 0, laptops = 0;
-  if (group) {
-    for (const id of group) {
-      const c = clients.get(id);
-      if (c?.role === 'phone') phones++;
-      else if (c?.role === 'laptop') laptops++;
-    }
-  }
-  const learnAffinity = phones === 1 && laptops === 1;
+  console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)})`);
 
-  console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)}) affinity=${learnAffinity}`);
-
-  send(c1.ws, { type: 'paired', partnerId: id2, secret, partnerDeviceId: learnAffinity ? c2.deviceId : undefined });
-  send(c2.ws, { type: 'paired', partnerId: id1, secret, partnerDeviceId: learnAffinity ? c1.deviceId : undefined });
+  send(c1.ws, { type: 'paired', partnerId: id2 });
+  send(c2.ws, { type: 'paired', partnerId: id1 });
 }
 
 function getUnpairedLaptopsInGroup(ip: string, excludeId?: string): string[] {
@@ -71,57 +81,6 @@ function getUnpairedPhonesInGroup(ip: string, excludeId?: string): string[] {
   });
 }
 
-// Pick the laptop that most recently claimed focus (sent claim-laptop).
-// Falls back to first laptop if none have claimed.
-function pickBestLaptop(laptops: string[]): string {
-  let bestId = laptops[0];
-  let bestTime = 0;
-  for (const id of laptops) {
-    const c = clients.get(id);
-    if (c?.lastClaimTime && c.lastClaimTime > bestTime) {
-      bestTime = c.lastClaimTime;
-      bestId = id;
-    }
-  }
-  return bestId;
-}
-
-function findAffinityMatch(
-  clientId: string,
-  role: 'phone' | 'laptop',
-  publicIp: string,
-  deviceId?: string,
-  partnerDeviceId?: string
-): string | null {
-  if (!deviceId && !partnerDeviceId) return null;
-
-  const group = ipGroups.get(publicIp);
-  if (!group) return null;
-
-  const oppositeRole = role === 'phone' ? 'laptop' : 'phone';
-  let mutualMatch: string | null = null;
-  let oneSidedMatch: string | null = null;
-
-  for (const otherId of group) {
-    if (otherId === clientId) continue;
-    const other = clients.get(otherId);
-    if (!other || other.role !== oppositeRole || other.partnerId) continue;
-
-    const theyClaimUs = other.partnerDeviceId === deviceId;
-    const weClaimThem = partnerDeviceId && partnerDeviceId === other.deviceId;
-
-    if (theyClaimUs && weClaimThem) {
-      mutualMatch = otherId;
-      break;
-    }
-    if ((theyClaimUs || weClaimThem) && !oneSidedMatch) {
-      oneSidedMatch = otherId;
-    }
-  }
-
-  return mutualMatch || oneSidedMatch;
-}
-
 function replayStreamToLaptop(phoneId: string, laptopId: string) {
   const phone = clients.get(phoneId);
   const laptop = clients.get(laptopId);
@@ -140,18 +99,106 @@ function replayStreamToLaptop(phoneId: string, laptopId: string) {
   }
 }
 
-function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, secret?: string, colorway?: ColorPayload, deviceId?: string, partnerDeviceId?: string) {
+function buildCandidatesList(laptopIds: string[]): Array<{ id: string; connectedAgo: number }> {
+  const now = Date.now();
+  return laptopIds.map(id => {
+    const c = clients.get(id);
+    return { id, connectedAgo: c ? Math.floor((now - c.connectedAt) / 1000) : 0 };
+  });
+}
+
+// Notify all unpaired phones on an IP about the current desktop state
+function notifyWatchingPhones(ip: string) {
+  const phones = getUnpairedPhonesInGroup(ip);
+  for (const phoneId of phones) {
+    const phone = clients.get(phoneId);
+    if (!phone) continue;
+
+    const laptops = getUnpairedLaptopsInGroup(ip, phoneId);
+    if (laptops.length === 0) {
+      send(phone.ws, { type: 'enter-code' });
+    } else if (laptops.length === 1) {
+      // Auto-pair
+      pairClients(phoneId, laptops[0]);
+    } else {
+      send(phone.ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
+    }
+  }
+}
+
+function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, deviceId?: string) {
+  // Same-device dedup: if this deviceId already has a connection, close old one atomically
+  if (deviceId && deviceConnections.has(deviceId)) {
+    const oldClientId = deviceConnections.get(deviceId)!;
+    const oldClient = clients.get(oldClientId);
+    if (oldClient) {
+      console.log(`[relay] same-device dedup: replacing ${oldClientId.slice(0,8)} with ${clientId.slice(0,8)} for device ${deviceId.slice(0,8)}`);
+
+      // If old client was paired, unpair cleanly (but don't notify phone yet for laptops)
+      if (oldClient.partnerId) {
+        const partner = clients.get(oldClient.partnerId);
+        if (partner) {
+          partner.partnerId = undefined;
+          // Don't send unpaired to phone — the new laptop will re-pair atomically
+        }
+      }
+
+      // Cancel any handoff timer for the old client's partner
+      if (oldClient.partnerId && handoffTimers.has(oldClient.partnerId)) {
+        clearTimeout(handoffTimers.get(oldClient.partnerId)!);
+        handoffTimers.delete(oldClient.partnerId);
+      }
+
+      // Release old pairing code
+      releasePairingCode(oldClientId);
+
+      // Remove from IP group
+      const oldGroup = ipGroups.get(oldClient.publicIp);
+      if (oldGroup) {
+        oldGroup.delete(oldClientId);
+        if (oldGroup.size === 0) ipGroups.delete(oldClient.publicIp);
+      }
+
+      // Close old WS with superseded code
+      oldClient.ws.close(4001, 'superseded');
+      const oldPartnerId = oldClient.partnerId;
+      clients.delete(oldClientId);
+
+      // If the old laptop had a paired phone, re-pair the phone with the new laptop after registration
+      if (role === 'laptop' && oldPartnerId) {
+        const phone = clients.get(oldPartnerId);
+        if (phone && !phone.partnerId) {
+          // We'll pair after registering the new client below
+          // Store partnerId to pair after setup
+          setTimeout(() => {
+            const newClient = clients.get(clientId);
+            const phoneNow = clients.get(oldPartnerId);
+            if (newClient && phoneNow && !newClient.partnerId && !phoneNow.partnerId) {
+              pairClients(clientId, oldPartnerId);
+              if (phoneNow.streaming) {
+                replayStreamToLaptop(oldPartnerId, clientId);
+              }
+            }
+          }, 0);
+        }
+      }
+    }
+  }
+
   const record: ClientRecord = {
     ws,
     role,
     publicIp,
-    secret,
-    colorway,
     streaming: false,
     deviceId,
-    partnerDeviceId,
+    connectedAt: Date.now(),
   };
   clients.set(clientId, record);
+
+  // Track device → client mapping
+  if (deviceId) {
+    deviceConnections.set(deviceId, clientId);
+  }
 
   // Add to IP group
   if (!ipGroups.has(publicIp)) {
@@ -159,58 +206,34 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   }
   ipGroups.get(publicIp)!.add(clientId);
 
-  send(ws, { type: 'registered', clientId });
-  console.log(`[relay] REGISTER ${role} id=${clientId.slice(0,8)} ip=${publicIp} secret=${secret || 'none'} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size} ipGroup=${ipGroups.get(publicIp)?.size || 0}`);
+  if (role === 'laptop') {
+    // Assign pairing code for desktop
+    const code = assignPairingCode(deviceId || clientId);
+    record.pairingCode = code;
+    pairingCodes.set(code, clientId);
 
-  // Secret-based auto-pair: find another client with same secret
-  if (secret) {
-    for (const [otherId, other] of clients) {
-      if (otherId !== clientId && other.secret === secret && !other.partnerId && other.role !== role) {
-        // Cancel any handoff grace timer (laptop reconnecting during grace period)
-        if (handoffTimers.has(otherId)) {
-          clearTimeout(handoffTimers.get(otherId)!);
-          handoffTimers.delete(otherId);
-          console.log(`[relay] handoff grace cancelled for ${otherId.slice(0,8)} — new laptop ${clientId.slice(0,8)} claimed it`);
-        }
+    send(ws, { type: 'registered', clientId, pairingCode: code });
+    console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} code=${code} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size}`);
 
-        pairClients(clientId, otherId);
-
-        // Replay streaming state if the partner is a streaming phone
-        if (other.role === 'phone' && other.streaming) {
-          replayStreamToLaptop(otherId, clientId);
-        }
-        return;
-      }
+    // Check for unpaired phones waiting on same IP — re-evaluate pairing
+    // (setTimeout(0) handles the atomic re-pair case above; for fresh connects, do it inline)
+    const phones = getUnpairedPhonesInGroup(publicIp, clientId);
+    if (phones.length > 0) {
+      // Defer slightly so the atomic re-pair from dedup can settle first
+      setTimeout(() => {
+        notifyWatchingPhones(publicIp);
+      }, 10);
     }
-  }
+  } else {
+    // Phone registering
+    send(ws, { type: 'registered', clientId });
+    console.log(`[relay] REGISTER phone id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size}`);
 
-  // Affinity-based auto-pair: match by remembered device IDs
-  const affinityMatch = findAffinityMatch(clientId, role, publicIp, record.deviceId, record.partnerDeviceId);
-  if (affinityMatch) {
-    if (handoffTimers.has(affinityMatch)) {
-      clearTimeout(handoffTimers.get(affinityMatch)!);
-      handoffTimers.delete(affinityMatch);
-      console.log(`[relay] handoff grace cancelled for ${affinityMatch.slice(0,8)} — affinity match`);
-    }
-    console.log(`[relay] affinity-pairing ${role} ${clientId.slice(0,8)} with ${affinityMatch.slice(0,8)}`);
-    pairClients(clientId, affinityMatch);
-    const partner = clients.get(affinityMatch);
-    if (partner?.role === 'phone' && partner.streaming) {
-      replayStreamToLaptop(affinityMatch, clientId);
-    }
-    return;
-  }
-
-  // IP-based pairing
-  if (role === 'phone') {
-    let laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
+    const laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
     console.log(`[relay] phone: found ${laptops.length} unpaired laptop(s) in IP group ${publicIp}`);
 
-    // Phone takeover: if no unpaired laptops, evict stale phones from the same IP
-    // that are hogging a laptop (e.g. Chrome PWA backgrounded but WS still open).
-    // Most-recent phone wins — mirrors desktop leader election behavior.
-    // Directly pair with the freed laptop (skip candidates even if multiple desktops).
     if (laptops.length === 0) {
+      // Phone takeover: if no unpaired laptops, evict stale phones from the same IP
       const group = ipGroups.get(publicIp);
       if (group) {
         for (const otherId of group) {
@@ -226,18 +249,16 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
             }
             other.partnerId = undefined;
             send(other.ws, { type: 'unpaired', reason: 'phone-takeover' });
-            // Cancel any handoff grace timers for the evicted phone or freed laptop
+
             if (handoffTimers.has(otherId)) {
               clearTimeout(handoffTimers.get(otherId)!);
               handoffTimers.delete(otherId);
-              console.log(`[relay] handoff grace cancelled for evicted phone ${otherId.slice(0,8)}`);
             }
             if (handoffTimers.has(freedLaptopId)) {
               clearTimeout(handoffTimers.get(freedLaptopId)!);
               handoffTimers.delete(freedLaptopId);
-              console.log(`[relay] handoff grace cancelled for freed laptop ${freedLaptopId.slice(0,8)}`);
             }
-            // Directly pair with the freed laptop — no candidates screen
+
             if (laptop && !laptop.partnerId) {
               pairClients(clientId, freedLaptopId);
               return;
@@ -245,119 +266,48 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
             break;
           }
         }
-        // Re-check after eviction (only if direct pair didn't happen)
-        laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
       }
-    }
 
-    if (laptops.length === 0) {
-      send(ws, { type: 'no-candidates' });
+      // Re-check after eviction
+      const laptopsAfter = getUnpairedLaptopsInGroup(publicIp, clientId);
+      if (laptopsAfter.length === 0) {
+        send(ws, { type: 'enter-code' });
+      } else if (laptopsAfter.length === 1) {
+        pairClients(clientId, laptopsAfter[0]);
+      } else {
+        send(ws, { type: 'candidates', laptops: buildCandidatesList(laptopsAfter) });
+      }
+    } else if (laptops.length === 1) {
+      pairClients(clientId, laptops[0]);
     } else {
-      // Auto-pair with the most recently focused laptop (or the only one)
-      const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
-      if (laptops.length > 1) {
-        console.log(`[relay] auto-pairing phone with focused laptop ${bestLaptop.slice(0,8)} (${laptops.length} candidates)`);
-      }
-      pairClients(clientId, bestLaptop);
-    }
-  } else {
-    // Laptop registering — check for waiting phones
-    const phones = getUnpairedPhonesInGroup(publicIp, clientId);
-    for (const phoneId of phones) {
-      const phone = clients.get(phoneId);
-      if (!phone) continue;
-
-      // Re-evaluate pairing for this phone
-      const allLaptops = getUnpairedLaptopsInGroup(publicIp, phoneId);
-      if (allLaptops.length > 0) {
-        const bestLaptop = allLaptops.length === 1 ? allLaptops[0] : pickBestLaptop(allLaptops);
-        pairClients(phoneId, bestLaptop);
-        if (phone.streaming) {
-          replayStreamToLaptop(phoneId, bestLaptop);
-        }
-      }
+      send(ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
     }
   }
 }
 
-function handleClaimLaptop(clientId: string) {
-  const client = clients.get(clientId);
-  if (!client || client.role !== 'laptop') return;
+function handlePairByCode(phoneClientId: string, code: string) {
+  const phone = clients.get(phoneClientId);
+  if (!phone || phone.role !== 'phone') return;
 
-  // Always record focus time — used to pick focused browser during phone pairing
-  client.lastClaimTime = Date.now();
-
-  if (client.partnerId) return; // Already paired, nothing to claim
-
-  // Cross-browser laptop takeover: steal the phone from another laptop on the same IP.
-  // Mirrors the in-browser focus-claim leader election, but works across Chrome/Safari.
-  const group = ipGroups.get(client.publicIp);
-  if (!group) return;
-
-  for (const otherId of group) {
-    if (otherId === clientId) continue;
-    const other = clients.get(otherId);
-    if (other && other.role === 'laptop' && other.partnerId) {
-      const phoneId = other.partnerId;
-      const phone = clients.get(phoneId);
-
-      console.log(`[relay] laptop takeover: ${clientId.slice(0,8)} stealing phone ${phoneId.slice(0,8)} from laptop ${otherId.slice(0,8)}`);
-
-      // Unpair old laptop
-      other.partnerId = undefined;
-      send(other.ws, { type: 'unpaired', reason: 'laptop-takeover' });
-
-      // Pair new laptop with the phone
-      if (phone) {
-        phone.partnerId = undefined;
-
-        if (handoffTimers.has(phoneId)) {
-          clearTimeout(handoffTimers.get(phoneId)!);
-          handoffTimers.delete(phoneId);
-        }
-
-        pairClients(clientId, phoneId);
-
-        // Replay streaming state to the new laptop
-        if (phone.streaming) {
-          replayStreamToLaptop(phoneId, clientId);
-        }
-      }
-      break;
-    }
+  const laptopClientId = pairingCodes.get(code);
+  if (!laptopClientId) {
+    console.log(`[relay] pair-by-code: no laptop found for code ${code}`);
+    return;
+  }
+  const laptop = clients.get(laptopClientId);
+  if (!laptop || laptop.partnerId) {
+    console.log(`[relay] pair-by-code: laptop ${laptopClientId.slice(0,8)} not available`);
+    return;
   }
 
-  // Also check for phones in handoff grace period (no partnerId, but still streaming).
-  // Handles the case where the old laptop already disconnected before claim-laptop arrives
-  // (same-browser tab switch where disconnect is faster than new WS handshake).
-  if (!client.partnerId) {
-    for (const otherId of group) {
-      if (otherId === clientId) continue;
-      const other = clients.get(otherId);
-      if (other && other.role === 'phone' && !other.partnerId && other.secret && other.secret === client.secret) {
-        console.log(`[relay] claim-laptop: pairing with grace-period phone ${otherId.slice(0,8)}`);
-
-        if (handoffTimers.has(otherId)) {
-          clearTimeout(handoffTimers.get(otherId)!);
-          handoffTimers.delete(otherId);
-        }
-
-        pairClients(clientId, otherId);
-
-        if (other.streaming) {
-          replayStreamToLaptop(otherId, clientId);
-        }
-        break;
-      }
-    }
-  }
+  pairClients(phoneClientId, laptopClientId);
 }
 
 function handlePairRequest(clientId: string, targetId: string) {
   const client = clients.get(clientId);
   const target = clients.get(targetId);
   if (!client || !target) return;
-  if (target.partnerId) return; // Target already paired
+  if (target.partnerId) return;
   pairClients(clientId, targetId);
 }
 
@@ -426,7 +376,7 @@ function handleDisconnect(clientId: string) {
   const publicIp = client.publicIp;
   const partnerId = client.partnerId;
 
-  // Cancel any handoff timer keyed to this client (e.g. phone disconnecting during grace)
+  // Cancel any handoff timer keyed to this client
   if (handoffTimers.has(clientId)) {
     clearTimeout(handoffTimers.get(clientId)!);
     handoffTimers.delete(clientId);
@@ -438,7 +388,6 @@ function handleDisconnect(clientId: string) {
       if (client.role === 'laptop' && partner.role === 'phone') {
         // LAPTOP disconnected while paired with a phone.
         // Start a grace period — don't unpair the phone yet.
-        // A new laptop tab/browser may claim it within HANDOFF_GRACE_MS.
         partner.partnerId = undefined;
 
         console.log(`[relay] laptop ${clientId.slice(0,8)} disconnected — starting ${HANDOFF_GRACE_MS}ms handoff grace for phone ${partnerId.slice(0,8)}`);
@@ -447,8 +396,7 @@ function handleDisconnect(clientId: string) {
           handoffTimers.delete(partnerId);
           const phoneNow = clients.get(partnerId);
           if (phoneNow && !phoneNow.partnerId) {
-            // Grace expired, no new laptop showed up. Unpair phone now.
-            // Clear stale stream state so a later laptop reconnect doesn't replay expired data
+            // Grace expired, no new laptop showed up. Unpair phone.
             phoneNow.lastColors = undefined;
             phoneNow.lastStreamSide = undefined;
             phoneNow.lastStreamState = undefined;
@@ -457,13 +405,14 @@ function handleDisconnect(clientId: string) {
             console.log(`[relay] handoff grace expired for phone ${partnerId.slice(0,8)} — sending unpaired`);
             send(phoneNow.ws, { type: 'unpaired', reason: 'partner-disconnected' });
 
-            // Re-evaluate: maybe another laptop is available
+            // Re-evaluate: notify phone about available desktops
             const laptops = getUnpairedLaptopsInGroup(publicIp, partnerId);
             if (laptops.length === 0) {
-              send(phoneNow.ws, { type: 'no-candidates' });
+              send(phoneNow.ws, { type: 'enter-code' });
+            } else if (laptops.length === 1) {
+              pairClients(partnerId, laptops[0]);
             } else {
-              const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
-              pairClients(partnerId, bestLaptop);
+              send(phoneNow.ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
             }
           }
         }, HANDOFF_GRACE_MS);
@@ -477,6 +426,14 @@ function handleDisconnect(clientId: string) {
     }
   }
 
+  // Clean up device connection tracking
+  if (client.deviceId && deviceConnections.get(client.deviceId) === clientId) {
+    deviceConnections.delete(client.deviceId);
+  }
+
+  // Release pairing code
+  releasePairingCode(clientId);
+
   // Remove from IP group
   const group = ipGroups.get(publicIp);
   if (group) {
@@ -488,29 +445,14 @@ function handleDisconnect(clientId: string) {
 
   clients.delete(clientId);
 
-  // Re-evaluate pairing for remaining unpaired clients.
+  // Re-evaluate pairing for remaining unpaired clients on this IP.
   // Only for phone disconnect (laptop disconnect uses grace period above).
   if (partnerId && client.role === 'phone') {
-    const partner = clients.get(partnerId);
-    if (partner && !partner.partnerId && partner.role === 'laptop') {
-      const phones = getUnpairedPhonesInGroup(publicIp);
-      for (const phoneId of phones) {
-        const phone = clients.get(phoneId);
-        if (!phone) continue;
-        const laptops = getUnpairedLaptopsInGroup(publicIp, phoneId);
-        if (laptops.length === 0) {
-          send(phone.ws, { type: 'no-candidates' });
-        } else {
-          const bestLaptop = laptops.length === 1 ? laptops[0] : pickBestLaptop(laptops);
-          pairClients(phoneId, bestLaptop);
-        }
-      }
-    }
+    notifyWatchingPhones(publicIp);
   }
 }
 
 const PING_INTERVAL = 30_000;  // Send ping every 30s
-const PONG_TIMEOUT = 10_000;   // Close if no pong within 10s
 
 export function handleConnection(ws: WebSocket, publicIp: string) {
   const clientId = randomUUID();
@@ -545,11 +487,15 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
       case 'register':
         if (registered) return;
         registered = true;
-        handleRegister(clientId, ws, msg.role, publicIp, msg.secret, msg.colorway, msg.deviceId, msg.partnerDeviceId);
+        handleRegister(clientId, ws, msg.role, publicIp, msg.deviceId);
         break;
 
       case 'pair-request':
         handlePairRequest(clientId, msg.targetId);
+        break;
+
+      case 'pair-by-code':
+        handlePairByCode(clientId, msg.code);
         break;
 
       case 'color-update':
@@ -576,10 +522,6 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         }
         break;
       }
-
-      case 'claim-laptop':
-        handleClaimLaptop(clientId);
-        break;
     }
   });
 

@@ -29,6 +29,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  const [titleScrollLeft, setTitleScrollLeft] = useState(0);
 
   // "set title" placeholder sweep animation
   const [boldCount, setBoldCount] = useState(0);
@@ -71,6 +72,25 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
       titleInputRef.current?.focus();
     }
   }, [isEditingTitle]);
+
+  // Sync scramble overlay scroll with input scrollLeft
+  useEffect(() => {
+    if (!isEditingTitle || !(isScrambled || superscramble)) return;
+    const frame = requestAnimationFrame(() => {
+      if (titleInputRef.current) {
+        setTitleScrollLeft(titleInputRef.current.scrollLeft);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [titleInput, isEditingTitle, isScrambled, superscramble]);
+
+  const syncTitleScroll = () => {
+    requestAnimationFrame(() => {
+      if (titleInputRef.current) {
+        setTitleScrollLeft(titleInputRef.current.scrollLeft);
+      }
+    });
+  };
 
   const handleDateClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -207,6 +227,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
               onKeyDown={handleTitleKeyDown}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
+              onSelect={syncTitleScroll}
               className="w-full text-lg font-extrabold font-mono bg-transparent outline-none border-none p-0 m-0"
               style={{ color: (isScrambled || superscramble) && titleInput ? 'transparent' : getColor(), caretColor: getColor() }}
             />
@@ -215,7 +236,9 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
                 className="absolute top-0 left-0 text-lg font-extrabold font-mono pointer-events-none select-none overflow-hidden whitespace-nowrap w-full"
                 style={{ color: getColor() }}
               >
-                {scrambleText(titleInput)}
+                <span style={{ display: 'inline-block', transform: `translateX(-${titleScrollLeft}px)` }}>
+                  {scrambleText(titleInput)}
+                </span>
               </div>
             )}
             {showPlaceholder && (

@@ -147,5 +147,10 @@ export function WebSyncBridge() {
     }
   }, [syncState.saveRequested]);
 
+  // Bridge pairing code to ThemeContext
+  useEffect(() => {
+    theme.setPairingCode(syncState.pairingCode);
+  }, [syncState.pairingCode]);
+
   return null;
 }

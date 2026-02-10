@@ -2,9 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWsUrl } from './protocol';
 import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
-const SECRET_KEY = 'wsSecret';
 const DEVICE_ID_KEY = 'wsDeviceId';
-const PARTNER_DEVICE_ID_KEY = 'wsPartnerDeviceId';
 
 function getOrCreateDeviceId(): string {
   let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -15,17 +13,18 @@ function getOrCreateDeviceId(): string {
   return id;
 }
 
-export type PairingState = 'standalone' | 'pairing' | 'paired';
+export type PairingState = 'standalone' | 'pairing' | 'paired' | 'enter-code';
 
 export interface Candidate {
   id: string;
-  colorway?: ColorPayload;
+  connectedAgo: number;
 }
 
 export interface MobileSyncHandle {
   pairingState: PairingState;
   candidates: Candidate[];
   selectCandidate: (id: string) => void;
+  pairByCode: (code: string) => void;
   startStream: (side: 'text' | 'background') => void;
   stopStream: () => void;
   sendColorUpdate: (colors: ColorPayload) => void;
@@ -59,8 +58,6 @@ export function useMobileSync(): MobileSyncHandle {
     const url = getWsUrl();
     if (!url) return;
 
-    const secret = localStorage.getItem(SECRET_KEY) || undefined;
-
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -68,18 +65,15 @@ export function useMobileSync(): MobileSyncHandle {
       ws.onopen = () => {
         console.log('[mobile-sync] connected to', url);
         backoffRef.current = 1000;
-        // Cancel any pending reconnect timer — connection succeeded before it fired
         if (reconnectTimer.current) {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
         }
-        console.log('[mobile-sync] registering as phone, secret=', secret || 'none');
+        console.log('[mobile-sync] registering as phone');
         sendMsg({
           type: 'register',
           role: 'phone',
-          secret,
           deviceId: getOrCreateDeviceId(),
-          partnerDeviceId: localStorage.getItem(PARTNER_DEVICE_ID_KEY) || undefined,
         });
       };
 
@@ -93,10 +87,6 @@ export function useMobileSync(): MobileSyncHandle {
         console.log('[mobile-sync] received:', msg.type, msg);
         switch (msg.type) {
           case 'paired':
-            localStorage.setItem(SECRET_KEY, msg.secret);
-            if (msg.partnerDeviceId) {
-              localStorage.setItem(PARTNER_DEVICE_ID_KEY, msg.partnerDeviceId);
-            }
             setPairingState('paired');
             setCandidates([]);
             break;
@@ -106,27 +96,18 @@ export function useMobileSync(): MobileSyncHandle {
             isStreamingRef.current = false;
             break;
 
-          case 'no-candidates':
-            setPairingState('standalone');
+          case 'enter-code':
+            setPairingState('enter-code');
             break;
 
           case 'candidates':
             setPairingState('pairing');
             setCandidates(msg.laptops);
             break;
-
-          case 'candidate-update':
-            setCandidates(prev =>
-              prev.map(c => c.id === msg.laptopId ? { ...c, colorway: msg.colorway } : c)
-            );
-            break;
         }
       };
 
       ws.onclose = () => {
-        // Only clear ref and reconnect if this is still the active WS.
-        // Prevents a stale onclose from nulling a newer connection's ref
-        // (race: hidden→visible creates new WS before old onclose fires).
         if (wsRef.current === ws) {
           wsRef.current = null;
           isStreamingRef.current = false;
@@ -156,6 +137,10 @@ export function useMobileSync(): MobileSyncHandle {
     sendMsg({ type: 'pair-request', targetId: id });
   }, [sendMsg]);
 
+  const pairByCode = useCallback((code: string) => {
+    sendMsg({ type: 'pair-by-code', code });
+  }, [sendMsg]);
+
   const startStream = useCallback((side: 'text' | 'background') => {
     isStreamingRef.current = true;
     sendMsg({ type: 'stream-start', side });
@@ -183,13 +168,9 @@ export function useMobileSync(): MobileSyncHandle {
     mountedRef.current = true;
     connect();
 
-    // When phone goes to home screen, close WS immediately so desktop exits live fast.
-    // When phone comes back, reconnect.
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        // Block reconnect before closing — onclose fires scheduleReconnect
         hiddenRef.current = true;
-        // Close immediately — desktop's 500ms grace will clear live state
         wsRef.current?.close();
         wsRef.current = null;
         isStreamingRef.current = false;
@@ -222,6 +203,7 @@ export function useMobileSync(): MobileSyncHandle {
     pairingState,
     candidates,
     selectCandidate,
+    pairByCode,
     startStream,
     stopStream,
     sendColorUpdate,
