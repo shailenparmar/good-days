@@ -5,6 +5,14 @@ import { MAINTENANCE, MESSAGE } from '@shared/maintenance'
 
 // Custom SW registration: bypass HTTP cache so Safari always checks for new versions
 if ('serviceWorker' in navigator) {
+  // Reload when a new SW takes control (after skipWaiting activates it)
+  let refreshing = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return
+    refreshing = true
+    window.location.reload()
+  })
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', {
       scope: '/',

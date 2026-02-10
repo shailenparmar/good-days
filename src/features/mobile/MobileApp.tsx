@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMobileSync } from '@shared/sync/useMobileSync';
 import { setItem } from '@shared/storage';
+import { VERSION } from '@shared/version';
 import { TiltSquare, CornerBrackets } from './components/TiltSquare';
 import { MobileButton } from './components/MobileButton';
 import { hslToHex, parseColorInput, pureHueGradient, isTouchInside } from './utils';
@@ -707,7 +708,7 @@ export default function MobileApp() {
     if (v) sessionStorage.setItem('titlePressed', '1');
     else sessionStorage.removeItem('titlePressed');
   };
-  const mobileVersion = '2.4.3';
+  const mobileVersion = VERSION;
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
