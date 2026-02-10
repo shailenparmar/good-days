@@ -15,14 +15,14 @@ interface FunctionButtonProps {
 }
 
 export function FunctionButton({ onClick, disabled, isActive, children, dataAttribute, size = 'default', ariaLabel, title, overrideColor, fullWidth = true }: FunctionButtonProps) {
-  const { getColor, hue, saturation, lightness } = useTheme();
+  const { getColor } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
 
   const textColor = overrideColor || getColor();
-  const borderDefault = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
-  const borderActive = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+  const borderDefault = 'hsla(var(--h), var(--s), var(--l), 0.6)';
+  const borderActive = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
+  const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
 
   const getBorderColor = () => {
     if (overrideColor) return overrideColor;

@@ -143,6 +143,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setItem('bgLightness', String(bgLightness));
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness, isLiveStreaming]);
 
+  // Sync CSS custom properties so all components using var(--h) etc. update
+  useEffect(() => {
+    const el = document.documentElement;
+    el.style.setProperty('--h', String(hue));
+    el.style.setProperty('--s', saturation + '%');
+    el.style.setProperty('--l', lightness + '%');
+    el.style.setProperty('--bh', String(bgHue));
+    el.style.setProperty('--bs', bgSaturation + '%');
+    el.style.setProperty('--bl', bgLightness + '%');
+  }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
+
   // Update Safari toolbar color + page background when background changes.
   // During live mode, set to pure black (the flex container's inline style handles
   // visual bg). When live mode ends (phone disconnects), restore to the computed color.
@@ -205,14 +216,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setItem('seenColorways', JSON.stringify([...seenColorways]));
   }, [seenColorways]);
 
-  // Helper functions
+  // Helper functions — return CSS variable strings so React sees static values
   const getColor = (lightnessOffset: number = 0) => {
-    const adjustedLightness = Math.max(0, Math.min(100, lightness + lightnessOffset));
-    return `hsl(${hue}, ${saturation}%, ${adjustedLightness}%)`;
+    if (lightnessOffset === 0) return 'hsl(var(--h), var(--s), var(--l))';
+    if (lightnessOffset > 0) {
+      return `hsl(var(--h), var(--s), min(100%, calc(var(--l) + ${lightnessOffset}%)))`;
+    }
+    return `hsl(var(--h), var(--s), max(0%, calc(var(--l) + ${lightnessOffset}%)))`;
   };
 
   const getBgColor = () => {
-    return `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)`;
+    return 'hsl(var(--bh), var(--bs), var(--bl))';
   };
 
   const getColorwayKey = (h: number, s: number, l: number, bh: number, bs: number, bl: number) => {

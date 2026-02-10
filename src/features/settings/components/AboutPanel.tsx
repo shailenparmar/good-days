@@ -26,7 +26,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
 
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
-  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [linkHovered, setLinkHovered] = useState(false);
   const { confirm: confirmColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
 
@@ -65,7 +65,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   if (!isOpen) return null;
 
   const sectionStyle = {
-    borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+    borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
   };
 
   return (
@@ -75,8 +75,8 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       className="flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
         width: `${aboutWidth}px`,
-        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+        backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+        borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)',
       }}
     >
       {/* Welcome */}

@@ -154,7 +154,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
 
     return () => observer.disconnect();
   }, [onHeightChange]);
-  const { getColor, getBgColor, hue, saturation, lightness } = useTheme();
+  const { getColor } = useTheme();
   const [use24Hour, setUse24Hour] = useState(() => getItem('timeFormat') === '24h');
 
   // Listen for storage changes to update time format
@@ -207,8 +207,8 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
       className="p-4 sticky top-0 z-10"
       style={{
         paddingBottom: `${paddingBottom}px`,
-        backgroundColor: `hsl(${getBgColor().match(/\d+/g)![0]}, ${getBgColor().match(/\d+/g)![1]}%, ${Math.min(100, Number(getBgColor().match(/\d+/g)![2]) + 2)}%)`,
-        borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+        backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+        borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
       }}
       onClick={onClick}
       onMouseDown={(e) => {

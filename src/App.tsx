@@ -109,7 +109,7 @@ function AppContent() {
   const [scrambleSeed, setScrambleSeed] = useState(0);
   const [titleEditing, setTitleEditing] = useState(false);
 
-  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme, pairingCode } = theme;
+  const { getColor, trackCurrentColorway, randomizeTheme, pairingCode } = theme;
 
   // Ref tracks the actual seed value so we can bump + sync the global in one call
   const scrambleSeedRef = useRef(scrambleSeed);
@@ -284,7 +284,7 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+    <div className="flex h-screen" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}>
       {/* Global styles */}
       <style>
         {`
@@ -297,7 +297,7 @@ function AppContent() {
             animation: preset-flicker 1s steps(12) infinite;
           }
           input::placeholder {
-            color: ${getColor().replace('hsl', 'hsla').replace(')', ', 0.4)')};
+            color: hsla(var(--h), var(--s), var(--l), 0.4);
             opacity: 1;
           }
         `}
@@ -308,8 +308,8 @@ function AppContent() {
       <div
         className="w-80 flex flex-col min-h-screen relative"
         style={{
-          backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-          borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+          backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+          borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
         }}
         onClick={layout.closePanels}
       >
@@ -335,8 +335,8 @@ function AppContent() {
         <div
           className="sticky top-0 z-10"
           style={{
-            backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+            backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+            borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
           }}
         >
           <div className="p-4" ref={layout.titleRef}>
@@ -350,7 +350,7 @@ function AppContent() {
           {/* Stats */}
           <div
             className="p-3 overflow-hidden"
-            style={{ borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+            style={{ borderTop: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
           >
             <StatsDisplay
               entries={journal.entries}
@@ -366,7 +366,7 @@ function AppContent() {
         {/* Entries list */}
         <div
           className="flex-1 overflow-y-auto scrollbar-hide"
-          style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`, scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+          style={{ backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
           <EntrySidebar
@@ -388,8 +388,8 @@ function AppContent() {
         <div
           className="p-4 space-y-2"
           style={{
-            backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-            borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+            backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+            borderTop: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
           }}
         >
           <FunctionButton onClick={() => layout.setIsScrambled(!layout.isScrambled)} isActive={layout.isScrambled}>
@@ -460,7 +460,7 @@ function AppContent() {
       {/* Main Editor Area */}
       <div
         className="flex-1 flex flex-col overflow-hidden"
-        style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}
+        style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}
         onClick={() => { if (layout.isNarrow) layout.closePanels(); }}
       >
         {/* Hide header in zen mode */}

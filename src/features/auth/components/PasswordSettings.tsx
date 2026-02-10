@@ -39,14 +39,14 @@ function PasswordButton({
   children: React.ReactNode;
   position: 'left' | 'right';
 }) {
-  const { getColor, hue, saturation, lightness } = useTheme();
+  const { getColor } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
 
   const textColor = getColor();
-  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
-  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+  const borderColor = 'hsla(var(--h), var(--s), var(--l), 0.6)';
+  const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
+  const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
 
   const getCurrentBorder = () => {
     if (isClicked) return activeColor;
@@ -312,9 +312,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
 
   // Styling
   const textColor = getColor();
-  const dividerColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
-  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+  const dividerColor = 'hsla(var(--h), var(--s), var(--l), 0.6)';
+  const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
+  const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
 

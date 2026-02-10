@@ -36,20 +36,18 @@ export function WebSyncBridge() {
         rafIdRef.current = 0;
         const c = pendingColorsRef.current;
         if (!c) return;
-        const t = themeRef.current;
         skipBridgeRef.current = true;
-        t.setLivePreset({
-          hue: c.hue, sat: c.sat, light: c.light,
-          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-        });
-        // Skip applyPreset while desktop user is dragging a color picker —
-        // otherwise phone's updates fight the local drag, causing flicker.
-        // livePreset still tracks the phone's colors so they resume on drag end.
-        if (t.localDragRef.current) return;
-        t.applyPreset({
-          hue: c.hue, sat: c.sat, light: c.light,
-          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-        });
+
+        // Set CSS variables directly — bypasses React entirely
+        const el = document.documentElement;
+        el.style.setProperty('--h', String(c.hue));
+        el.style.setProperty('--s', c.sat + '%');
+        el.style.setProperty('--l', c.light + '%');
+        el.style.setProperty('--bh', String(c.bgHue));
+        el.style.setProperty('--bs', c.bgSat + '%');
+        el.style.setProperty('--bl', c.bgLight + '%');
+
+        // NO applyPreset, NO setLivePreset — zero React state updates
       });
     }
   }, []);
@@ -129,21 +127,42 @@ export function WebSyncBridge() {
     theme.setStreamingControls(syncState.streamingControls);
   }, [syncState.streamingControls]);
 
-  // Clear isLiveActive when livePreset goes null
+  // Clear isLiveActive when livePreset goes null + sync final CSS var colors to React
   useEffect(() => {
     if (!syncState.livePreset) {
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
       theme.setStreamingControls(null);
+
+      // Sync final streamed colors back to React state so localStorage persists
+      if (pendingColorsRef.current) {
+        const c = pendingColorsRef.current;
+        theme.applyPreset({
+          hue: c.hue, sat: c.sat, light: c.light,
+          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+        });
+        pendingColorsRef.current = null;
+      }
     }
   }, [syncState.livePreset]);
 
-  // Handle save-preset from phone
+  // Handle save-preset from phone — during streaming, React state is stale,
+  // so sync pending colors to React first, then save.
   const prevSaveRef = useRef(0);
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
-      theme.saveCustomPreset();
+      if (pendingColorsRef.current) {
+        const c = pendingColorsRef.current;
+        theme.applyPreset({
+          hue: c.hue, sat: c.sat, light: c.light,
+          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+        });
+        // saveCustomPreset reads from React state, so defer to next tick
+        requestAnimationFrame(() => theme.saveCustomPreset());
+      } else {
+        theme.saveCustomPreset();
+      }
     }
   }, [syncState.saveRequested]);
 

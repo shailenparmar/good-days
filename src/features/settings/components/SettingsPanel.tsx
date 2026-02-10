@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Bug } from 'lucide-react';
-import { useTheme, ColorPicker, PresetGrid } from '@features/theme';
+import { ColorPicker, PresetGrid } from '@features/theme';
 import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
 import { TimeDisplay } from './TimeDisplay';
@@ -47,7 +47,6 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   // Suppress unused variable warning
   void scrambleSeed;
-  const { bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
   // Stable hover for scramble hotkey button
   const { hovered: hotkeyButtonHovered, containerProps: hotkeyContainerProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
@@ -142,14 +141,14 @@ export function SettingsPanel({
       onScroll={handleScroll}
       className="w-80 flex flex-col h-screen overflow-y-auto scrollbar-hide"
       style={{
-        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderRight: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`
+        backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+        borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
       }}
     >
       {/* Color Picker Section */}
       <div
         className="p-4"
-        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        style={{ borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
       >
         <div className="space-y-2">
           <PresetGrid showDebugMenu={showDebugMenu} superscramble={superscramble} scrambleSeed={scrambleSeed} />
@@ -165,7 +164,7 @@ export function SettingsPanel({
       {/* Password Settings Section */}
       <div
         className="p-4"
-        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        style={{ borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
       >
         <PasswordSettings
           hasPassword={hasPassword}
@@ -181,7 +180,7 @@ export function SettingsPanel({
       {/* Time Display Section */}
       <div
         className="p-4"
-        style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+        style={{ borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
       >
         <TimeDisplay stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
@@ -190,7 +189,7 @@ export function SettingsPanel({
       {stacked && onToggleScrambleHotkey && (
         <div
           className="p-4"
-          style={{ borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}
+          style={{ borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
         >
           {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
           <div {...hotkeyContainerProps}>
@@ -212,7 +211,7 @@ export function SettingsPanel({
       {/* Backup Section */}
       <div
         className="p-4"
-        style={stacked ? { borderBottom: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` } : undefined}
+        style={stacked ? { borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' } : undefined}
       >
         <ExportButtons entries={entries} onImport={onImport} stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
@@ -233,7 +232,7 @@ export function SettingsPanel({
             />,
             document.body
           )}
-          <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative rounded' : ''} style={resetStep === 2 ? { zIndex: 9999, backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` } : undefined}>
+          <div onMouseLeave={() => setResetStep(0)} className={resetStep === 2 ? 'relative rounded' : ''} style={resetStep === 2 ? { zIndex: 9999, backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' } : undefined}>
             <FunctionButton onClick={handleResetApp} size="sm">
               <RotateCcw className="w-3 h-3" />
               <span>

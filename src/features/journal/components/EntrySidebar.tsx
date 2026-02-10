@@ -21,7 +21,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
 
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
-  const { getColor, hue, saturation, lightness } = useTheme();
+  const { getColor } = useTheme();
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [clickedEntry, setClickedEntry] = useState<string | null>(null);
   const [keyboardFocusedEntry, setKeyboardFocusedEntry] = useState<string | null>(null);
@@ -115,9 +115,9 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
   }
 
   const textColor = getColor();
-  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
-  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
-  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
+  const borderColor = 'hsla(var(--h), var(--s), var(--l), 0.6)';
+  const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
+  const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
 
   const selectEntry = (date: string) => {
     setKeyboardFocusedEntry(null);

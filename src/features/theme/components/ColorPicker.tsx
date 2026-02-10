@@ -191,7 +191,9 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         aspectRatio: '1',
         overflow: 'visible',
         zIndex: slZIndex,
-        background: `linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(${currentHue}, 0%, 50%), hsl(${currentHue}, 100%, 50%))`,
+        background: isText
+          ? 'linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(var(--h), 0%, 50%), hsl(var(--h), 100%, 50%))'
+          : 'linear-gradient(to bottom, white, transparent 50%), linear-gradient(to top, black, transparent 50%), linear-gradient(to right, hsl(var(--bh), 0%, 50%), hsl(var(--bh), 100%, 50%))',
       }}
     >
       <div

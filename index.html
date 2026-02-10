@@ -33,6 +33,18 @@
           s = s !== null ? parseFloat(s) : 100;
           l = l !== null ? parseFloat(l) : 83;
         }
+        // Also read text color for CSS custom properties
+        var th = lsGet('colorHue'); th = th !== null ? parseFloat(th) : 215;
+        var ts = lsGet('colorSaturation'); ts = ts !== null ? parseFloat(ts) : 100;
+        var tl = lsGet('colorLightness'); tl = tl !== null ? parseFloat(tl) : 0;
+        // Set CSS custom properties on :root for all 6 color values
+        var el = document.documentElement;
+        el.style.setProperty('--h', th);
+        el.style.setProperty('--s', ts + '%');
+        el.style.setProperty('--l', tl + '%');
+        el.style.setProperty('--bh', h);
+        el.style.setProperty('--bs', s + '%');
+        el.style.setProperty('--bl', l + '%');
         var bgColor = 'hsl(' + h + ',' + s + '%,' + l + '%)';
         var hexColor = hslToHex(h, s, l);
         document.getElementById('theme-color-meta').setAttribute('content', hexColor);

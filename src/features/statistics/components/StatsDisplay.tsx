@@ -36,17 +36,11 @@ function ColorButton({
   children,
   position,
   getColor,
-  hue,
-  saturation,
-  lightness
 }: {
   onClick: () => void;
   children: React.ReactNode;
   position: 'left' | 'right';
   getColor: () => string;
-  hue: number;
-  saturation: number;
-  lightness: number;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -60,9 +54,9 @@ function ColorButton({
   }, []);
 
   const textColor = getColor();
-  const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.6)`;
-  const activeColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness * 0.65)}%)`;
-  const hoverBg = `hsla(${hue}, ${saturation}%, 50%, 0.2)`;
+  const borderColor = 'hsla(var(--h), var(--s), var(--l), 0.6)';
+  const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
+  const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
 
   const getCurrentBorder = () => {
     if (isClicked) return activeColor;
@@ -466,7 +460,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
 
       {/* Powerstat mode: technical stats + color codes */}
       {stacked && techStats && (
-        <div className="mt-3 pt-3" style={{ borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` }}>
+        <div className="mt-3 pt-3" style={{ borderTop: '2px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}>
           {/* Technical stats - not copy-pastable */}
           <div className="grid grid-cols-2 gap-x-0 gap-y-1">
             <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
@@ -525,7 +519,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           <div
             className="mt-3 pt-3"
             style={{
-              borderTop: `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+              borderTop: '2px solid hsla(var(--h), var(--s), var(--l), 0.85)',
             }}
           >
             <div
@@ -557,9 +551,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                       onClick={handleColorCopy}
                       position="left"
                       getColor={getColor}
-                      hue={hue}
-                      saturation={saturation}
-                      lightness={lightness}
                     >
                       {s('copy')}
                     </ColorButton>
@@ -567,9 +558,6 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
                       onClick={handleColorPaste}
                       position="right"
                       getColor={getColor}
-                      hue={hue}
-                      saturation={saturation}
-                      lightness={lightness}
                     >
                       {s('paste')}
                     </ColorButton>

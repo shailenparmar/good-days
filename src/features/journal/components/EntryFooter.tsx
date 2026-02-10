@@ -12,7 +12,7 @@ export function EntryFooter({ currentContent, superscramble, scrambleSeed, onCli
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
-  const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness } = useTheme();
+  const { getColor } = useTheme();
 
   const wordCount = currentContent.split(/\s+/).filter(Boolean).length;
   const charCount = currentContent.length;
@@ -25,8 +25,8 @@ export function EntryFooter({ currentContent, superscramble, scrambleSeed, onCli
       className="p-4 font-mono font-extrabold sticky bottom-0 z-10 text-right select-none"
       style={{
         fontSize: '14px',
-        backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${Math.min(100, bgLightness + 2)}%)`,
-        borderTop: `6px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)`,
+        backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
+        borderTop: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)',
         color: getColor()
       }}
       onClick={onClick}
