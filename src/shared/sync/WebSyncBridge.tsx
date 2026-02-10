@@ -26,9 +26,9 @@ export function WebSyncBridge() {
   };
 
   // Callback from WebSocket — fires on every ws.onmessage.
-  // Only increments the hz counter and buffers colors. Actual React
-  // state updates are deferred to the next animation frame so multiple
-  // WS messages within one frame coalesce into a single render.
+  // Buffers latest colors in a ref; actual React state updates are
+  // deferred to the next animation frame so multiple WS messages
+  // within one frame coalesce into a single render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
     pendingColorsRef.current = colors;
     if (!rafIdRef.current) {
@@ -36,18 +36,18 @@ export function WebSyncBridge() {
         rafIdRef.current = 0;
         const c = pendingColorsRef.current;
         if (!c) return;
+        const t = themeRef.current;
         skipBridgeRef.current = true;
 
-        // Set CSS variables directly — bypasses React entirely
-        const el = document.documentElement;
-        el.style.setProperty('--h', String(c.hue));
-        el.style.setProperty('--s', c.sat + '%');
-        el.style.setProperty('--l', c.light + '%');
-        el.style.setProperty('--bh', String(c.bgHue));
-        el.style.setProperty('--bs', c.bgSat + '%');
-        el.style.setProperty('--bl', c.bgLight + '%');
-
-        // NO applyPreset, NO setLivePreset — zero React state updates
+        const preset = {
+          hue: c.hue, sat: c.sat, light: c.light,
+          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+        };
+        t.setLivePreset(preset);
+        // Skip applyPreset during local desktop drag to prevent flicker
+        if (!t.localDragRef.current) {
+          t.applyPreset(preset);
+        }
       });
     }
   }, []);
@@ -127,42 +127,22 @@ export function WebSyncBridge() {
     theme.setStreamingControls(syncState.streamingControls);
   }, [syncState.streamingControls]);
 
-  // Clear isLiveActive when livePreset goes null + sync final CSS var colors to React
+  // Clear isLiveActive when livePreset goes null
   useEffect(() => {
     if (!syncState.livePreset) {
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
       theme.setStreamingControls(null);
-
-      // Sync final streamed colors back to React state so localStorage persists
-      if (pendingColorsRef.current) {
-        const c = pendingColorsRef.current;
-        theme.applyPreset({
-          hue: c.hue, sat: c.sat, light: c.light,
-          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-        });
-        pendingColorsRef.current = null;
-      }
     }
   }, [syncState.livePreset]);
 
-  // Handle save-preset from phone — during streaming, React state is stale,
-  // so sync pending colors to React first, then save.
+  // Handle save-preset from phone — React state is always current (applyPreset
+  // runs in rAF), so just save directly.
   const prevSaveRef = useRef(0);
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
-      if (pendingColorsRef.current) {
-        const c = pendingColorsRef.current;
-        theme.applyPreset({
-          hue: c.hue, sat: c.sat, light: c.light,
-          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-        });
-        // saveCustomPreset reads from React state, so defer to next tick
-        requestAnimationFrame(() => theme.saveCustomPreset());
-      } else {
-        theme.saveCustomPreset();
-      }
+      theme.saveCustomPreset();
     }
   }, [syncState.saveRequested]);
 
