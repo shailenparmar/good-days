@@ -135,9 +135,9 @@ Flow: deploy → new sw.js has new precache manifest → browser detects change 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
 
-## CSS Custom Properties for Live Streaming (v2.4.6+)
+## CSS Custom Properties for Live Streaming (v2.4.6+, simplified v2.4.9)
 
-All inline HSL color styles throughout the app now reference CSS custom properties on `:root` instead of React state values. This enables zero-React-overhead color updates during live phone-to-desktop streaming.
+All inline HSL color styles throughout the app reference CSS custom properties on `:root` instead of React state template literals. This minimizes DOM attribute updates during re-renders (React sees static strings).
 
 ### CSS Variable Schema
 
@@ -153,9 +153,9 @@ Usage: `hsl(var(--h), var(--s), var(--l))` — the `%` is baked into the variabl
 
 2. **ThemeContext:** A `useEffect` syncs CSS vars whenever React color state changes. `getColor()` and `getBgColor()` return static CSS variable strings (e.g. `hsl(var(--h), var(--s), var(--l))`). React sees the same string every render — no DOM attribute updates needed.
 
-3. **WebSyncBridge (streaming):** During live streaming, the rAF callback sets CSS vars directly on `document.documentElement` instead of calling `applyPreset`/`setLivePreset`. Zero React state updates per frame. When streaming ends (disconnect), final colors are synced back to React state for localStorage persistence.
+3. **WebSyncBridge (streaming, v2.4.9):** The rAF callback calls `setLivePreset()` + `applyPreset()` to update React state (capped at 60fps). React state is always current, so ColorPicker indicators, save-preset, and all consumers work correctly. The ThemeContext CSS var sync effect fires after each render to update CSS variables. Inline styles referencing CSS vars (`hsl(var(--h), ...)`) are static strings, so React's DOM diffing skips attribute writes.
 
-4. **Save during streaming:** `saveLivePreset` reads from `pendingColorsRef` (latest streamed colors) and syncs to React state before saving.
+   **Previous approach (v2.4.6-v2.4.8):** Set CSS vars directly in the rAF callback, bypassing React entirely. This caused ColorPicker indicators to freeze during streaming (React state was stale) and required complex disconnect sync-back and save-preset pre-sync logic. Reverted in v2.4.9 for simplicity.
 
 ### Common CSS Variable Patterns
 
