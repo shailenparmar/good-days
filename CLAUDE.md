@@ -42,6 +42,7 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 - Untitled entries show the date normally
 - Title editing is header-only — sidebar is display-only
 - **Scramble support (v2.3.35+):** Titles (user content) are scrambled in regular scramble mode. Dates are NOT scrambled (structural, not content). In superscramble, everything scrambles as before.
+- **Scramble re-randomize (v2.3.38+):** Every toggle-on produces a fresh scramble (`bumpScrambleSeed(Date.now())`). Typing while scrambled also re-randomizes titles in the header and sidebar on every keystroke (matching the editor overlay behavior). `bumpScrambleSeed()` in `App.tsx` sets both the module-level `globalScrambleSeed` and React state synchronously — avoids the stale-global-during-render bug that an effect-only sync had.
 
 **Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
 
