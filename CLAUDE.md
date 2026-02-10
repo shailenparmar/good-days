@@ -259,115 +259,77 @@ Without this, the WS would stay open until the OS kills it or the server times i
 
 Both `useMobileSync.ts` and `useWebSync.ts` now guard `ws.onclose` with `if (wsRef.current === ws)`. This prevents a stale WebSocket's `onclose` from nulling a newer connection's ref. Race condition: visibility change or leader election creates a new WS before the old one's `onclose` fires. Without the guard, the stale `onclose` would set `wsRef.current = null`, breaking the new connection.
 
-### Focus-Aware Leader Election (v2.1.1+)
+### Same-Device Dedup / Last Tab Wins (v2.4.0+)
 
-Only one desktop tab holds the WebSocket connection at a time (the "leader"). Switching to a different browser tab immediately transfers leadership — the focused tab broadcasts a `focus-claim` message and the old leader yields unconditionally. This means the phone always connects to whichever tab you're looking at.
+Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Every desktop tab connects to the relay immediately on mount. The relay tracks `deviceConnections: Map<deviceId, clientId>`. When a second tab from the same device registers, the relay:
 
-**Message types** (`BroadcastChannel('good-days-ws-leader')`):
+1. Closes the old WS with code `4001` ("superseded")
+2. If the old tab was paired with a phone, re-pairs the phone with the new tab atomically (phone never sees `unpaired`)
+3. Replays stream state to the new tab if the phone was streaming
 
-| Type | Purpose |
-|------|---------|
-| `claim` | Race-based claim on startup or after leader timeout |
-| `heartbeat` | Leader pings every 3s to prove liveness |
-| `release` | Leader announces departure (beforeunload) |
-| `focus-claim` | Focused tab demands leadership (always wins) |
+**Desktop handling of code 4001:** `useWebSync.ts` sets `dormantRef = true` on close code 4001 — clears all live state silently and never reconnects. The tab stays open but dormant.
 
-**Handoff sequence (v2.1.3+)**: Tab B gains focus → broadcasts `focus-claim` → Tab A yields → closes WS → Tab B calls `becomeLeader()` directly (no delay) → connects WS → relay pairs via same `secret` from localStorage.
+**Why this is simpler:** No BroadcastChannel messages, no heartbeats/watchdogs, no race windows. Server-side dedup is authoritative. Works across browsers (Chrome/Safari) automatically since `deviceId` is shared via localStorage.
 
-**Smoothness optimizations (v2.1.3):**
-- Focus-claim skips the 100ms `RACE_MS` delay — calls `becomeLeader()` directly instead of `claim()`. The old leader already yielded from the `focus-claim` message, so the race window is unnecessary.
-- Public IP is pre-fetched on module load (`useWebSync.ts`). A shared promise dedupes concurrent calls. By the time `connect()` runs, the IP is already cached — no network latency on the critical path. On fetch failure, the promise resets to `null` so the next `connect()` retries (v2.1.5 fix).
+Code: `deviceConnections` Map in `relay.ts`, `dormantRef` in `useWebSync.ts`.
 
-**Critical detail (v2.1.2 fix):** The focus handler must clear `currentLeader = null` before calling `becomeLeader()`. Otherwise, existing tabs would fail because `currentLeader` still points to the old leader from previous heartbeats. New tabs worked because `currentLeader` starts as `null`.
+### Pairing Code Fallback (v2.4.0+)
 
-**PWA support:** Works in Chrome (tabs + PWA share the same BroadcastChannel context). Safari PWAs on iOS may run in an isolated context where BroadcastChannel doesn't bridge to Safari tabs.
+When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 2-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,4), 16) % 100`, zero-padded. If taken, increments+wraps until free.
 
-Code location: `src/shared/sync/leaderElection.ts`
+**Desktop:** Title shows `g{code}d days` (e.g. "g93d days") when connected to relay. Falls back to "good days" when offline.
 
-### Relay Handoff Grace Period (v2.1.15+)
+**Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows a 2-digit numeric input. On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs.
 
-When a paired laptop disconnects, the relay delays unpairing the phone by `HANDOFF_GRACE_MS` (3000ms). This prevents the phone from flashing back to the pairing/unpaired screen during browser tab switches or browser-to-browser switches, where the old tab closes its WS before the new tab connects.
+**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`.
+
+Code: `assignPairingCode()`, `pairingCodes` Map, `handlePairByCode()` in `relay.ts`. `pairingCode` state in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
+
+### IP-Based Pairing (v2.4.0+, simplified from v2.1.x)
+
+The pairing hierarchy was simplified from 3-tier (secret → affinity → IP) to IP-only with code fallback:
+
+| Desktops on IP | Phone behavior |
+|---|---|
+| 1 unpaired | Auto-pair silently |
+| 2+ unpaired | Show candidates picker with live `connectedAgo` timestamps |
+| 0 | Show code entry screen |
+
+**Removed:** `secret` field, `partnerDeviceId` field, `findAffinityMatch()`, `pickBestLaptop()`, `claim-laptop` message, `candidate-update` message, `no-candidates` message. Clients no longer store `wsSecret` or `wsPartnerDeviceId` in localStorage.
+
+**Kept:** Phone takeover (evict stale phone when new phone connects and all laptops are taken). `notifyWatchingPhones(ip)` re-evaluates all unpaired phones when IP group changes.
+
+### Relay Handoff Grace Period (v2.1.15+, updated v2.4.0)
+
+When a paired laptop disconnects, the relay delays unpairing the phone by `HANDOFF_GRACE_MS` (3000ms). This prevents the phone from flashing back to the pairing screen during page refreshes or tab switches.
 
 **How it works:**
 1. Laptop disconnects → relay starts 3s timer, clears phone's `partnerId` but does NOT send `unpaired`
-2. New laptop connects with same `secret` (or sends `claim-laptop`) → cancels timer, pairs with phone, replays stream state
-3. Timer expires with no new laptop → sends `unpaired` to phone, re-evaluates pairing
+2. Same-device dedup handles tab switches atomically (new tab re-pairs phone before old tab's disconnect even fires)
+3. Timer expires with no new laptop → sends `unpaired` to phone, re-evaluates (auto-pair if 1 desktop, candidates if 2+, enter-code if 0)
 
-**Stream state replay:** When a new laptop pairs during grace (or via `claim-laptop`), the relay replays the phone's last known `stream-start`, `stream-state`, and `color-update` so the new laptop immediately shows the correct colors and picker state. Snapshots stored on phone's `ClientRecord`: `lastColors`, `lastStreamSide`, `lastStreamState`.
+**Stream state replay:** When a new laptop pairs during grace, `replayStreamToLaptop()` sends `stream-start` + `stream-state` + `color-update` so the new laptop picks up seamlessly. Snapshots stored on phone's `ClientRecord`: `lastColors`, `lastStreamSide`, `lastStreamState`.
 
-**Color-update during grace:** The phone may still be sending `color-update` while unpaired (finger still on screen). These are captured in `lastColors` even without a partner, so the replay has the latest colors.
+Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`.
 
-Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`, `lastColors`/`lastStreamSide`/`lastStreamState` fields in `types.ts`.
+### Candidates Picker (v2.4.0+, redesigned)
 
-### Cross-Browser Switching (v2.1.8–2.1.13, v2.1.19)
+When 2+ unpaired desktops on same IP, phone shows a picker:
+- Header: `"{N} desktops found"`
+- Each item: `"desktop {N}"` with `"refreshed {X}s ago"` / `"refreshed {X}m ago"`
+- Styled with phone's current colors (no longer uses candidate colorway)
+- Local `setInterval` every 1000ms increments age counters; server `candidates` messages reset to server values
 
-BroadcastChannel only works within a single browser. Chrome and Safari on the same machine are invisible to each other. Two relay-level mechanisms handle cross-browser switching:
+Code: pairing screen in `MobileApp.tsx`, `buildCandidatesList()` in `relay.ts`.
 
-**Laptop takeover (v2.1.11, v2.1.13):** When the user switches desktop browsers (e.g. Chrome → Safari), the focused browser sends `claim-laptop` to the relay. The relay transfers the phone pairing from the old laptop to the new one. The phone doesn't know anything changed — color updates seamlessly flow to the focused browser. `claim-laptop` is sent in two places: (1) `window.focus` event (covers switching between already-loaded browsers), and (2) immediately after `register` in `ws.onopen` if `document.hasFocus()` is true (covers initial page load where focus event never fires). Code: `handleClaimLaptop()` in `relay.ts`, focus listener + onopen in `useWebSync.ts`.
+### Code Entry Screen (v2.4.0+)
 
-**Auto-pair with focused laptop (v2.1.19):** When a phone connects and sees multiple unpaired laptops on the same IP (e.g. Chrome + Safari both open), the relay auto-pairs with the most recently focused one instead of showing a "which one is yours?" candidates screen. Each `claim-laptop` message records a `lastClaimTime` on the laptop's `ClientRecord`. The `pickBestLaptop()` helper sorts by this timestamp. If no laptop has claimed focus, falls back to the first one. This eliminates the confusing pairing screen when multiple browsers are open on the same machine.
+When 0 desktops on same IP, phone shows code entry:
+- Header: "enter code from laptop"
+- 2-digit numeric input (large monospace, auto-submits on 2 digits)
+- Sends `pair-by-code` to relay, which looks up code in `pairingCodes` Map
 
-**Colorway stats (v2.1.12):** `applyPreset` skips `trackColorway()` when `isLiveStreaming` is true. Without this, every color-update from the phone (60fps) would inflate the unique colorways count. Live colorways are tracked in `saveCustomPreset()` instead (when the user presses save on the phone).
-
-**Phone takeover (v2.1.9–2.1.10):** When a new phone connects from the same IP and all laptops are paired with other phones (e.g. Chrome PWA backgrounded but WS still open), the relay evicts the stale phone and directly pairs the new one with the freed laptop. No candidates screen. Code: phone takeover block in `handleRegister()` in `relay.ts`.
-
-**Disconnect re-evaluation (v2.1.8):** When a paired client disconnects, the relay re-evaluates pairing for remaining unpaired clients in the same IP group. Handles the case where a phone/laptop was waiting with `no-candidates` and a slot opens up. Code: bottom of `handleDisconnect()` in `relay.ts`.
-
-### Seamless Laptop Handoff (v2.1.15+)
-
-When the phone is streaming colors and the user switches laptop tabs or browsers, the phone never disconnects. The relay manages the handoff transparently.
-
-**Handoff grace period:** When a paired laptop disconnects (tab close, browser switch), the relay does NOT immediately send `unpaired` to the phone. Instead, it starts a 3-second grace timer (`HANDOFF_GRACE_MS`). If a new laptop registers with the same secret within 3 seconds, the relay pairs it with the phone seamlessly — the phone never receives `unpaired`, `isStreamingRef` stays true, streaming continues uninterrupted. If the grace expires, the phone gets `unpaired` normally.
-
-**Stream state snapshots:** The relay stores `lastColors`, `lastStreamSide`, and `lastStreamState` on the phone's `ClientRecord` as they flow through. When a new laptop is paired (via handoff, `claim-laptop`, or register), `replayStreamToLaptop()` sends the full streaming state (`stream-start` + `stream-state` + `color-update`) so the new laptop immediately picks up the stream.
-
-**Code locations:**
-- `handoffTimers` Map + `HANDOFF_GRACE_MS` constant in `relay.ts`
-- `replayStreamToLaptop()` helper in `relay.ts`
-- Grace period logic in `handleDisconnect()` (only for laptop-disconnects-from-phone)
-- Replay calls in `handleRegister()` (secret-based and IP-based pairing), `handleClaimLaptop()` (cross-browser + grace-period phones)
-- Stream snapshot fields on `ClientRecord` in `types.ts`: `lastColors`, `lastStreamSide`, `lastStreamState`
-
-**Edge cases:**
-- Grace expires, no laptop → phone gets `unpaired` after 3s (normal fallback)
-- Phone disconnects during grace → timer cancelled, clean cleanup
-- `color-update` during grace (no laptop) → stored in `lastColors`, replayed to next laptop
-- `stream-stop` during grace → clears snapshots, new laptop pairs but not streaming
-
-### Learned Pairing Affinity (v2.1.23+)
-
-When a phone and laptop pair in a **1:1 environment** (exactly one phone + one laptop on the IP), the relay sends each device the other's `deviceId` via `partnerDeviceId` in the `paired` message. Both clients save this to localStorage (`wsDeviceId`, `wsPartnerDeviceId`). On future connections, `findAffinityMatch()` checks if any device on the same IP remembers this device (or vice versa), and pairs them automatically — even if secrets are lost.
-
-**Pairing priority (in order):**
-1. **Secret match** — shared token, strongest signal
-2. **Affinity match** — mutual (both claim each other) or one-sided (one side remembers)
-3. **Focus-based `pickBestLaptop`** — most recently focused browser
-4. **First available** — last resort
-
-**When affinity is learned:** Only when `pairClients` runs and the IP group has exactly 1 phone + 1 laptop. This check lives inside `pairClients` itself — no per-call-site logic needed.
-
-**When affinity is NOT learned:** If >1 phone or >1 laptop exists on the IP, the pairing could be a coin flip (e.g. Alice's phone paired with Bob's laptop). Sending `partnerDeviceId` would burn a wrong affinity into localStorage, so it's omitted.
-
-**Client-side (`useMobileSync.ts`, `useWebSync.ts`):**
-- `getOrCreateDeviceId()` — generates a persistent UUID in localStorage (`wsDeviceId`)
-- Sends `deviceId` + `partnerDeviceId` on every `register` message
-- Saves received `partnerDeviceId` on every `paired` message
-
-**Server-side (`relay.ts`):**
-- `findAffinityMatch()` — scans IP group for opposite-role devices with matching deviceIds. Prefers mutual matches (both claim each other) over one-sided
-- `pairClients()` — counts phones/laptops on IP, only includes `partnerDeviceId` in `paired` message if 1:1
-
-**Fields added to `types.ts` / `protocol.ts`:**
-- `ClientRecord`: `deviceId?`, `partnerDeviceId?`
-- `register` message: `deviceId?`, `partnerDeviceId?`
-- `paired` message: `partnerDeviceId?`
-
-**Edge cases:**
-- First-time multi-device (no affinities) → falls through to IP-based, same as before
-- Both devices remember each other (mutual) → strongest affinity signal, auto-pairs
-- One device cleared cache (one-sided) → still pairs via surviving side's claim
-- Both cleared cache → no affinity, falls back to IP-based
-- Relay restart → clients re-send deviceId + partnerDeviceId on reconnect
+Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`.
 
 ### Live Stats (removed in v2.3.12)
 
