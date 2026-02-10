@@ -3475,8 +3475,8 @@ try {
 - Applies to localStorage AND IndexedDB
 - This is documented in the About panel
 
-**About panel copy**:
-> "however, if you manually clear site data in browser settings, you'll lose your content. notably, Safari is the only major browser with inactivity deletion (7 days). other browsers will only delete data under disk space storage pressure."
+**About panel copy (v2.3.41+)**:
+> "Safari is the only major browser with inactivity deletion (7 days); however, if you manually delete site data in browser settings, you'll clear the journal."
 
 **Chrome/Firefox/Edge**:
 - Only delete data under storage pressure (low disk space)
