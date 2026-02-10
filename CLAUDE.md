@@ -304,11 +304,13 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 2. If the old tab was paired with a phone, re-pairs the phone with the new tab atomically (phone never sees `unpaired`)
 3. Replays stream state to the new tab if the phone was streaming
 
-**Desktop handling of code 4001:** `useWebSync.ts` sets `dormantRef = true` on close code 4001 — clears all live state silently and never reconnects. The tab stays open but dormant.
+**Desktop handling of code 4001:** `useWebSync.ts` sets `dormantRef = true` on close code 4001 — clears all live state silently and stops reconnecting.
 
-**Why this is simpler:** No BroadcastChannel messages, no heartbeats/watchdogs, no race windows. Server-side dedup is authoritative. Works across browsers (Chrome/Safari) automatically since `deviceId` is shared via localStorage.
+**Dormant tab reclaim (v2.4.4+):** When a dormant tab becomes visible (`visibilitychange` → `visible`), it clears `dormantRef` and reconnects. The relay supersedes the other tab (code 4001) and re-pairs the phone atomically. This means the focused/active tab always wins — switching between tabs transfers live sync automatically.
 
-Code: `deviceConnections` Map in `relay.ts`, `dormantRef` in `useWebSync.ts`.
+**Why this is simpler:** No BroadcastChannel messages, no heartbeats/watchdogs, no race windows. Server-side dedup is authoritative. Works across tabs in the same browser automatically since `deviceId` is shared via localStorage. Different browsers have separate `deviceId`s (separate localStorage), so cross-browser dedup does not apply — each browser registers as a separate device.
+
+Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` in `useWebSync.ts`.
 
 ### Pairing Code Fallback (v2.4.0+, updated v2.4.3)
 
