@@ -1,26 +1,62 @@
 # Claude Code Instructions
 
-## TODO: Tauri Setup (Mac App Store)
+## Electron Desktop App (Apple App Store Goal)
 
-The native SwiftUI mac app (`macos/GoodDays/`) has been deleted. We're replacing it with **Tauri** — wraps the existing React web app in a native macOS WebView so the UX is pixel-identical.
+The app is being wrapped in **Electron** to ship on the Mac App Store. Same React codebase, but storage routes through file-based IPC instead of IndexedDB when running in Electron.
+
+### Architecture
+
+```
+PWA (web):   React → IndexedDB (browser storage)
+Electron:    React → IPC → file system (userData/entries/YYYY-MM-DD.json)
+```
+
+Detection: `window.electronAPI?.platform === 'electron'` — exposed by preload script via contextBridge.
 
 ### What's done
-- Deleted `macos/GoodDays/` entirely (was never committed to git)
-- Removed native Mac app section from this CLAUDE.md
 
-### What's left
-1. **Install Rust** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
-2. **Install Tauri CLI** — `npm install -D @tauri-apps/cli@latest`
-3. **Init Tauri** — `npx tauri init` in the project root. Config it to:
-   - Use Vite dev server (`http://localhost:5173`) for dev
-   - Use `../dist` as the build output dir
-   - Bundle ID: something like `day.gdays.app`
-4. **Configure vite.config.ts** — No major changes needed. Existing config works. May need to conditionally disable PWA plugin when building for Tauri.
-5. **App icon** — Convert existing `icon.svg` to Tauri's icon format
-6. **Mac App Store signing** — Configure code signing + sandboxing for App Store submission
+**Electron shell** (`electron/` directory):
+- `main.ts` — BrowserWindow, context isolation, sandbox enabled, hiddenInset title bar
+- `preload.ts` — contextBridge exposes `window.electronAPI` (storage + backup + platform)
+- `storage.ts` — IPC handlers: save/load/loadAll/delete entries as JSON files in `userData/entries/`
+- `backup.ts` — IPC handlers: native save/open dialogs for backup `.txt` files
+- `types.ts` — IPC channel constants
+- `tsconfig.json` — Electron-specific TypeScript config (CommonJS, ES2022)
 
-### Key insight: storage works as-is
-IndexedDB + localStorage all work in Tauri's WKWebView. No code changes needed. Users migrating from the PWA would use the existing backup/import flow.
+**React ↔ Electron wiring** (the work done in this session):
+- `src/shared/types/electron.d.ts` — Ambient type declaration for `window.electronAPI`
+- `src/shared/storage/journalStorage.ts` — Every storage function has an `if (isElectron())` early-return branch:
+  - `initJournalStorage()` — loads via `loadAllEntries()` IPC, skips IndexedDB/migration/persistent storage
+  - `writeEntryToStorage()` — encrypt → `saveEntry(date, json)` IPC
+  - `loadSingleEntry()` — `loadEntry(date)` IPC → parse → decrypt
+  - `deleteSingleEntry()` — `deleteEntry(date)` IPC
+  - `saveAllJournalEntries()` — loop entries, encrypt each, save via IPC
+  - `reEncryptAllEntries()` — load all via IPC, decrypt old key, re-encrypt new key, save via IPC
+  - `clearJournalStorage()` — load all dates, delete each via IPC
+  - `getEncryptionMode()` / `setEncryptionMode()` — read/write `electronEncryptionMode` in localStorage
+  - `setPasswordProtectedFlag()` / `getPasswordProtectedFlag()` — read/write `electronPasswordProtected` in localStorage
+- `src/features/export/components/ExportButtons.tsx` — Electron branches for backup (native save dialog) and import (native open dialog). Shared `processBackupContent()` helper extracted to avoid duplication.
+
+**Data format over IPC:** The `data` string is `JSON.stringify(encryptedRecord)` — same shape as IndexedDB (`{date, _enc, _payload, startedAt, lastModified}`). Electron stores this string as-is in `userData/entries/YYYY-MM-DD.json`.
+
+**Typecheck:** Both `npm run typecheck` and `npm run typecheck:electron` pass clean.
+
+### What's NOT done yet (next steps toward App Store)
+
+1. **Smoke test** — Run `npm run dev:electron`, verify entries save/load/persist, backup/import dialogs work, web path has no regressions
+2. **Electron packaging** — Set up `electron-builder` or `electron-forge` to produce `.app` / `.dmg`
+3. **Code signing** — Apple Developer certificate, sign the app
+4. **App Store sandboxing** — Entitlements, sandbox compliance
+5. **Auto-update** (optional) — `electron-updater` + GitHub Releases so users don't have to re-download
+6. **App Store submission** — Screenshots, metadata, Apple review
+
+### Key design decisions
+- **Intercept at the lowest level:** All Electron branches are in the private storage functions. Higher-level code (debouncing, encryption, multi-tab sync, auth gating) routes through automatically.
+- **Web path untouched:** Every change is behind `isElectron()` — PWA works identically.
+- **Metadata in localStorage:** Electron uses `electronEncryptionMode` and `electronPasswordProtected` localStorage keys instead of IndexedDB metadata store.
+- **BroadcastChannel:** Harmless no-op in Electron (single window).
+- **fallbackMode:** Never triggers in Electron since IndexedDB is never opened.
+- **Two separate deploys:** PWA auto-deploys on push to main (GitHub Pages). Electron requires a separate build + package step.
 
 ## Entry Titles (v2.3.33+)
 
@@ -30,10 +66,11 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Header** (`EntryHeader.tsx`):
 - Click the date text (e.g. "feb 8, 2026") to enter title editing mode
-- An inline input replaces the date — stretches to fill all space up to the "started at" text
+- An inline input replaces the date — sized to content width using `ch` units (monospace), not full-width. Clicking empty space to the right of the text blurs/saves the title. Parent div has `min-w-0` to prevent flex blowout; input has `maxWidth: 100%` to cap at container. Minimum width = placeholder length when empty, text length + 1 when has content.
 - Placeholder: "set title" with the standard bold/unbold sweep animation (83ms per char)
-- Enter, Tab, or blur saves; Escape cancels. Enter and Tab move focus to the editor textarea with cursor at end (via `requestAnimationFrame` + `editorRef`).
+- Enter, Tab, Escape, or blur saves. Enter and Tab move focus to the editor textarea with cursor at end (via `requestAnimationFrame` + `editorRef`).
 - **Scramble overlay (v2.3.39+, updated v2.4.0):** When scramble or superscramble is active, the title input text is transparent and an absolute-positioned overlay shows the scrambled title text. Same pattern as the editor scramble overlay. The overlay clips at the edge without ellipsis. **Scroll sync (v2.4.0):** The overlay tracks the input's `scrollLeft` via a `useEffect` (rAF after `titleInput` changes) + `onSelect` handler. An inner `<span>` with `translateX(-scrollLeft)` shifts the scrambled text to match the input's scroll position. Works pixel-perfectly because font-mono + same-length scrambled text.
+- **Hotkey passthrough (v2.4.2+):** `onKeyDown` only calls `stopPropagation()` for Enter, Tab, and Escape — all other keys bubble freely to window-level listeners. This lets Alt+S scramble toggle work while the title input is focused (previously it inserted `ß` because the blanket `stopPropagation` prevented the window handler from calling `preventDefault`).
 - No character limit — type freely, long titles truncate with ellipsis when not editing
 - Once titled, the header shows the title instead of the date (no "date: title" format — just the title)
 - `onEditingChange` callback notifies `App.tsx` → sets `titleEditing` state → passes `hidePlaceholder` to `JournalEditor` so the editor's "start typing" placeholder hides while the title input has focus
