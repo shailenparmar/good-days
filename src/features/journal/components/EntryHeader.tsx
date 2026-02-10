@@ -107,8 +107,8 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    e.stopPropagation();
     if (e.key === 'Enter') {
+      e.stopPropagation();
       e.preventDefault();
       handleTitleSave();
       requestAnimationFrame(() => {
@@ -120,6 +120,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
         }
       });
     } else if (e.key === 'Tab') {
+      e.stopPropagation();
       e.preventDefault();
       handleTitleSave();
       requestAnimationFrame(() => {
@@ -131,7 +132,8 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
         }
       });
     } else if (e.key === 'Escape') {
-      setIsEditingTitle(false);
+      e.stopPropagation();
+      handleTitleSave();
     }
   };
 
@@ -218,7 +220,10 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
     >
       <div className="flex justify-between items-baseline select-none">
         {isEditingTitle ? (
-          <div className="relative flex-1 mr-2">
+          <div
+            className="relative flex-1 mr-2 min-w-0"
+            onMouseDown={() => titleInputRef.current?.blur()}
+          >
             <input
               ref={titleInputRef}
               value={titleInput}
@@ -228,8 +233,8 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onSelect={syncTitleScroll}
-              className="w-full text-lg font-extrabold font-mono bg-transparent outline-none border-none p-0 m-0"
-              style={{ color: (isScrambled || superscramble) && titleInput ? 'transparent' : getColor(), caretColor: getColor() }}
+              className="text-lg font-extrabold font-mono bg-transparent outline-none border-none p-0 m-0"
+              style={{ width: `${(titleInput.length || placeholderText.length) + 1}ch`, maxWidth: '100%', color: (isScrambled || superscramble) && titleInput ? 'transparent' : getColor(), caretColor: getColor() }}
             />
             {(isScrambled || superscramble) && titleInput.length > 0 && (
               <div
