@@ -365,15 +365,17 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 
 Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` in `useWebSync.ts`.
 
-### Pairing Code Fallback (v2.4.0+, updated v2.4.3)
+### Pairing Code Fallback (v2.4.0+, updated v2.4.8)
 
 When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free.
 
-**Desktop:** Title text replaces "good days" with the 3-digit code (e.g. "234") when connected to relay — same font, size, color. Falls back to "good days" when offline. Version hover still works on the code.
+**Desktop:** Title text replaces "good days" with the 3-digit code (e.g. "234") when connected to relay — same font, size, color. Falls back to "good days" when offline. Version hover still works on the code. **Code cleared on pairing (v2.4.8+):** The `pairingCode` state is set to `null` when the `paired` message is received, so the title reverts to "good days" once a phone connects. Previously the code stayed visible indefinitely.
 
-**Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows centered "enter your desktop code" with a 3-digit numeric input (48px monospace, auto-submits on 3 digits). iOS keyboard pushes the title off screen naturally (no viewport hacks). On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs.
+**Phone:** When 0 desktops found on same IP, relay sends `{ type: 'enter-code' }`. Phone shows centered "enter your desktop code" with a 3-digit numeric input (48px monospace, auto-submits on 3 digits). iOS keyboard pushes the title off screen naturally (no viewport hacks). On submit, sends `{ type: 'pair-by-code', code }` to relay. Relay looks up the code in `pairingCodes` Map and pairs. **Auto-clear on submit (v2.4.8+):** Input auto-clears after 1 second so user can retry if code was wrong or connection failed. If pairing succeeds, the screen hides before the clear fires.
 
-**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`.
+**Relay error handling (v2.4.8+):** `handlePairByCode` now logs all exit paths (code not found, laptop disconnected, laptop already paired) and sends `enter-code` back to the phone on failure. This gives the phone a signal that the attempt failed (the enter-code re-receipt is harmless if already in that state).
+
+**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Cleared from desktop state on `paired` message.
 
 Code: `assignPairingCode()`, `pairingCodes` Map, `handlePairByCode()` in `relay.ts`. `pairingCode` state in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
 
