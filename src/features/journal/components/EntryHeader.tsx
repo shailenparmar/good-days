@@ -212,7 +212,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
             />
             {(isScrambled || superscramble) && titleInput.length > 0 && (
               <div
-                className="absolute top-0 left-0 text-lg font-extrabold font-mono pointer-events-none select-none overflow-hidden text-ellipsis whitespace-nowrap w-full"
+                className="absolute top-0 left-0 text-lg font-extrabold font-mono pointer-events-none select-none overflow-hidden whitespace-nowrap w-full"
                 style={{ color: getColor() }}
               >
                 {scrambleText(titleInput)}

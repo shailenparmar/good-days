@@ -3,6 +3,19 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { MAINTENANCE, MESSAGE } from '@shared/maintenance'
 
+// Custom SW registration: bypass HTTP cache so Safari always checks for new versions
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    }).then(registration => {
+      // Poll for SW updates every 60s (catches deploys without requiring navigation)
+      setInterval(() => registration.update(), 60 * 1000)
+    })
+  })
+}
+
 // Maintenance mode: block the entire app with a fullscreen message
 if (MAINTENANCE && MESSAGE) {
   const root = document.getElementById('root')!;
