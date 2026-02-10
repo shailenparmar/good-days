@@ -992,6 +992,20 @@ All three export buttons (copy, download backup, import) live in a single `<div 
   **Must use hex format** — Safari handles hex more reliably than HSL for `theme-color`. The meta tag has `id="theme-color-meta"` for fast lookup.
 
   **macOS Safari limitation:** The toolbar color is determined by Safari internally sampling the rendered page background — NOT by reading the `theme-color` meta tag dynamically. The meta tag is only read on page load. Live color changes will NOT update the toolbar in real-time. Safari re-evaluates on its own schedule (tab switch, scroll, navigation). This is a browser limitation with no workaround. Attempted: `setAttribute`, remove+re-insert meta — neither triggers live updates.
+- **Window Controls Overlay (v2.3.38+)** — When installed as a Chrome PWA, the default title bar is removed and the app's content extends into the title bar area. Only the window control buttons (traffic lights on Mac, min/max/close on Windows) float over the content.
+
+  **How it works:**
+  1. `vite.config.ts` manifest has `display_override: ["window-controls-overlay"]` before `display: "standalone"`. Browser tries WCO first, falls back to standalone if unsupported.
+  2. `src/index.css` has a `@media (display-mode: window-controls-overlay)` block with three rules:
+     - `.wco-drag-region`: fixed full-width strip at top (`height: env(titlebar-area-height, 0)`) with `-webkit-app-region: drag` and `z-index: 9999`. Lets users drag the window from the top edge.
+     - `.wco-app-container`: adds `padding-top: env(titlebar-area-height, 0)` to push content below the overlay.
+     - `button, input, textarea, a, [role="button"]`: get `-webkit-app-region: no-drag` so they remain clickable.
+  3. `src/App.tsx` `AppContent` return has a `<div className="wco-drag-region" />` as the first child, and the outer flex container has `wco-app-container` class.
+
+  **Theme color integration:** The existing `theme-color` meta tag in `ThemeContext.tsx` dynamically updates the hex color, which WCO uses for the overlay background color. No changes needed there.
+
+  **Zero impact when inactive:** All CSS is gated behind the media query. The drag region div renders but has zero height when WCO isn't active. Regular browser tabs and non-WCO PWA installs see no difference.
+
 - **A REFRESH DOES NOT CHANGE WHAT YOU SEE** - All visible UI state must be persisted to localStorage. If the user can see it before refresh, they must see it after refresh. This includes panels, sidebar visibility, scramble state, etc. **Exception: zen and minizen modes** — these are ephemeral focus states that reset on refresh (see below).
 
 ### Zen/Minizen Refresh Behavior (v1.10.37+)

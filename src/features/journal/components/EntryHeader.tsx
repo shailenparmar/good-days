@@ -91,6 +91,14 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
     if (e.key === 'Enter') {
       e.preventDefault();
       handleTitleSave();
+      requestAnimationFrame(() => {
+        if (editorRef?.current) {
+          editorRef.current.focus();
+          const len = editorRef.current.value.length;
+          editorRef.current.selectionStart = len;
+          editorRef.current.selectionEnd = len;
+        }
+      });
     } else if (e.key === 'Tab') {
       e.preventDefault();
       handleTitleSave();
@@ -200,8 +208,16 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               className="w-full text-lg font-extrabold font-mono bg-transparent outline-none border-none p-0 m-0"
-              style={{ color: getColor(), caretColor: getColor() }}
+              style={{ color: (isScrambled || superscramble) && titleInput ? 'transparent' : getColor(), caretColor: getColor() }}
             />
+            {(isScrambled || superscramble) && titleInput.length > 0 && (
+              <div
+                className="absolute top-0 left-0 text-lg font-extrabold font-mono pointer-events-none select-none overflow-hidden text-ellipsis whitespace-nowrap w-full"
+                style={{ color: getColor() }}
+              >
+                {scrambleText(titleInput)}
+              </div>
+            )}
             {showPlaceholder && (
               <div
                 className="absolute top-0 left-0 text-lg font-mono pointer-events-none select-none"
