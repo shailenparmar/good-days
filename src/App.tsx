@@ -342,8 +342,8 @@ function AppContent() {
           <div className="p-4" ref={layout.titleRef}>
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {layout.isSuperscramble
-                ? scrambleText((!isLiveActive && pairingCode) || (layout.titleHovered ? `good days v${VERSION}` : 'good days'))
-                : ((!isLiveActive && pairingCode) || (layout.titleHovered ? `good days v${VERSION}` : 'good days'))}
+                ? scrambleText(layout.titleHovered ? ((!isLiveActive && pairingCode) || `good days v${VERSION}`) : 'good days')
+                : (layout.titleHovered ? ((!isLiveActive && pairingCode) || `good days v${VERSION}`) : 'good days')}
             </h1>
           </div>
 
