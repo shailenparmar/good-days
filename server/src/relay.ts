@@ -288,14 +288,34 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 
 function handlePairByCode(clientId: string, code: string) {
   const client = clients.get(clientId);
-  if (!client || client.role !== 'phone') return;
+  if (!client || client.role !== 'phone') {
+    console.log(`[relay] pair-by-code: rejected (client ${clientId.slice(0,8)} not found or not phone)`);
+    return;
+  }
 
   const laptopId = pairingCodes.get(code);
-  if (!laptopId) return;
+  if (!laptopId) {
+    console.log(`[relay] pair-by-code: code "${code}" not found (${pairingCodes.size} codes in map)`);
+    // Send enter-code back so phone knows the attempt failed
+    send(client.ws, { type: 'enter-code' });
+    return;
+  }
 
   const laptop = clients.get(laptopId);
-  if (!laptop || laptop.partnerId) return;
+  if (!laptop) {
+    console.log(`[relay] pair-by-code: laptop ${laptopId.slice(0,8)} for code "${code}" no longer connected`);
+    pairingCodes.delete(code);
+    send(client.ws, { type: 'enter-code' });
+    return;
+  }
 
+  if (laptop.partnerId) {
+    console.log(`[relay] pair-by-code: laptop ${laptopId.slice(0,8)} already paired with ${laptop.partnerId.slice(0,8)}`);
+    send(client.ws, { type: 'enter-code' });
+    return;
+  }
+
+  console.log(`[relay] pair-by-code: pairing phone ${clientId.slice(0,8)} with laptop ${laptopId.slice(0,8)} via code "${code}"`);
   pairClients(clientId, laptopId);
 }
 

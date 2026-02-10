@@ -1078,6 +1078,8 @@ export default function MobileApp() {
               setCodeInput(val);
               if (val.length === 3) {
                 sync.pairByCode(val);
+                // Auto-clear after brief delay so user can retry if code was wrong
+                setTimeout(() => setCodeInput(''), 1000);
               }
             }}
             style={{

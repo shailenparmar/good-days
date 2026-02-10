@@ -105,12 +105,11 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             break;
 
           case 'paired':
-            if (colorwayRef.current) {
-              setState(prev => ({
-                ...prev,
-                livePreset: prev.livePreset || { ...colorwayRef.current! },
-              }));
-            }
+            setState(prev => ({
+              ...prev,
+              pairingCode: null,
+              livePreset: prev.livePreset || (colorwayRef.current ? { ...colorwayRef.current } : prev.livePreset),
+            }));
             break;
 
           case 'unpaired':
