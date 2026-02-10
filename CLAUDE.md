@@ -96,6 +96,17 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 
 **Workflow:** User says "push [under construction]" (or any bracketed message) → set `MAINTENANCE = true` and `MESSAGE = '[under construction]'` → bump version → push. User says "take it down" → set `MAINTENANCE = false`, `MESSAGE = ''` → push.
 
+## Service Worker & Auto-Update (v2.4.7+)
+
+`main.tsx` handles SW registration manually (`injectRegister: false` in vite-plugin-pwa config).
+
+- **Registration:** `/sw.js` with `updateViaCache: 'none'` (bypasses HTTP cache so Safari always checks)
+- **Polling:** `registration.update()` every 60s to catch deploys without navigation
+- **Auto-reload:** `controllerchange` listener reloads the page when a new SW activates via `skipWaiting`. A `refreshing` flag prevents reload loops.
+- **Workbox precache:** vite-plugin-pwa generates the SW with `skipWaiting()` + `clientsClaim()` (`registerType: 'autoUpdate'`). All JS/CSS/HTML are precached with content hashes.
+
+Flow: deploy → new sw.js has new precache manifest → browser detects change within 60s → installs new SW → `skipWaiting` activates it → `controllerchange` fires → page reloads with fresh assets.
+
 ## Push Checklist (MANDATORY)
 
 **EVERY push requires ALL of these steps. No exceptions.**
@@ -1982,7 +1993,7 @@ Tap and hold the "good days" title on any screen to show the version number (e.g
 
 **Refresh persistence (v2.3.28+):** The pressed state is saved to `sessionStorage`. If you're holding the title to show the version and refresh the page, the version shows immediately on reload without needing to re-press. Cleared on touch end/cancel.
 
-**IMPORTANT:** `mobileVersion` in `src/features/mobile/MobileApp.tsx` must be bumped alongside `VERSION` in `src/shared/version.ts` on every push.
+**Version:** MobileApp imports `VERSION` from `@shared/version` (v2.4.7+). No separate mobile version to maintain.
 
 ### Haptic Feedback
 
@@ -3382,7 +3393,7 @@ The bold sweep is tied to `isRainbowMode`:
 The version number is stored in `src/shared/version.ts` as `export const VERSION = 'x.y.z'` (imported by both `App.tsx` and `main.tsx`).
 
 When pushing changes:
-1. **ALWAYS increment the version number** in `src/shared/version.ts` AND `mobileVersion` in `src/features/mobile/MobileApp.tsx` before pushing
+1. **ALWAYS increment the version number** in `src/shared/version.ts` before pushing (MobileApp imports this automatically)
    - Patch (x.y.Z): Bug fixes, small tweaks, any change at all
    - Minor (x.Y.0): New features, non-breaking changes
    - Major (X.0.0): Breaking changes, major rewrites
