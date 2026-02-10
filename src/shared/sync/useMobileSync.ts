@@ -25,6 +25,7 @@ export interface MobileSyncHandle {
   candidates: Candidate[];
   selectCandidate: (id: string) => void;
   pairByCode: (code: string) => void;
+
   startStream: (side: 'text' | 'background') => void;
   stopStream: () => void;
   sendColorUpdate: (colors: ColorPayload) => void;
@@ -96,8 +97,10 @@ export function useMobileSync(): MobileSyncHandle {
             isStreamingRef.current = false;
             break;
 
+
           case 'enter-code':
             setPairingState('enter-code');
+            setCandidates([]);
             break;
 
           case 'candidates':

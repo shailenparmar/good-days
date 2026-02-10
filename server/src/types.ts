@@ -14,6 +14,7 @@ export type ClientMessage =
   | { type: 'register'; role: 'phone' | 'laptop'; deviceId?: string }
   | { type: 'pair-request'; targetId: string }
   | { type: 'pair-by-code'; code: string }
+
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
@@ -24,9 +25,10 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'registered'; clientId: string; pairingCode?: string }
   | { type: 'paired'; partnerId: string }
+  | { type: 'enter-code' }
   | { type: 'unpaired'; reason: string }
   | { type: 'candidates'; laptops: Array<{ id: string; connectedAgo: number }> }
-  | { type: 'enter-code' }
+
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
@@ -40,8 +42,8 @@ export interface ClientRecord {
   partnerId?: string;
   streaming: boolean;
   deviceId?: string;
-  pairingCode?: string;
   connectedAt: number;
+  pairingCode?: string;
   // Stream state snapshots (stored on phone records for handoff replay)
   lastColors?: ColorPayload;
   lastStreamSide?: 'text' | 'background';

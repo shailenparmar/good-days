@@ -30,6 +30,10 @@ export default function MobileApp() {
   // Code entry state
   const [codeInput, setCodeInput] = useState('');
 
+  // Bold sweep animation for candidate age text
+  const [ageBoldCount, setAgeBoldCount] = useState(0);
+  const [ageBoldPhase, setAgeBoldPhase] = useState<'bold' | 'unbold'>('bold');
+
   // Candidate age counters (local timer increments these)
   const [candidateAges, setCandidateAges] = useState<Map<string, number>>(new Map());
 
@@ -636,12 +640,31 @@ export default function MobileApp() {
     return () => clearInterval(interval);
   }, [sync.pairingState, sync.candidates]);
 
+  // Bold sweep animation for "refreshed Xs ago" text
+  const ageTextTemplate = 'refreshed 000 min ago'; // longest form for sweep length
+  useEffect(() => {
+    if (sync.pairingState !== 'pairing') {
+      setAgeBoldCount(0);
+      setAgeBoldPhase('bold');
+      return;
+    }
+    const maxCount = ageTextTemplate.length;
+    if (ageBoldCount >= maxCount) {
+      setAgeBoldPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
+      setAgeBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setAgeBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [sync.pairingState, ageBoldCount, ageBoldPhase]);
+
   // Clear code input when leaving enter-code state
   useEffect(() => {
     if (sync.pairingState !== 'enter-code') {
       setCodeInput('');
     }
   }, [sync.pairingState]);
+
 
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';
@@ -684,7 +707,7 @@ export default function MobileApp() {
     if (v) sessionStorage.setItem('titlePressed', '1');
     else sessionStorage.removeItem('titlePressed');
   };
-  const mobileVersion = '2.4.1';
+  const mobileVersion = '2.4.3';
 
   // Shared title style - one line, as big as possible
   const titleStyle: React.CSSProperties = {
@@ -941,14 +964,15 @@ export default function MobileApp() {
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
           <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
-            {sync.candidates.length} desktop{sync.candidates.length !== 1 ? 's' : ''} found
+            which one is yours?
           </span>
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            width: '100%',
-            maxWidth: '320px',
+            fontSize: 'min(17vw, 70px)',
+            width: '9ch',
+            alignSelf: 'center',
           }}>
             {sync.candidates.map((laptop, index) => {
               const h = colors.hue;
@@ -962,7 +986,7 @@ export default function MobileApp() {
                 ? `hsla(${h}, ${s}%, ${l}%, 0.2)`
                 : 'transparent';
               const age = candidateAges.get(laptop.id) ?? laptop.connectedAgo;
-              const ageText = age < 60 ? `${age}s ago` : `${Math.floor(age / 60)}m ago`;
+              const ageText = age < 60 ? `${age}s ago` : `${Math.floor(age / 60)} min ago`;
               return (
                 <div
                   key={laptop.id}
@@ -997,15 +1021,24 @@ export default function MobileApp() {
                     padding: '14px 16px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
+                    justifyContent: 'center',
                     fontFamily: 'monospace',
                     fontWeight: 800,
                     fontSize: '20px',
                     color: textColor,
                   }}
                 >
-                  <span>desktop {index + 1}</span>
-                  <span style={{ fontSize: '14px', opacity: 0.6 }}>refreshed {ageText}</span>
+                  <span>
+                    {(() => {
+                      const fullText = `refreshed ${ageText}`;
+                      const count = Math.min(ageBoldCount, fullText.length);
+                      return ageBoldPhase === 'bold' ? (
+                        <><span style={{ fontWeight: 800 }}>{fullText.slice(0, count)}</span><span style={{ fontWeight: 400 }}>{fullText.slice(count)}</span></>
+                      ) : (
+                        <><span style={{ fontWeight: 400 }}>{fullText.slice(0, count)}</span><span style={{ fontWeight: 800 }}>{fullText.slice(count)}</span></>
+                      );
+                    })()}
+                  </span>
                 </div>
               );
             })}
@@ -1021,29 +1054,28 @@ export default function MobileApp() {
           inset: 0,
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#000',
+          backgroundColor: bgColor,
           visibility: sync.pairingState === 'enter-code' ? 'visible' : 'hidden',
           zIndex: sync.pairingState === 'enter-code' ? 30 : -3,
           ...safeAreaStyle,
         }}
       >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         {title}
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
-            what number is in your header?
+          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor, textAlign: 'center' }}>
+            enter your desktop code
           </span>
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            maxLength={2}
+            maxLength={3}
             value={codeInput}
             onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
               setCodeInput(val);
-              if (val.length === 2) {
+              if (val.length === 3) {
                 sync.pairByCode(val);
               }
             }}
@@ -1056,7 +1088,7 @@ export default function MobileApp() {
               border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`,
               borderRadius: '12px',
               textAlign: 'center',
-              width: '120px',
+              width: '160px',
               padding: '12px',
               outline: 'none',
               caretColor: textColor,
@@ -1068,7 +1100,6 @@ export default function MobileApp() {
             spellCheck={false}
           />
         </div>
-      </div>
       </div>
 
     </>

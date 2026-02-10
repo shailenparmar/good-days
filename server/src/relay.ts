@@ -8,8 +8,35 @@ const ipGroups = new Map<string, Set<string>>();
 // deviceId → clientId: tracks the active connection per device for same-device dedup
 const deviceConnections = new Map<string, string>();
 
-// pairingCode → clientId: tracks assigned codes for code-based pairing
+// 3-digit pairing code → clientId: for cross-network code-based pairing
 const pairingCodes = new Map<string, string>();
+
+function assignPairingCode(clientId: string, deviceId: string): string {
+  // Derive a 3-digit code from deviceId hash, increment+wrap if taken
+  let code = parseInt(deviceId.slice(0, 6), 16) % 1000;
+  for (let i = 0; i < 1000; i++) {
+    const padded = String(code).padStart(3, '0');
+    const existing = pairingCodes.get(padded);
+    if (!existing || existing === clientId) {
+      pairingCodes.set(padded, clientId);
+      return padded;
+    }
+    code = (code + 1) % 1000;
+  }
+  // Fallback (all 1000 taken — extremely unlikely)
+  const fallback = String(code).padStart(3, '0');
+  pairingCodes.set(fallback, clientId);
+  return fallback;
+}
+
+function releasePairingCode(clientId: string) {
+  for (const [code, id] of pairingCodes) {
+    if (id === clientId) {
+      pairingCodes.delete(code);
+      return;
+    }
+  }
+}
 
 // Handoff grace period: when a paired laptop disconnects, delay unpairing
 // the phone so a new laptop tab/browser can claim it seamlessly.
@@ -19,31 +46,6 @@ const HANDOFF_GRACE_MS = 3000;
 function send(ws: WebSocket, msg: ServerMessage) {
   if (ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify(msg));
-  }
-}
-
-function assignPairingCode(deviceId: string): string {
-  // Derive code from deviceId hash, zero-padded 2 digits
-  let code = parseInt(deviceId.slice(0, 4), 16) % 100;
-  let codeStr = String(code).padStart(2, '0');
-
-  // If taken, increment+wrap until free
-  let attempts = 0;
-  while (pairingCodes.has(codeStr) && attempts < 100) {
-    code = (code + 1) % 100;
-    codeStr = String(code).padStart(2, '0');
-    attempts++;
-  }
-
-  return codeStr;
-}
-
-function releasePairingCode(clientId: string) {
-  for (const [code, id] of pairingCodes) {
-    if (id === clientId) {
-      pairingCodes.delete(code);
-      break;
-    }
   }
 }
 
@@ -149,15 +151,15 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
         handoffTimers.delete(oldClient.partnerId);
       }
 
-      // Release old pairing code
-      releasePairingCode(oldClientId);
-
       // Remove from IP group
       const oldGroup = ipGroups.get(oldClient.publicIp);
       if (oldGroup) {
         oldGroup.delete(oldClientId);
         if (oldGroup.size === 0) ipGroups.delete(oldClient.publicIp);
       }
+
+      // Release old client's pairing code
+      releasePairingCode(oldClientId);
 
       // Close old WS with superseded code
       oldClient.ws.close(4001, 'superseded');
@@ -207,13 +209,12 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   ipGroups.get(publicIp)!.add(clientId);
 
   if (role === 'laptop') {
-    // Assign pairing code for desktop
-    const code = assignPairingCode(deviceId || clientId);
-    record.pairingCode = code;
-    pairingCodes.set(code, clientId);
+    // Assign a 3-digit pairing code
+    const code = deviceId ? assignPairingCode(clientId, deviceId) : undefined;
+    if (code) record.pairingCode = code;
 
     send(ws, { type: 'registered', clientId, pairingCode: code });
-    console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} code=${code} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size}`);
+    console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code || 'none'} clients=${clients.size}`);
 
     // Check for unpaired phones waiting on same IP — re-evaluate pairing
     // (setTimeout(0) handles the atomic re-pair case above; for fresh connects, do it inline)
@@ -285,22 +286,17 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   }
 }
 
-function handlePairByCode(phoneClientId: string, code: string) {
-  const phone = clients.get(phoneClientId);
-  if (!phone || phone.role !== 'phone') return;
+function handlePairByCode(clientId: string, code: string) {
+  const client = clients.get(clientId);
+  if (!client || client.role !== 'phone') return;
 
-  const laptopClientId = pairingCodes.get(code);
-  if (!laptopClientId) {
-    console.log(`[relay] pair-by-code: no laptop found for code ${code}`);
-    return;
-  }
-  const laptop = clients.get(laptopClientId);
-  if (!laptop || laptop.partnerId) {
-    console.log(`[relay] pair-by-code: laptop ${laptopClientId.slice(0,8)} not available`);
-    return;
-  }
+  const laptopId = pairingCodes.get(code);
+  if (!laptopId) return;
 
-  pairClients(phoneClientId, laptopClientId);
+  const laptop = clients.get(laptopId);
+  if (!laptop || laptop.partnerId) return;
+
+  pairClients(clientId, laptopId);
 }
 
 function handlePairRequest(clientId: string, targetId: string) {
@@ -426,13 +422,13 @@ function handleDisconnect(clientId: string) {
     }
   }
 
+  // Clean up pairing code
+  releasePairingCode(clientId);
+
   // Clean up device connection tracking
   if (client.deviceId && deviceConnections.get(client.deviceId) === clientId) {
     deviceConnections.delete(client.deviceId);
   }
-
-  // Release pairing code
-  releasePairingCode(clientId);
 
   // Remove from IP group
   const group = ipGroups.get(publicIp);
