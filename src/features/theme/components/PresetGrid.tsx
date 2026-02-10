@@ -108,6 +108,15 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     }
   }, [showKeyboardHint, boldCount, animPhase]);
 
+  // During powerscramble, each keystroke randomizes the theme — select rand and pulse
+  useEffect(() => {
+    if (!superscramble || !scrambleSeed) return;
+    const randIndex = presets.length + customPresets.length + liveSlotCount;
+    setActivePresetIndex(randIndex);
+    setIsLiveActive(false);
+    setPulseKey(k => k + 1);
+  }, [scrambleSeed]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Note: activePresetIndex persists across settings open/close because PresetGrid
   // unmounts when settings closes, so any clearing code here never runs.
   // This is intentional - user expects their selection to persist.

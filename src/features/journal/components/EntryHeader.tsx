@@ -16,9 +16,10 @@ interface EntryHeaderProps {
   onHeightChange?: (height: number) => void;
   saveTitle?: (date: string, title: string) => void;
   onEditingChange?: (editing: boolean) => void;
+  editorRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange, editorRef }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -90,6 +91,17 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
     if (e.key === 'Enter') {
       e.preventDefault();
       handleTitleSave();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleTitleSave();
+      requestAnimationFrame(() => {
+        if (editorRef?.current) {
+          editorRef.current.focus();
+          const len = editorRef.current.value.length;
+          editorRef.current.selectionStart = len;
+          editorRef.current.selectionEnd = len;
+        }
+      });
     } else if (e.key === 'Escape') {
       setIsEditingTitle(false);
     }
@@ -213,9 +225,10 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
           <h2
             className="text-lg font-extrabold font-mono overflow-hidden text-ellipsis whitespace-nowrap flex-1 mr-2"
             style={{ color: getColor() }}
-            onClick={saveTitle ? handleDateClick : undefined}
           >
-            {entry?.title ? (isScrambled || superscramble ? scrambleText(entry.title) : entry.title) : s(dateText)}
+            <span onClick={saveTitle ? handleDateClick : undefined}>
+              {entry?.title ? (isScrambled || superscramble ? scrambleText(entry.title) : entry.title) : s(dateText)}
+            </span>
           </h2>
         )}
         <p className="font-extrabold font-mono whitespace-nowrap flex-shrink-0" style={{ color: getColor(), fontSize: '14px' }}>

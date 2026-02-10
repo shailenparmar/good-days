@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Heart, Eye, EyeOff } from 'lucide-react';
 
 // Feature imports
@@ -111,10 +111,19 @@ function AppContent() {
 
   const { getColor, bgHue, bgSaturation, bgLightness, hue, saturation, lightness, trackCurrentColorway, randomizeTheme } = theme;
 
-  // Sync global scramble seed for consistent rendering
+  // Ref tracks the actual seed value so we can bump + sync the global in one call
+  const scrambleSeedRef = useRef(scrambleSeed);
+  const bumpScrambleSeed = useCallback((seed?: number) => {
+    const next = seed ?? scrambleSeedRef.current + 1;
+    scrambleSeedRef.current = next;
+    updateGlobalScrambleSeed(next);
+    setScrambleSeed(next);
+  }, []);
+
+  // Re-randomize scramble on every toggle-on
   useEffect(() => {
-    updateGlobalScrambleSeed(scrambleSeed);
-  }, [scrambleSeed]);
+    if (layout.isScrambled) bumpScrambleSeed(Date.now());
+  }, [layout.isScrambled, bumpScrambleSeed]);
 
   // Log app load (once on mount)
   useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
@@ -253,9 +262,11 @@ function AppContent() {
     journal.setCurrentContent(htmlToText(content));
     journal.saveEntry(content, Date.now());
 
+    if (layout.isScrambled) {
+      bumpScrambleSeed();
+    }
     if (layout.isSuperscramble) {
       randomizeTheme();
-      setScrambleSeed(s => s + 1);
     }
   };
 
@@ -273,7 +284,8 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+    <div className="flex h-screen wco-app-container" style={{ backgroundColor: `hsl(${bgHue}, ${bgSaturation}%, ${bgLightness}%)` }}>
+      <div className="wco-drag-region" />
       <WebSyncBridge />
       {/* Global styles */}
       <style>
@@ -480,6 +492,7 @@ function AppContent() {
             }}
             onHeightChange={layout.setEntryHeaderHeight}
             onEditingChange={setTitleEditing}
+            editorRef={editorRef}
           />
         )}
 

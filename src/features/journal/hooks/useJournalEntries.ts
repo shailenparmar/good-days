@@ -259,15 +259,29 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   const saveTitle = useCallback((date: string, title: string) => {
     setEntries(prevEntries => {
       const existingIndex = prevEntries.findIndex(e => e.date === date);
-      if (existingIndex < 0) return prevEntries;
+      const now = Date.now();
+      let newEntries: JournalEntry[];
+      let updatedEntry: JournalEntry;
 
-      const newEntries = [...prevEntries];
-      const updatedEntry = {
-        ...newEntries[existingIndex],
-        title: title.trim() || undefined, // Remove title if empty
-        lastModified: Date.now(), // Update timestamp so merge prefers this version
-      };
-      newEntries[existingIndex] = updatedEntry;
+      if (existingIndex >= 0) {
+        newEntries = [...prevEntries];
+        updatedEntry = {
+          ...newEntries[existingIndex],
+          title: title.trim() || undefined,
+          lastModified: now,
+        };
+        newEntries[existingIndex] = updatedEntry;
+      } else {
+        // Entry doesn't exist yet (e.g. brand new user, no entries at all)
+        updatedEntry = {
+          date,
+          content: '',
+          title: title.trim() || undefined,
+          startedAt: now,
+          lastModified: now,
+        };
+        newEntries = [...prevEntries, updatedEntry].sort((a, b) => b.date.localeCompare(a.date));
+      }
 
       // Save only the changed entry (safe for multi-tab)
       saveSingleEntry(updatedEntry);
