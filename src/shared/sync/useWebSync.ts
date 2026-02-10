@@ -212,7 +212,17 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         hiddenAtRef.current = Date.now();
         return;
       }
-      if (document.visibilityState !== 'visible' || dormantRef.current) return;
+      if (document.visibilityState !== 'visible') return;
+
+      // Dormant tab (superseded by another tab) wakes up when user switches back.
+      // Clear dormant flag and reconnect — relay will supersede the other tab.
+      if (dormantRef.current) {
+        console.log('[ws-sync] dormant tab became visible, reclaiming connection');
+        dormantRef.current = false;
+        backoffRef.current = 1000;
+        connect();
+        return;
+      }
 
       const stale = Date.now() - lastWsActivityRef.current > 45_000;
       const dead = !wsRef.current || wsRef.current.readyState > WebSocket.OPEN;
