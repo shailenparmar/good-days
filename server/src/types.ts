@@ -28,6 +28,7 @@ export type ServerMessage =
   | { type: 'enter-code' }
   | { type: 'unpaired'; reason: string }
   | { type: 'candidates'; laptops: Array<{ id: string; connectedAgo: number }> }
+  | { type: 'code-visible'; visible: boolean }
 
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }

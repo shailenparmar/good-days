@@ -109,7 +109,7 @@ function AppContent() {
   const [scrambleSeed, setScrambleSeed] = useState(0);
   const [titleEditing, setTitleEditing] = useState(false);
 
-  const { getColor, trackCurrentColorway, randomizeTheme, pairingCode, isLiveActive } = theme;
+  const { getColor, trackCurrentColorway, randomizeTheme, pairingCode } = theme;
 
   // Ref tracks the actual seed value so we can bump + sync the global in one call
   const scrambleSeedRef = useRef(scrambleSeed);
@@ -342,8 +342,8 @@ function AppContent() {
           <div className="p-4" ref={layout.titleRef}>
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {layout.isSuperscramble
-                ? scrambleText(layout.titleHovered ? ((!isLiveActive && pairingCode) || `good days v${VERSION}`) : 'good days')
-                : (layout.titleHovered ? ((!isLiveActive && pairingCode) || `good days v${VERSION}`) : 'good days')}
+                ? scrambleText(layout.titleHovered ? (pairingCode || `good days v${VERSION}`) : 'good days')
+                : (layout.titleHovered ? (pairingCode || `good days v${VERSION}`) : 'good days')}
             </h1>
           </div>
 

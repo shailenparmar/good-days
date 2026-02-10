@@ -38,6 +38,32 @@ function releasePairingCode(clientId: string) {
   }
 }
 
+// Phones currently on the "enter code" screen (cross-IP pairing fallback)
+const phonesInCodeEntry = new Set<string>();
+
+function phoneEnterCodeEntry(phoneId: string) {
+  if (!phonesInCodeEntry.has(phoneId)) {
+    phonesInCodeEntry.add(phoneId);
+    broadcastCodeVisibility();
+  }
+}
+
+function phoneLeaveCodeEntry(phoneId: string) {
+  if (phonesInCodeEntry.has(phoneId)) {
+    phonesInCodeEntry.delete(phoneId);
+    broadcastCodeVisibility();
+  }
+}
+
+function broadcastCodeVisibility() {
+  const visible = phonesInCodeEntry.size > 0;
+  for (const [, client] of clients) {
+    if (client.role === 'laptop') {
+      send(client.ws, { type: 'code-visible', visible });
+    }
+  }
+}
+
 // Handoff grace period: when a paired laptop disconnects, delay unpairing
 // the phone so a new laptop tab/browser can claim it seamlessly.
 const handoffTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -56,6 +82,10 @@ function pairClients(id1: string, id2: string) {
 
   c1.partnerId = id2;
   c2.partnerId = id1;
+
+  // Phone leaving code-entry (if it was in it)
+  phoneLeaveCodeEntry(id1);
+  phoneLeaveCodeEntry(id2);
 
   console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)})`);
 
@@ -119,10 +149,12 @@ function notifyWatchingPhones(ip: string) {
     const laptops = getUnpairedLaptopsInGroup(ip, phoneId);
     if (laptops.length === 0) {
       send(phone.ws, { type: 'enter-code' });
+      phoneEnterCodeEntry(phoneId);
     } else if (laptops.length === 1) {
       // Auto-pair
       pairClients(phoneId, laptops[0]);
     } else {
+      phoneLeaveCodeEntry(phoneId);
       send(phone.ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
     }
   }
@@ -206,6 +238,10 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     if (code) record.pairingCode = code;
 
     send(ws, { type: 'registered', clientId, pairingCode: code });
+    // Send initial code-visible state if phones are already in code-entry
+    if (phonesInCodeEntry.size > 0) {
+      send(ws, { type: 'code-visible', visible: true });
+    }
     console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code || 'none'} clients=${clients.size}`);
 
     // Synchronous re-pair: if dedup found a phone that was paired with the old tab,
@@ -273,6 +309,7 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
       const laptopsAfter = getUnpairedLaptopsInGroup(publicIp, clientId);
       if (laptopsAfter.length === 0) {
         send(ws, { type: 'enter-code' });
+        phoneEnterCodeEntry(clientId);
       } else if (laptopsAfter.length === 1) {
         pairClients(clientId, laptopsAfter[0]);
       } else {
@@ -425,6 +462,7 @@ function handleDisconnect(clientId: string) {
             const laptops = getUnpairedLaptopsInGroup(publicIp, partnerId);
             if (laptops.length === 0) {
               send(phoneNow.ws, { type: 'enter-code' });
+              phoneEnterCodeEntry(partnerId);
             } else if (laptops.length === 1) {
               pairClients(partnerId, laptops[0]);
             } else {
@@ -441,6 +479,9 @@ function handleDisconnect(clientId: string) {
       }
     }
   }
+
+  // Phone leaving code-entry tracking
+  phoneLeaveCodeEntry(clientId);
 
   // Clean up pairing code
   releasePairingCode(clientId);

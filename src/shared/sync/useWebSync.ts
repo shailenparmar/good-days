@@ -49,6 +49,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
   const hiddenAtRef = useRef(0);
   const colorwayRef = useRef(currentColorway);
   colorwayRef.current = currentColorway;
+  const pairingCodeRef = useRef<string | null>(null);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -100,11 +101,19 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         switch (msg.type) {
           case 'registered':
             if (msg.pairingCode) {
-              setState(prev => ({ ...prev, pairingCode: msg.pairingCode ?? null }));
+              pairingCodeRef.current = msg.pairingCode;
             }
             break;
 
+          case 'code-visible':
+            setState(prev => ({
+              ...prev,
+              pairingCode: msg.visible ? pairingCodeRef.current : null,
+            }));
+            break;
+
           case 'paired':
+            pairingCodeRef.current = null;
             setState(prev => ({
               ...prev,
               pairingCode: null,
