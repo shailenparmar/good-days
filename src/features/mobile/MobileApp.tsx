@@ -35,6 +35,17 @@ export default function MobileApp() {
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
 
+  // Flickering digits for code entry title: "g00d d0ys" with random numbers
+  const [flickerDigits, setFlickerDigits] = useState([0, 0, 0]);
+  const codeScreenVisible = sync.pairingState === 'enter-code' || mockScreen === 'code';
+  useEffect(() => {
+    if (!codeScreenVisible) return;
+    const id = setInterval(() => {
+      setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
+    }, 50);
+    return () => clearInterval(id);
+  }, [codeScreenVisible]);
+
   // iOS permission state — computed synchronously to avoid first-render flash
   const [needsPermission, setNeedsPermission] = useState(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
@@ -888,7 +899,12 @@ export default function MobileApp() {
         }}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        {title}
+        <span
+          style={titleStyle}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressedPersist(true); }}
+          onTouchEnd={() => setTitlePressedPersist(false)}
+          onTouchCancel={() => setTitlePressedPersist(false)}
+        >{titlePressed ? `v${mobileVersion}` : <>g{flickerDigits[0]}{flickerDigits[1]}d d{flickerDigits[2]}ys</>}</span>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
           <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor, textAlign: 'center' }}>
