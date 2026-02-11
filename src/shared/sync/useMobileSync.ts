@@ -32,6 +32,7 @@ export interface MobileSyncHandle {
   sendColorUpdate: (colors: ColorPayload) => void;
   sendStreamState: (alpha: { side: 'text' | 'background' }, beta: { side: 'text' | 'background' } | null) => void;
   sendSave: () => void;
+  codeRejectedCount: number;
   wsRef: React.RefObject<WebSocket | null>;
   isStreamingRef: React.RefObject<boolean>;
 }
@@ -39,6 +40,8 @@ export interface MobileSyncHandle {
 export function useMobileSync(): MobileSyncHandle {
   const [pairingState, setPairingState] = useState<PairingState>('standalone');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [codeRejectedCount, setCodeRejectedCount] = useState(0);
+  const pairingStateRef = useRef<PairingState>('standalone');
 
   const wsRef = useRef<WebSocket | null>(null);
   const isStreamingRef = useRef(false);
@@ -90,22 +93,29 @@ export function useMobileSync(): MobileSyncHandle {
         console.log('[mobile-sync] received:', msg.type, msg);
         switch (msg.type) {
           case 'paired':
+            pairingStateRef.current = 'paired';
             setPairingState('paired');
             setCandidates([]);
             break;
 
           case 'unpaired':
+            pairingStateRef.current = 'standalone';
             setPairingState('standalone');
             isStreamingRef.current = false;
             break;
 
 
           case 'enter-code':
+            if (pairingStateRef.current === 'enter-code') {
+              setCodeRejectedCount(c => c + 1);
+            }
+            pairingStateRef.current = 'enter-code';
             setPairingState('enter-code');
             setCandidates([]);
             break;
 
           case 'candidates':
+            pairingStateRef.current = 'pairing';
             setPairingState('pairing');
             setCandidates(msg.laptops);
             break;
@@ -228,6 +238,7 @@ export function useMobileSync(): MobileSyncHandle {
     sendColorUpdate,
     sendStreamState,
     sendSave,
+    codeRejectedCount,
     wsRef,
     isStreamingRef,
   };
