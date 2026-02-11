@@ -36,7 +36,8 @@ export default function MobileApp() {
   const [codeBoldCount, setCodeBoldCount] = useState(0);
   const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
   const codePlaceholder = '000';
-  const showCodePlaceholder = codeInput.length === 0;
+  const [codeInputFocused, setCodeInputFocused] = useState(false);
+  const showCodePlaceholder = codeInput.length === 0 && !codeInputFocused;
   useEffect(() => {
     if (!showCodePlaceholder) return;
     if (codeBoldCount >= codePlaceholder.length) {
@@ -600,12 +601,8 @@ export default function MobileApp() {
     }
   }, [sync.pairingState]);
 
-  // Auto-focus code input when entering enter-code state
-  useEffect(() => {
-    if (sync.pairingState === 'enter-code') {
-      codeInputRef.current?.focus();
-    }
-  }, [sync.pairingState]);
+  // No auto-focus — let the 000 bold sweep placeholder show on load.
+  // User taps the input to focus, which hides the placeholder.
 
   // Triple red flash on wrong code — input clears immediately
   useEffect(() => {
@@ -971,6 +968,8 @@ export default function MobileApp() {
                   letterSpacing: '8px',
                   textIndent: '8px',
                 }}
+                onFocus={() => setCodeInputFocused(true)}
+                onBlur={() => setCodeInputFocused(false)}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
