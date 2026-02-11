@@ -330,9 +330,11 @@ if (skipBridgeRef.current) {
 
 Code: `src/shared/sync/WebSyncBridge.tsx` (bridge effect, line ~65)
 
-### Disconnect Grace Period (v2.1.0+)
+### Disconnect Grace Period (v2.1.0+, updated v2.4.15)
 
 When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GRACE_MS` (200ms) before clearing `livePreset` and `streamingControls`. This prevents the desktop from flashing back to its own colors during brief network blips. Previously 2500ms → 500ms → 200ms (v2.1.28) for snappier disconnect feedback. Total latency from phone swipe-away to live icon gone: ~300ms.
+
+**Reconnect grace (v2.4.15+):** The `registered` handler now calls `startGrace()` on every registration. This fixes a bug where force-reconnecting (visibility handler or stale-check) left `livePreset` stale because the old WS's `onclose` race guard (`wsRef.current === ws`) prevented `startGrace()` from being called. The `paired` handler cancels the grace timer if the phone is still connected (server sends `paired` synchronously after `registered` during same-device dedup). If no `paired` follows (phone is gone), the grace fires and clears live state after 200ms.
 
 ### Phone Visibility Disconnect (v2.1.4+)
 
