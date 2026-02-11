@@ -179,7 +179,7 @@ function AppContent() {
           return;
         }
 
-        if (editorRef.current) {
+        if (auth.hasPassword && editorRef.current) {
           journal.saveEntry(editorRef.current.value || '', Date.now());
         }
         auth.lock();
