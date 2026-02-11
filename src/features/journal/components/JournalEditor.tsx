@@ -31,22 +31,26 @@ interface JournalEditorProps {
   entries: JournalEntry[];
   selectedDate: string;
   isScrambled: boolean;
+  isSuperscramble?: boolean;
   onInput: (content: string) => void;
   editorRef: React.RefObject<HTMLTextAreaElement | null>;
   externalContentVersion?: number;
   onClick?: () => void;
   hidePlaceholder?: boolean;
+  scrambleSeed?: number;
 }
 
 export function JournalEditor({
   entries,
   selectedDate,
   isScrambled,
+  isSuperscramble,
   onInput,
   editorRef,
   externalContentVersion,
   onClick,
   hidePlaceholder,
+  scrambleSeed,
 }: JournalEditorProps) {
   const { getColor, getBgColor } = useTheme();
 
@@ -165,6 +169,10 @@ export function JournalEditor({
     if (isScrambled) {
       markEasterEggFound('scrambleTyping');
     }
+    // Track typing while in superscramble mode (settings + about + scramble)
+    if (isSuperscramble) {
+      markEasterEggFound('superscramble');
+    }
 
     // Check for \time command and replace with timestamp
     const lowerValue = newValue.toLowerCase();
@@ -201,7 +209,7 @@ export function JournalEditor({
 
     setValue(newValue);
     onInput(newValue);
-  }, [editorRef, isScrambled, onInput]);
+  }, [editorRef, isScrambled, isSuperscramble, onInput]);
 
   // Force plain text paste (strips any formatting or styled Unicode)
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -230,7 +238,9 @@ export function JournalEditor({
   const isToday = selectedDate === getTodayDate();
 
   // Memoize scrambled text so it doesn't re-scramble on every render
-  const scrambledValue = useMemo(() => scrambleText(value), [value]);
+  // Suppress unused variable warning - scrambleSeed is used to trigger re-scrambles
+  void scrambleSeed;
+  const scrambledValue = useMemo(() => scrambleText(value), [value, scrambleSeed]);
 
   // Placeholder visibility — hide when another input (title, password) has focus
   const showPlaceholder = isToday && !value && !isFocused && !hidePlaceholder;
