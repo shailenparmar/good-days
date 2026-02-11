@@ -96,16 +96,19 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 
 **Workflow:** User says "push [under construction]" (or any bracketed message) → set `MAINTENANCE = true` and `MESSAGE = '[under construction]'` → bump version → push. User says "take it down" → set `MAINTENANCE = false`, `MESSAGE = ''` → push.
 
-## Service Worker & Auto-Update (v2.4.7+)
+## Service Worker & Auto-Update (v2.4.7+, updated v2.4.13)
 
 `main.tsx` handles SW registration manually (`injectRegister: false` in vite-plugin-pwa config).
 
 - **Registration:** `/sw.js` with `updateViaCache: 'none'` (bypasses HTTP cache so Safari always checks)
 - **Polling:** `registration.update()` every 60s to catch deploys without navigation
+- **PWA resume check (v2.4.13+):** A `visibilitychange` listener at the SW registration level (in `main.tsx`, outside React) calls `registration.update()` when the page becomes visible after being hidden >3 seconds. This catches deploys when the PWA was frozen by the OS and the 60s polling timer was suspended. The 3-second threshold avoids unnecessary checks on quick app switches. This listener is completely independent of the WebSocket `visibilitychange` handlers in `useWebSync.ts` — they operate in different scopes (SW registration vs React hook).
 - **Auto-reload:** `controllerchange` listener reloads the page when a new SW activates via `skipWaiting`. A `refreshing` flag prevents reload loops.
 - **Workbox precache:** vite-plugin-pwa generates the SW with `skipWaiting()` + `clientsClaim()` (`registerType: 'autoUpdate'`). All JS/CSS/HTML are precached with content hashes.
 
-Flow: deploy → new sw.js has new precache manifest → browser detects change within 60s → installs new SW → `skipWaiting` activates it → `controllerchange` fires → page reloads with fresh assets.
+Flow: deploy → new sw.js has new precache manifest → browser detects change within 60s (or on PWA resume) → installs new SW → `skipWaiting` activates it → `controllerchange` fires → page reloads with fresh assets.
+
+**Cleanup (v2.4.13):** Removed dead `http-equiv` cache-control meta tags from `index.html` (browsers ignore these for actual caching — they only work as HTTP response headers). Removed manual favicon cache bust (`?v=4`) since Vite content-hashes all assets.
 
 ## Push Checklist (MANDATORY)
 
