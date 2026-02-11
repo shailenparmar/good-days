@@ -236,7 +236,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
   useEffect(() => {
     if (!isSaving) return;
 
-    const dismiss = () => {
+    const dismiss = (e: KeyboardEvent) => {
+      // Don't dismiss on Cmd+Z / Ctrl+Z — that's for preset undo, not password interaction
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey)) return;
       setIsSaving(false);
       setShowInput(false);
     };
@@ -470,6 +472,12 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
             type={isSaving ? 'text' : 'password'}
             value={isSaving ? '' : input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Block Cmd+Z / Ctrl+Z in password inputs — undo is not appropriate for password fields
+              if (e.key === 'z' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+              }
+            }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onMouseEnter={() => !isDisabled && setIsHovered(true)}

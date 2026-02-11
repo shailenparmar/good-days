@@ -34,7 +34,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const deletedPresetsStackRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom' }[]>([]);
+  const undoStackRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom'; action: 'delete' | 'edit' }[]>([]);
 
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
@@ -228,7 +228,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         setPulseKey(k => k + 1);
 
         if (activePresetIndex < presets.length) {
-          // Default preset - save current colors to it
+          // Default preset - save old colors to undo stack, then overwrite
+          undoStackRef.current.push({ preset: { ...presets[activePresetIndex] }, index: activePresetIndex, type: 'default', action: 'edit' });
           const newPresets = [...presets];
           newPresets[activePresetIndex] = {
             hue,
@@ -240,8 +241,9 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           };
           setPresets(newPresets);
         } else if (activePresetIndex < totalDefaultAndCustom) {
-          // Custom preset - save current colors to it
+          // Custom preset - save old colors to undo stack, then overwrite
           const customIndex = activePresetIndex - presets.length;
+          undoStackRef.current.push({ preset: { ...customPresets[customIndex] }, index: customIndex, type: 'custom', action: 'edit' });
           const newCustomPresets = [...customPresets];
           newCustomPresets[customIndex] = {
             hue,
@@ -287,29 +289,52 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         return;
       }
 
-      // Cmd+Z / Ctrl+Z: undo last preset deletion (supports multiple undos)
+      // Cmd+Z / Ctrl+Z: undo last preset action (delete or edit)
+      // Always preventDefault when settings is open to block native undo from affecting password inputs
       if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey && showDebugMenu) {
-        const stack = deletedPresetsStackRef.current;
-        if (stack.length === 0) return;
-        const deleted = stack.pop()!;
         e.preventDefault();
+        const stack = undoStackRef.current;
+        if (stack.length === 0) return;
+        const entry = stack.pop()!;
 
-        if (deleted.type === 'default') {
-          const newPresets = [...presets];
-          newPresets.splice(deleted.index, 0, deleted.preset);
-          setPresets(newPresets);
-          applyPreset(deleted.preset);
-          setSelectedPreset(deleted.index);
-          setSelectedCustomPreset(null);
-          setActivePresetIndex(deleted.index);
+        if (entry.action === 'delete') {
+          // Restore deleted preset at original index
+          if (entry.type === 'default') {
+            const newPresets = [...presets];
+            newPresets.splice(entry.index, 0, entry.preset);
+            setPresets(newPresets);
+            applyPreset(entry.preset);
+            setSelectedPreset(entry.index);
+            setSelectedCustomPreset(null);
+            setActivePresetIndex(entry.index);
+          } else {
+            const newCustomPresets = [...customPresets];
+            newCustomPresets.splice(entry.index, 0, entry.preset);
+            setCustomPresets(newCustomPresets);
+            applyPreset(entry.preset);
+            setSelectedPreset(null);
+            setSelectedCustomPreset(entry.index);
+            setActivePresetIndex(presets.length + entry.index);
+          }
         } else {
-          const newCustomPresets = [...customPresets];
-          newCustomPresets.splice(deleted.index, 0, deleted.preset);
-          setCustomPresets(newCustomPresets);
-          applyPreset(deleted.preset);
-          setSelectedPreset(null);
-          setSelectedCustomPreset(deleted.index);
-          setActivePresetIndex(presets.length + deleted.index);
+          // Restore edited preset's old colors
+          if (entry.type === 'default') {
+            const newPresets = [...presets];
+            newPresets[entry.index] = entry.preset;
+            setPresets(newPresets);
+            applyPreset(entry.preset);
+            setSelectedPreset(entry.index);
+            setSelectedCustomPreset(null);
+            setActivePresetIndex(entry.index);
+          } else {
+            const newCustomPresets = [...customPresets];
+            newCustomPresets[entry.index] = entry.preset;
+            setCustomPresets(newCustomPresets);
+            applyPreset(entry.preset);
+            setSelectedPreset(null);
+            setSelectedCustomPreset(entry.index);
+            setActivePresetIndex(presets.length + entry.index);
+          }
         }
 
         return;
@@ -320,7 +345,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         if (activePresetIndex !== null && activePresetIndex < presets.length) {
           // Delete default preset — save to ref for undo
           e.preventDefault();
-          deletedPresetsStackRef.current.push({ preset: presets[activePresetIndex], index: activePresetIndex, type: 'default' });
+          undoStackRef.current.push({ preset: presets[activePresetIndex], index: activePresetIndex, type: 'default', action: 'delete' });
           const newPresets = presets.filter((_, i) => i !== activePresetIndex);
           setPresets(newPresets);
           // Move to next available preset or stay at end
@@ -340,7 +365,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           // Delete custom preset — save to ref for undo
           e.preventDefault();
           const customIndex = activePresetIndex - presets.length;
-          deletedPresetsStackRef.current.push({ preset: customPresets[customIndex], index: customIndex, type: 'custom' });
+          undoStackRef.current.push({ preset: customPresets[customIndex], index: customIndex, type: 'custom', action: 'delete' });
           deleteCustomPreset(customIndex);
         }
       }
@@ -357,7 +382,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const wasActive = activePresetIndex === index;
 
     if (wasActive) {
-      // Already pulsing - save current colors to this preset
+      // Already pulsing - save old colors to undo stack, then overwrite
+      undoStackRef.current.push({ preset: { ...preset }, index, type: 'default', action: 'edit' });
       setPulseKey(k => k + 1);
       const newPresets = [...presets];
       newPresets[index] = {
@@ -385,6 +411,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const wasActive = activePresetIndex === (presets.length + index);
 
     if (wasActive) {
+      // Save old colors to undo stack, then overwrite
+      undoStackRef.current.push({ preset: { ...preset }, index, type: 'custom', action: 'edit' });
       setPulseKey(k => k + 1);
       const newCustomPresets = [...customPresets];
       newCustomPresets[index] = {
