@@ -11,9 +11,10 @@ const deviceConnections = new Map<string, string>();
 // 3-digit pairing code → clientId: for cross-network code-based pairing
 const pairingCodes = new Map<string, string>();
 
-function assignPairingCode(clientId: string): string {
-  // Derive a 3-digit code from clientId (new UUID per connection = new code each session)
-  let code = parseInt(clientId.slice(0, 6), 16) % 1000;
+function assignPairingCode(clientId: string, deviceId?: string): string {
+  // Derive code from deviceId (stable across reconnections) if available, otherwise clientId
+  const seed = deviceId || clientId;
+  let code = parseInt(seed.slice(0, 6), 16) % 1000;
   for (let i = 0; i < 1000; i++) {
     const padded = String(code).padStart(3, '0');
     const existing = pairingCodes.get(padded);
@@ -234,8 +235,8 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   ipGroups.get(publicIp)!.add(clientId);
 
   if (role === 'laptop') {
-    // Assign a 3-digit pairing code (new each session since clientId is fresh per connection)
-    const code = assignPairingCode(clientId);
+    // Assign a 3-digit pairing code (stable per device — derived from deviceId)
+    const code = assignPairingCode(clientId, deviceId);
     record.pairingCode = code;
 
     send(ws, { type: 'registered', clientId, pairingCode: code });

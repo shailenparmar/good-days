@@ -396,7 +396,7 @@ On candidates picker and code-entry screen, "skip" closes the WebSocket and ente
 
 ### Pairing Code Fallback (v2.4.0+, updated v2.4.14)
 
-When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `clientId` (v2.4.14+, was `deviceId` before): `parseInt(clientId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free. Since `clientId` is a fresh UUID per connection, the code rotates each session (reconnect, tab switch, page refresh).
+When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `deviceId` (v2.4.24+, was `clientId` in v2.4.14): `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free. Since `deviceId` persists in localStorage, the same browser always gets the same code regardless of reconnections, tab switches, or page refreshes. Falls back to `clientId` if `deviceId` is unavailable.
 
 **Desktop (v2.4.17+):** Title shows the 3-digit pairing code by default (no hover needed) when a phone is actively on the "enter your desktop code" screen. When no phone is looking, title shows "good days" normally. On hover, title always shows "good days v{VERSION}" regardless of pairing state. The code is never visible during normal use, live mode, or when no phone is actively trying to pair via code.
 
@@ -419,7 +419,7 @@ When phone and desktop are on different networks (different IPs), IP-based auto-
 
 **Relay error handling (v2.4.8+):** `handlePairByCode` now logs all exit paths (code not found, laptop disconnected, laptop already paired) and sends `enter-code` back to the phone on failure. This gives the phone a signal that the attempt failed (the enter-code re-receipt is harmless if already in that state).
 
-**Code lifecycle:** Assigned on laptop register (new code each session since `clientId` is fresh per connection, v2.4.14+), stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Desktop state driven by `code-visible` messages from relay (only sent to unpaired laptops, v2.4.14+).
+**Code lifecycle:** Assigned on laptop register (stable per device since derived from `deviceId`, v2.4.24+), stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Same `deviceId` on reconnect gets the same code (old code released first, then reassigned). Desktop state driven by `code-visible` messages from relay (only sent to unpaired laptops, v2.4.14+).
 
 Code: `assignPairingCode()`, `pairingCodes` Map, `phonesInCodeEntry` Set, `phoneEnterCodeEntry()`/`phoneLeaveCodeEntry()`/`broadcastCodeVisibility()` in `relay.ts`. `pairingCodeRef` + `code-visible` handler in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
 
