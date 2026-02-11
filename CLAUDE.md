@@ -481,12 +481,13 @@ When 0 desktops on same IP, phone shows code entry:
 - iOS keyboard naturally pushes "good days" title off screen (accepted behavior)
 - Sends `pair-by-code` to relay, which looks up code in `pairingCodes` Map
 
-**Code rejection UX (v2.4.20+):**
+**Code rejection UX (v2.4.20+, updated v2.4.24):**
 - Cursor hidden after 3 digits (`caretColor: transparent` when `codeInput.length >= 3`)
 - On server rejection: `codeRejectedCount` incremented in `useMobileSync.ts` (detects `enter-code` received while already in `enter-code` state)
-- Input clears instantly, 3 red dashes "---" overlay in `errorColor` with red border flash for 1.5s
+- Input clears instantly, border does a triple red flash matching LockScreen pattern: `errorColor` at 0ms → none at 80ms → `errorColor` at 160ms → none at 240ms → `errorColor` at 320ms → none at 400ms
+- `errorColor` is dynamic (from `getStatusColors()`), not hardcoded — adapts to current theme colors
 - Input stays focused throughout — user can immediately type next attempt
-- Overlay uses `pointerEvents: 'none'` so input captures keystrokes through it
+- Typing during flash cancels it (resets `codeFlash` to `'none'`)
 
 Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`, `codeRejectedCount` in `useMobileSync.ts`.
 
