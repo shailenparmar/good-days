@@ -115,7 +115,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               onMouseLeave={() => setLinkHovered(false)}
             >
               <ExternalLink className="w-4 h-4" />
-              {s("GitHub")}
+              {s("github")}
             </a>
           </p>
         </div>
