@@ -16,10 +16,11 @@ interface EntryHeaderProps {
   onHeightChange?: (height: number) => void;
   saveTitle?: (date: string, title: string) => void;
   onEditingChange?: (editing: boolean) => void;
+  onTitleInput?: () => void;
   editorRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange, editorRef }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange, onTitleInput, editorRef }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -132,7 +133,9 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
         }
       });
     } else if (e.key === 'Escape') {
-      e.stopPropagation();
+      if (!isScrambled && !superscramble) {
+        e.stopPropagation();
+      }
       handleTitleSave();
     }
   };
@@ -227,7 +230,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
             <input
               ref={titleInputRef}
               value={titleInput}
-              onChange={(e) => setTitleInput(e.target.value)}
+              onChange={(e) => { setTitleInput(e.target.value); onTitleInput?.(); }}
               onBlur={handleTitleSave}
               onKeyDown={handleTitleKeyDown}
               onClick={(e) => e.stopPropagation()}
