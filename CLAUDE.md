@@ -368,6 +368,30 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 
 Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` in `useWebSync.ts`.
 
+### Pairing Logic Framework (v2.4.14+)
+
+**Same wifi = matched automatically. Different wifi = 3-digit code.** Everything else is resolving edge cases within those two buckets.
+
+#### Same Wifi
+
+- **1 laptop, 1 phone → auto-pair.** Phone opens, finds laptop on same network, paired instantly. No screen, no interaction.
+- **2+ laptops, 1 phone → "which one is yours?"** Phone shows a picker with "refreshed Xs ago" timestamps. Tap one → paired. If one laptop disconnects and only 1 remains → auto-pairs automatically (process of elimination). If ALL disconnect → falls through to 3-digit code.
+- **1 laptop, 2+ phones → last phone wins.** New phone evicts the old phone from the laptop. Physical phone in hand always wins over a stale session.
+
+#### Different Wifi
+
+- **Phone can't find any laptops on its network → 3-digit code.** Phone shows "enter your desktop code." Laptop shows its code on title hover. Code is random each session (new on every reconnect). Code only shows on the laptop when a phone is actively looking for it, and only on unpaired laptops.
+
+#### Disconnection / Reconnection
+
+- **Phone backgrounds → desktop exits live mode (~300ms).** Phone comes back → reconnects → same pairing logic runs fresh.
+- **Laptop closes/refreshes → 3s grace period.** Relay holds the phone's pairing. Laptop returns within 3s → seamlessly re-paired, phone never notices. After 3s → phone re-evaluates (auto-pair if 1 laptop, candidates if 2+, code if 0).
+- **Laptop tab switch (same browser) → instant handoff.** New tab supersedes old tab atomically. Phone re-paired with new tab, stream state replayed. Old tab goes dormant. Switch back → reclaims connection, same atomic handoff.
+
+#### "Don't Connect" Bypass
+
+On candidates picker and code-entry screen, "don't connect" closes the WebSocket and enters standalone mode. Background + foreground clears the skip and reconnects fresh. Only appears when there's ambiguity (2+ laptops) or no match (0 on same wifi). Auto-pair (1 laptop) happens before any screen is shown.
+
 ### Pairing Code Fallback (v2.4.0+, updated v2.4.14)
 
 When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `clientId` (v2.4.14+, was `deviceId` before): `parseInt(clientId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free. Since `clientId` is a fresh UUID per connection, the code rotates each session (reconnect, tab switch, page refresh).
