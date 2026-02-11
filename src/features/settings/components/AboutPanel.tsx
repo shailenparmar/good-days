@@ -26,6 +26,15 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
 
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
+
+  // Render text with *word* as italic
+  const renderWithEmphasis = (text: string) => {
+    const parts = text.split(/\*([^*]+)\*/g);
+    if (parts.length === 1) return s(text);
+    return parts.map((part, i) =>
+      i % 2 === 1 ? <em key={i}>{s(part)}</em> : s(part)
+    );
+  };
   const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [linkHovered, setLinkHovered] = useState(false);
   const { confirm: confirmColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
@@ -117,7 +126,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>{s(ABOUT_COPY.features.header)}</p>
           {ABOUT_COPY.features.paragraphs.map((p, i) => (
-            <p key={i}>{s(p)}</p>
+            <p key={i}>{renderWithEmphasis(p)}</p>
           ))}
         </div>
       </div>
