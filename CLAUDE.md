@@ -611,6 +611,8 @@ The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle
 
 The about page copy and `README.md` are architecturally linked via `src/shared/copy/aboutCopy.ts`. `AboutPanel.tsx` imports from it; `scripts/generate-readme.ts` generates `README.md` from it. To update the about copy, edit `aboutCopy.ts` then run `npm run generate-readme` to regenerate the README.
 
+**Inline emphasis (v2.4.17+):** `aboutCopy.ts` supports `*word*` syntax for italic text. `AboutPanel.tsx` has a `renderWithEmphasis()` helper that splits on `*...*` and wraps matches in `<em>`. Currently used in features paragraphs (`settings *and* about`). The scramble function `s()` is applied per-segment so superscramble still works.
+
 ## Storage Architecture
 
 Journal entries are stored in **IndexedDB** (with localStorage fallback).
