@@ -20,6 +20,17 @@ if ('serviceWorker' in navigator) {
     }).then(registration => {
       // Poll for SW updates every 60s (catches deploys without requiring navigation)
       setInterval(() => registration.update(), 60 * 1000)
+
+      // Check for SW updates when PWA resumes from background
+      let hiddenAt = 0
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          hiddenAt = Date.now()
+        } else if (document.visibilityState === 'visible' && hiddenAt > 0 && Date.now() - hiddenAt > 3000) {
+          hiddenAt = 0
+          registration.update()
+        }
+      })
     })
   })
 }
