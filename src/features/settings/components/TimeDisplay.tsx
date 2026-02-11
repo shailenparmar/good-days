@@ -96,6 +96,7 @@ export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDispla
   const handleFormatChange = (is24Hour: boolean) => {
     setUse24Hour(is24Hour);
     setItem('timeFormat', is24Hour ? '24h' : '12h');
+    window.dispatchEvent(new Event('timeFormatChange'));
   };
 
   const time12 = currentTime.toLocaleTimeString('en-US', {

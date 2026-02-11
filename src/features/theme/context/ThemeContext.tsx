@@ -105,6 +105,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setSelectedCustomPreset(null);
   };
 
+  // Combined setLivePreset + applyPreset for streaming hot path.
+  // All 7 state setters fire in one synchronous call → React batches into 1 render.
+  const applyLivePreset = (preset: ColorPreset) => {
+    setLivePreset(preset);
+    setHue(preset.hue);
+    setSaturation(preset.sat);
+    setLightness(preset.light);
+    setBgHue(preset.bgHue);
+    setBgSaturation(preset.bgSat);
+    setBgLightness(preset.bgLight);
+  };
+
   const colorwayOnSettingsOpen = useRef<string>('');
   const hasLoadedFromStorage = useRef(false);
 
@@ -392,6 +404,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setStreamingControls,
     setPairingCode,
     saveLivePreset,
+    applyLivePreset,
     localDragRef,
     setLocalDragging,
   };

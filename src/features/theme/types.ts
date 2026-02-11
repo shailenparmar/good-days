@@ -71,6 +71,7 @@ export interface LiveSyncActions {
   setStreamingControls: (controls: StreamingControls | null) => void;
   setPairingCode: (code: string | null) => void;
   saveLivePreset: () => void;
+  applyLivePreset: (preset: ColorPreset) => void;
   localDragRef: React.RefObject<boolean>;
   setLocalDragging: (dragging: boolean) => void;
 }

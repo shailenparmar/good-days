@@ -43,10 +43,11 @@ export function WebSyncBridge() {
           hue: c.hue, sat: c.sat, light: c.light,
           bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
         };
-        t.setLivePreset(preset);
-        // Skip applyPreset during local desktop drag to prevent flicker
-        if (!t.localDragRef.current) {
-          t.applyPreset(preset);
+        // Skip color apply during local desktop drag to prevent flicker
+        if (t.localDragRef.current) {
+          t.setLivePreset(preset);
+        } else {
+          t.applyLivePreset(preset);
         }
       });
     }

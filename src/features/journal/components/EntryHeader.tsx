@@ -164,10 +164,10 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
   useEffect(() => {
     const handleStorage = () => setUse24Hour(getItem('timeFormat') === '24h');
     window.addEventListener('storage', handleStorage);
-    const interval = setInterval(handleStorage, 100); // Poll for same-tab changes
+    window.addEventListener('timeFormatChange', handleStorage);
     return () => {
       window.removeEventListener('storage', handleStorage);
-      clearInterval(interval);
+      window.removeEventListener('timeFormatChange', handleStorage);
     };
   }, []);
 
