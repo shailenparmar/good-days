@@ -117,20 +117,24 @@ When settings is open, presets can be controlled with the keyboard:
 | Arrow keys | Navigate between presets (auto-applies on move) |
 | Space / Enter | Save current colors to the active preset |
 | Backspace / Delete | Delete the active preset |
-| Cmd+Z / Ctrl+Z | Undo last preset deletion |
+| Cmd+Z / Ctrl+Z | Undo last preset deletion or edit |
 
-#### Preset Deletion Undo (multi-level, v2.3.29+)
+#### Preset Undo (multi-level, v2.3.29+, expanded v2.4.37)
 
-Multi-level undo for preset deletion. A `deletedPresetsStackRef` (array) in `PresetGrid.tsx` stores all deleted presets' data (colors, array index, type). Each Cmd+Z / Ctrl+Z pops the most recent deletion and splices it back at its original index.
+Multi-level undo for preset deletions AND edits. An `undoStackRef` (array) in `PresetGrid.tsx` stores undo entries with `action: 'delete' | 'edit'`. Each Cmd+Z / Ctrl+Z pops the most recent action: deletions are spliced back at their original index, edits restore the old colors to the preset at that index.
 
 | Scenario | Behavior |
 |----------|----------|
 | Delete 3, then Cmd+Z 3 times | All three restored in reverse order |
+| Edit preset, Cmd+Z | Old colors restored to that preset |
+| Mix of deletes and edits, Cmd+Z | Undone in reverse order regardless of type |
 | Close settings, reopen, Cmd+Z | No undo (ref cleared on unmount) |
-| Cmd+Z with nothing deleted | No-op |
+| Cmd+Z with nothing to undo | No-op (but still `preventDefault`s to block native undo) |
 | Cmd+Z while typing in editor | Browser native undo (handler skips input/textarea/contentEditable) |
 
 **No conflict with editor Cmd+Z:** The handler runs in capture phase but has an early return for input/textarea/contentEditable elements, so editor undo works normally.
+
+**No conflict with password inputs (v2.4.37+):** Cmd+Z is blocked from interacting with password fields at three levels: (1) `onKeyDown` on the password `<input>` calls `preventDefault`, (2) the "saved" dismiss handler in PasswordSettings ignores Cmd+Z, (3) the preset undo handler always calls `preventDefault` when settings is open (even with empty stack) to block native undo from reaching any input.
 
 #### Editor Auto-Focus & Date Switch (v1.10.23+)
 
