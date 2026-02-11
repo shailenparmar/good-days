@@ -39,9 +39,15 @@ export default function MobileApp() {
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
 
-  // iOS permission state
-  const [needsPermission, setNeedsPermission] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  // iOS permission state — computed synchronously to avoid first-render flash
+  const [needsPermission, setNeedsPermission] = useState(() => {
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    return typeof DOE.requestPermission === 'function';
+  });
+  const [permissionGranted, setPermissionGranted] = useState(() => {
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    return typeof DOE.requestPermission !== 'function';
+  });
 
   // Refs
   const baseline = useRef({ beta: 0, gamma: 0 });
@@ -134,16 +140,6 @@ export default function MobileApp() {
     const prevent = (e: Event) => e.preventDefault();
     document.addEventListener('contextmenu', prevent);
     return () => document.removeEventListener('contextmenu', prevent);
-  }, []);
-
-  // Check iOS permission
-  useEffect(() => {
-    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-    if (typeof DOE.requestPermission === 'function') {
-      setNeedsPermission(true);
-    } else {
-      setPermissionGranted(true);
-    }
   }, []);
 
   // Request permission
