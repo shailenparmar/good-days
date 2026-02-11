@@ -37,14 +37,6 @@ export default function MobileApp() {
 
   // Flickering digits for code entry title: "g00d d0ys" with random numbers
   const [flickerDigits, setFlickerDigits] = useState([0, 0, 0]);
-  const codeScreenVisible = sync.pairingState === 'enter-code' || mockScreen === 'code';
-  useEffect(() => {
-    if (!codeScreenVisible) return;
-    const id = setInterval(() => {
-      setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
-    }, 50);
-    return () => clearInterval(id);
-  }, [codeScreenVisible]);
 
   // iOS permission state — computed synchronously to avoid first-render flash
   const [needsPermission, setNeedsPermission] = useState(() => {
@@ -81,6 +73,16 @@ export default function MobileApp() {
   // WebSocket live sync
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
+
+  // Flickering digits effect — runs when code entry screen is visible
+  const codeScreenVisible = sync.pairingState === 'enter-code' || mockScreen === 'code';
+  useEffect(() => {
+    if (!codeScreenVisible) return;
+    const id = setInterval(() => {
+      setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
+    }, 50);
+    return () => clearInterval(id);
+  }, [codeScreenVisible]);
 
   // Throttled WS color update (16ms = ~60fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
