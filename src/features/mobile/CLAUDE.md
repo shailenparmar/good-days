@@ -63,8 +63,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │   enter your desktop code      │  ← 20px monospace bold
 │                                │
 │         ┌─────┐                │
-│         │ _ _ _│               │  ← 3-digit input, 48px mono
-│         └─────┘                │     autoFocus, 4px border
+│         │ 0 0 0│               │  ← 3-digit input, 48px mono
+│         └─────┘                │     bold sweep "000" placeholder (v2.4.39+)
 │                                │
 │         ─────────              │  ← 2px divider
 │          skip                  │  ← aux button
@@ -74,7 +74,11 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 The candidates picker ("which one is yours?") was removed in v2.4.27. All ambiguous cases (2+ laptops or 0 on same IP) now show the code entry screen. Auto-pair (1 laptop) still happens without any screen.
 
-**Flickering title (v2.4.31+):** The code entry screen title shows "g##d d#ys" where the three digit positions rapidly cycle through random 0-9 digits every 50ms. The effect runs via `setInterval` only when the code entry screen is visible (cleanup on hide). Hold-to-show-version still works. The other screens (home, picker, permission) still show "good days".
+**Flickering title (v2.4.31+):** The code entry screen (aka "pairing screen") title shows "g##d d#ys" where the three digit positions rapidly cycle through random 0-9 digits every 25ms. The effect runs via `setInterval` only when the pairing screen is visible (cleanup on hide). Hold-to-show-version still works. The other screens (home, picker, permission) still show "good days".
+
+**Bold sweep placeholder (v2.4.39+):** When the code input is empty, an overlay shows "000" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
+
+**False red flash fix (v2.4.39+):** `pairingStateRef` in `useMobileSync.ts` is reset to `'standalone'` on every new WS connection (`onopen`). Previously, reconnecting while already in `enter-code` state caused the relay's initial `enter-code` message to be misinterpreted as a code rejection, triggering the triple red flash on open.
 
 ### Layout Centering & Square Sizing (v1.10.17+)
 
