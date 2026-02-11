@@ -103,6 +103,9 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             if (msg.pairingCode) {
               pairingCodeRef.current = msg.pairingCode;
             }
+            // Clear stale live state on reconnect. If the phone is still
+            // paired, `paired` arrives right after and cancels this grace.
+            startGrace();
             break;
 
           case 'code-visible':
@@ -113,6 +116,10 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             break;
 
           case 'paired':
+            if (graceTimer.current) {
+              clearTimeout(graceTimer.current);
+              graceTimer.current = null;
+            }
             setState(prev => ({
               ...prev,
               pairingCode: null,
