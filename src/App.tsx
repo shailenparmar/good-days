@@ -177,28 +177,56 @@ function AppContent() {
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        // Narrow mode — existing behavior unchanged
+        // Narrow mode bounce cycle — same principle as wide mode
+        // Mapping: sidebar visible = base, default (no sidebar) = minizen, zen = zen
         if (layout.isNarrow) {
-          if (layout.zenModeRef.current) {
-            layout.exitZen();
-            return;
-          }
-
+          // Panels → close panels, show sidebar (base), reset cycle
           if (layout.showDebugMenu || layout.showAboutPanel) {
             layout.closePanels();
-            return;
-          }
-
-          if (!layout.showSidebarInNarrow) {
+            layout.setZenMode(false);
             layout.setShowSidebarInNarrow(true);
+            layout.setPreFocusState(null);
+            layout.setZenFromMinizen(false);
             layout.setPreNarrowState(null);
+            escVisitedZenRef.current = false;
             return;
           }
 
-          if (auth.hasPassword && editorRef.current) {
-            journal.saveEntry(editorRef.current.value || '', Date.now());
+          // Zen → default (no sidebar), mark visited
+          if (layout.zenModeRef.current) {
+            layout.setZenMode(false);
+            layout.setShowSidebarInNarrow(false);
+            layout.setPreFocusState(null);
+            layout.setZenFromMinizen(false);
+            escVisitedZenRef.current = true;
+            return;
           }
-          auth.lock();
+
+          // Default (no sidebar) = narrow's "minizen"
+          if (!layout.showSidebarInNarrow) {
+            if (escVisitedZenRef.current) {
+              layout.setShowSidebarInNarrow(true); // → sidebar (coming down)
+              layout.setPreNarrowState(null);
+            } else {
+              layout.setZenMode(true); // → zen (going up)
+            }
+            return;
+          }
+
+          // Sidebar visible = narrow's "base" — lock or restart
+          if (escVisitedZenRef.current) {
+            if (auth.hasPassword) {
+              if (editorRef.current) {
+                journal.saveEntry(editorRef.current.value || '', Date.now());
+              }
+              auth.lock();
+            } else {
+              layout.setShowSidebarInNarrow(false);
+              escVisitedZenRef.current = false; // restart cycle
+            }
+          } else {
+            layout.setShowSidebarInNarrow(false); // → default (go up first)
+          }
           return;
         }
 
