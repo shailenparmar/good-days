@@ -149,6 +149,11 @@ function AppContent() {
       if (e.key === 'Escape' && !auth.isLocked) {
         if (e.defaultPrevented) return;
 
+        if (layout.isScrambled) {
+          layout.setIsScrambled(false);
+          return;
+        }
+
         if (layout.zenModeRef.current) {
           layout.exitZen();
           return;
@@ -342,8 +347,8 @@ function AppContent() {
           <div className="p-4" ref={layout.titleRef}>
             <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
               {layout.isSuperscramble
-                ? scrambleText(layout.titleHovered ? (pairingCode || `good days v${VERSION}`) : 'good days')
-                : (layout.titleHovered ? (pairingCode || `good days v${VERSION}`) : 'good days')}
+                ? scrambleText(layout.titleHovered ? `good days v${VERSION}` : (pairingCode || 'good days'))
+                : (layout.titleHovered ? `good days v${VERSION}` : (pairingCode || 'good days'))}
             </h1>
           </div>
 
@@ -490,6 +495,10 @@ function AppContent() {
             }}
             onHeightChange={layout.setEntryHeaderHeight}
             onEditingChange={setTitleEditing}
+            onTitleInput={() => {
+              if (layout.isScrambled) bumpScrambleSeed();
+              if (layout.isSuperscramble) randomizeTheme();
+            }}
             editorRef={editorRef}
           />
         )}
