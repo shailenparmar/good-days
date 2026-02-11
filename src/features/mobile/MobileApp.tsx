@@ -100,15 +100,15 @@ export default function MobileApp() {
     if (!codeScreenVisible) return;
     const id = setInterval(() => {
       setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
-    }, 25);
+    }, 21);
     return () => clearInterval(id);
   }, [codeScreenVisible]);
 
-  // Throttled WS color update (16ms = ~60fps)
+  // Throttled WS color update (21ms = ~48fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
     if (!sync.isStreamingRef.current || sync.wsRef.current?.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
-    if (now - lastWsSendRef.current >= 16) {
+    if (now - lastWsSendRef.current >= 21) {
       lastWsSendRef.current = now;
       sync.sendColorUpdate(next);
     }
