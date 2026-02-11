@@ -80,7 +80,7 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 - Untitled entries show the date normally
 - Title editing is header-only — sidebar is display-only
 - **Scramble support (v2.3.35+):** Titles (user content) are scrambled in regular scramble mode. Dates are NOT scrambled (structural, not content). In superscramble, everything scrambles as before.
-- **Scramble re-randomize (v2.3.38+):** Every toggle-on produces a fresh scramble (`bumpScrambleSeed(Date.now())`). Typing while scrambled also re-randomizes titles in the header and sidebar on every keystroke (matching the editor overlay behavior). `bumpScrambleSeed()` in `App.tsx` sets both the module-level `globalScrambleSeed` and React state synchronously — avoids the stale-global-during-render bug that an effect-only sync had.
+- **Scramble re-randomize (v2.3.38+, fixed v2.4.18):** Every toggle-on produces a fresh scramble (`bumpScrambleSeed(Date.now())`). Typing while scrambled also re-randomizes titles in the header and sidebar on every keystroke (matching the editor overlay behavior). `bumpScrambleSeed()` in `App.tsx` sets both the module-level `globalScrambleSeed` and React state synchronously — avoids the stale-global-during-render bug that an effect-only sync had. **Title input (v2.4.18+):** `onTitleInput` callback prop on `EntryHeader` fires on every title keystroke → App.tsx calls `bumpScrambleSeed()` (scramble) and `randomizeTheme()` (superscramble), matching the editor's `handleInput` behavior. Previously, typing in the title input only re-scrambled the title overlay — editor text and sidebar titles stayed frozen.
 
 **Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
 
@@ -2890,11 +2890,12 @@ This pattern ensures the handler always sees the current zenMode value without r
 
 1. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
 2. **ESC was already handled** - Check `e.defaultPrevented`
-3. **In zen mode** - Exit zen instead
-4. **In minizen mode** - Exit minizen instead
-5. **Function menus open** - Close panels instead
-6. **Narrow + sidebar hidden** - Show sidebar instead
-7. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
+3. **Scramble is active** - Unscramble instead (v2.4.18+)
+4. **In zen mode** - Exit zen instead
+5. **In minizen mode** - Exit minizen instead
+6. **Function menus open** - Close panels instead
+7. **Narrow + sidebar hidden** - Show sidebar instead
+8. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
 
 ### When ESC SHOULD Lock
 
