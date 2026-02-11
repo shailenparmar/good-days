@@ -4,14 +4,14 @@
 
 - All scrollable areas should use `scrollbar-hide` class to hide scrollbars
 - Theme colors are HSL-based and managed via ThemeContext
-- For borders, lines, and opacity values, see **Opacity Standards**, **Line Styles**, and **Powerstat Spacing** sections below
+- For borders, lines, and opacity values, see **Opacity Standards**, **Line Styles**, and **Poweruser Menu Spacing** sections below
 - **Cursor styles** - Default arrow cursor everywhere except selectable text. Enforced in `src/index.css`:
   ```css
   *, *::before, *::after { cursor: inherit; }
   html { cursor: default; }
   [contenteditable="true"], .cursor-text { cursor: text; }
   ```
-  Use `cursor-text` class for non-editable but selectable text (e.g., color stats in powerstat).
+  Use `cursor-text` class for non-editable but selectable text (e.g., color stats in poweruser menu).
 - **Safari toolbar tinting (v2.1.16+)** - Safari's toolbar/tab bar tints to match the page background. Three things keep it in sync:
   1. `index.html` IIFE sets `theme-color` meta + `<html>`/`<body>` background on initial load (from localStorage, hex format)
   2. `ThemeContext.tsx` effect updates theme-color meta via `setAttribute` + syncs `documentElement.style.backgroundColor` + `body.style.backgroundColor` on every bg color change. During live mode (v2.3.21+), sets all three to `#000000` for the entire session — restores when phone disconnects (`isLiveActive` flips false).
@@ -140,7 +140,7 @@ Clicking outside function menus closes them. The clickable regions:
 | Colorstats area (HSL/HEX values) | **No** - protected for text selection |
 | Title area ("good days") | **No** - protected for minizen toggle |
 
-The colorstats area is the only protected region in powerstat mode. This allows copy/paste of color values while still letting users click anywhere else to dismiss panels.
+The colorstats area is the only protected region in poweruser mode. This allows copy/paste of color values while still letting users click anywhere else to dismiss panels.
 
 Code locations:
 - Sidebar container: `src/App.tsx` (line ~522, `onClick={closePanels}`)
@@ -151,7 +151,7 @@ Code locations:
 
 The app has special modes that activate when multiple panels are open.
 
-### Powerstat Mode
+### Poweruser Mode
 
 **Trigger**: Settings + About panels both open
 
@@ -166,7 +166,7 @@ The app has special modes that activate when multiple panels are open.
 
 ### Reset App Button
 
-Only visible in powerstat mode. Three-step confirmation:
+Only visible in poweruser mode. Three-step confirmation:
 
 1. "reset app" → click
 2. "are you sure?" → click
@@ -182,7 +182,7 @@ Code location: `src/features/settings/components/SettingsPanel.tsx`
 
 **Trigger**: Scramble ON + Settings + About all active together (internally called `isSuperscramble`)
 
-Includes all powerstat features, plus:
+Includes all poweruser menu features, plus:
 
 | Feature | Description |
 |---------|-------------|
@@ -205,7 +205,7 @@ Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 
 ### Right Edge Alignment (IMPORTANT)
 
-The About panel's right edge stays at the **same horizontal position** whether in About-only mode or powerstat mode.
+The About panel's right edge stays at the **same horizontal position** whether in About-only mode or poweruser mode.
 
 #### The Math
 
@@ -215,7 +215,7 @@ Tailwind uses `box-sizing: border-box` globally, meaning **borders are inside th
 About-only mode:
   Sidebar (320px) + About (720px) = 1040px right edge
 
-Powerstat mode:
+Poweruser mode:
   Sidebar (320px) + Settings (320px) + About (400px) = 1040px right edge
 ```
 
@@ -305,11 +305,11 @@ Thin lines used to separate content within a section.
 | Opacity | 0.85 |
 | Format | `2px solid hsla(${hue}, ${saturation}%, ${lightness}%, 0.85)` |
 
-Used on: stats section separators in powerstat mode.
+Used on: stats section separators in poweruser mode.
 
-## Powerstat Spacing
+## Poweruser Menu Spacing
 
-The stats display in powerstat mode uses these specific spacing values:
+The stats display in poweruser mode uses these specific spacing values:
 
 ```
 ═══════════════════════════════════════════  ← 6px panel line
@@ -1040,7 +1040,9 @@ This pattern ensures the handler always sees the current values without re-regis
 
 ### "started at" Time Display (v2.1.29+)
 
-The entry header shows "started at HH:MM" by default. Seconds are only shown when the powerstats menu is open (`stacked` prop = `showDebugMenu && showAboutPanel`), displaying "started at HH:MM:SS". Works in both 12-hour and 24-hour formats.
+The entry header shows "started at HH:MM" by default. Seconds are only shown when the poweruser menu is open (`stacked` prop = `showDebugMenu && showAboutPanel`), displaying "started at HH:MM:SS". Works in both 12-hour and 24-hour formats.
+
+**Time format sync (v2.4.29+):** `EntryHeader` listens for a `timeFormatChange` custom event (dispatched by `TimeDisplay` when the user toggles 12h/24h) plus the standard `storage` event (for cross-tab sync). Previously used a 100ms `setInterval` poll for same-tab changes — replaced with the custom event for instant, zero-overhead reactivity.
 
 Code location: `src/features/journal/components/EntryHeader.tsx`
 

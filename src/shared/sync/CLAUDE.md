@@ -97,10 +97,12 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 2. `WebSyncBridge` effect → `theme.setLivePreset()` → render 2
 3. `WebSyncBridge` effect → `theme.applyPreset()` → render 3
 
-**After (1 render per animation frame, v2.3.11+):**
+**After (1 render per animation frame, v2.3.11+, optimized v2.4.29):**
 1. `ws.onmessage` → `onColorUpdate` callback increments `colorUpdateCountRef` + buffers latest colors in a ref
 2. `useWebSync` skips setState for ongoing color-updates (only updates on initial null→value transition)
-3. `requestAnimationFrame` callback reads buffered colors → calls `setLivePreset` + `applyPreset` → 1 render
+3. `requestAnimationFrame` callback reads buffered colors → calls `applyLivePreset` → 1 render
+
+**`applyLivePreset` (v2.4.29+):** Combined method on ThemeContext that sets `livePreset` + all 6 color values in a single synchronous block. All 7 state setters fire in one call stack → React batches into exactly 1 render. Previously, the rAF callback called `setLivePreset()` then `applyPreset()` separately. During local desktop drag, falls back to `setLivePreset` only (skips color apply to prevent flicker).
 
 Multiple WS messages arriving within the same animation frame are coalesced — only the latest colors are applied. This caps React renders at the display refresh rate instead of the WS message rate, preventing periodic timer work (localStorage writes, statistics ticks) from overflowing the frame budget and causing dropped frames.
 
@@ -322,7 +324,7 @@ Code: `skipPairing()` in `useMobileSync.ts`, "skip" button in `MobileApp.tsx`.
 
 ### Live Stats (removed in v2.3.12)
 
-The live stats section (hue travel, sl travel, hz, live saves) was removed from the powerstat display. The `useLiveStats` hook in `src/features/statistics/hooks/useLiveStats.ts` is now orphaned (not imported anywhere). `phoneSaveCount`, `incrementPhoneSaveCount`, and `colorUpdateCountRef` were removed from ThemeContext since they existed solely for live stats. WebSyncBridge no longer increments `colorUpdateCountRef` or calls `incrementPhoneSaveCount`. The orphaned localStorage keys (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) will persist harmlessly in existing users' browsers.
+The live stats section (hue travel, sl travel, hz, live saves) was removed from the poweruser menu display. The `useLiveStats` hook in `src/features/statistics/hooks/useLiveStats.ts` is now orphaned (not imported anywhere). `phoneSaveCount`, `incrementPhoneSaveCount`, and `colorUpdateCountRef` were removed from ThemeContext since they existed solely for live stats. WebSyncBridge no longer increments `colorUpdateCountRef` or calls `incrementPhoneSaveCount`. The orphaned localStorage keys (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) will persist harmlessly in existing users' browsers.
 
 ### Future: WebRTC DataChannel Migration
 
