@@ -80,7 +80,7 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 - Untitled entries show the date normally
 - Title editing is header-only — sidebar is display-only
 - **Scramble support (v2.3.35+):** Titles (user content) are scrambled in regular scramble mode. Dates are NOT scrambled (structural, not content). In superscramble, everything scrambles as before.
-- **Scramble re-randomize (v2.3.38+, fixed v2.4.18):** Every toggle-on produces a fresh scramble (`bumpScrambleSeed(Date.now())`). Typing while scrambled also re-randomizes titles in the header and sidebar on every keystroke (matching the editor overlay behavior). `bumpScrambleSeed()` in `App.tsx` sets both the module-level `globalScrambleSeed` and React state synchronously — avoids the stale-global-during-render bug that an effect-only sync had. **Title input (v2.4.18+):** `onTitleInput` callback prop on `EntryHeader` fires on every title keystroke → App.tsx calls `bumpScrambleSeed()` (scramble) and `randomizeTheme()` (superscramble), matching the editor's `handleInput` behavior. Previously, typing in the title input only re-scrambled the title overlay — editor text and sidebar titles stayed frozen.
+- **Scramble re-randomize (v2.3.38+, fixed v2.4.18, unified v2.4.23):** Every toggle-on produces a fresh scramble (`bumpScrambleSeed(Date.now())`). Typing while scrambled re-randomizes all scrambled text (editor, sidebar titles, header title) on every keystroke. `bumpScrambleSeed()` in `App.tsx` sets both the module-level `globalScrambleSeed` and React state synchronously — avoids the stale-global-during-render bug that an effect-only sync had. **Title input (v2.4.18+):** `onTitleInput` callback prop on `EntryHeader` fires on every title keystroke → App.tsx calls `bumpScrambleSeed()` (scramble) and `randomizeTheme()` (superscramble), matching the editor's `handleInput` behavior. **Editor seed-aware (v2.4.23+):** `JournalEditor` receives `scrambleSeed` as a prop, added to the `useMemo` dependency array for `scrambledValue`. Previously the editor used `Math.random()` memoized on `value` only — it wouldn't re-scramble when the seed bumped (e.g., from title typing). Now all three scrambled areas (editor, sidebar, title) use the same seed system and re-scramble together.
 
 **Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
 
@@ -1253,7 +1253,7 @@ When `isScrambled` is true:
 1. Textarea text color is transparent
 2. Overlay div shows scrambled text
 3. Scroll position synced via `translateY(-${scrollTop}px)`
-4. Scrambled text is memoized (`useMemo`) to prevent re-scrambling on every render
+4. Scrambled text is memoized (`useMemo`) on `[value, scrambleSeed]` — re-scrambles when content changes or seed bumps
 
 ### HTML Migration
 
