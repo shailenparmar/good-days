@@ -80,7 +80,7 @@ export default function MobileApp() {
     if (!codeScreenVisible) return;
     const id = setInterval(() => {
       setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
-    }, 50);
+    }, 5);
     return () => clearInterval(id);
   }, [codeScreenVisible]);
 
@@ -588,10 +588,10 @@ export default function MobileApp() {
     }
   }, [sync.pairingState]);
 
-  // Triple red flash on wrong code (matches LockScreen pattern)
-  // Input clears AFTER the flash animation completes, then focus is restored
+  // Triple red flash on wrong code — input clears immediately
   useEffect(() => {
     if (sync.codeRejectedCount === 0) return;
+    setCodeInput('');
     setCodeFlash('red');
     const t1 = setTimeout(() => setCodeFlash('none'), 80);
     const t2 = setTimeout(() => setCodeFlash('red'), 160);
@@ -599,7 +599,6 @@ export default function MobileApp() {
     const t4 = setTimeout(() => setCodeFlash('red'), 320);
     const t5 = setTimeout(() => {
       setCodeFlash('none');
-      setCodeInput('');
       codeInputRef.current?.focus();
     }, 400);
     return () => { [t1, t2, t3, t4, t5].forEach(clearTimeout); };
