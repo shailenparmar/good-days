@@ -2923,6 +2923,8 @@ This pattern ensures the handler always sees the current zenMode value without r
 2. **Narrow + sidebar visible** - No panels open
 3. **After password saved** - Label says "esc to lock", `isSaving=true`
 
+**Pre-lock save (v2.4.21+):** Before locking, the ESC handler saves the editor content via `saveEntry()` — but **only if `auth.hasPassword` is true**. Without this guard, ESC on a fresh journal (no password) would persist the empty today placeholder to IndexedDB, creating a ghost sidebar entry. The save is only needed to flush pending content before the lock screen appears.
+
 ### Password Dead Man's Switch (v2.1.32+)
 
 If a user has password protection enabled and then clears cookies/site data (which wipes localStorage but not IndexedDB), the journal entries self-destruct on next load. This prevents someone from bypassing the password by clearing browser data.
