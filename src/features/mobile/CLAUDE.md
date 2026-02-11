@@ -58,7 +58,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 **Code Entry Screen** (v2.4.27+, shown when 0 or 2+ desktops on same IP):
 ```
 ┌────────────────────────────────┐
-│          good days             │  ← title
+│          g38d d7ys             │  ← flickering digits title (v2.4.31+)
 │                                │
 │   enter your desktop code      │  ← 20px monospace bold
 │                                │
@@ -73,6 +73,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 ```
 
 The candidates picker ("which one is yours?") was removed in v2.4.27. All ambiguous cases (2+ laptops or 0 on same IP) now show the code entry screen. Auto-pair (1 laptop) still happens without any screen.
+
+**Flickering title (v2.4.31+):** The code entry screen title shows "g##d d#ys" where the three digit positions rapidly cycle through random 0-9 digits every 50ms. The effect runs via `setInterval` only when the code entry screen is visible (cleanup on hide). Hold-to-show-version still works. The other screens (home, picker, permission) still show "good days".
 
 ### Layout Centering & Square Sizing (v1.10.17+)
 
@@ -315,7 +317,7 @@ bg: #000000 h96 s100 l0
 - `bg: #hex hN sN lN` - background color (hex + HSL)
 - All other formats (bare HSL, comma-separated, hex-only) are rejected as "invalid format"
 
-**Paste validation (v2.1.32+, updated v2.3.11):** When pasted clipboard content doesn't match any supported format, the copy|paste split is replaced by a single full-width "invalid format" indicator for 1.5 seconds, then reverts to copy|paste. Desktop: rendered as a full-width `<div>` styled with `errorColor` from `getStatusColors()` (same WCAG error color used by "import failed"), dismisses when the mouse leaves the color stats hover region. Mobile: rendered as a full-width button (same `getButtonStyle` with position `'full'`), dismisses on any click or keystroke. No colors are applied. State: `pasteInvalid` boolean + `pasteInvalidTimer` ref. Works on both mobile (`main.tsx`) and desktop (`StatsDisplay.tsx`).
+**Paste validation (v2.1.32+, updated v2.4.30):** When pasted clipboard content doesn't match any supported format, the copy|paste split is replaced by a single full-width "invalid format" indicator, then reverts to copy|paste. Both desktop and mobile use `errorColor` from `getStatusColors()` (WCAG-contrast-safe dynamic red). Desktop: rendered as a full-width `<div>` with `color` and `border` in `errorColor`, dismisses on mouse leave. Mobile (v2.4.30+): rendered as a full-width button (`getButtonStyle` with position `'full'`) with `color` and `borderColor` overridden to `errorColor`, dismisses on any click or keystroke. State: `pasteInvalid` boolean. Works on both mobile (`MobileApp.tsx`) and desktop (`StatsDisplay.tsx`).
 
 **Paste-to-laptop sync (v2.1.20+, fixed v2.1.21):** When paired with a laptop, pasting a color on the mobile home screen sends a one-shot `color-update` to the laptop so it immediately reflects the pasted colors. Normally color updates only stream during the picker screen (60fps while dragging). The relay guards `color-update` behind `client.streaming` (relay.ts line 285), so the paste wraps the update in `startStream()` / `sendColorUpdate()` / `stopStream()` calls — a brief stream burst to push the color through.
 
