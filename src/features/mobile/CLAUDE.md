@@ -135,6 +135,8 @@ The picker uses a **seamless press-hold-drag-release** interaction:
 - `liveTouch` - Current finger position `{ x, y }`
 - `barsMounted` - Counter for when both hue bars have mounted
 
+**`sendColorThrottled` helper (v2.4.29+):** A `useCallback` that wraps the WS send with 16ms throttle (~60fps). Used by both `processTouchAt` (hue changes) and the orientation handler (sat/light changes). Replaces 4 identical inline throttle blocks.
+
 ### Tilt Controls (Absolute Mapping)
 
 Tilt values use **absolute mapping** from the phone's orientation when picking started:
@@ -277,6 +279,8 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 4. If granted, home screen shown
 5. If denied, tilt controls won't work (hue-only mode)
 
+**Synchronous init (v2.4.28+):** `needsPermission` and `permissionGranted` are initialized via `useState` initializers (not `useEffect`). The check (`typeof DOE.requestPermission === 'function'`) is synchronous, so the correct screen shows on the very first render — no flash of the home screen before calibrate appears on iOS.
+
 ### Tap-to-Randomize (v2.2.8+, narrowed v2.3.26)
 
 Tapping the feedback segment (middle area between "good days" title and buttons) on the mobile home screen randomizes all 6 color values (text hue/sat/light + bg hue/sat/light) with haptic feedback (10ms vibrate). If paired with a laptop, sends a one-shot `color-update` via the `startStream → sendColorUpdate → stopStream` pattern (same as paste sync).
@@ -344,13 +348,17 @@ top: calc(${((359 - hue) / 359) * 100}% - ${h/2}px)    /* h = 4px idle, 8px acti
 ```
 The indicator's **centerline** is the true hue position. At the extremes (hue 0 at bottom or 359 at top), half the indicator clips off the bar edge via `overflow: hidden`. This matches the mental model that the thin midpoint line marks the actual hue.
 
+**`renderHueIndicator` helper (v2.4.29+):** Extracted from inline IIFEs into a parameterized render function: `renderHueIndicator(side, hue)`. Returns the indicator `<div>` with correct size based on alpha/beta/idle state.
+
 **Active thickness:** The indicator doubles from 4px to 8px when actively picking on that side (`isPicking && activeSide.current === side`). The thickness change is symmetric around the center — 2px added to each side.
 
 **Above-bar snapping:** When the finger slides above the bar top (fast drag), the hue snaps to 359 (top) instead of getting stuck at the last tracked position. Below the bar, `processTouchAt` clamps to hue 0 (bottom).
 
 ### Title Version Display
 
-Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all three screens (permission, home, picker).
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all screens (permission, home, picker, code entry).
+
+**Single shared title component (v2.4.29+):** The title is defined once as a `const title` JSX element and used via `{title}` on all screens. All screens share the same touch handlers (`setTitlePressedPersist`) and sessionStorage persistence.
 
 **Refresh persistence (v2.3.28+):** The pressed state is saved to `sessionStorage`. If you're holding the title to show the version and refresh the page, the version shows immediately on reload without needing to re-press. Cleared on touch end/cancel.
 
