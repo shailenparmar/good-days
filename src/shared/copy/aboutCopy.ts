@@ -20,8 +20,8 @@ export const ABOUT_COPY = {
     header: "features:",
     paragraphs: [
       "a new page spawns at midnight; old logs are set in stone.",
-      "keystrokes save in 300ms. clicking the footer bows in to zen mode. \\time delivers a stamp. draft while scrambled to slip prying eyes or writer's block. settings and about join forces for a poweruser menu. spacebar on rand is chaotic good. pair your phone for RC colorways.",
-      "The right end of a Chromium address bar shelters an install button. Beyond that veil, a standalone app awaits you.",
+      "keystrokes save in 300ms. clicking the footer bows in to zen mode. //time delivers a stamp. draft while scrambled to slip prying eyes or writer's block. settings *and* about join forces for a poweruser menu.",
+      "The right end of a Chromium address bar shelters an install button. Beyond that door, a standalone app waits. victoriously, pair your phone for RC colorways.",
     ],
   },
 
