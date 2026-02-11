@@ -17,10 +17,6 @@ export default function MobileApp() {
   // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
   const [editing, setEditing] = useState<'adjusting' | null>(null);
 
-  // Touch Y positions for hue indicators (0-1)
-  const [, setBgTouchY] = useState(0);
-  const [, setTextTouchY] = useState(0);
-
   // Tilt values for sat/brightness (-1 to 1)
   const [tiltX, setTiltX] = useState(0);
   const [tiltY, setTiltY] = useState(0);
@@ -74,6 +70,16 @@ export default function MobileApp() {
   // WebSocket live sync
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
+
+  // Throttled WS color update (16ms = ~60fps)
+  const sendColorThrottled = useCallback((next: ColorState) => {
+    if (!sync.isStreamingRef.current || sync.wsRef.current?.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    if (now - lastWsSendRef.current >= 16) {
+      lastWsSendRef.current = now;
+      sync.sendColorUpdate(next);
+    }
+  }, []);
 
   // Helper: send current stream-state to desktop (alpha/beta sides)
   const sendCurrentStreamState = useCallback(() => {
@@ -170,35 +176,13 @@ export default function MobileApp() {
     // Gradient is flipped: top = 359°, bottom = 0°
     const newHue = Math.round((1 - clampedY) * 359);
 
-    if (side === 'left') {
-      setTextTouchY(clampedY);
-      setColors(prev => {
-        const next = { ...prev, hue: newHue };
-        // Send hue change over WS
-        if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
-          const now = Date.now();
-          if (now - lastWsSendRef.current >= 16) {
-            lastWsSendRef.current = now;
-            sync.sendColorUpdate(next);
-          }
-        }
-        return next;
-      });
-    } else {
-      setBgTouchY(clampedY);
-      setColors(prev => {
-        const next = { ...prev, bgHue: newHue };
-        // Send hue change over WS
-        if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
-          const now = Date.now();
-          if (now - lastWsSendRef.current >= 16) {
-            lastWsSendRef.current = now;
-            sync.sendColorUpdate(next);
-          }
-        }
-        return next;
-      });
-    }
+    setColors(prev => {
+      const next = side === 'left'
+        ? { ...prev, hue: newHue }
+        : { ...prev, bgHue: newHue };
+      sendColorThrottled(next);
+      return next;
+    });
     return true;
   }, []);
 
@@ -258,41 +242,14 @@ export default function MobileApp() {
         const newSat = Math.round(50 + tiltNormX * 50);
         const newLight = Math.round(50 - tiltNormY * 50);
 
-        if (activeSide.current === 'left') {
-          setColors(prev => {
-            const next = {
-              ...prev,
-              sat: Math.max(0, Math.min(100, newSat)),
-              light: Math.max(0, Math.min(100, newLight)),
-            };
-            // Low-latency WS send (16ms throttle, bypasses React batching)
-            if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
-              const now = Date.now();
-              if (now - lastWsSendRef.current >= 16) {
-                lastWsSendRef.current = now;
-                sync.sendColorUpdate(next);
-              }
-            }
-            return next;
-          });
-        } else {
-          setColors(prev => {
-            const next = {
-              ...prev,
-              bgSat: Math.max(0, Math.min(100, newSat)),
-              bgLight: Math.max(0, Math.min(100, newLight)),
-            };
-            // Low-latency WS send (16ms throttle, bypasses React batching)
-            if (sync.isStreamingRef.current && sync.wsRef.current?.readyState === WebSocket.OPEN) {
-              const now = Date.now();
-              if (now - lastWsSendRef.current >= 16) {
-                lastWsSendRef.current = now;
-                sync.sendColorUpdate(next);
-              }
-            }
-            return next;
-          });
-        }
+        const isText = activeSide.current === 'left';
+        setColors(prev => {
+          const next = isText
+            ? { ...prev, sat: Math.max(0, Math.min(100, newSat)), light: Math.max(0, Math.min(100, newLight)) }
+            : { ...prev, bgSat: Math.max(0, Math.min(100, newSat)), bgLight: Math.max(0, Math.min(100, newLight)) };
+          sendColorThrottled(next);
+          return next;
+        });
       }
     };
 
@@ -512,16 +469,6 @@ export default function MobileApp() {
     liveTouch.current = { x: touch.clientX, y: touch.clientY };
     barsMounted.current = 0;
 
-    // Compute indicator position from finger Y using the bar ref
-    // (bars are always in DOM due to visibility toggle, so ref exists)
-    const bar = side === 'left' ? leftBarRef.current : rightBarRef.current;
-    if (bar) {
-      const rect = bar.getBoundingClientRect();
-      const relY = Math.max(0, Math.min(1, (touch.clientY - rect.top) / rect.height));
-      if (side === 'left') setTextTouchY(relY);
-      else setBgTouchY(relY);
-    }
-
     setEditing('adjusting');
   };
 
@@ -699,6 +646,14 @@ export default function MobileApp() {
   const isPicking = editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
 
+  // Hue bar indicator — horizontal line showing current hue position
+  const renderHueIndicator = (side: 'left' | 'right', hue: number) => {
+    const active = isPicking && Array.from(trackedTouches.current.values()).includes(side);
+    const isAlpha = activeSide.current === side;
+    const h = active ? (isAlpha ? 16 : 8) : 4;
+    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />;
+  };
+
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
   const safeAreaStyle: React.CSSProperties = {
     paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
@@ -807,7 +762,7 @@ export default function MobileApp() {
               ref={leftBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('left'); const isAlpha = activeSide.current === 'left'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {renderHueIndicator('left', colors.hue)}
             </div>
 
             {/* Right: background hue bar */}
@@ -815,7 +770,7 @@ export default function MobileApp() {
               ref={rightBarRef}
               style={{ flex: 1, position: 'relative', background: pureHueGradient, overflow: 'hidden' }}
             >
-              {(() => { const active = isPicking && Array.from(trackedTouches.current.values()).includes('right'); const isAlpha = activeSide.current === 'right'; const h = active ? (isAlpha ? 16 : 8) : 4; return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - colors.bgHue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />; })()}
+              {renderHueIndicator('right', colors.bgHue)}
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
@@ -844,13 +799,7 @@ export default function MobileApp() {
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
       >
-        <span
-          data-btn
-          style={titleStyle}
-          onTouchStart={(e) => { e.preventDefault(); setTitlePressed(true); }}
-          onTouchEnd={() => setTitlePressed(false)}
-          onTouchCancel={() => setTitlePressed(false)}
-        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+        {title}
 
         {/* Square complex - centered between title and buttons (tap to randomize) */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -870,14 +819,12 @@ export default function MobileApp() {
 
           <div style={{ display: 'flex' }}>
             <div
-              data-btn
               onTouchStart={startPicking('left')}
               style={getButtonStyle(false, 'left', 'picker')}
             >
               text
             </div>
             <div
-              data-btn
               onTouchStart={startPicking('right')}
               style={getButtonStyle(false, 'right', 'picker')}
             >
@@ -886,7 +833,7 @@ export default function MobileApp() {
           </div>
 
           {pasteInvalid ? (
-            <div data-btn style={getButtonStyle(false, 'full', 'aux')}>
+            <div style={getButtonStyle(false, 'full', 'aux')}>
               invalid format
             </div>
           ) : (
