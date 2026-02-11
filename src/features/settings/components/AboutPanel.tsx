@@ -81,7 +81,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex flex-col h-screen overflow-y-auto scrollbar-hide"
+      className="flex flex-col h-screen overflow-y-auto scrollbar-hide select-none"
       style={{
         width: `${aboutWidth}px`,
         backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
