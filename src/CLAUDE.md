@@ -662,20 +662,20 @@ ESC checks are evaluated in this order:
 1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
 2. **Scramble active** → Unscramble only
 3. **User in `<input>`** → Do nothing (NOT `<textarea>`)
-4. **Narrow mode** → existing linear behavior (zen → panels → sidebar → lock)
+4. **Narrow mode** → bounce cycle (see below)
 5. **Wide mode** → bounce cycle (see below)
 
-**ESC flow in narrow mode (unchanged):**
-```
-Zen → ESC → (previous state)
-Panels open → ESC → Panels closed
-Default → ESC → Sidebar Visible
-Sidebar Visible → ESC → Lock
-```
+**ESC bounce cycle (v2.4.22+, updated v2.4.24, narrow mode v2.4.40+):**
 
-**ESC bounce cycle in wide mode (v2.4.22+, updated v2.4.24):**
+Both modes use the same bounce principle: you must see all 3 layouts before ESC can lock. A `visitedZen` flag (ref, default `false`) tracks whether zen has been visited in the current ESC sequence. Any non-ESC interaction (keypress or click) resets the flag — the cycle always starts fresh.
 
-You must see all 3 layouts (base, mz, zen) before ESC can lock. A `visitedZen` flag (ref, default `false`) tracks whether zen has been visited in the current ESC sequence. Any non-ESC interaction (keypress or click) resets the flag — the cycle always starts fresh.
+**State mapping between modes:**
+
+| Concept | Wide Mode | Narrow Mode |
+|---------|-----------|-------------|
+| Base (most UI) | Sidebar visible | Sidebar visible |
+| Middle (no sidebar) | Minizen | Default (no sidebar) |
+| Focused (just editor) | Zen | Zen |
 
 ```
 ESC press (wide mode):
@@ -686,17 +686,26 @@ ESC press (wide mode):
   [base + visitedZen + pw] → save + lock
   [base + visitedZen + !pw]→ mz, visitedZen=false (restart)
   [base + !visitedZen]     → mz (always go up first, never lock)
+
+ESC press (narrow mode):
+  [panels open]            → closePanels → sidebar visible (base), visitedZen=false
+  [zen]                    → default (no sidebar), visitedZen=true
+  [default + !visitedZen]  → zen (going up)
+  [default + visitedZen]   → sidebar visible (coming down)
+  [sidebar + visitedZen + pw]  → save + lock
+  [sidebar + visitedZen + !pw] → default, visitedZen=false (restart)
+  [sidebar + !visitedZen]  → default (always go up first, never lock)
 ```
 
-**Example sequences:**
-- From base: base → mz → zen → mz → base → lock (5 presses)
-- From mz: mz → zen → mz → base → lock (4 presses)
-- From zen: zen → mz → base → lock (3 presses)
-- No password: base → mz → zen → mz → base → mz → zen → ... (loops)
+**Example sequences (both modes, with password):**
+- From base/sidebar: 5 presses to lock
+- From mz/default: 4 presses to lock
+- From zen: 3 presses to lock
+- No password: loops forever
 
 **Cycle reset:** `escVisitedZenRef` resets to `false` on any non-ESC keydown and any mousedown (global listeners in a separate `useEffect`). This means typing, clicking, or any other interaction breaks the ESC sequence — the next ESC from base always starts the full cycle.
 
-**Wide mode uses raw setters** (`setZenMode`/`setMinizen`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→mz transitions.
+**Both modes use raw setters** (`setZenMode`/`setMinizen`/`setShowSidebarInNarrow`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→middle transitions.
 
 ### Resize Transitions
 
@@ -971,24 +980,21 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### The ESC Philosophy
 
-**ESC = see all 3 layouts before you can lock (wide mode)**
+**ESC = see all 3 layouts before you can lock (both modes, v2.4.40+)**
 
-In wide mode, ESC walks through base → mz → zen → mz → base before locking. You must visit all 3 layouts in a single ESC sequence. Any non-ESC interaction (typing, clicking) resets the sequence — the next ESC from base starts the full cycle again. Panels close first (any state → base). At base after the full cycle with password, ESC locks. Without password, it restarts.
+ESC walks through all 3 layouts before locking. In wide mode: base → mz → zen → mz → base. In narrow mode: sidebar → default → zen → default → sidebar. You must visit all 3 layouts in a single ESC sequence. Any non-ESC interaction (typing, clicking) resets the sequence. Panels close first (any state → base/sidebar). At base/sidebar after the full cycle with password, ESC locks. Without password, it restarts.
 
-**Example flows (wide mode, with password):**
+**Example flows (with password):**
 ```
-From base: base → mz → zen → mz → base → 🔒 LOCK  (5 presses)
-From mz:   mz → zen → mz → base → 🔒 LOCK          (4 presses)
-From zen:  zen → mz → base → 🔒 LOCK                 (3 presses)
-panels:    panels → base → mz → zen → mz → base → 🔒 (6 presses)
-```
-
-**Example flow (wide mode, no password):**
-```
-base → mz → zen → mz → base → mz → zen → mz → base → ... (loops forever)
+Wide from base:     base → mz → zen → mz → base → 🔒 LOCK      (5 presses)
+Wide from mz:       mz → zen → mz → base → 🔒 LOCK              (4 presses)
+Wide from zen:      zen → mz → base → 🔒 LOCK                     (3 presses)
+Narrow from sidebar: sidebar → default → zen → default → sidebar → 🔒 LOCK (5 presses)
+Narrow from default: default → zen → default → sidebar → 🔒 LOCK  (4 presses)
+Narrow from zen:     zen → default → sidebar → 🔒 LOCK             (3 presses)
 ```
 
-**Narrow mode** keeps the old linear ESC: zen → panels → sidebar → lock.
+**No password:** loops forever in both modes.
 
 **Cycle resets:** Any non-ESC keydown or mousedown resets `escVisitedZenRef` to `false` (global listeners). This ensures the cycle always starts fresh after any interaction — you can't lock with a stale flag from a previous cycle.
 
