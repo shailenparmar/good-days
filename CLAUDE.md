@@ -2580,20 +2580,28 @@ Default → ESC → Sidebar Visible
 Sidebar Visible → ESC → Lock
 ```
 
-**ESC bounce cycle in wide mode (v2.4.22+):**
+**ESC bounce cycle in wide mode (v2.4.22+, updated v2.4.24):**
 
-A direction ref (`'up' | 'down'`, default `'up'`) controls the bounce. Non-ESC layout interactions (header click, footer click, sidebar click) reset direction to `'up'`.
+You must see all 3 layouts (base, mz, zen) before ESC can lock. A `visitedZen` flag (ref, default `false`) tracks whether zen has been visited in the current ESC sequence. Any non-ESC interaction (keypress or click) resets the flag — the cycle always starts fresh.
 
 ```
 ESC press (wide mode):
-  [panels open]        → closePanels + exit zen/mz → base, dir=up
-  [zen]                → zenMode=false, minizen=true, dir=down
-  [mz + up]            → zenMode=true, dir=down
-  [mz + down]          → minizen=false (dir stays down)
-  [base + down + pw]   → save + lock
-  [base + down + !pw]  → minizen=true, dir=up (restart)
-  [base + up]          → minizen=true (dir stays up)
+  [panels open]            → closePanels + exit zen/mz → base, visitedZen=false
+  [zen]                    → mz, visitedZen=true
+  [mz + !visitedZen]       → zen (going up)
+  [mz + visitedZen]        → base (coming down)
+  [base + visitedZen + pw] → save + lock
+  [base + visitedZen + !pw]→ mz, visitedZen=false (restart)
+  [base + !visitedZen]     → mz (always go up first, never lock)
 ```
+
+**Example sequences:**
+- From base: base → mz → zen → mz → base → lock (5 presses)
+- From mz: mz → zen → mz → base → lock (4 presses)
+- From zen: zen → mz → base → lock (3 presses)
+- No password: base → mz → zen → mz → base → mz → zen → ... (loops)
+
+**Cycle reset:** `escVisitedZenRef` resets to `false` on any non-ESC keydown and any mousedown (global listeners in a separate `useEffect`). This means typing, clicking, or any other interaction breaks the ESC sequence — the next ESC from base always starts the full cycle.
 
 **Wide mode uses raw setters** (`setZenMode`/`setMinizen`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→mz transitions.
 
@@ -2870,27 +2878,26 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### The ESC Philosophy
 
-**ESC = bounce through layout states (wide mode)**
+**ESC = see all 3 layouts before you can lock (wide mode)**
 
-In wide mode, ESC cycles through base ↔ minizen ↔ zen in a bounce pattern. The direction flips at zen and at base, creating an oscillation. Panels close first (any state → base). At base with password, ESC locks. Without password, it restarts the cycle.
+In wide mode, ESC walks through base → mz → zen → mz → base before locking. You must visit all 3 layouts in a single ESC sequence. Any non-ESC interaction (typing, clicking) resets the sequence — the next ESC from base starts the full cycle again. Panels close first (any state → base). At base after the full cycle with password, ESC locks. Without password, it restarts.
 
 **Example flows (wide mode, with password):**
 ```
-base(↑) → ESC → mz(↑) → ESC → zen(↓) → ESC → mz(↓) → ESC → base(↓) → ESC → 🔒 LOCK
-
-zen(any) → ESC → mz(↓) → ESC → base(↓) → ESC → 🔒 LOCK
-
-panels open → ESC → base(↑) → ESC → mz(↑) → ESC → zen(↓) → ...
+From base: base → mz → zen → mz → base → 🔒 LOCK  (5 presses)
+From mz:   mz → zen → mz → base → 🔒 LOCK          (4 presses)
+From zen:  zen → mz → base → 🔒 LOCK                 (3 presses)
+panels:    panels → base → mz → zen → mz → base → 🔒 (6 presses)
 ```
 
 **Example flow (wide mode, no password):**
 ```
-base(↑) → ESC → mz(↑) → ESC → zen(↓) → ESC → mz(↓) → ESC → base(↓) → ESC → mz(↑) → ... (loops)
+base → mz → zen → mz → base → mz → zen → mz → base → ... (loops forever)
 ```
 
 **Narrow mode** keeps the old linear ESC: zen → panels → sidebar → lock.
 
-**Direction resets:** Any non-ESC layout interaction (header click, footer click, sidebar click) resets direction to `'up'`, ensuring the next ESC from base goes up toward mz/zen.
+**Cycle resets:** Any non-ESC keydown or mousedown resets `escVisitedZenRef` to `false` (global listeners). This ensures the cycle always starts fresh after any interaction — you can't lock with a stale flag from a previous cycle.
 
 ### Ref Pattern for Layout State in ESC Handler
 
@@ -2903,11 +2910,11 @@ useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
 const minizenRef = useRef(minizen);
 useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 
-// Direction ref in App.tsx (persists across renders)
-const escDirectionRef = useRef<'up' | 'down'>('up');
+// Visited-zen flag in App.tsx (tracks cycle progress)
+const escVisitedZenRef = useRef(false);
 ```
 
-This pattern ensures the handler always sees the current values without re-registering on every state change.
+This pattern ensures the handler always sees the current values without re-registering on every state change. The `escVisitedZenRef` is reset by global keydown/mousedown listeners (any non-ESC interaction).
 
 ### When ESC Should NOT Lock
 
@@ -2918,11 +2925,11 @@ This pattern ensures the handler always sees the current values without re-regis
 5. **Narrow + any non-base state** - Zen, panels, sidebar hidden all handled before lock
 6. **Wide + any non-base state** - Bounce cycle handles zen, mz, panels
 7. **Wide + base + no password** - Restarts cycle instead of locking
-8. **Wide + base + dir=up** - Enters minizen instead of locking
+8. **Wide + base + !visitedZen** - Haven't seen all 3 layouts yet, enters mz
 
 ### When ESC SHOULD Lock
 
-1. **Wide + base + dir=down + hasPassword** - Bottom of bounce cycle, save + lock
+1. **Wide + base + visitedZen + hasPassword** - Completed full cycle, save + lock
 2. **Narrow + sidebar visible** - No panels open, no zen
 3. **After password saved** - Label says "esc to lock", `isSaving=true`
 

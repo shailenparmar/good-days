@@ -144,7 +144,22 @@ function AppContent() {
   }, [layout.scrambleHotkeyActive]);
 
   // ESC key behavior — bounce cycle in wide mode: base ↔ mz ↔ zen
-  const escDirectionRef = useRef<'up' | 'down'>('up');
+  // Must visit all 3 layouts (base → mz → zen) before ESC can lock.
+  const escVisitedZenRef = useRef(false);
+
+  // Reset cycle on any non-ESC interaction (typing, clicking)
+  useEffect(() => {
+    const resetCycle = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key === 'Escape') return;
+      escVisitedZenRef.current = false;
+    };
+    window.addEventListener('keydown', resetCycle);
+    window.addEventListener('mousedown', resetCycle);
+    return () => {
+      window.removeEventListener('keydown', resetCycle);
+      window.removeEventListener('mousedown', resetCycle);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -187,14 +202,14 @@ function AppContent() {
           return;
         }
 
-        // Wide mode bounce cycle
+        // Wide mode bounce cycle — must see all 3 layouts before lock
         if (layout.showDebugMenu || layout.showAboutPanel) {
           layout.closePanels();
           layout.setZenMode(false);
           layout.setMinizen(false);
           layout.setPreFocusState(null);
           layout.setZenFromMinizen(false);
-          escDirectionRef.current = 'up';
+          escVisitedZenRef.current = false;
           return;
         }
 
@@ -203,22 +218,21 @@ function AppContent() {
           layout.setMinizen(true);
           layout.setPreFocusState(null);
           layout.setZenFromMinizen(false);
-          escDirectionRef.current = 'down';
+          escVisitedZenRef.current = true;
           return;
         }
 
         if (layout.minizenRef.current) {
-          if (escDirectionRef.current === 'up') {
-            layout.setZenMode(true);
-            escDirectionRef.current = 'down';
+          if (escVisitedZenRef.current) {
+            layout.setMinizen(false); // → base (coming down from zen)
           } else {
-            layout.setMinizen(false);
+            layout.setZenMode(true); // → zen (going up)
           }
           return;
         }
 
-        // Base state (not zen, not minizen, no panels)
-        if (escDirectionRef.current === 'down') {
+        // Base state — lock only after visiting all 3 layouts
+        if (escVisitedZenRef.current) {
           if (auth.hasPassword) {
             if (editorRef.current) {
               journal.saveEntry(editorRef.current.value || '', Date.now());
@@ -226,10 +240,10 @@ function AppContent() {
             auth.lock();
           } else {
             layout.setMinizen(true);
-            escDirectionRef.current = 'up';
+            escVisitedZenRef.current = false; // restart cycle
           }
         } else {
-          layout.setMinizen(true);
+          layout.setMinizen(true); // → mz (always go up first)
         }
       }
     };
@@ -364,7 +378,7 @@ function AppContent() {
           backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
           borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
         }}
-        onClick={() => { escDirectionRef.current = 'up'; layout.closePanels(); }}
+        onClick={() => layout.closePanels()}
       >
         {/* Clickable overlay for header zone */}
         {layout.entryHeaderHeight > 0 && (
@@ -378,7 +392,6 @@ function AppContent() {
                 layout.closePanels();
                 layout.setPreNarrowState(null);
               } else {
-                escDirectionRef.current = 'up';
                 layout.enterMinizen();
               }
             }}
@@ -535,7 +548,6 @@ function AppContent() {
                 layout.closePanels();
                 layout.setPreNarrowState(null);
               } else {
-                escDirectionRef.current = 'up';
                 if (layout.minizen) {
                   layout.exitMinizen();
                 } else {
@@ -578,10 +590,7 @@ function AppContent() {
             currentContent={journal.currentContent}
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
-            onClick={() => {
-              escDirectionRef.current = 'up';
-              layout.enterZen();
-            }}
+            onClick={() => layout.enterZen()}
           />
         )}
       </div>
