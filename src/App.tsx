@@ -143,46 +143,94 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleHotkey);
   }, [layout.scrambleHotkeyActive]);
 
-  // ESC key behavior
+  // ESC key behavior — bounce cycle in wide mode: base ↔ mz ↔ zen
+  const escDirectionRef = useRef<'up' | 'down'>('up');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
         if (e.defaultPrevented) return;
 
+        // Scramble check (unchanged)
         if (layout.isScrambled) {
           layout.setIsScrambled(false);
           return;
         }
 
-        if (layout.zenModeRef.current) {
-          layout.exitZen();
-          return;
-        }
-
+        // Input check (before narrow/wide branch)
         const activeEl = document.activeElement;
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        if (!layout.isNarrow && layout.minizen) {
-          layout.exitMinizen();
+        // Narrow mode — existing behavior unchanged
+        if (layout.isNarrow) {
+          if (layout.zenModeRef.current) {
+            layout.exitZen();
+            return;
+          }
+
+          if (layout.showDebugMenu || layout.showAboutPanel) {
+            layout.closePanels();
+            return;
+          }
+
+          if (!layout.showSidebarInNarrow) {
+            layout.setShowSidebarInNarrow(true);
+            layout.setPreNarrowState(null);
+            return;
+          }
+
+          if (auth.hasPassword && editorRef.current) {
+            journal.saveEntry(editorRef.current.value || '', Date.now());
+          }
+          auth.lock();
           return;
         }
 
+        // Wide mode bounce cycle
         if (layout.showDebugMenu || layout.showAboutPanel) {
           layout.closePanels();
+          layout.setZenMode(false);
+          layout.setMinizen(false);
+          layout.setPreFocusState(null);
+          layout.setZenFromMinizen(false);
+          escDirectionRef.current = 'up';
           return;
         }
 
-        if (layout.isNarrow && !layout.showSidebarInNarrow) {
-          layout.setShowSidebarInNarrow(true);
-          layout.setPreNarrowState(null);
+        if (layout.zenModeRef.current) {
+          layout.setZenMode(false);
+          layout.setMinizen(true);
+          layout.setPreFocusState(null);
+          layout.setZenFromMinizen(false);
+          escDirectionRef.current = 'down';
           return;
         }
 
-        if (auth.hasPassword && editorRef.current) {
-          journal.saveEntry(editorRef.current.value || '', Date.now());
+        if (layout.minizenRef.current) {
+          if (escDirectionRef.current === 'up') {
+            layout.setZenMode(true);
+            escDirectionRef.current = 'down';
+          } else {
+            layout.setMinizen(false);
+          }
+          return;
         }
-        auth.lock();
+
+        // Base state (not zen, not minizen, no panels)
+        if (escDirectionRef.current === 'down') {
+          if (auth.hasPassword) {
+            if (editorRef.current) {
+              journal.saveEntry(editorRef.current.value || '', Date.now());
+            }
+            auth.lock();
+          } else {
+            layout.setMinizen(true);
+            escDirectionRef.current = 'up';
+          }
+        } else {
+          layout.setMinizen(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -316,7 +364,7 @@ function AppContent() {
           backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
           borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
         }}
-        onClick={layout.closePanels}
+        onClick={() => { escDirectionRef.current = 'up'; layout.closePanels(); }}
       >
         {/* Clickable overlay for header zone */}
         {layout.entryHeaderHeight > 0 && (
@@ -330,6 +378,7 @@ function AppContent() {
                 layout.closePanels();
                 layout.setPreNarrowState(null);
               } else {
+                escDirectionRef.current = 'up';
                 layout.enterMinizen();
               }
             }}
@@ -486,6 +535,7 @@ function AppContent() {
                 layout.closePanels();
                 layout.setPreNarrowState(null);
               } else {
+                escDirectionRef.current = 'up';
                 if (layout.minizen) {
                   layout.exitMinizen();
                 } else {
@@ -508,10 +558,12 @@ function AppContent() {
           entries={journal.entries}
           selectedDate={journal.selectedDate}
           isScrambled={layout.isScrambled}
+          isSuperscramble={layout.isSuperscramble}
           onInput={handleInput}
           editorRef={editorRef}
           externalContentVersion={journal.externalContentVersion}
           hidePlaceholder={titleEditing}
+          scrambleSeed={scrambleSeed}
           onClick={() => {
             if (layout.isNarrow) {
               layout.closePanels();
@@ -527,6 +579,7 @@ function AppContent() {
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={() => {
+              escDirectionRef.current = 'up';
               layout.enterZen();
             }}
           />

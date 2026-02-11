@@ -2563,31 +2563,38 @@ Tracks whether zen was entered from minizen. This matters because:
 
 ### ESC Key Priority
 
-ESC escapes through focus states before locking:
+ESC checks are evaluated in this order:
 
-| Current State | ESC Result |
-|---------------|------------|
-| In input field | Nothing |
-| Password flow active | Back one step |
-| Zen (any mode) | Restore pre-zen state |
-| Wide + Minizen | Exit minizen (show sidebar) |
-| Wide + Full | Lock app |
-| Narrow + Default | Show sidebar |
-| Narrow + Sidebar Visible | Lock app |
+1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
+2. **Scramble active** → Unscramble only
+3. **User in `<input>`** → Do nothing (NOT `<textarea>`)
+4. **Narrow mode** → existing linear behavior (zen → panels → sidebar → lock)
+5. **Wide mode** → bounce cycle (see below)
 
-**ESC flow in wide mode:**
+**ESC flow in narrow mode (unchanged):**
 ```
 Zen → ESC → (previous state)
-Minizen → ESC → Full
-Full → ESC → Lock
-```
-
-**ESC flow in narrow mode:**
-```
-Zen → ESC → (previous state)
+Panels open → ESC → Panels closed
 Default → ESC → Sidebar Visible
 Sidebar Visible → ESC → Lock
 ```
+
+**ESC bounce cycle in wide mode (v2.4.22+):**
+
+A direction ref (`'up' | 'down'`, default `'up'`) controls the bounce. Non-ESC layout interactions (header click, footer click, sidebar click) reset direction to `'up'`.
+
+```
+ESC press (wide mode):
+  [panels open]        → closePanels + exit zen/mz → base, dir=up
+  [zen]                → zenMode=false, minizen=true, dir=down
+  [mz + up]            → zenMode=true, dir=down
+  [mz + down]          → minizen=false (dir stays down)
+  [base + down + pw]   → save + lock
+  [base + down + !pw]  → minizen=true, dir=up (restart)
+  [base + up]          → minizen=true (dir stays up)
+```
+
+**Wide mode uses raw setters** (`setZenMode`/`setMinizen`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→mz transitions.
 
 ### Resize Transitions
 
@@ -2862,65 +2869,60 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 
 ### The ESC Philosophy
 
-**ESC = "Go back to what you were looking at"**
+**ESC = bounce through layout states (wide mode)**
 
-Each ESC press peels back one layer of UI state. You can only lock from the "base state" (sidebar visible, no function menus open). This ensures:
-- No accidental locks from deep states
-- Each ESC is predictable and reversible
-- You always see the lock coming
+In wide mode, ESC cycles through base ↔ minizen ↔ zen in a bounce pattern. The direction flips at zen and at base, creating an oscillation. Panels close first (any state → base). At base with password, ESC locks. Without password, it restarts the cycle.
 
-**Example flow:**
+**Example flows (wide mode, with password):**
 ```
-Wide + powerstat → ESC → Wide + full (panels closed)
-                → ESC → 🔒 LOCKED
+base(↑) → ESC → mz(↑) → ESC → zen(↓) → ESC → mz(↓) → ESC → base(↓) → ESC → 🔒 LOCK
 
-Wide + settings → zen → ESC → Wide + settings (restored!)
-                      → ESC → Wide + full
-                      → ESC → 🔒 LOCKED
+zen(any) → ESC → mz(↓) → ESC → base(↓) → ESC → 🔒 LOCK
+
+panels open → ESC → base(↑) → ESC → mz(↑) → ESC → zen(↓) → ...
 ```
 
-### Ref Pattern for Zen Mode
+**Example flow (wide mode, no password):**
+```
+base(↑) → ESC → mz(↑) → ESC → zen(↓) → ESC → mz(↓) → ESC → base(↓) → ESC → mz(↑) → ... (loops)
+```
 
-The ESC handler uses a ref to track `zenMode` to avoid stale closure issues:
+**Narrow mode** keeps the old linear ESC: zen → panels → sidebar → lock.
+
+**Direction resets:** Any non-ESC layout interaction (header click, footer click, sidebar click) resets direction to `'up'`, ensuring the next ESC from base goes up toward mz/zen.
+
+### Ref Pattern for Layout State in ESC Handler
+
+The ESC handler uses refs to track `zenMode` and `minizen` to avoid stale closure issues:
 
 ```tsx
-// Ref to track zenMode (always current)
+// Refs in useLayoutState.ts (always current)
 const zenModeRef = useRef(zenMode);
 useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
+const minizenRef = useRef(minizen);
+useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 
-// ESC handler uses ref, not closure variable
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (zenModeRef.current) {  // ← always current value
-      exitZen();
-      return;
-    }
-    // ... rest of handler
-  };
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [/* zenMode NOT in deps - we use ref instead */]);
+// Direction ref in App.tsx (persists across renders)
+const escDirectionRef = useRef<'up' | 'down'>('up');
 ```
 
-This pattern ensures the handler always sees the current zenMode value without re-registering on every state change.
+This pattern ensures the handler always sees the current values without re-registering on every state change.
 
 ### When ESC Should NOT Lock
 
 1. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
 2. **ESC was already handled** - Check `e.defaultPrevented`
 3. **Scramble is active** - Unscramble instead (v2.4.18+)
-4. **In zen mode** - Exit zen instead
-5. **In minizen mode** - Exit minizen instead
-6. **Function menus open** - Close panels instead
-7. **Narrow + sidebar hidden** - Show sidebar instead
-8. **User in password input** - Only blocks `<input>` elements, NOT the editor `<textarea>`
+4. **User in `<input>`** - Only blocks `<input>` elements, NOT the editor `<textarea>`
+5. **Narrow + any non-base state** - Zen, panels, sidebar hidden all handled before lock
+6. **Wide + any non-base state** - Bounce cycle handles zen, mz, panels
+7. **Wide + base + no password** - Restarts cycle instead of locking
+8. **Wide + base + dir=up** - Enters minizen instead of locking
 
 ### When ESC SHOULD Lock
 
-**Only from base state:** sidebar visible, no function menus open, not in focus mode.
-
-1. **Wide + full view** - Sidebar visible, no panels, not in minizen/zen
-2. **Narrow + sidebar visible** - No panels open
+1. **Wide + base + dir=down + hasPassword** - Bottom of bounce cycle, save + lock
+2. **Narrow + sidebar visible** - No panels open, no zen
 3. **After password saved** - Label says "esc to lock", `isSaving=true`
 
 **Pre-lock save (v2.4.21+):** Before locking, the ESC handler saves the editor content via `saveEntry()` — but **only if `auth.hasPassword` is true**. Without this guard, ESC on a fresh journal (no password) would persist the empty today placeholder to IndexedDB, creating a ghost sidebar entry. The save is only needed to flush pending content before the lock screen appears.

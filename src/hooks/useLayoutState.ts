@@ -60,6 +60,8 @@ export function useLayoutState() {
   const [minizen, setMinizen] = useState(false);
   const zenModeRef = useRef(zenMode);
   useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
+  const minizenRef = useRef(minizen);
+  useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 
   // Unified state saved before entering any focus mode
   const [preFocusState, setPreFocusState] = usePersisted<{
@@ -263,9 +265,6 @@ export function useLayoutState() {
     if (showDebugMenu && showAboutPanel) markEasterEggFound('powerstatMode');
   }, [showDebugMenu, showAboutPanel]);
 
-  useEffect(() => {
-    if (isSuperscramble) markEasterEggFound('superscramble');
-  }, [isSuperscramble]);
 
   useEffect(() => {
     if (zenMode) markEasterEggFound('zenMode');
@@ -273,7 +272,7 @@ export function useLayoutState() {
 
   return {
     // Layout modes
-    zenMode, zenModeRef, minizen, isNarrow,
+    zenMode, zenModeRef, minizen, minizenRef, isNarrow,
     // Panel visibility
     showDebugMenu, setShowDebugMenu,
     showAboutPanel, setShowAboutPanel,
