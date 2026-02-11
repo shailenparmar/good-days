@@ -28,6 +28,9 @@ export default function MobileApp() {
   const [pasteInvalid, setPasteInvalid] = useState(false);
   const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
+  const [skipPressed, setSkipPressed] = useState(false);
+  const skipEngaged = useRef(false);
+
   // Code entry state
   const [codeInput, setCodeInput] = useState('');
 
@@ -1044,6 +1047,49 @@ export default function MobileApp() {
               );
             })}
           </div>
+          <div style={{ width: '9ch', alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
+            <div
+              onTouchStart={(e) => {
+                e.preventDefault();
+                skipEngaged.current = true;
+                setSkipPressed(true);
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              onTouchMove={(e) => {
+                if (!isTouchInside(e)) {
+                  skipEngaged.current = false;
+                  setSkipPressed(false);
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                if (skipEngaged.current) sync.skipPairing();
+                skipEngaged.current = false;
+                setSkipPressed(false);
+              }}
+              onTouchCancel={() => {
+                skipEngaged.current = false;
+                setSkipPressed(false);
+              }}
+              style={{
+                width: '100%',
+                background: skipPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${skipPressed ? 65 : colors.light}%, ${skipPressed ? 1 : 0.6})`,
+                borderRadius: '12px',
+                padding: '7px 0',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '20px',
+                color: textColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              don't connect
+            </div>
+          </div>
         </div>
       </div>
       </div>
@@ -1102,6 +1148,49 @@ export default function MobileApp() {
             autoCapitalize="off"
             spellCheck={false}
           />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '160px' }}>
+            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
+            <div
+              onTouchStart={(e) => {
+                e.preventDefault();
+                skipEngaged.current = true;
+                setSkipPressed(true);
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              onTouchMove={(e) => {
+                if (!isTouchInside(e)) {
+                  skipEngaged.current = false;
+                  setSkipPressed(false);
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                if (skipEngaged.current) sync.skipPairing();
+                skipEngaged.current = false;
+                setSkipPressed(false);
+              }}
+              onTouchCancel={() => {
+                skipEngaged.current = false;
+                setSkipPressed(false);
+              }}
+              style={{
+                width: '100%',
+                background: skipPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${skipPressed ? 65 : colors.light}%, ${skipPressed ? 1 : 0.6})`,
+                borderRadius: '12px',
+                padding: '7px 0',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '20px',
+                color: textColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              don't connect
+            </div>
+          </div>
         </div>
       </div>
 

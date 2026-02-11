@@ -25,6 +25,7 @@ export interface MobileSyncHandle {
   candidates: Candidate[];
   selectCandidate: (id: string) => void;
   pairByCode: (code: string) => void;
+  skipPairing: () => void;
 
   startStream: (side: 'text' | 'background') => void;
   stopStream: () => void;
@@ -45,6 +46,7 @@ export function useMobileSync(): MobileSyncHandle {
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
   const hiddenRef = useRef(false);
+  const skippedPairingRef = useRef(false);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -53,7 +55,7 @@ export function useMobileSync(): MobileSyncHandle {
   }, []);
 
   const connect = useCallback(() => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || skippedPairingRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     const url = getWsUrl();
@@ -128,7 +130,7 @@ export function useMobileSync(): MobileSyncHandle {
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectTimer.current) return;
-    if (!mountedRef.current || hiddenRef.current) return;
+    if (!mountedRef.current || hiddenRef.current || skippedPairingRef.current) return;
     reconnectTimer.current = setTimeout(() => {
       reconnectTimer.current = null;
       connect();
@@ -166,6 +168,18 @@ export function useMobileSync(): MobileSyncHandle {
     sendMsg({ type: 'save-preset' });
   }, [sendMsg]);
 
+  const skipPairing = useCallback(() => {
+    skippedPairingRef.current = true;
+    setPairingState('standalone');
+    setCandidates([]);
+    wsRef.current?.close();
+    wsRef.current = null;
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+  }, []);
+
   // Connect on mount + disconnect/reconnect on visibility change
   useEffect(() => {
     mountedRef.current = true;
@@ -184,6 +198,7 @@ export function useMobileSync(): MobileSyncHandle {
         backoffRef.current = 1000;
       } else if (document.visibilityState === 'visible') {
         hiddenRef.current = false;
+        skippedPairingRef.current = false;
         backoffRef.current = 1000;
         connect();
       }
@@ -207,6 +222,7 @@ export function useMobileSync(): MobileSyncHandle {
     candidates,
     selectCandidate,
     pairByCode,
+    skipPairing,
     startStream,
     stopStream,
     sendColorUpdate,
