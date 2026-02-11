@@ -187,20 +187,20 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     return () => clearTimeout(timer);
   }, [isRainbowMode, eggAnimPhase, eggBoldCount]);
 
-  // Handle click on easter eggs text - the secret 9th egg!
-  // When user has all 8 regular eggs, shows "7.5/8" - clicking it completes the collection
+  // Handle click on easter eggs text - the secret 8th egg!
+  // When user has all 7 regular eggs, shows "6.5/7" - clicking it completes the collection
   const handleEasterEggsClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const eggCount = getEasterEggCount();
     const hasSecretEgg = isEasterEggFound('clickedEggCounter');
 
-    // If at 8/8 regular eggs but haven't clicked yet (showing 7.5/8)
+    // If at 7/7 regular eggs but haven't clicked yet (showing 6.5/7)
     if (eggCount.found === eggCount.total && !hasSecretEgg && !isRainbowMode) {
       markEasterEggFound('clickedEggCounter');
       setIsRainbowMode(true);
     }
-    // If already completed (8/8), can still trigger rainbow mode again
+    // If already completed (7/7), can still trigger rainbow mode again
     else if (eggCount.found === eggCount.total && hasSecretEgg && !isRainbowMode) {
       setIsRainbowMode(true);
     }
@@ -484,9 +484,9 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               {(() => {
                 const eggCount = getEasterEggCount();
                 const hasSecretEgg = isEasterEggFound('clickedEggCounter');
-                // Show 7.5/8 when all regular eggs found but secret not yet clicked
+                // Show N-0.5/N when all regular eggs found but secret not yet clicked
                 const displayFound = (eggCount.found === eggCount.total && !hasSecretEgg)
-                  ? '7.5'
+                  ? String(eggCount.total - 0.5)
                   : String(eggCount.found);
                 const eggText = s(`${displayFound}/${eggCount.total} easter eggs`);
 

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getItem, setItem } from '@shared/storage';
 import { scrambleText } from '@shared/utils/scramble';
-import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { ColorPreset } from '../types';
 
 interface PresetGridProps {
@@ -258,7 +257,6 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
           // Rand
-          markEasterEggFound('spacebarRand');
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
           // Save

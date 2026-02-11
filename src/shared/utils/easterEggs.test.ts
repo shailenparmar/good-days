@@ -8,8 +8,8 @@ describe('easterEggs', () => {
   });
 
   describe('EASTER_EGGS', () => {
-    it('should have exactly 9 easter eggs', () => {
-      expect(EASTER_EGGS.length).toBe(9);
+    it('should have exactly 8 easter eggs', () => {
+      expect(EASTER_EGGS.length).toBe(8);
     });
 
     it('should contain all expected easter eggs', () => {
@@ -20,7 +20,6 @@ describe('easterEggs', () => {
         'liveControl',
         'zenMode',
         'timeCommand',
-        'spacebarRand',
         'selectColorText',
       ];
 
@@ -36,10 +35,10 @@ describe('easterEggs', () => {
   });
 
   describe('getEasterEggCount', () => {
-    it('should return 0 found and 8 total when no eggs found', () => {
+    it('should return 0 found and 7 total when no eggs found', () => {
       const count = getEasterEggCount();
       expect(count.found).toBe(0);
-      expect(count.total).toBe(8);
+      expect(count.total).toBe(7);
     });
 
     it('should return correct count after finding eggs', () => {
@@ -48,7 +47,7 @@ describe('easterEggs', () => {
 
       const count = getEasterEggCount();
       expect(count.found).toBe(2);
-      expect(count.total).toBe(8);
+      expect(count.total).toBe(7);
     });
   });
 
@@ -77,8 +76,8 @@ describe('easterEggs', () => {
       });
 
       const count = getEasterEggCount();
-      expect(count.found).toBe(8);
-      expect(count.total).toBe(8);
+      expect(count.found).toBe(7);
+      expect(count.total).toBe(7);
     });
 
     it('should persist across multiple calls', () => {
@@ -104,7 +103,7 @@ describe('easterEggs', () => {
     it('should handle empty localStorage', () => {
       const count = getEasterEggCount();
       expect(count.found).toBe(0);
-      expect(count.total).toBe(8);
+      expect(count.total).toBe(7);
     });
   });
 });
