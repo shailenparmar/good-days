@@ -833,7 +833,7 @@ export default function MobileApp() {
           </div>
 
           {pasteInvalid ? (
-            <div style={getButtonStyle(false, 'full', 'aux')}>
+            <div style={{ ...getButtonStyle(false, 'full', 'aux'), color: errorColor, borderColor: errorColor }}>
               invalid format
             </div>
           ) : (
