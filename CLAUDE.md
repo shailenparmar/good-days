@@ -398,7 +398,7 @@ On candidates picker and code-entry screen, "don't connect" closes the WebSocket
 
 When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `clientId` (v2.4.14+, was `deviceId` before): `parseInt(clientId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free. Since `clientId` is a fresh UUID per connection, the code rotates each session (reconnect, tab switch, page refresh).
 
-**Desktop:** Title always shows "good days" by default. On hover, shows the 3-digit pairing code **only when a phone is actively on the "enter your desktop code" screen** (v2.4.12+); otherwise shows "good days v{VERSION}". The code is never visible during normal use, live mode, or when no phone is actively trying to pair via code.
+**Desktop (v2.4.17+):** Title shows the 3-digit pairing code by default (no hover needed) when a phone is actively on the "enter your desktop code" screen. When no phone is looking, title shows "good days" normally. On hover, title always shows "good days v{VERSION}" regardless of pairing state. The code is never visible during normal use, live mode, or when no phone is actively trying to pair via code.
 
 **Relay-driven code visibility (v2.4.12+, scoped v2.4.14):** The relay tracks which phones are in code-entry mode via `phonesInCodeEntry` Set. When a phone enters or leaves the enter-code screen, the relay broadcasts `{ type: 'code-visible', visible: boolean }` to **unpaired laptops only** (v2.4.14+). Paired laptops can't accept code-based pairing, so showing the code is pointless noise. Desktop `useWebSync` stores the pairing code in a ref on `registered` (persists across pair/unpair cycles — NOT cleared on `paired`), but only exposes it via React state when `code-visible: true`. On `code-visible: false` or `paired`, state is cleared to null.
 
@@ -2832,14 +2832,15 @@ ESC key has context-dependent behavior. Two handlers coordinate this:
 ### ESC Priority (checked in order)
 
 1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
-2. **Zen mode** → Exit zen, restore previous state (works even when typing in editor!)
-3. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
-4. **Minizen mode (wide)** → Exit minizen, restore previous state (including panels)
-5. **Function menus open** → Close all panels (both at once)
-6. **Narrow + sidebar hidden** → Show sidebar
-7. **Base state** → Lock app (sidebar visible, no menus open)
+2. **Scramble active (v2.4.18+)** → Unscramble only (no other ESC behavior fires). Works from editor, title input, or anywhere. In the title input, `stopPropagation()` is skipped when scrambled so the event bubbles to the App handler.
+3. **Zen mode** → Exit zen, restore previous state (works even when typing in editor!)
+4. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
+5. **Minizen mode (wide)** → Exit minizen, restore previous state (including panels)
+6. **Function menus open** → Close all panels (both at once)
+7. **Narrow + sidebar hidden** → Show sidebar
+8. **Base state** → Lock app (sidebar visible, no menus open)
 
-**IMPORTANT:** Zen mode check comes BEFORE the input check. This ensures ESC exits zen even when the user is focused in the editor textarea.
+**IMPORTANT:** Scramble check comes BEFORE everything else (after password flow). This means ESC while scrambled ONLY unscrambles — it won't exit zen, close panels, or lock. Zen mode check comes BEFORE the input check, ensuring ESC exits zen even when focused in the editor textarea.
 
 ### The ESC Philosophy
 
@@ -3458,7 +3459,7 @@ When pushing changes:
 2. **Tell the user the version number** after pushing (e.g., "Pushed **v1.0.1**")
 3. Use the version in the commit message (e.g., "v1.0.1: Fix editor focus issue")
 
-The version displays by hovering over the "good days" title in the sidebar header (the rectangle between the two 6px panel lines). On hover, the title changes to `good days v1.10.6`. On mouse leave, it reverts to `good days`. Works in both normal and superscramble modes.
+The version displays by hovering over the "good days" title in the sidebar header (the rectangle between the two 6px panel lines). On hover, the title always shows `good days v{VERSION}` (v2.4.17+). Without hover, the title shows the 3-digit pairing code if a phone is actively looking for it, otherwise "good days". Works in both normal and superscramble modes.
 
 **Implementation:** Uses coordinate-based hover detection (`mousemove` + `mouseover` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay). The `mouseover` listener (v2.3.3+) helps show the version immediately after page refresh when the cursor is already over the title — `mouseover` fires when new content renders under a stationary cursor, while `mousemove` only fires on actual movement.
 
