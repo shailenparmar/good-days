@@ -368,13 +368,13 @@ Replaces the BroadcastChannel leader election (`leaderElection.ts` deleted). Eve
 
 Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` in `useWebSync.ts`.
 
-### Pairing Code Fallback (v2.4.0+, updated v2.4.12)
+### Pairing Code Fallback (v2.4.0+, updated v2.4.14)
 
-When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `deviceId` hash: `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free.
+When phone and desktop are on different networks (different IPs), IP-based auto-pair can't work. Each desktop is assigned a 3-digit pairing code on registration, derived from `clientId` (v2.4.14+, was `deviceId` before): `parseInt(clientId.slice(0,6), 16) % 1000`, zero-padded. If taken, increments+wraps until free. Since `clientId` is a fresh UUID per connection, the code rotates each session (reconnect, tab switch, page refresh).
 
 **Desktop:** Title always shows "good days" by default. On hover, shows the 3-digit pairing code **only when a phone is actively on the "enter your desktop code" screen** (v2.4.12+); otherwise shows "good days v{VERSION}". The code is never visible during normal use, live mode, or when no phone is actively trying to pair via code.
 
-**Relay-driven code visibility (v2.4.12+):** The relay tracks which phones are in code-entry mode via `phonesInCodeEntry` Set. When a phone enters or leaves the enter-code screen, the relay broadcasts `{ type: 'code-visible', visible: boolean }` to all connected laptops. Desktop `useWebSync` stores the pairing code in a ref on `registered`, but only exposes it via React state when `code-visible: true`. On `code-visible: false` or `paired`, state is cleared to null.
+**Relay-driven code visibility (v2.4.12+, scoped v2.4.14):** The relay tracks which phones are in code-entry mode via `phonesInCodeEntry` Set. When a phone enters or leaves the enter-code screen, the relay broadcasts `{ type: 'code-visible', visible: boolean }` to **unpaired laptops only** (v2.4.14+). Paired laptops can't accept code-based pairing, so showing the code is pointless noise. Desktop `useWebSync` stores the pairing code in a ref on `registered` (persists across pair/unpair cycles — NOT cleared on `paired`), but only exposes it via React state when `code-visible: true`. On `code-visible: false` or `paired`, state is cleared to null.
 
 **Phone enters code-entry when:**
 - 0 unpaired laptops on same IP during registration
@@ -393,7 +393,7 @@ When phone and desktop are on different networks (different IPs), IP-based auto-
 
 **Relay error handling (v2.4.8+):** `handlePairByCode` now logs all exit paths (code not found, laptop disconnected, laptop already paired) and sends `enter-code` back to the phone on failure. This gives the phone a signal that the attempt failed (the enter-code re-receipt is harmless if already in that state).
 
-**Code lifecycle:** Assigned on laptop register, stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Desktop state driven by `code-visible` messages from relay (not by registration alone).
+**Code lifecycle:** Assigned on laptop register (new code each session since `clientId` is fresh per connection, v2.4.14+), stored in `pairingCodes: Map<code, clientId>`. Released on disconnect via `releasePairingCode()`. Desktop state driven by `code-visible` messages from relay (only sent to unpaired laptops, v2.4.14+).
 
 Code: `assignPairingCode()`, `pairingCodes` Map, `phonesInCodeEntry` Set, `phoneEnterCodeEntry()`/`phoneLeaveCodeEntry()`/`broadcastCodeVisibility()` in `relay.ts`. `pairingCodeRef` + `code-visible` handler in `useWebSync.ts`, bridged through `ThemeContext` → `App.tsx` title.
 
@@ -410,6 +410,8 @@ The pairing hierarchy was simplified from 3-tier (secret → affinity → IP) to
 **Removed:** `secret` field, `partnerDeviceId` field, `findAffinityMatch()`, `pickBestLaptop()`, `claim-laptop` message, `candidate-update` message, `no-candidates` message. Clients no longer store `wsSecret` or `wsPartnerDeviceId` in localStorage.
 
 **Kept:** Phone takeover (evict stale phone when new phone connects and all laptops are taken). `notifyWatchingPhones(ip)` re-evaluates all unpaired phones when IP group changes.
+
+**Auto-pair on candidate drop (v2.4.14+):** When an unpaired laptop disconnects, `notifyWatchingPhones` is called for its IP group. If a phone was on the candidates screen (2+ laptops) and now only 1 laptop remains, the phone auto-pairs. If 0 remain, the phone goes to enter-code. This makes the hierarchy reactive: process of elimination resolves to auto-pair.
 
 ### Relay Handoff Grace Period (v2.1.15+, updated v2.4.0)
 
