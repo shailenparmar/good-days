@@ -80,7 +80,7 @@ export default function MobileApp() {
     if (!codeScreenVisible) return;
     const id = setInterval(() => {
       setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
-    }, 20);
+    }, 50);
     return () => clearInterval(id);
   }, [codeScreenVisible]);
 
