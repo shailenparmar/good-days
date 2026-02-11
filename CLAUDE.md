@@ -445,6 +445,16 @@ When 0 desktops on same IP, phone shows code entry:
 
 Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`.
 
+### "Don't Connect" Bypass (v2.4.12+)
+
+Both the candidates picker and code entry screens show a 2px divider line and "don't connect" button below the main content. Styled as an `aux`-role button (7px padding, 4px border, 12px radius). Same drag-off cancellation pattern as other mobile buttons (`skipEngaged` ref + `isTouchInside`).
+
+**Behavior:** Tapping "don't connect" calls `sync.skipPairing()` which closes the WebSocket, sets `pairingState` to `'standalone'`, and sets `skippedPairingRef = true` to prevent reconnection. The phone goes to standalone mode (home screen, no live sync). If the user backgrounds and returns to the app, `skippedPairingRef` is cleared and the WS reconnects normally.
+
+**Auto-pair unchanged:** When 1 desktop is on the same wifi, the relay auto-pairs without showing any screen — the "don't connect" option only appears on the candidates picker (2+ desktops) and code entry (0 desktops on same IP).
+
+Code: `skipPairing()` in `useMobileSync.ts`, "don't connect" buttons in `MobileApp.tsx`.
+
 ### Live Stats (removed in v2.3.12)
 
 The live stats section (hue travel, sl travel, hz, live saves) was removed from the powerstat display. The `useLiveStats` hook in `src/features/statistics/hooks/useLiveStats.ts` is now orphaned (not imported anywhere). `phoneSaveCount`, `incrementPhoneSaveCount`, and `colorUpdateCountRef` were removed from ThemeContext since they existed solely for live stats. WebSyncBridge no longer increments `colorUpdateCountRef` or calls `incrementPhoneSaveCount`. The orphaned localStorage keys (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) will persist harmlessly in existing users' browsers.
