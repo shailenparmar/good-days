@@ -11,9 +11,9 @@ const deviceConnections = new Map<string, string>();
 // 3-digit pairing code → clientId: for cross-network code-based pairing
 const pairingCodes = new Map<string, string>();
 
-function assignPairingCode(clientId: string, deviceId: string): string {
-  // Derive a 3-digit code from deviceId hash, increment+wrap if taken
-  let code = parseInt(deviceId.slice(0, 6), 16) % 1000;
+function assignPairingCode(clientId: string): string {
+  // Derive a 3-digit code from clientId (new UUID per connection = new code each session)
+  let code = parseInt(clientId.slice(0, 6), 16) % 1000;
   for (let i = 0; i < 1000; i++) {
     const padded = String(code).padStart(3, '0');
     const existing = pairingCodes.get(padded);
@@ -58,7 +58,8 @@ function phoneLeaveCodeEntry(phoneId: string) {
 function broadcastCodeVisibility() {
   const visible = phonesInCodeEntry.size > 0;
   for (const [, client] of clients) {
-    if (client.role === 'laptop') {
+    // Only unpaired laptops — paired laptops can't accept code-based pairing
+    if (client.role === 'laptop' && !client.partnerId) {
       send(client.ws, { type: 'code-visible', visible });
     }
   }
@@ -233,16 +234,16 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
   ipGroups.get(publicIp)!.add(clientId);
 
   if (role === 'laptop') {
-    // Assign a 3-digit pairing code
-    const code = deviceId ? assignPairingCode(clientId, deviceId) : undefined;
-    if (code) record.pairingCode = code;
+    // Assign a 3-digit pairing code (new each session since clientId is fresh per connection)
+    const code = assignPairingCode(clientId);
+    record.pairingCode = code;
 
     send(ws, { type: 'registered', clientId, pairingCode: code });
     // Send initial code-visible state if phones are already in code-entry
     if (phonesInCodeEntry.size > 0) {
       send(ws, { type: 'code-visible', visible: true });
     }
-    console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code || 'none'} clients=${clients.size}`);
+    console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code} clients=${clients.size}`);
 
     // Synchronous re-pair: if dedup found a phone that was paired with the old tab,
     // pair it with this new tab immediately (no setTimeout race)
@@ -503,8 +504,12 @@ function handleDisconnect(clientId: string) {
   clients.delete(clientId);
 
   // Re-evaluate pairing for remaining unpaired clients on this IP.
-  // Only for phone disconnect (laptop disconnect uses grace period above).
   if (partnerId && client.role === 'phone') {
+    notifyWatchingPhones(publicIp);
+  }
+  // When an unpaired laptop disconnects, re-evaluate watching phones
+  // (e.g., candidates screen drops from 2→1 laptop → auto-pair)
+  if (client.role === 'laptop' && !partnerId) {
     notifyWatchingPhones(publicIp);
   }
 }

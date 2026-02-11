@@ -113,7 +113,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             break;
 
           case 'paired':
-            pairingCodeRef.current = null;
             setState(prev => ({
               ...prev,
               pairingCode: null,
