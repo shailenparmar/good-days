@@ -185,7 +185,7 @@ export function SettingsPanel({
         <TimeDisplay stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
 
-      {/* Scramble Hotkey Toggle - only in powerstat mode */}
+      {/* Scramble Hotkey Toggle - only in poweruser mode */}
       {stacked && onToggleScrambleHotkey && (
         <div
           className="p-4"
@@ -216,7 +216,7 @@ export function SettingsPanel({
         <ExportButtons entries={entries} onImport={onImport} stacked={stacked} superscramble={superscramble} scrambleSeed={scrambleSeed} />
       </div>
 
-      {/* Reset App + Debug Log - only in powerstat mode */}
+      {/* Reset App + Debug Log - only in poweruser mode */}
       {stacked && (
         <div className="p-4 space-y-2">
           <FunctionButton onClick={handleExportDebugLog} size="sm">

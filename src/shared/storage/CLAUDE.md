@@ -396,7 +396,7 @@ Import writes directly to IndexedDB via `saveAllJournalEntries()`.
 
 ### Reset App Behavior
 
-The reset button (powerstat mode) clears both storage systems. The process handles two key issues:
+The reset button (poweruser mode) clears both storage systems. The process handles two key issues:
 
 1. **Async IndexedDB deletion** - Must wait for `deleteDatabase()` to complete before reload
 2. **beforeunload race condition** - App's backup-on-close would re-save entries to localStorage
@@ -427,13 +427,13 @@ if ((window as { __resettingApp?: boolean }).__resettingApp) return;
 
 **Why this matters:** Without the flag, the beforeunload handler would save entries to localStorage immediately before reload, then `initJournalStorage()` would find them and migrate them back to IndexedDB on the fresh load. Similarly, the statistics hook's interval and save effects would re-persist the old `totalSecondsOnApp` and `totalKeystrokes` values to localStorage after `clear()` but before reload.
 
-### Storage Display (Powerstat Mode)
+### Storage Display (Poweruser Mode)
 
 Shows IndexedDB quota via `navigator.storage.estimate()`:
 
 - Format: `{used} MB / {quota}` (e.g., "0.15 MB / 2.5 GB")
 - Large quotas (≥1GB) shown in GB
-- Fetched once when powerstat opens (not live-updating)
+- Fetched once when poweruser menu opens (not live-updating)
 - Fallback: iterates localStorage if Storage API unavailable
 
 ```tsx

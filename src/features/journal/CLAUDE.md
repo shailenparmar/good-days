@@ -203,7 +203,7 @@ Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
 
 ### Scramble Hotkey
 
-The scramble hotkey is a power user feature, only available in **powerstat mode** (settings + about panels both open).
+The scramble hotkey is a power user feature, only available in **poweruser mode** (settings + about panels both open).
 
 | State | Button Text | On Hover |
 |-------|-------------|----------|

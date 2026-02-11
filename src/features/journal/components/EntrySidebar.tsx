@@ -136,7 +136,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         // Selected or hovered = filled background
         const currentBg = (isSelected || isHovered) ? hoverBg : 'transparent';
 
-        // In powerstat mode, show "1/28/2026 9:24 AM" format with startedAt time
+        // In poweruser mode, show "1/28/2026 9:24 AM" format with startedAt time
         let dateText: string;
         if (stacked && entry.startedAt) {
           const date = new Date(entry.startedAt);

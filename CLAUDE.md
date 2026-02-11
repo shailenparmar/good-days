@@ -232,7 +232,7 @@ Old icons backed up at `public/icon-backup/`.
 
 ## Easter Eggs
 
-The app has 8 discoverable easter eggs + 1 secret final egg. The count displays in powerstat mode.
+The app has 8 discoverable easter eggs + 1 secret final egg. The count displays in poweruser mode.
 
 ### Easter Egg List
 
@@ -302,4 +302,4 @@ Lightweight debug logger for diagnosing user-reported issues. Stores a circular 
 - `exportLogs(appVersion, entryCount)` — human-readable dump with header
 - `clearLogs()` — wipe all logs
 
-**Export UI**: "export debug log" button in powerstat mode (Settings panel, same section as reset). Downloads a `.txt` file with app version, entry count, user agent, and timestamped events. Filename: `good days debug log MM-DD-YYYY HHmmss.txt`.
+**Export UI**: "export debug log" button in poweruser mode (Settings panel, same section as reset). Downloads a `.txt` file with app version, entry count, user agent, and timestamped events. Filename: `good days debug log MM-DD-YYYY HHmmss.txt`.

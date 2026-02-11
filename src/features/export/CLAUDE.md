@@ -260,11 +260,11 @@ function normalizeForComparison(text: string): string {
 | Normal | Copy | "copy to clipboard" | — |
 | Normal | Backup | "download backup" | — |
 | Normal | Import | "import backup" | — |
-| Powerstat | Copy | "copy markdown format" | — |
-| Powerstat | Backup | "download AES-256-GCM backup" | — |
-| Powerstat | Import | "import AES-256-GCM backup" | "multiple files accepted" |
+| Poweruser | Copy | "copy markdown format" | — |
+| Poweruser | Backup | "download AES-256-GCM backup" | — |
+| Poweruser | Import | "import AES-256-GCM backup" | "multiple files accepted" |
 
-The import button hover text change in powerstat mode is a literal string change (not a tooltip - we don't use tooltips). The Download icon stays visible in both default and hover states (v1.10.24+) — only hidden during feedback (success/error).
+The import button hover text change in poweruser mode is a literal string change (not a tooltip - we don't use tooltips). The Download icon stays visible in both default and hover states (v1.10.24+) — only hidden during feedback (success/error).
 
 ### Fearless Import Philosophy
 

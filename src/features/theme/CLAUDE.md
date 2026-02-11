@@ -154,7 +154,7 @@ Code location: `App.tsx` `handleGlobalKeyDown`
 
 Before v1.10.59, both guards bailed unconditionally, so clicking an old entry's editor and typing did nothing.
 
-**Settings protection:** When settings is open (whether just settings, powerstat, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
+**Settings protection:** When settings is open (whether just settings, poweruser menu, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
 
 ```tsx
 // When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
@@ -199,7 +199,7 @@ The bold sweep animation runs across all three lines sequentially.
 
 ## Color Stats Copy/Paste
 
-In powerstat mode, the color stats area (txt/bg HSL values) shows copy/paste buttons on hover.
+In poweruser mode, the color stats area (txt/bg HSL values) shows copy/paste buttons on hover.
 
 ### Hover Region Structure
 

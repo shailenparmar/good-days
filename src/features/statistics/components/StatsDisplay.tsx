@@ -458,7 +458,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
         </div>
       </div>
 
-      {/* Powerstat mode: technical stats + color codes */}
+      {/* Poweruser mode: technical stats + color codes */}
       {stacked && techStats && (
         <div className="mt-3 pt-3" style={{ borderTop: '2px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}>
           {/* Technical stats - not copy-pastable */}

@@ -106,7 +106,7 @@ export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDispla
     second: '2-digit'
   });
 
-  // Only show milliseconds in powerstat mode (stacked)
+  // Only show milliseconds in poweruser mode (stacked)
   let format12: string;
   let format24: string;
 

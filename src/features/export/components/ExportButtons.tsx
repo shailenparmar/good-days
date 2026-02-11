@@ -49,7 +49,64 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     };
   }, [importFeedback]);
 
-  const handleImport = () => {
+  // Shared logic: process a single backup file's content string into merged entries
+  const processBackupContent = async (
+    fileContent: string,
+    currentEntries: JournalEntry[],
+    label: string,
+  ): Promise<{ entries: JournalEntry[]; importedCount: number } | null> => {
+    if (!fileContent) return null;
+
+    // Extract encrypted content (skips any header lines)
+    const encryptedContent = parseEncryptedBackup(fileContent);
+    if (!encryptedContent) {
+      console.error(`No encrypted content found in: ${label}`);
+      return null;
+    }
+
+    // Decrypt - this validates it's actually our backup (wrong files fail decryption)
+    const decrypted = await decryptText(encryptedContent);
+
+    // Try JSON format first (v1+), fall back to legacy markdown
+    const jsonEntries = parseBackupJson(decrypted);
+
+    if (jsonEntries) {
+      // JSON format - entries already have HTML content
+      const result = mergeJsonEntries(currentEntries, jsonEntries, Date.now());
+      return { entries: result.entries, importedCount: result.importedCount };
+    } else {
+      // Legacy markdown format - needs HTML conversion
+      const parsed = parseBackupText(decrypted);
+      const result = mergeEntries(currentEntries, parsed, Date.now());
+      return { entries: result.entries, importedCount: result.importedCount };
+    }
+  };
+
+  const handleImport = async () => {
+    // --- Electron path: use native open dialog via IPC ---
+    if (window.electronAPI) {
+      logAction('import.start', { fileCount: 1 });
+      try {
+        const fileContent = await window.electronAPI.backup.importBackup();
+        if (!fileContent) return; // User cancelled
+
+        const result = await processBackupContent(fileContent, entries, 'electron-import');
+        if (result) {
+          onImport(result.entries);
+          setImportFeedback({ type: 'success', count: result.importedCount });
+          logAction('import.done', { totalImported: result.importedCount, fileCount: 1 });
+        } else {
+          setImportFeedback({ type: 'error' });
+          logAction('import.fail', { fileCount: 1 });
+        }
+      } catch (err) {
+        console.error('Failed to import backup (electron):', err);
+        setImportFeedback({ type: 'error' });
+        logAction('import.fail', { fileCount: 1 });
+      }
+      return;
+    }
+
     fileInputRef.current?.click();
   };
 
@@ -76,38 +133,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     for (const file of Array.from(files)) {
       try {
         const fileContent = await readFile(file);
-        if (!fileContent) continue;
-
-        // Extract encrypted content (skips any header lines)
-        const encryptedContent = parseEncryptedBackup(fileContent);
-        if (!encryptedContent) {
-          console.error(`No encrypted content found in: ${file.name}`);
-          continue;
+        const result = await processBackupContent(fileContent, currentEntries, file.name);
+        if (result) {
+          currentEntries = result.entries;
+          totalImported += result.importedCount;
+          anyFileSucceeded = true;
         }
-
-        // Decrypt - this validates it's actually our backup (wrong files fail decryption)
-        const decrypted = await decryptText(encryptedContent);
-
-        // Try JSON format first (v1+), fall back to legacy markdown
-        const jsonEntries = parseBackupJson(decrypted);
-        let merged: JournalEntry[];
-        let importedCount: number;
-
-        if (jsonEntries) {
-          // JSON format - entries already have HTML content
-          const result = mergeJsonEntries(currentEntries, jsonEntries, Date.now());
-          merged = result.entries;
-          importedCount = result.importedCount;
-        } else {
-          // Legacy markdown format - needs HTML conversion
-          const parsed = parseBackupText(decrypted);
-          const result = mergeEntries(currentEntries, parsed, Date.now());
-          merged = result.entries;
-          importedCount = result.importedCount;
-        }
-        currentEntries = merged;
-        totalImported += importedCount;
-        anyFileSucceeded = true;
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
       }
@@ -136,10 +167,6 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       const encrypted = await encryptText(jsonContent);
       const fileContent = formatEncryptedBackup(encrypted);
 
-      const blob = new Blob([fileContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       const now = new Date();
       // Filename: good days backup MM-DD-YYYY HHmmss.txt (zero-padded, always military time, no colons - macOS converts them to underscores)
       const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -148,7 +175,20 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      a.download = `good days backup ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
+      const filename = `good days backup ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
+
+      // --- Electron path: use native save dialog via IPC ---
+      if (window.electronAPI) {
+        await window.electronAPI.backup.saveBackup(fileContent, filename);
+        logAction('export.backup', { entryCount: entries.length });
+        return;
+      }
+
+      const blob = new Blob([fileContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -161,7 +201,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   };
 
   const handleCopyToClipboard = async () => {
-    // Powerstat mode: markdown format, Normal mode: plain text
+    // Poweruser mode: markdown format, Normal mode: plain text
     const textContent = stacked ? formatEntriesAsText(entries) : formatEntriesForClipboard(entries);
     if (!textContent) return;
 
