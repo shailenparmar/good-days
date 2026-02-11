@@ -34,7 +34,7 @@ export default function MobileApp() {
 
   // Code entry state
   const [codeInput, setCodeInput] = useState('');
-  const [codeError, setCodeError] = useState(false);
+  const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
 
   // Mock screen for visual testing (?mock=pairing or ?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
@@ -691,17 +691,21 @@ export default function MobileApp() {
   useEffect(() => {
     if (sync.pairingState !== 'enter-code') {
       setCodeInput('');
-      setCodeError(false);
+      setCodeFlash('none');
     }
   }, [sync.pairingState]);
 
-  // Red flash on wrong code
+  // Triple red flash on wrong code (matches LockScreen pattern)
   useEffect(() => {
     if (sync.codeRejectedCount === 0) return;
-    setCodeError(true);
     setCodeInput('');
-    const timer = setTimeout(() => setCodeError(false), 1500);
-    return () => clearTimeout(timer);
+    setCodeFlash('red');
+    const t1 = setTimeout(() => setCodeFlash('none'), 80);
+    const t2 = setTimeout(() => setCodeFlash('red'), 160);
+    const t3 = setTimeout(() => setCodeFlash('none'), 240);
+    const t4 = setTimeout(() => setCodeFlash('red'), 320);
+    const t5 = setTimeout(() => setCodeFlash('none'), 400);
+    return () => { [t1, t2, t3, t4, t5].forEach(clearTimeout); };
   }, [sync.codeRejectedCount]);
 
   const { confirm: confirmColor, error: errorColor } = getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight);
@@ -1195,61 +1199,42 @@ export default function MobileApp() {
             width: '9ch',
             alignSelf: 'center',
           }}>
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={3}
-                value={codeInput}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
-                  setCodeInput(val);
-                  if (codeError) setCodeError(false);
-                  if (val.length === 3) {
-                    sync.pairByCode(val);
-                  }
-                }}
-                style={{
-                  fontFamily: 'monospace',
-                  fontWeight: 800,
-                  fontSize: '48px',
-                  color: codeError ? 'transparent' : textColor,
-                  backgroundColor: 'transparent',
-                  border: `4px solid ${codeError ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
-                  borderRadius: '12px',
-                  textAlign: 'center',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  padding: '12px',
-                  outline: 'none',
-                  caretColor: (codeError || codeInput.length >= 3) ? 'transparent' : textColor,
-                  letterSpacing: '8px',
-                  textIndent: '8px',
-                }}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-              />
-              {codeError && (
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'monospace',
-                  fontWeight: 800,
-                  fontSize: '48px',
-                  color: errorColor,
-                  letterSpacing: '8px',
-                  pointerEvents: 'none',
-                }}>
-                  <span style={{ paddingLeft: '8px' }}>---</span>
-                </div>
-              )}
-            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={3}
+              value={codeInput}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                setCodeInput(val);
+                if (codeFlash !== 'none') setCodeFlash('none');
+                if (val.length === 3) {
+                  sync.pairByCode(val);
+                }
+              }}
+              style={{
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '48px',
+                color: textColor,
+                backgroundColor: 'transparent',
+                border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
+                borderRadius: '12px',
+                textAlign: 'center',
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '12px',
+                outline: 'none',
+                caretColor: (codeFlash !== 'none' || codeInput.length >= 3) ? 'transparent' : textColor,
+                letterSpacing: '8px',
+                textIndent: '8px',
+              }}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+            />
             <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
             <div
               onTouchStart={(e) => {
