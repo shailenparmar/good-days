@@ -63,6 +63,7 @@ export function useMobileSync(): MobileSyncHandle {
       ws.onopen = () => {
         console.log('[mobile-sync] connected to', url);
         backoffRef.current = 1000;
+        pairingStateRef.current = 'standalone'; // Reset so first enter-code isn't a false rejection
         if (reconnectTimer.current) {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;

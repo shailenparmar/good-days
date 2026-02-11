@@ -32,6 +32,25 @@ export default function MobileApp() {
   const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
   const codeInputRef = useRef<HTMLInputElement>(null);
 
+  // Bold sweep placeholder for code input ("000")
+  const [codeBoldCount, setCodeBoldCount] = useState(0);
+  const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
+  const codePlaceholder = '000';
+  const showCodePlaceholder = codeInput.length === 0;
+  useEffect(() => {
+    if (!showCodePlaceholder) return;
+    if (codeBoldCount >= codePlaceholder.length) {
+      setCodeBoldPhase(p => p === 'bold' ? 'unbold' : 'bold');
+      setCodeBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setCodeBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [showCodePlaceholder, codeBoldCount, codeBoldPhase]);
+  useEffect(() => {
+    if (showCodePlaceholder) { setCodeBoldCount(0); setCodeBoldPhase('bold'); }
+  }, [showCodePlaceholder]);
+
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
 
@@ -919,43 +938,73 @@ export default function MobileApp() {
             width: '9ch',
             alignSelf: 'center',
           }}>
-            <input
-              ref={codeInputRef}
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={3}
-              value={codeInput}
-              onChange={(e) => {
-                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
-                setCodeInput(val);
-                if (codeFlash !== 'none') setCodeFlash('none');
-                if (val.length === 3) {
-                  sync.pairByCode(val);
-                }
-              }}
-              style={{
-                fontFamily: 'monospace',
-                fontWeight: 800,
-                fontSize: '48px',
-                color: textColor,
-                backgroundColor: 'transparent',
-                border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
-                borderRadius: '12px',
-                textAlign: 'center',
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '12px',
-                outline: 'none',
-                caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
-                letterSpacing: '8px',
-                textIndent: '8px',
-              }}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                ref={codeInputRef}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                value={codeInput}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                  setCodeInput(val);
+                  if (codeFlash !== 'none') setCodeFlash('none');
+                  if (val.length === 3) {
+                    sync.pairByCode(val);
+                  }
+                }}
+                style={{
+                  fontFamily: 'monospace',
+                  fontWeight: 800,
+                  fontSize: '48px',
+                  color: textColor,
+                  backgroundColor: 'transparent',
+                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '12px',
+                  outline: 'none',
+                  caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
+                  letterSpacing: '8px',
+                  textIndent: '8px',
+                }}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+              {showCodePlaceholder && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'monospace',
+                  fontWeight: 800,
+                  fontSize: '48px',
+                  color: textColor,
+                  opacity: 0.85,
+                  letterSpacing: '8px',
+                  pointerEvents: 'none',
+                }}>
+                  {codeBoldPhase === 'bold' ? (
+                    <>
+                      <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
+                      <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(codeBoldCount)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
+                      <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(codeBoldCount)}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
             <div
               onTouchStart={(e) => {
