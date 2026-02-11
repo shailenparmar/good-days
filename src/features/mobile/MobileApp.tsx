@@ -27,7 +27,6 @@ export default function MobileApp() {
 
   // Button press states
   const [pasteInvalid, setPasteInvalid] = useState(false);
-  const [pressedCandidate, setPressedCandidate] = useState<string | null>(null);
 
   const [skipPressed, setSkipPressed] = useState(false);
   const skipEngaged = useRef(false);
@@ -35,16 +34,10 @@ export default function MobileApp() {
   // Code entry state
   const [codeInput, setCodeInput] = useState('');
   const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock screen for visual testing (?mock=pairing or ?mock=code)
+  // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
-
-  // Bold sweep animation for candidate age text
-  const [ageBoldCount, setAgeBoldCount] = useState(0);
-  const [ageBoldPhase, setAgeBoldPhase] = useState<'bold' | 'unbold'>('bold');
-
-  // Candidate age counters (local timer increments these)
-  const [candidateAges, setCandidateAges] = useState<Map<string, number>>(new Map());
 
   // iOS permission state
   const [needsPermission, setNeedsPermission] = useState(false);
@@ -66,13 +59,6 @@ export default function MobileApp() {
   const activeSide = useRef<'left' | 'right' | null>(null);
   const trackedTouches = useRef<Map<number, 'left' | 'right'>>(new Map());  // touchId → side
   const alphaTouchId = useRef<number | null>(null);  // which touch is alpha (controls tilt)
-
-  // Track button engagement for candidate drag-off
-  const candidateEngaged = useRef<string | null>(null);
-
-  // Ref for candidateAges (read in animation effect without deps)
-  const candidateAgesRef = useRef(candidateAges);
-  candidateAgesRef.current = candidateAges;
 
   // Two-dot system: which color is the active dot during picking
   const [activeDot, setActiveDot] = useState<'text' | 'bg'>('text');
@@ -631,62 +617,6 @@ export default function MobileApp() {
     }
   };
 
-  // Candidate age timer: increment each candidate's age counter every second while pairing
-  useEffect(() => {
-    if (sync.pairingState !== 'pairing') return;
-    // Detect refreshed candidates (age dropped significantly → just reconnected)
-    for (const c of sync.candidates) {
-      const prevAge = candidateAges.get(c.id);
-      if (prevAge !== undefined && prevAge > 3 && c.connectedAgo <= 1) {
-        setFreshCandidateId(c.id);
-        break;
-      }
-    }
-    // Reset ages from server data when candidates change
-    const initial = new Map<string, number>();
-    for (const c of sync.candidates) {
-      initial.set(c.id, c.connectedAgo);
-    }
-    setCandidateAges(initial);
-
-    const interval = setInterval(() => {
-      setCandidateAges(prev => {
-        const next = new Map(prev);
-        for (const [id, age] of next) {
-          next.set(id, age + 1);
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sync.pairingState, sync.candidates]);
-
-  // Bold sweep animation for "refreshed Xs ago" text — matches original zero-delay pattern
-  useEffect(() => {
-    if (sync.pairingState !== 'pairing' && mockScreen !== 'pairing') {
-      setAgeBoldCount(0);
-      setAgeBoldPhase('bold');
-      return;
-    }
-    // Compute maxCount from actual displayed text (no dead zone like a fixed template)
-    const cands = sync.candidates.length > 0 ? sync.candidates
-      : (mockScreen === 'pairing' ? [{ id: 'mock-1', connectedAgo: 5 }, { id: 'mock-2', connectedAgo: 120 }] : []);
-    const ages = candidateAgesRef.current;
-    const maxCount = cands.length > 0
-      ? Math.max(...cands.map(c => {
-          const age = ages.get(c.id) ?? c.connectedAgo;
-          return `refreshed ${age < 60 ? `${age}s ago` : `${Math.floor(age / 60)} min ago`}`.length;
-        }))
-      : 16;
-    if (ageBoldCount >= maxCount) {
-      setAgeBoldPhase(prev => prev === 'bold' ? 'unbold' : 'bold');
-      setAgeBoldCount(0);
-      return;
-    }
-    const timer = setTimeout(() => setAgeBoldCount(c => c + 1), 83);
-    return () => clearTimeout(timer);
-  }, [sync.pairingState, ageBoldCount, ageBoldPhase, sync.candidates, mockScreen]);
-
   // Clear code input when leaving enter-code state
   useEffect(() => {
     if (sync.pairingState !== 'enter-code') {
@@ -695,47 +625,31 @@ export default function MobileApp() {
     }
   }, [sync.pairingState]);
 
+  // Auto-focus code input when entering enter-code state
+  useEffect(() => {
+    if (sync.pairingState === 'enter-code') {
+      codeInputRef.current?.focus();
+    }
+  }, [sync.pairingState]);
+
   // Triple red flash on wrong code (matches LockScreen pattern)
+  // Input clears AFTER the flash animation completes, then focus is restored
   useEffect(() => {
     if (sync.codeRejectedCount === 0) return;
-    setCodeInput('');
     setCodeFlash('red');
     const t1 = setTimeout(() => setCodeFlash('none'), 80);
     const t2 = setTimeout(() => setCodeFlash('red'), 160);
     const t3 = setTimeout(() => setCodeFlash('none'), 240);
     const t4 = setTimeout(() => setCodeFlash('red'), 320);
-    const t5 = setTimeout(() => setCodeFlash('none'), 400);
+    const t5 = setTimeout(() => {
+      setCodeFlash('none');
+      setCodeInput('');
+      codeInputRef.current?.focus();
+    }, 400);
     return () => { [t1, t2, t3, t4, t5].forEach(clearTimeout); };
   }, [sync.codeRejectedCount]);
 
-  const { confirm: confirmColor, error: errorColor } = getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight);
-
-  // Green flash when a candidate refreshes (connectedAgo drops to 0)
-  const [freshCandidateId, setFreshCandidateId] = useState<string | null>(null);
-  const [flashOn, setFlashOn] = useState(false);
-
-  useEffect(() => {
-    if (!freshCandidateId) return;
-    setFlashOn(true);
-    let count = 0;
-    const interval = setInterval(() => {
-      count++;
-      if (count >= 6) {
-        clearInterval(interval);
-        setFlashOn(false);
-        setFreshCandidateId(null);
-        return;
-      }
-      setFlashOn(count % 2 === 0);
-    }, 200);
-    return () => clearInterval(interval);
-  }, [freshCandidateId]);
-
-  // Mock candidates for visual testing
-  const mockCandidates = mockScreen === 'pairing' ? [
-    { id: 'mock-1', connectedAgo: 5 },
-    { id: 'mock-2', connectedAgo: 120 },
-  ] : [];
+  const { error: errorColor } = getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight);
 
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';
@@ -1017,161 +931,7 @@ export default function MobileApp() {
       </div>
       </div>
 
-      {/* ===== PAIRING SCREEN (visible when multiple laptops available) ===== */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: '#000',
-          visibility: (sync.pairingState === 'pairing' || mockScreen === 'pairing') ? 'visible' : 'hidden',
-          zIndex: (sync.pairingState === 'pairing' || mockScreen === 'pairing') ? 30 : -3,
-          ...safeAreaStyle,
-        }}
-      >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        {title}
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor }}>
-            which one is yours?
-          </span>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            fontSize: 'min(17vw, 70px)',
-            width: '9ch',
-            alignSelf: 'center',
-          }}>
-            {[...(sync.candidates.length > 0 ? sync.candidates : mockCandidates)]
-              .sort((a, b) => freshCandidateId === a.id ? -1 : freshCandidateId === b.id ? 1 : 0)
-              .map((laptop) => {
-              const h = colors.hue;
-              const s = colors.sat;
-              const l = colors.light;
-              const isPressed = pressedCandidate === laptop.id;
-              const isFresh = freshCandidateId === laptop.id && flashOn;
-              const borderColor = isFresh
-                ? confirmColor
-                : isPressed ? `hsla(${h}, ${s}%, 65%, 1)` : `hsla(${h}, ${s}%, ${l}%, 0.6)`;
-              const background = isFresh
-                ? confirmColor.replace('hsl(', 'hsla(').replace(')', ', 0.2)')
-                : isPressed ? `hsla(${h}, ${s}%, ${l}%, 0.2)` : 'transparent';
-              const age = candidateAges.get(laptop.id) ?? laptop.connectedAgo;
-              const ageText = age < 60 ? `${age}s ago` : `${Math.floor(age / 60)} min ago`;
-              return (
-                <div
-                  key={laptop.id}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    candidateEngaged.current = laptop.id;
-                    setPressedCandidate(laptop.id);
-                    if (navigator.vibrate) navigator.vibrate(10);
-                  }}
-                  onTouchMove={(e) => {
-                    if (!isTouchInside(e)) {
-                      candidateEngaged.current = null;
-                      setPressedCandidate(null);
-                    }
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    if (candidateEngaged.current === laptop.id) {
-                      sync.selectCandidate(laptop.id);
-                    }
-                    candidateEngaged.current = null;
-                    setPressedCandidate(null);
-                  }}
-                  onTouchCancel={() => {
-                    candidateEngaged.current = null;
-                    setPressedCandidate(null);
-                  }}
-                  style={{
-                    background,
-                    border: `4px solid ${borderColor}`,
-                    borderRadius: '12px',
-                    padding: '7px 0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'monospace',
-                    fontWeight: 800,
-                    fontSize: '20px',
-                    color: isFresh ? confirmColor : textColor,
-                  }}
-                >
-                  <span>
-                    {(() => {
-                      const fullText = `refreshed ${ageText}`;
-                      const count = Math.min(ageBoldCount, fullText.length);
-                      return ageBoldPhase === 'bold' ? (
-                        <><span style={{ fontWeight: 800 }}>{fullText.slice(0, count)}</span><span style={{ fontWeight: 400 }}>{fullText.slice(count)}</span></>
-                      ) : (
-                        <><span style={{ fontWeight: 400 }}>{fullText.slice(0, count)}</span><span style={{ fontWeight: 800 }}>{fullText.slice(count)}</span></>
-                      );
-                    })()}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '24px',
-            fontSize: 'min(17vw, 70px)',
-            width: '9ch',
-            alignSelf: 'center',
-          }}>
-            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
-            <div
-              onTouchStart={(e) => {
-                e.preventDefault();
-                skipEngaged.current = true;
-                setSkipPressed(true);
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              onTouchMove={(e) => {
-                if (!isTouchInside(e)) {
-                  skipEngaged.current = false;
-                  setSkipPressed(false);
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                if (skipEngaged.current) sync.skipPairing();
-                skipEngaged.current = false;
-                setSkipPressed(false);
-              }}
-              onTouchCancel={() => {
-                skipEngaged.current = false;
-                setSkipPressed(false);
-              }}
-              style={{
-                width: '100%',
-                background: skipPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
-                border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${skipPressed ? 65 : colors.light}%, ${skipPressed ? 1 : 0.6})`,
-                borderRadius: '12px',
-                padding: '7px 0',
-                fontFamily: 'monospace',
-                fontWeight: 800,
-                fontSize: '20px',
-                color: textColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              skip
-            </div>
-          </div>
-        </div>
-      </div>
-      </div>
-
-      {/* ===== CODE ENTRY SCREEN (visible when no desktops on same IP) ===== */}
+      {/* ===== CODE ENTRY SCREEN (visible when not auto-paired) ===== */}
       <div
         style={{
           position: 'fixed',
@@ -1200,6 +960,7 @@ export default function MobileApp() {
             alignSelf: 'center',
           }}>
             <input
+              ref={codeInputRef}
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -1226,7 +987,7 @@ export default function MobileApp() {
                 boxSizing: 'border-box',
                 padding: '12px',
                 outline: 'none',
-                caretColor: (codeFlash !== 'none' || codeInput.length >= 3) ? 'transparent' : textColor,
+                caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
                 letterSpacing: '8px',
                 textIndent: '8px',
               }}

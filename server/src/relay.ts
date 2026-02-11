@@ -39,32 +39,6 @@ function releasePairingCode(clientId: string) {
   }
 }
 
-// Phones currently on the "enter code" screen (cross-IP pairing fallback)
-const phonesInCodeEntry = new Set<string>();
-
-function phoneEnterCodeEntry(phoneId: string) {
-  if (!phonesInCodeEntry.has(phoneId)) {
-    phonesInCodeEntry.add(phoneId);
-    broadcastCodeVisibility();
-  }
-}
-
-function phoneLeaveCodeEntry(phoneId: string) {
-  if (phonesInCodeEntry.has(phoneId)) {
-    phonesInCodeEntry.delete(phoneId);
-    broadcastCodeVisibility();
-  }
-}
-
-function broadcastCodeVisibility() {
-  const visible = phonesInCodeEntry.size > 0;
-  for (const [, client] of clients) {
-    // Only unpaired laptops — paired laptops can't accept code-based pairing
-    if (client.role === 'laptop' && !client.partnerId) {
-      send(client.ws, { type: 'code-visible', visible });
-    }
-  }
-}
 
 // Handoff grace period: when a paired laptop disconnects, delay unpairing
 // the phone so a new laptop tab/browser can claim it seamlessly.
@@ -84,10 +58,6 @@ function pairClients(id1: string, id2: string) {
 
   c1.partnerId = id2;
   c2.partnerId = id1;
-
-  // Phone leaving code-entry (if it was in it)
-  phoneLeaveCodeEntry(id1);
-  phoneLeaveCodeEntry(id2);
 
   console.log(`[relay] PAIRED ${c1.role}(${id1.slice(0,8)}) <-> ${c2.role}(${id2.slice(0,8)})`);
 
@@ -133,38 +103,29 @@ function replayStreamToLaptop(phoneId: string, laptopId: string) {
   }
 }
 
-function buildCandidatesList(laptopIds: string[]): Array<{ id: string; connectedAgo: number }> {
-  const now = Date.now();
-  return laptopIds.map(id => {
-    const c = clients.get(id);
-    return { id, connectedAgo: c ? Math.floor((now - c.connectedAt) / 1000) : 0 };
-  });
-}
-
 // Notify all unpaired phones on an IP about the current desktop state
 function notifyWatchingPhones(ip: string) {
   const phones = getUnpairedPhonesInGroup(ip);
   for (const phoneId of phones) {
+    if (handoffTimers.has(phoneId)) continue; // Skip phones in grace period
     const phone = clients.get(phoneId);
     if (!phone) continue;
 
     const laptops = getUnpairedLaptopsInGroup(ip, phoneId);
-    if (laptops.length === 0) {
-      send(phone.ws, { type: 'enter-code' });
-      phoneEnterCodeEntry(phoneId);
-    } else if (laptops.length === 1) {
+    if (laptops.length === 1) {
       // Auto-pair
       pairClients(phoneId, laptops[0]);
     } else {
-      phoneLeaveCodeEntry(phoneId);
-      send(phone.ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
+      // 0 or 2+ laptops: enter-code
+      send(phone.ws, { type: 'enter-code' });
     }
   }
 }
 
 function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop', publicIp: string, deviceId?: string) {
-  // Track pending re-pair phone ID (set during same-device dedup, used after registration)
+  // Track pending re-pair IDs (set during same-device dedup, used after registration)
   let rePairPhoneId: string | undefined;
+  let rePairLaptopId: string | undefined;
 
   // Same-device dedup: if this deviceId already has a connection, close old one atomically
   if (deviceId && deviceConnections.has(deviceId)) {
@@ -203,11 +164,17 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
       const oldPartnerId = oldClient.partnerId;
       clients.delete(oldClientId);
 
-      // Save phone ID for synchronous re-pair after registration
+      // Save partner ID for synchronous re-pair after registration
       if (role === 'laptop' && oldPartnerId) {
         const phone = clients.get(oldPartnerId);
         if (phone && !phone.partnerId) {
           rePairPhoneId = oldPartnerId;
+        }
+      }
+      if (role === 'phone' && oldPartnerId) {
+        const laptop = clients.get(oldPartnerId);
+        if (laptop && !laptop.partnerId) {
+          rePairLaptopId = oldPartnerId;
         }
       }
     }
@@ -240,10 +207,6 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     record.pairingCode = code;
 
     send(ws, { type: 'registered', clientId, pairingCode: code });
-    // Send initial code-visible state if phones are already in code-entry
-    if (phonesInCodeEntry.size > 0) {
-      send(ws, { type: 'code-visible', visible: true });
-    }
     console.log(`[relay] REGISTER laptop id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} code=${code} clients=${clients.size}`);
 
     // Synchronous re-pair: if dedup found a phone that was paired with the old tab,
@@ -267,6 +230,19 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     // Phone registering
     send(ws, { type: 'registered', clientId });
     console.log(`[relay] REGISTER phone id=${clientId.slice(0,8)} ip=${publicIp} deviceId=${deviceId?.slice(0,8) || 'none'} clients=${clients.size}`);
+
+    // Synchronous re-pair: if dedup found a laptop that was paired with the old phone connection,
+    // pair it with this new connection immediately (preserves cross-IP pairings across reconnections)
+    if (rePairLaptopId) {
+      const laptopNow = clients.get(rePairLaptopId);
+      if (laptopNow && !record.partnerId && !laptopNow.partnerId) {
+        pairClients(clientId, rePairLaptopId);
+        if (record.streaming) {
+          replayStreamToLaptop(clientId, rePairLaptopId);
+        }
+        return; // Skip IP-based evaluation — already paired
+      }
+    }
 
     const laptops = getUnpairedLaptopsInGroup(publicIp, clientId);
     console.log(`[relay] phone: found ${laptops.length} unpaired laptop(s) in IP group ${publicIp}`);
@@ -309,18 +285,18 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
 
       // Re-check after eviction
       const laptopsAfter = getUnpairedLaptopsInGroup(publicIp, clientId);
-      if (laptopsAfter.length === 0) {
-        send(ws, { type: 'enter-code' });
-        phoneEnterCodeEntry(clientId);
-      } else if (laptopsAfter.length === 1) {
+      if (laptopsAfter.length === 1) {
         pairClients(clientId, laptopsAfter[0]);
       } else {
-        send(ws, { type: 'candidates', laptops: buildCandidatesList(laptopsAfter) });
+        // 0 or 2+ laptops: enter-code
+        send(ws, { type: 'enter-code' });
+
       }
     } else if (laptops.length === 1) {
       pairClients(clientId, laptops[0]);
     } else {
-      send(ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
+      // 2+ laptops: enter-code
+      send(ws, { type: 'enter-code' });
     }
   }
 }
@@ -356,14 +332,6 @@ function handlePairByCode(clientId: string, code: string) {
 
   console.log(`[relay] pair-by-code: pairing phone ${clientId.slice(0,8)} with laptop ${laptopId.slice(0,8)} via code "${code}"`);
   pairClients(clientId, laptopId);
-}
-
-function handlePairRequest(clientId: string, targetId: string) {
-  const client = clients.get(clientId);
-  const target = clients.get(targetId);
-  if (!client || !target) return;
-  if (target.partnerId) return;
-  pairClients(clientId, targetId);
 }
 
 function handleColorUpdate(clientId: string, colors: ColorPayload) {
@@ -462,13 +430,12 @@ function handleDisconnect(clientId: string) {
 
             // Re-evaluate: notify phone about available desktops
             const laptops = getUnpairedLaptopsInGroup(publicIp, partnerId);
-            if (laptops.length === 0) {
-              send(phoneNow.ws, { type: 'enter-code' });
-              phoneEnterCodeEntry(partnerId);
-            } else if (laptops.length === 1) {
+            if (laptops.length === 1) {
               pairClients(partnerId, laptops[0]);
             } else {
-              send(phoneNow.ws, { type: 'candidates', laptops: buildCandidatesList(laptops) });
+              // 0 or 2+ laptops: enter-code
+              send(phoneNow.ws, { type: 'enter-code' });
+
             }
           }
         }, HANDOFF_GRACE_MS);
@@ -481,9 +448,6 @@ function handleDisconnect(clientId: string) {
       }
     }
   }
-
-  // Phone leaving code-entry tracking
-  phoneLeaveCodeEntry(clientId);
 
   // Clean up pairing code
   releasePairingCode(clientId);
@@ -509,7 +473,7 @@ function handleDisconnect(clientId: string) {
     notifyWatchingPhones(publicIp);
   }
   // When an unpaired laptop disconnects, re-evaluate watching phones
-  // (e.g., candidates screen drops from 2→1 laptop → auto-pair)
+  // (e.g., 2→1 laptop → auto-pair, or last laptop gone → enter-code)
   if (client.role === 'laptop' && !partnerId) {
     notifyWatchingPhones(publicIp);
   }
@@ -551,10 +515,6 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         if (registered) return;
         registered = true;
         handleRegister(clientId, ws, msg.role, publicIp, msg.deviceId);
-        break;
-
-      case 'pair-request':
-        handlePairRequest(clientId, msg.targetId);
         break;
 
       case 'pair-by-code':

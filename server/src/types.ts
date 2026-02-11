@@ -12,7 +12,6 @@ export interface ColorPayload {
 // Client → Server messages
 export type ClientMessage =
   | { type: 'register'; role: 'phone' | 'laptop'; deviceId?: string }
-  | { type: 'pair-request'; targetId: string }
   | { type: 'pair-by-code'; code: string }
 
   | { type: 'color-update'; colors: ColorPayload }
@@ -27,8 +26,6 @@ export type ServerMessage =
   | { type: 'paired'; partnerId: string }
   | { type: 'enter-code' }
   | { type: 'unpaired'; reason: string }
-  | { type: 'candidates'; laptops: Array<{ id: string; connectedAgo: number }> }
-  | { type: 'code-visible'; visible: boolean }
 
   | { type: 'color-update'; colors: ColorPayload }
   | { type: 'stream-start'; side: 'text' | 'background' }

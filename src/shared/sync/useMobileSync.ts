@@ -13,17 +13,10 @@ function getOrCreateDeviceId(): string {
   return id;
 }
 
-export type PairingState = 'standalone' | 'pairing' | 'paired' | 'enter-code';
-
-export interface Candidate {
-  id: string;
-  connectedAgo: number;
-}
+export type PairingState = 'standalone' | 'paired' | 'enter-code';
 
 export interface MobileSyncHandle {
   pairingState: PairingState;
-  candidates: Candidate[];
-  selectCandidate: (id: string) => void;
   pairByCode: (code: string) => void;
   skipPairing: () => void;
 
@@ -39,7 +32,6 @@ export interface MobileSyncHandle {
 
 export function useMobileSync(): MobileSyncHandle {
   const [pairingState, setPairingState] = useState<PairingState>('standalone');
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [codeRejectedCount, setCodeRejectedCount] = useState(0);
   const pairingStateRef = useRef<PairingState>('standalone');
 
@@ -95,7 +87,6 @@ export function useMobileSync(): MobileSyncHandle {
           case 'paired':
             pairingStateRef.current = 'paired';
             setPairingState('paired');
-            setCandidates([]);
             break;
 
           case 'unpaired':
@@ -111,13 +102,6 @@ export function useMobileSync(): MobileSyncHandle {
             }
             pairingStateRef.current = 'enter-code';
             setPairingState('enter-code');
-            setCandidates([]);
-            break;
-
-          case 'candidates':
-            pairingStateRef.current = 'pairing';
-            setPairingState('pairing');
-            setCandidates(msg.laptops);
             break;
         }
       };
@@ -148,10 +132,6 @@ export function useMobileSync(): MobileSyncHandle {
     backoffRef.current = Math.min(backoffRef.current * 2, 10000);
   }, [connect]);
 
-  const selectCandidate = useCallback((id: string) => {
-    sendMsg({ type: 'pair-request', targetId: id });
-  }, [sendMsg]);
-
   const pairByCode = useCallback((code: string) => {
     sendMsg({ type: 'pair-by-code', code });
   }, [sendMsg]);
@@ -181,7 +161,6 @@ export function useMobileSync(): MobileSyncHandle {
   const skipPairing = useCallback(() => {
     skippedPairingRef.current = true;
     setPairingState('standalone');
-    setCandidates([]);
     wsRef.current?.close();
     wsRef.current = null;
     if (reconnectTimer.current) {
@@ -229,8 +208,6 @@ export function useMobileSync(): MobileSyncHandle {
 
   return {
     pairingState,
-    candidates,
-    selectCandidate,
     pairByCode,
     skipPairing,
     startStream,

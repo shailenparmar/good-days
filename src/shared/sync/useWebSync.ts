@@ -49,7 +49,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
   const hiddenAtRef = useRef(0);
   const colorwayRef = useRef(currentColorway);
   colorwayRef.current = currentColorway;
-  const pairingCodeRef = useRef<string | null>(null);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -101,18 +100,11 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         switch (msg.type) {
           case 'registered':
             if (msg.pairingCode) {
-              pairingCodeRef.current = msg.pairingCode;
+              setState(prev => ({ ...prev, pairingCode: msg.pairingCode! }));
             }
             // Clear stale live state on reconnect. If the phone is still
             // paired, `paired` arrives right after and cancels this grace.
             startGrace();
-            break;
-
-          case 'code-visible':
-            setState(prev => ({
-              ...prev,
-              pairingCode: msg.visible ? pairingCodeRef.current : null,
-            }));
             break;
 
           case 'paired':
@@ -122,7 +114,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             }
             setState(prev => ({
               ...prev,
-              pairingCode: null,
               livePreset: prev.livePreset || (colorwayRef.current ? { ...colorwayRef.current } : prev.livePreset),
             }));
             break;
@@ -176,7 +167,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           if (ev.code === 4001) {
             // Superseded by another tab — go dormant, never reconnect
             dormantRef.current = true;
-            setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, pairingCode: null }));
+            setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, pairingCode: prev.pairingCode }));
             return;
           }
 
