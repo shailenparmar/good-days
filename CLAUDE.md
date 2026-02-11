@@ -390,9 +390,9 @@ Code: `deviceConnections` Map in `relay.ts`, `dormantRef` + `handleVisibility` i
 - **Laptop closes/refreshes → 3s grace period.** Relay holds the phone's pairing. Laptop returns within 3s → seamlessly re-paired, phone never notices. After 3s → phone re-evaluates (auto-pair if 1 laptop, candidates if 2+, code if 0).
 - **Laptop tab switch (same browser) → instant handoff.** New tab supersedes old tab atomically. Phone re-paired with new tab, stream state replayed. Old tab goes dormant. Switch back → reclaims connection, same atomic handoff.
 
-#### "Don't Connect" Bypass
+#### Skip Bypass (v2.4.20+, was "Don't Connect")
 
-On candidates picker and code-entry screen, "don't connect" closes the WebSocket and enters standalone mode. Background + foreground clears the skip and reconnects fresh. Only appears when there's ambiguity (2+ laptops) or no match (0 on same wifi). Auto-pair (1 laptop) happens before any screen is shown.
+On candidates picker and code-entry screen, "skip" closes the WebSocket and enters standalone mode. Background + foreground clears the skip and reconnects fresh. Only appears when there's ambiguity (2+ laptops) or no match (0 on same wifi). Auto-pair (1 laptop) happens before any screen is shown.
 
 ### Pairing Code Fallback (v2.4.0+, updated v2.4.14)
 
@@ -452,39 +452,55 @@ When a paired laptop disconnects, the relay delays unpairing the phone by `HANDO
 
 Code: `handoffTimers` map + `replayStreamToLaptop()` in `relay.ts`.
 
-### Candidates Picker (v2.4.0+, redesigned v2.4.3)
+### Candidates Picker (v2.4.0+, redesigned v2.4.20)
 
 When 2+ unpaired desktops on same IP, phone shows a picker:
 - Header: "which one is yours?"
 - Each button shows only `"refreshed {X}s ago"` / `"refreshed {X} min ago"` — no "desktop N" label
-- Bold sweep animation (83ms/char) runs continuously on the refresh text
-- Buttons match mobile button width (`9ch` at `min(17vw, 70px)` font size), centered
-- Styled with phone's current colors, `getButtonStyle` border pattern (60% resting, 100%+fill on press)
+- Bold sweep animation (83ms/char) runs continuously on the refresh text, maxCount computed from actual displayed text lengths (no dead zone between sweeps)
+- Buttons match mobile button width (`9ch` at `min(17vw, 70px)` font size), centered, 7px padding (aux role)
+- Styled with phone's current colors, 4px border (60% resting, 100%+fill on press)
 - Local `setInterval` every 1000ms increments age counters; server `candidates` messages reset to server values
 - Seconds tick live; switches to "X min ago" after 60s
 
+**Green refresh flash (v2.4.20+):** When a candidate's `connectedAgo` drops from >3 to ≤1 (desktop refreshed), the candidate gets a triple green flash (3 on/off cycles over 1.2s) using `confirmColor` on border, background (20% opacity), and text. The refreshed candidate is sorted to the top of the list.
+
+**Spacing (v2.4.20+):** Header to first button = 24px (parent gap). Button to button = 12px (candidates container gap). Candidates to divider = 24px (parent gap between candidates container and divider+skip container). Divider to skip = 24px (divider+skip container gap).
+
+**Mock screen:** `?mock=pairing` URL param shows the candidates screen with mock data for testing.
+
 Code: pairing screen in `MobileApp.tsx`, `buildCandidatesList()` in `relay.ts`.
 
-### Code Entry Screen (v2.4.0+, updated v2.4.3)
+### Code Entry Screen (v2.4.0+, updated v2.4.20)
 
 When 0 desktops on same IP, phone shows code entry:
 - Header: "enter your desktop code" (centered, 20px monospace bold)
 - 3-digit numeric input (48px monospace, 4px themed border, auto-submits on 3 digits)
+- Input inside `9ch` responsive container at `fontSize: 'min(17vw, 70px)'` (matches candidates screen layout)
 - Input and label vertically centered in space below title (`flex: 1` + `justifyContent: center`)
 - iOS keyboard naturally pushes "good days" title off screen (accepted behavior)
 - Sends `pair-by-code` to relay, which looks up code in `pairingCodes` Map
 
-Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`.
+**Code rejection UX (v2.4.20+):**
+- Cursor hidden after 3 digits (`caretColor: transparent` when `codeInput.length >= 3`)
+- On server rejection: `codeRejectedCount` incremented in `useMobileSync.ts` (detects `enter-code` received while already in `enter-code` state)
+- Input clears instantly, 3 red dashes "---" overlay in `errorColor` with red border flash for 1.5s
+- Input stays focused throughout — user can immediately type next attempt
+- Overlay uses `pointerEvents: 'none'` so input captures keystrokes through it
 
-### "Don't Connect" Bypass (v2.4.12+)
+Code: code entry screen in `MobileApp.tsx`, `handlePairByCode()` in `relay.ts`, `codeRejectedCount` in `useMobileSync.ts`.
 
-Both the candidates picker and code entry screens show a 2px divider line and "don't connect" button below the main content. Styled as an `aux`-role button (7px padding, 4px border, 12px radius). Same drag-off cancellation pattern as other mobile buttons (`skipEngaged` ref + `isTouchInside`).
+### Skip Button (v2.4.20+, was "Don't Connect" v2.4.12+)
 
-**Behavior:** Tapping "don't connect" calls `sync.skipPairing()` which closes the WebSocket, sets `pairingState` to `'standalone'`, and sets `skippedPairingRef = true` to prevent reconnection. The phone goes to standalone mode (home screen, no live sync). If the user backgrounds and returns to the app, `skippedPairingRef` is cleared and the WS reconnects normally.
+Both the candidates picker and code entry screens show a 2px divider line and "skip" button below the main content. Styled as an `aux`-role button (7px padding, 4px border, 12px radius). Same drag-off cancellation pattern as other mobile buttons (`skipEngaged` ref + `isTouchInside`).
 
-**Auto-pair unchanged:** When 1 desktop is on the same wifi, the relay auto-pairs without showing any screen — the "don't connect" option only appears on the candidates picker (2+ desktops) and code entry (0 desktops on same IP).
+**Spacing (v2.4.20+):** Button-to-divider and divider-to-skip are 24px. On the candidates screen, divider + skip are in a separate `9ch` container (sibling to the candidates container which uses 12px gap for button-to-button). On the code entry screen, the entire input + divider + skip container uses 24px gap.
 
-Code: `skipPairing()` in `useMobileSync.ts`, "don't connect" buttons in `MobileApp.tsx`.
+**Behavior:** Tapping "skip" calls `sync.skipPairing()` which closes the WebSocket, sets `pairingState` to `'standalone'`, and sets `skippedPairingRef = true` to prevent reconnection. The phone goes to standalone mode (home screen, no live sync). If the user backgrounds and returns to the app, `skippedPairingRef` is cleared and the WS reconnects normally.
+
+**Auto-pair unchanged:** When 1 desktop is on the same wifi, the relay auto-pairs without showing any screen — the "skip" option only appears on the candidates picker (2+ desktops) and code entry (0 desktops on same IP).
+
+Code: `skipPairing()` in `useMobileSync.ts`, "skip" buttons in `MobileApp.tsx`.
 
 ### Live Stats (removed in v2.3.12)
 
