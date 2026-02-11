@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://gdays.day/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
