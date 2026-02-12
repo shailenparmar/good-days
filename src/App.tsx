@@ -434,26 +434,24 @@ function AppContent() {
             borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
           }}
         >
-          <div className="p-4" ref={layout.titleRef}>
+          <div className="p-4" ref={layout.titleRef} style={{ display: 'grid' }}>
             {(() => {
               const showInfo = layout.showAboutPanel ? !layout.titleHovered : layout.titleHovered;
               const s = layout.isSuperscramble ? scrambleText : (t: string) => t;
-              if (showInfo) {
-                return (
-                  <div className="text-center select-none" style={{ color: getColor() }}>
-                    <h1 className="text-2xl font-extrabold font-mono tracking-tight">
+              return (
+                <>
+                  <div style={{ gridRow: 1, gridColumn: 1, visibility: showInfo ? 'visible' : 'hidden' }} className="text-center select-none" >
+                    <h1 className="text-2xl font-extrabold font-mono tracking-tight" style={{ color: getColor() }}>
                       {s(`v${VERSION}`)}
                     </h1>
-                    <p className="text-2xl font-extrabold font-mono tracking-tight">
+                    <p className="text-2xl font-extrabold font-mono tracking-tight" style={{ color: getColor() }}>
                       {s(`live code ${pairingCode || '---'}`)}
                     </p>
                   </div>
-                );
-              }
-              return (
-                <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-                  {s('good days')}
-                </h1>
+                  <h1 style={{ gridRow: 1, gridColumn: 1, visibility: showInfo ? 'hidden' : 'visible', color: getColor() }} className="text-2xl font-extrabold font-mono tracking-tight text-center select-none">
+                    {s('good days')}
+                  </h1>
+                </>
               );
             })()}
           </div>
