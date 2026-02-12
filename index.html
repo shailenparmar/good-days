@@ -10,6 +10,31 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
+      // Mobile cache-bust: nuke SW + caches on every fresh tab open
+      (function() {
+        if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) return;
+        if (sessionStorage.getItem('cache_busted')) return;
+        document.documentElement.style.display = 'none';
+        sessionStorage.setItem('cache_busted', '1');
+        Promise.all([
+          navigator.serviceWorker
+            ? navigator.serviceWorker.getRegistrations().then(function(regs) {
+                return Promise.all(regs.map(function(r) { return r.unregister(); }));
+              })
+            : Promise.resolve(),
+          typeof caches !== 'undefined'
+            ? caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+              })
+            : Promise.resolve()
+        ]).then(function() {
+          location.reload();
+        }).catch(function() {
+          location.reload();
+        });
+      })();
+    </script>
+    <script>
       // Read saved theme from localStorage and apply BEFORE body paints
       (function() {
         function hslToHex(h,s,l){s/=100;l/=100;var a=s*Math.min(l,1-l);function f(n){var k=(n+h/30)%12;var c=l-a*Math.max(Math.min(k-3,9-k,1),-1);return Math.round(255*c).toString(16).padStart(2,'0');}return'#'+f(0)+f(8)+f(4);}
