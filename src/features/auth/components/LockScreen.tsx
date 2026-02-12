@@ -109,11 +109,6 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     return 'transparent';
   };
 
-  const getInputColor = () => {
-    if (flashState === 'red') return '#ef4444';
-    return getColor();
-  };
-
   return (
     <div
       className="relative flex items-center justify-center h-screen"
@@ -121,13 +116,13 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     >
       <span
         className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight"
-        style={{ color: getInputColor() }}
+        style={{ color: textColor }}
       >
         good
       </span>
       <span
         className="fixed bottom-4 right-4 text-2xl font-extrabold font-mono tracking-tight"
-        style={{ color: getInputColor() }}
+        style={{ color: textColor }}
       >
         days
       </span>
