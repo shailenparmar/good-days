@@ -1,5 +1,77 @@
 # Claude Code Instructions — Mobile
 
+## Mobile Style Guide
+
+### Button Sizes
+
+All buttons use `getButtonStyle(pressed, position, role)`. Three named sizes:
+
+| Name | Role value | Vertical padding | Feel | Usage |
+|------|-----------|-----------------|------|-------|
+| **action** | `'picker'` | 28px | Tall, dominant | text \| background (press-and-hold primary interaction) |
+| **standard** | (default) | 14px | Medium | Code entry input, skip button |
+| **compact** | `'aux'` | 7px | Short, utility | calibrate tilt, recalibrate, copy, save, paste |
+
+### Button Positions
+
+| Position | Behavior |
+|----------|----------|
+| `'full'` | `width: 100%` — single full-width button |
+| `'left'` | `flex: 1`, rounded left corners, 2px right border — left half of split |
+| `'right'` | `flex: 1`, rounded right corners, 2px left border — right half of split |
+| `'center'` | `flex: 1`, no rounded corners, 2px both sides — middle of 3-way split |
+
+### Button Appearance
+
+| State | Border | Fill |
+|-------|--------|------|
+| Default | 60% opacity | transparent |
+| Pressed | 100% opacity, 65% lightness | 20% opacity |
+
+### Typography
+
+| Element | Font | Weight | Size |
+|---------|------|--------|------|
+| Title ("good days") | monospace | 800 | `min(17vw, 70px)` |
+| All buttons | monospace | 800 | 20px |
+| Sat/light labels (picker) | monospace | 800 | 16px |
+| Color stats (picker) | monospace | 800 | 16px |
+
+### Spacing
+
+| Name | Value | What it is |
+|------|-------|------------|
+| **button gap** | 12px | Vertical space between buttons in the same group |
+| **group gap** | 24px | Vertical space across a divider (12px gap + 12px margin on divider) |
+| **ground pad** | 44px | Bottom padding on all screens |
+
+### Structural
+
+| Element | Value |
+|---------|-------|
+| Button border | 4px solid, 12px radius |
+| Split edge | 2px (shared edge between left\|right buttons) |
+| Divider | 2px height, 85% opacity |
+| Button width container | `fontSize: 'min(17vw, 70px)'`, `width: '9ch'`, `alignSelf: 'center'` |
+
+The button width container makes all buttons the same width as the "good days" title. Every screen's button area uses this same container pattern.
+
+### Spacing Hierarchy
+
+```
+[button]          ← within a group
+  12px  (button gap)
+[button]
+  24px  (group gap = 12px gap + 12px divider margin)
+── divider ──
+  24px  (group gap)
+[button]
+```
+
+Related items are closer together (12px). The divider + extra space (24px) creates visual grouping between unrelated sections.
+
+---
+
 ## Mobile Screen
 
 On mobile devices, the app shows a color picker using touch + accelerometer controls.
@@ -55,28 +127,26 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 └────────────────┻──────────────┘
 ```
 
-**Code Entry Screen** (v2.4.27+, shown when 0 or 2+ desktops on same IP):
+**Code Entry Screen** (v2.4.27+, updated v2.4.44+, shown when 0 or 2+ desktops on same IP):
 ```
 ┌────────────────────────────────┐
-│          g38d d7ys             │  ← flickering digits title (v2.4.31+)
+│          good days             │  ← title (same as all screens)
 │                                │
-│   enter your desktop code      │  ← 20px monospace bold
+│       ┌─────────────┐         │
+│       │  live code   │         │  ← standard button, 3-digit input
+│       └─────────────┘         │     bold sweep "live code" placeholder
 │                                │
-│         ┌─────┐                │
-│         │ 0 0 0│               │  ← 3-digit input, 48px mono
-│         └─────┘                │     bold sweep "000" placeholder (v2.4.39+)
+│       ───────────────         │  ← 2px divider (24px group gap)
 │                                │
-│         ─────────              │  ← 2px divider
-│          skip                  │  ← aux button
-│                                │
+│       ┌─────────────┐         │
+│       │     skip     │         │  ← standard button
+│       └─────────────┘         │
 └────────────────────────────────┘
 ```
 
 The candidates picker ("which one is yours?") was removed in v2.4.27. All ambiguous cases (2+ laptops or 0 on same IP) now show the code entry screen. Auto-pair (1 laptop) still happens without any screen.
 
-**Flickering title (v2.4.31+):** The code entry screen (aka "pairing screen") title shows "g##d d#ys" where the three digit positions rapidly cycle through random 0-9 digits every 25ms. The effect runs via `setInterval` only when the pairing screen is visible (cleanup on hide). Hold-to-show-version still works. The other screens (home, picker, permission) still show "good days".
-
-**Bold sweep placeholder (v2.4.39+):** When the code input is empty, an overlay shows "000" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
+**Bold sweep placeholder (v2.4.39+, updated v2.4.44+):** When the code input is empty, an overlay shows "live code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "live" and "code" at span boundaries during the sweep. Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
 
 **False red flash fix (v2.4.39+):** `pairingStateRef` in `useMobileSync.ts` is reset to `'standalone'` on every new WS connection (`onopen`). Previously, reconnecting while already in `enter-code` state caused the relay's initial `enter-code` message to be misinterpreted as a code rejection, triggering the triple red flash on open.
 
@@ -235,26 +305,15 @@ Alpha is always the thick needle. When beta is promoted to alpha, its needle gro
 
 ### Button Styling
 
-All mobile buttons (including the permission screen "calibrate tilt" button) use the shared `getButtonStyle()` helper:
-- **Default**: 60% opacity border, transparent fill
-- **Pressed**: 100% opacity border, 65% lightness, 20% opacity fill
-- **Font**: monospace, weight 800, 20px
-- **Border**: 4px solid (2px on split interior edges), 12px radius
-- **Width**: Constrained to match "good days" title width (`9ch` at title font size, v1.10.61+), centered with `alignSelf: 'center'`
-- **Bottom padding**: 44px on all screens (v1.10.61+, was 60px)
+See **Mobile Style Guide** at the top of this file for the full button system (sizes, positions, appearance, spacing). Quick reference:
+
+- **action** (`'picker'`, 28px): text \| background
+- **standard** (default, 14px): code entry input, skip
+- **compact** (`'aux'`, 7px): calibrate tilt, recalibrate, copy, save, paste
 
 **Button order** (top to bottom): recalibrate tilt → text|background → copy|paste (+ save when live)
 
-**Button sizing by role (v1.10.66+):**
-
-`getButtonStyle` accepts an optional `role` parameter controlling vertical padding:
-
-| Role | Padding | Usage |
-|------|---------|-------|
-| `'picker'` | 28px (2x) | text\|background buttons — large touch target for the primary interaction |
-| `'aux'` | 7px (0.5x) | calibrate tilt, recalibrate tilt, copy, save, paste — smaller, less prominent |
-
-This applies always (not gated on live mode). The picker buttons are the primary action, so they're visually dominant. The invisible spacer buttons on the picker screen and permission screen placeholders use matching roles to keep heights consistent across all three screens.
+The invisible spacer buttons on the picker screen and permission screen use matching roles to keep heights consistent across all screens.
 
 ### Button Drag-Off Cancellation (v1.10.22+)
 
