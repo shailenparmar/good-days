@@ -71,6 +71,7 @@ New backups have no header (just encrypted content). Old backups with headers st
 - **IV**: Random 12 bytes per encryption (stored with ciphertext)
 - **Salt**: `good-days-salt`
 - **Code location**: `src/shared/crypto.ts` (`encryptText`/`decryptText`)
+- **Base64 encoding**: `uint8ToBase64()` helper converts encrypted bytes in 8KB chunks. `String.fromCharCode(...array)` exceeds the JS engine's max argument limit (~65K on Chrome) for large journals — chunking eliminates this ceiling.
 
 Note: This is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
 
