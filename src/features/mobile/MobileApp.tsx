@@ -931,7 +931,7 @@ export default function MobileApp() {
                   }
                 }}
                 style={{
-                  ...getButtonStyle(false, 'full', 'aux'),
+                  ...getButtonStyle(false, 'full'),
                   backgroundColor: 'transparent',
                   border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
                   textAlign: 'center',
@@ -978,7 +978,7 @@ export default function MobileApp() {
                 </div>
               )}
             </div>
-            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)` }} />
+            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)`, margin: '12px 0' }} />
             <div
               onTouchStart={(e) => {
                 e.preventDefault();
@@ -1002,7 +1002,7 @@ export default function MobileApp() {
                 skipEngaged.current = false;
                 setSkipPressed(false);
               }}
-              style={getButtonStyle(skipPressed, 'full', 'aux')}
+              style={getButtonStyle(skipPressed, 'full')}
             >
               skip
             </div>
