@@ -445,7 +445,7 @@ function AppContent() {
                       {s(`v${VERSION}`)}
                     </h1>
                     <p className="text-2xl font-extrabold font-mono tracking-tight">
-                      {s('live code ')}<span className="select-text cursor-text">{s(pairingCode || '---')}</span>
+                      {s(`live code ${pairingCode || '---'}`)}
                     </p>
                   </div>
                 );
@@ -599,6 +599,7 @@ function AppContent() {
                 }
               }
             }}
+
             onHeightChange={layout.setEntryHeaderHeight}
             onEditingChange={setTitleEditing}
             onTitleInput={() => {
