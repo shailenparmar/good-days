@@ -371,7 +371,7 @@ All values written through the `getItem`/`setItem` abstraction (`src/shared/stor
 
 **Not encrypted (bypass the abstraction):**
 - `gdays_actionLog` (debug logger, `src/shared/logger.ts`)
-- `wsDeviceId`, `wsSecret`, `wsPartnerDeviceId` (sync infrastructure, `useWebSync.ts`/`useMobileSync.ts`)
+- `wsDeviceId2`, `wsSecret`, `wsPartnerDeviceId` (sync infrastructure, `useWebSync.ts`/`useMobileSync.ts`)
 - `easterEggsFound` (easter eggs, `src/shared/utils/easterEggs.ts`)
 
 **index.html IIFE:** Includes an inline `dec()` function mirroring the decrypt logic so pre-React background color reads (`bgHue`, `bgSaturation`, `bgLightness`) work with encrypted values.

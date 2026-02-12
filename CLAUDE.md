@@ -137,11 +137,37 @@ When pushing changes:
 2. **Tell the user the version number** after pushing (e.g., "Pushed **v1.0.1**")
 3. Use the version in the commit message (e.g., "v1.0.1: Fix editor focus issue")
 
-The version displays by hovering over the "good days" title in the sidebar header (the rectangle between the two 6px panel lines). On hover, the title always shows the pairing code embedded in the version: `` g${code[0]}${code[1]}d d${code[2]}ys v${VERSION} `` (v2.4.27+). The code is always present (set on `registered`, never cleared) — no reactive display changes based on phone activity. Without hover, the title always shows "good days". Works in both normal and superscramble modes.
+### Info Box (v2.4.48+)
 
-**Implementation:** Uses coordinate-based hover detection (`mousemove` + `mouseover` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay). The `mouseover` listener (v2.3.3+) helps show the version immediately after page refresh when the cursor is already over the title — `mouseover` fires when new content renders under a stationary cursor, while `mousemove` only fires on actual movement.
+The **info box** replaces the title text when either the user hovers the title area OR the about panel is open. It shows two lines, both at 24px (`text-2xl font-extrabold font-mono`):
 
-This lets the user verify which build is deployed by hovering the title and checking the version.
+```
+v2.4.48
+live code 042
+```
+
+- **Top line:** Version number (`v${VERSION}`)
+- **Bottom line:** Live code — the 3-digit pairing code for phone-to-desktop sync
+
+Without hover or about panel, the title shows "good days" as usual. Works in both normal and superscramble modes.
+
+### Live Code
+
+The **live code** is a 3-digit number (000–999) used for phone-to-desktop pairing when devices aren't on the same wifi. Derived from the browser's `deviceId` (a UUID persisted in localStorage as `wsDeviceId2`).
+
+**Formula:** `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded to 3 digits. Server handles collisions by incrementing until an open slot is found.
+
+**Lifecycle:**
+- `null` on page load (shows `---` in info box) → set within sub-second when WebSocket connects and receives `registered` message
+- Stable per browser — same `deviceId` always produces the same code
+- Different browser/device = different code (new UUID)
+- Never cleared during the session — persists across pair/unpair cycles
+
+**Device ID rotation (v2.4.48):** Key changed from `wsDeviceId` → `wsDeviceId2` to rotate all users to fresh live codes.
+
+### Title Hover Detection
+
+Uses coordinate-based hover detection (`mousemove` + `mouseover` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay). The `mouseover` listener (v2.3.3+) helps show the version immediately after page refresh when the cursor is already over the title — `mouseover` fires when new content renders under a stationary cursor, while `mousemove` only fires on actual movement.
 
 ## Pre-push Hook
 
