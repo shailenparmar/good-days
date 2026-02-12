@@ -180,6 +180,20 @@ Flow: deploy → new sw.js has new precache manifest → browser detects change 
 
 **Cleanup (v2.4.13):** Removed dead `http-equiv` cache-control meta tags from `index.html` (browsers ignore these for actual caching — they only work as HTTP response headers). Removed manual favicon cache bust (`?v=4`) since Vite content-hashes all assets.
 
+### Mobile Safari Cache-Bust (v2.4.44+)
+
+An inline `<script>` in `index.html` (before the theme IIFE) guarantees fresh assets on mobile Safari. The desktop 60s polling and `visibilitychange` checks are unreliable on mobile Safari — the browser suspends background tabs, so the SW update cycle never triggers. Pull-to-refresh just serves the stale SW precache.
+
+**How it works:** On every fresh mobile tab open, unregister all service workers and delete all Cache API caches, then `location.reload()`. The second load has no SW to intercept it — browser fetches everything fresh from the network. `main.tsx` then re-registers the SW with current assets. A `sessionStorage` flag (`cache_busted`) prevents reload loops within a session.
+
+**Key details:**
+- Inline script (not a separate file) so a stale SW can't serve a stale version of it
+- `document.documentElement.style.display = 'none'` hides flash of stale content during reload
+- Flag set BEFORE async work to prevent race conditions with the reload
+- `sessionStorage` scoped to tab, dies on tab close — "once per visit" behavior
+- ~0.5s reload cost once per tab open; SW works normally for rest of session (offline support, fast loads)
+- UA regex matches the existing `isMobile` checks in `main.tsx` and `index.html` — keep them in sync
+
 ## App Icons
 
 **One icon, one shape, everywhere.** All icons use the same rounded design from `icon.svg`. No platform-specific workarounds.
