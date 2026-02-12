@@ -91,6 +91,27 @@ All these work with textarea:
 - Tab key only (preventDefault, does nothing - prevents focus leaving editor)
 - Paste (v1.10.24+): Forces plain text via `getData('text/plain')` + `execCommand('insertText')`. Strips all rich formatting (fonts, images, centering, bold, etc.) so pasted content always matches the app's monospace style. Uses `execCommand` to preserve Cmd+Z undo.
 
+### Backslash Commands (v2.4.53+)
+
+Backslash commands are processed in `handleChange`. All commands loop to handle multiple instances in one paste. A shared `commandFired` flag gates a single `requestAnimationFrame` for scroll/cursor restore at the end.
+
+| Command | Effect | Vanishes? |
+|---------|--------|-----------|
+| `\time` | Replaces with `[timestamp]` | No (replaced) |
+| `\txt#RRGGBB` | Sets text color | Yes |
+| `\bg#RRGGBB` | Sets background color | Yes |
+| `\#RRGGBB` | Sets background color (default) | Yes |
+
+**Color command formats** (all case-insensitive, flexible whitespace/colon):
+- `\txt#hex` or `\txt: #hex` — text color from hex (converted via `hexToHsl`)
+- `\txt#hex hN sN lN` or `\txt: #hex hN sN lN` — text color from HSL directly (more accurate)
+- `\bg#hex`, `\bg: #hex`, `\bg#hex hN sN lN`, `\bg: #hex hN sN lN` — same for background
+- `\#hex` or `\#hex hN sN lN` — shorthand, defaults to background
+
+The HSL format matches the app's copy/paste output (`txt: #hex hN sN lN`). When HSL values are present they're used directly (avoids hex round-trip precision loss). `trackCurrentColorway()` is called once after all color commands are processed.
+
+**`hexToHsl` utility:** Local to `JournalEditor.tsx` (next to `scrambleChar`). Converts `#RRGGBB` → `{ h, s, l }`. Inverse of the `hslToHex` in `StatsDisplay.tsx`.
+
 ### Scramble Mode
 
 When `isScrambled` is true:
