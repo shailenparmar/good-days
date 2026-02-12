@@ -145,30 +145,27 @@ export function useLayoutState() {
   // --- Effects ---
 
   // Title hover detection via coordinates (document-level to bypass z-50 overlay).
-  // Uses locked-rect pattern from useStableHover to prevent flicker when content
-  // switches between 1-line ("good days") and 2-line (version + live code) heights.
+  // Locked-rect prevents flicker when content switches between 1-line and 2-line.
+  // The locked rect is refreshed whenever the cursor is verifiably inside the live
+  // rect, so it never goes stale on resize/layout changes.
   useEffect(() => {
+    const isInside = (x: number, y: number, rect: DOMRect) =>
+      x >= rect.left - 3 && x <= rect.right + 3 && y >= rect.top - 3 && y <= rect.bottom + 3;
+
     const check = (e: MouseEvent) => {
       if (!titleRef.current) { setTitleHovered(false); return; }
       const rect = titleRef.current.getBoundingClientRect();
-      const buffer = 3;
-      const inside = e.clientX >= rect.left - buffer && e.clientX <= rect.right + buffer
-        && e.clientY >= rect.top - buffer && e.clientY <= rect.bottom + buffer;
+      const inside = isInside(e.clientX, e.clientY, rect);
 
-      if (inside && !titleLockedRect.current) {
-        // Entering — capture rect before content changes
+      if (inside) {
+        // Cursor is verifiably inside — refresh locked rect to stay current
         titleLockedRect.current = rect;
         setTitleHovered(true);
-      } else if (!inside && titleLockedRect.current) {
-        // Leaving — check against locked rect (content may have shifted)
-        const lockedInside = e.clientX >= titleLockedRect.current.left - buffer
-          && e.clientX <= titleLockedRect.current.right + buffer
-          && e.clientY >= titleLockedRect.current.top - buffer
-          && e.clientY <= titleLockedRect.current.bottom + buffer;
-        if (!lockedInside) {
-          titleLockedRect.current = null;
-          setTitleHovered(false);
-        }
+      } else if (titleLockedRect.current && isInside(e.clientX, e.clientY, titleLockedRect.current)) {
+        // Outside live rect but inside locked rect — content shrunk, stay hovered
+      } else {
+        titleLockedRect.current = null;
+        setTitleHovered(false);
       }
     };
     document.addEventListener('mousemove', check);
