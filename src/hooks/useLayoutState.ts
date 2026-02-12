@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
-import { usePersisted, useStableHover } from '@shared/hooks';
+import { usePersisted } from '@shared/hooks';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 
 const COLLAPSE_BREAKPOINT = 711;
@@ -72,7 +72,9 @@ export function useLayoutState() {
   } | null>('preFocusState', null);
   const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
-  const { hovered: titleHovered, containerProps: titleContainerProps } = useStableHover();
+  const [titleHovered, setTitleHovered] = useState(false);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const titleLockedRect = useRef<DOMRect | null>(null);
 
   // State saved before narrowing window
   const [preNarrowState, setPreNarrowState] = useState<{
@@ -142,6 +144,40 @@ export function useLayoutState() {
 
   // --- Effects ---
 
+  // Title hover detection via coordinates (document-level to bypass z-50 overlay).
+  // Uses locked-rect pattern from useStableHover to prevent flicker when content
+  // switches between 1-line ("good days") and 2-line (version + live code) heights.
+  useEffect(() => {
+    const check = (e: MouseEvent) => {
+      if (!titleRef.current) { setTitleHovered(false); return; }
+      const rect = titleRef.current.getBoundingClientRect();
+      const buffer = 3;
+      const inside = e.clientX >= rect.left - buffer && e.clientX <= rect.right + buffer
+        && e.clientY >= rect.top - buffer && e.clientY <= rect.bottom + buffer;
+
+      if (inside && !titleLockedRect.current) {
+        // Entering — capture rect before content changes
+        titleLockedRect.current = rect;
+        setTitleHovered(true);
+      } else if (!inside && titleLockedRect.current) {
+        // Leaving — check against locked rect (content may have shifted)
+        const lockedInside = e.clientX >= titleLockedRect.current.left - buffer
+          && e.clientX <= titleLockedRect.current.right + buffer
+          && e.clientY >= titleLockedRect.current.top - buffer
+          && e.clientY <= titleLockedRect.current.bottom + buffer;
+        if (!lockedInside) {
+          titleLockedRect.current = null;
+          setTitleHovered(false);
+        }
+      }
+    };
+    document.addEventListener('mousemove', check);
+    document.addEventListener('mouseover', check);
+    return () => {
+      document.removeEventListener('mousemove', check);
+      document.removeEventListener('mouseover', check);
+    };
+  }, []);
 
   // Resize handler
   useEffect(() => {
@@ -267,7 +303,7 @@ export function useLayoutState() {
     scrambleHotkeyActive, setScrambleHotkeyActive,
     isSuperscramble,
     // Title
-    titleHovered, titleContainerProps,
+    titleHovered, titleRef,
     // Entry header
     entryHeaderHeight, setEntryHeaderHeight,
     // Actions

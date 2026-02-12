@@ -436,7 +436,7 @@ function AppContent() {
             borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
           }}
         >
-          <div className="p-4" {...layout.titleContainerProps}>
+          <div className="p-4" ref={layout.titleRef}>
             {(() => {
               const showInfo = layout.showAboutPanel ? !layout.titleHovered : layout.titleHovered;
               const s = layout.isSuperscramble ? scrambleText : (t: string) => t;
