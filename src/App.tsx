@@ -445,7 +445,7 @@ function AppContent() {
                       {s(`v${VERSION}`)}
                     </h1>
                     <p className="text-2xl font-extrabold font-mono tracking-tight">
-                      {s(`live code ${pairingCode || '---'}`)}
+                      {s('live code ')}<span className="select-text cursor-text">{s(pairingCode || '---')}</span>
                     </p>
                   </div>
                 );
