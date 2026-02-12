@@ -11,7 +11,7 @@ export const ABOUT_COPY = {
       "entries are not sent to servers. a developer couldn't view your writing even if they wanted to.",
       "everything added lives encrypted or hashed in localstorage. your browser pulls from it to display content, but entries, passwords, and colorways never leave your computer.",
     ],
-    lastParagraph: "the entire architecture is transparent as a privacy guarantee.",
+    lastParagraph: "as a privacy guarantee, the entire product is open-source.",
     githubUrl: "https://github.com/shailenparmar/good-days",
   },
 
@@ -27,7 +27,7 @@ export const ABOUT_COPY = {
   system: {
     header: "system:",
     paragraphs: [
-      "safari automatically deletes localstorage after 7 days of inactivity. other major browsers would only clear data under disk storage pressure.",
+      "safari automatically deletes localstorage after 7 days of inactivity. other major browsers will only clear data under disk storage pressure.",
     ],
   },
 
