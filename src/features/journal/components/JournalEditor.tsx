@@ -6,6 +6,23 @@ import { getTodayDate } from '@shared/utils/date';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
 
+// Convert hex color (#RRGGBB) to HSL values
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
 // Scramble text characters for privacy overlay
 function scrambleChar(char: string): string {
   if (/[a-zA-Z]/.test(char)) {
@@ -52,7 +69,7 @@ export function JournalEditor({
   hidePlaceholder,
   scrambleSeed,
 }: JournalEditorProps) {
-  const { getColor, getBgColor } = useTheme();
+  const { getColor, getBgColor, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway } = useTheme();
 
   // Track focus state for placeholder visibility
   const [isFocused, setIsFocused] = useState(false);
@@ -174,10 +191,13 @@ export function JournalEditor({
       markEasterEggFound('superscramble');
     }
 
-    // Check for \time command and replace with timestamp
-    const lowerValue = newValue.toLowerCase();
-    const timeIndex = lowerValue.indexOf('\\time');
-    if (timeIndex !== -1) {
+    // Backslash commands: process all matches before updating state
+    let commandFired = false;
+
+    // \time — replace with timestamp (loop for multiple)
+    const timeRegex = /\\time(?![a-z])/i;
+    let timeMatch = newValue.match(timeRegex);
+    if (timeMatch) {
       const now = new Date();
       const use24Hour = getItem('timeFormat') === '24h';
       const timestamp = now.toLocaleTimeString('en-US', {
@@ -188,15 +208,52 @@ export function JournalEditor({
       });
       const timestampText = `[${timestamp}]`;
 
-      // Replace \time with timestamp
-      newValue = newValue.substring(0, timeIndex) + timestampText + newValue.substring(timeIndex + 5);
-
-      // Adjust cursor position to be after the timestamp
-      cursorPosition = timeIndex + timestampText.length;
+      while (timeMatch) {
+        const i = timeMatch.index!;
+        newValue = newValue.substring(0, i) + timestampText + newValue.substring(i + 5);
+        cursorPosition = i + timestampText.length;
+        timeMatch = newValue.match(timeRegex);
+      }
 
       markEasterEggFound('timeCommand');
+      commandFired = true;
+    }
 
-      // Preserve scroll position and set cursor after React updates the value
+    // \txt, \bg, \# — change theme colors and vanish (loop for multiple)
+    const colorRegex = /\\(txt|bg)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
+    let colorMatch = newValue.match(colorRegex);
+    if (colorMatch) {
+      while (colorMatch) {
+        const type = (colorMatch[1] || 'bg').toLowerCase();
+        let h: number, s: number, l: number;
+
+        if (colorMatch[3] !== undefined) {
+          h = parseInt(colorMatch[3], 10);
+          s = parseInt(colorMatch[4], 10);
+          l = parseInt(colorMatch[5], 10);
+        } else {
+          const hsl = hexToHsl(colorMatch[2]);
+          h = hsl.h; s = hsl.s; l = hsl.l;
+        }
+
+        if (type === 'txt') {
+          setHue(h); setSaturation(s); setLightness(l);
+        } else {
+          setBgHue(h); setBgSaturation(s); setBgLightness(l);
+        }
+
+        const i = colorMatch.index!;
+        newValue = newValue.substring(0, i) + newValue.substring(i + colorMatch[0].length);
+        cursorPosition = i;
+        colorMatch = newValue.match(colorRegex);
+      }
+
+      trackCurrentColorway();
+      commandFired = true;
+    }
+
+    // Shared scroll/cursor restore for all backslash commands
+    if (commandFired) {
       const savedScroll = editorRef.current?.scrollTop ?? 0;
       requestAnimationFrame(() => {
         if (editorRef.current) {
@@ -209,7 +266,7 @@ export function JournalEditor({
 
     setValue(newValue);
     onInput(newValue);
-  }, [editorRef, isScrambled, isSuperscramble, onInput]);
+  }, [editorRef, isScrambled, isSuperscramble, onInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway]);
 
   // Force plain text paste (strips any formatting or styled Unicode)
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
