@@ -912,15 +912,8 @@ export default function MobileApp() {
           onTouchCancel={() => setTitlePressedPersist(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '24px',
-            width: '100%',
-            maxWidth: '280px',
-            alignSelf: 'center',
-          }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
             <div style={{ position: 'relative' }}>
               <input
                 ref={codeInputRef}
@@ -938,17 +931,12 @@ export default function MobileApp() {
                   }
                 }}
                 style={{
-                  fontFamily: 'monospace',
-                  fontWeight: 800,
-                  fontSize: '20px',
-                  color: textColor,
+                  ...getButtonStyle(false, 'full', 'aux'),
                   backgroundColor: 'transparent',
                   border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
-                  borderRadius: '12px',
                   textAlign: 'center',
                   width: '100%',
                   boxSizing: 'border-box',
-                  padding: '12px',
                   outline: 'none',
                   caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
                   letterSpacing: '4px',
@@ -1014,20 +1002,7 @@ export default function MobileApp() {
                 skipEngaged.current = false;
                 setSkipPressed(false);
               }}
-              style={{
-                width: '100%',
-                background: skipPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
-                border: `4px solid hsla(${colors.hue}, ${colors.sat}%, ${skipPressed ? 65 : colors.light}%, ${skipPressed ? 1 : 0.6})`,
-                borderRadius: '12px',
-                padding: '7px 0',
-                fontFamily: 'monospace',
-                fontWeight: 800,
-                fontSize: '20px',
-                color: textColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={getButtonStyle(skipPressed, 'full', 'aux')}
             >
               skip
             </div>
