@@ -147,7 +147,7 @@ function AppContent() {
   // Must visit all 3 layouts (base → mz → zen) before ESC can lock.
   const escVisitedZenRef = useRef(false);
 
-  // Reset cycle on any non-ESC interaction (typing, clicking)
+  // Reset cycle on any non-ESC interaction (typing, clicking, resizing)
   useEffect(() => {
     const resetCycle = (e: Event) => {
       if (e instanceof KeyboardEvent && e.key === 'Escape') return;
@@ -155,9 +155,11 @@ function AppContent() {
     };
     window.addEventListener('keydown', resetCycle);
     window.addEventListener('mousedown', resetCycle);
+    window.addEventListener('resize', resetCycle);
     return () => {
       window.removeEventListener('keydown', resetCycle);
       window.removeEventListener('mousedown', resetCycle);
+      window.removeEventListener('resize', resetCycle);
     };
   }, []);
 
