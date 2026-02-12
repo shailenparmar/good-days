@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
-import { usePersisted } from '@shared/hooks';
+import { usePersisted, useStableHover } from '@shared/hooks';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 
 const COLLAPSE_BREAKPOINT = 711;
@@ -72,8 +72,7 @@ export function useLayoutState() {
   } | null>('preFocusState', null);
   const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
-  const [titleHovered, setTitleHovered] = useState(false);
-  const titleRef = useRef<HTMLDivElement>(null);
+  const { hovered: titleHovered, containerProps: titleContainerProps } = useStableHover();
 
   // State saved before narrowing window
   const [preNarrowState, setPreNarrowState] = useState<{
@@ -143,20 +142,6 @@ export function useLayoutState() {
 
   // --- Effects ---
 
-  // Title hover detection via coordinates
-  useEffect(() => {
-    const check = (e: MouseEvent) => {
-      if (!titleRef.current) { setTitleHovered(false); return; }
-      const rect = titleRef.current.getBoundingClientRect();
-      setTitleHovered(e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
-    };
-    document.addEventListener('mousemove', check);
-    document.addEventListener('mouseover', check);
-    return () => {
-      document.removeEventListener('mousemove', check);
-      document.removeEventListener('mouseover', check);
-    };
-  }, []);
 
   // Resize handler
   useEffect(() => {
@@ -282,7 +267,7 @@ export function useLayoutState() {
     scrambleHotkeyActive, setScrambleHotkeyActive,
     isSuperscramble,
     // Title
-    titleHovered, titleRef,
+    titleHovered, titleContainerProps,
     // Entry header
     entryHeaderHeight, setEntryHeaderHeight,
     // Actions
