@@ -1,16 +1,14 @@
 # [good days](https://gdays.day)
 
-welcome to good days, your analog journal oasis.
+welcome to good days.
 
 ## privacy
 
 entries are not sent to servers. a developer couldn't view your writing even if they wanted to.
 
-everything added lives encrypted or hashed on your hard drive in local browser storage. the app pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.
+everything added lives encrypted or hashed in localstorage. your browser pulls from it to display content, but entries, passwords, and colorways never leave your computer.
 
-safari is the only major browser with inactivity deletion (7 days); however, if you manually delete site data in browser settings, you'll clear the journal.
-
-as a security guarantee, the entire product is open source.
+the entire architecture is transparent as a privacy guarantee.
 
 ## features
 
@@ -20,8 +18,12 @@ keystrokes save in 300ms. clicking the footer bows in to zen mode. \time deliver
 
 the right end of a chromium address bar shelters an install button. beyond that door, a standalone app waits. victoriously, pair your phone for rc colorways.
 
+## system
+
+safari automatically deletes localstorage after 7 days of inactivity. other major browsers would only clear data under disk storage pressure.
+
 ---
 
 i hope you like this place. here's to many colorways and many more good days.
 
-\- shai
+\– shailen

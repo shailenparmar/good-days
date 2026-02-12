@@ -3,16 +3,15 @@
 // scripts/generate-readme.ts generates README.md from it.
 
 export const ABOUT_COPY = {
-  welcome: "welcome to good days, your analog journal oasis.",
+  welcome: "welcome to good days.",
 
   privacy: {
     header: "privacy:",
     paragraphs: [
       "entries are not sent to servers. a developer couldn't view your writing even if they wanted to.",
-      "everything added lives encrypted or hashed on your hard drive in local browser storage. the app pulls from it to display content, but entries, passwords, and colorways never leave your device's hardware.",
-      "safari is the only major browser with inactivity deletion (7 days); however, if you manually delete site data in browser settings, you'll clear the journal.",
-      "as a security guarantee, the entire product is open source.",
+      "everything added lives encrypted or hashed in localstorage. your browser pulls from it to display content, but entries, passwords, and colorways never leave your computer.",
     ],
+    lastParagraph: "the entire architecture is transparent as a privacy guarantee.",
     githubUrl: "https://github.com/shailenparmar/good-days",
   },
 
@@ -25,6 +24,13 @@ export const ABOUT_COPY = {
     ],
   },
 
+  system: {
+    header: "system:",
+    paragraphs: [
+      "safari automatically deletes localstorage after 7 days of inactivity. other major browsers would only clear data under disk storage pressure.",
+    ],
+  },
+
   closing: "i hope you like this place. here's to many colorways and many more good days.",
-  signature: "- shai",
+  signature: "\u2013 shailen",
 } as const;

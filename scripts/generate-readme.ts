@@ -9,8 +9,9 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
-const privacyParagraphs = ABOUT_COPY.privacy.paragraphs.join('\n\n');
+const privacyParagraphs = [...ABOUT_COPY.privacy.paragraphs, ABOUT_COPY.privacy.lastParagraph].join('\n\n');
 const featuresParagraphs = ABOUT_COPY.features.paragraphs.join('\n\n');
+const systemParagraphs = ABOUT_COPY.system.paragraphs.join('\n\n');
 
 const readme = `# [good days](https://gdays.day)
 
@@ -23,6 +24,10 @@ ${privacyParagraphs}
 ## ${ABOUT_COPY.features.header.replace(':', '')}
 
 ${featuresParagraphs}
+
+## ${ABOUT_COPY.system.header.replace(':', '')}
+
+${systemParagraphs}
 
 ---
 

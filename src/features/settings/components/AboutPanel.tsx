@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
-import { ExternalLink } from 'lucide-react';
+
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
@@ -99,23 +99,22 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       <div className="p-4" style={sectionStyle}>
         <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
           <p>{s(ABOUT_COPY.privacy.header)}</p>
-          {ABOUT_COPY.privacy.paragraphs.slice(0, -1).map((p, i) => (
+          {ABOUT_COPY.privacy.paragraphs.map((p, i) => (
             <p key={i}>{s(p)}</p>
           ))}
           <p>
-            {s(ABOUT_COPY.privacy.paragraphs[ABOUT_COPY.privacy.paragraphs.length - 1])}{' '}
+            {s(ABOUT_COPY.privacy.lastParagraph)}{' '}
             <a
               href={ABOUT_COPY.privacy.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
-              className="inline-flex items-center gap-1 outline-none"
+              className="outline-none"
               style={{ color: linkHovered ? confirmColor : getColor() }}
               onMouseEnter={() => setLinkHovered(true)}
               onMouseLeave={() => setLinkHovered(false)}
             >
-              <ExternalLink className="w-4 h-4" />
-              {s("github")}
+              {s("\u2197 github")}
             </a>
           </p>
         </div>
@@ -127,6 +126,16 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
           <p>{s(ABOUT_COPY.features.header)}</p>
           {ABOUT_COPY.features.paragraphs.map((p, i) => (
             <p key={i}>{renderWithEmphasis(p)}</p>
+          ))}
+        </div>
+      </div>
+
+      {/* System */}
+      <div className="p-4" style={sectionStyle}>
+        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+          <p>{s(ABOUT_COPY.system.header)}</p>
+          {ABOUT_COPY.system.paragraphs.map((p, i) => (
+            <p key={i}>{s(p)}</p>
           ))}
         </div>
       </div>
