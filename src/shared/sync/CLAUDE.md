@@ -318,6 +318,8 @@ The code entry screen shows a 2px divider line and "skip" button below the main 
 
 **Behavior:** Tapping "skip" calls `sync.skipPairing()` which closes the WebSocket, sets `pairingState` to `'standalone'`, and sets `skippedPairingRef = true` to prevent reconnection. The phone goes to standalone mode (home screen, no live sync). If the user backgrounds and returns to the app, `skippedPairingRef` is cleared and the WS reconnects normally.
 
+**Safari keyboard fix (v2.4.56+):** The skip button blurs the code input on `touchStart` before calling `preventDefault`. Without this, `preventDefault` prevents the focused input from blurring, and Safari may fire `touchCancel` instead of `touchEnd` due to the keyboard/focus conflict — silently swallowing the skip action. The `touchCancel` handler also fires `skipPairing()` as a fallback.
+
 **Auto-pair unchanged:** When 1 desktop is on the same wifi, the relay auto-pairs without showing any screen — the "skip" option only appears on the code entry screen (2+ desktops or 0 on same IP).
 
 Code: `skipPairing()` in `useMobileSync.ts`, "skip" button in `MobileApp.tsx`.

@@ -331,7 +331,7 @@ The recalibrate, copy, and paste buttons support **drag-off cancellation**: pres
 
 **Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
 
-**Applied to pairing screen skip button:** Uses `skipEngaged` ref and `isTouchInside` for the same engage/disengage pattern. (Candidate buttons were removed in v2.4.27 along with the candidates picker.)
+**Applied to pairing screen skip button:** Uses `skipEngaged` ref and `isTouchInside` for the same engage/disengage pattern. (Candidate buttons were removed in v2.4.27 along with the candidates picker.) **Safari keyboard fix (v2.4.56+):** Skip button blurs the code input on `touchStart` (before `preventDefault`) to dismiss the keyboard cleanly. Also fires `skipPairing()` on `touchCancel` — Safari may cancel touches instead of ending them during keyboard/focus transitions, which previously caused the skip action to silently not fire.
 
 **Copy textarea Writing Tools prevention (v1.10.22+):** The temporary textarea used for `execCommand('copy')` now has `writingSuggestions="false"`, `autocomplete/autocorrect/autocapitalize` off, `spellcheck=false`, and explicitly blurs before removal to clear iOS text interaction state.
 
