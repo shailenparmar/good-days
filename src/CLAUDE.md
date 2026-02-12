@@ -703,7 +703,7 @@ ESC press (narrow mode):
 - From zen: 3 presses to lock
 - No password: loops forever
 
-**Cycle reset:** `escVisitedZenRef` resets to `false` on any non-ESC keydown and any mousedown (global listeners in a separate `useEffect`). This means typing, clicking, or any other interaction breaks the ESC sequence — the next ESC from base always starts the full cycle.
+**Cycle reset:** `escVisitedZenRef` resets to `false` on any non-ESC keydown, mousedown, or window resize (global listeners in a separate `useEffect`). This means typing, clicking, resizing, or any other interaction breaks the ESC sequence — the next ESC from base always starts the full cycle.
 
 **Both modes use raw setters** (`setZenMode`/`setMinizen`/`setShowSidebarInNarrow`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→middle transitions.
 
@@ -996,7 +996,7 @@ Narrow from zen:     zen → default → sidebar → 🔒 LOCK             (3 pr
 
 **No password:** loops forever in both modes.
 
-**Cycle resets:** Any non-ESC keydown or mousedown resets `escVisitedZenRef` to `false` (global listeners). This ensures the cycle always starts fresh after any interaction — you can't lock with a stale flag from a previous cycle.
+**Cycle resets:** Any non-ESC keydown, mousedown, or window resize resets `escVisitedZenRef` to `false` (global listeners). This ensures the cycle always starts fresh after any interaction — you can't lock with a stale flag from a previous cycle.
 
 ### Ref Pattern for Layout State in ESC Handler
 
