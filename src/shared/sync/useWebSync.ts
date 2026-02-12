@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWsUrl } from './protocol';
 import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
 
-const DEVICE_ID_KEY = 'wsDeviceId';
+const DEVICE_ID_KEY = 'wsDeviceId2';
 const GRACE_MS = 200;
 
 function getOrCreateDeviceId(): string {

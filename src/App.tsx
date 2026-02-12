@@ -435,15 +435,27 @@ function AppContent() {
           }}
         >
           <div className="p-4" ref={layout.titleRef}>
-            <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-              {(() => {
-                const hoverText = pairingCode
-                  ? `g${pairingCode[0]}${pairingCode[1]}d d${pairingCode[2]}ys v${VERSION}`
-                  : `good days v${VERSION}`;
-                const text = layout.titleHovered ? hoverText : 'good days';
-                return layout.isSuperscramble ? scrambleText(text) : text;
-              })()}
-            </h1>
+            {(() => {
+              const showInfo = layout.titleHovered || layout.showAboutPanel;
+              const s = layout.isSuperscramble ? scrambleText : (t: string) => t;
+              if (showInfo) {
+                return (
+                  <div className="text-center select-none" style={{ color: getColor() }}>
+                    <h1 className="text-2xl font-extrabold font-mono tracking-tight">
+                      {s(`v${VERSION}`)}
+                    </h1>
+                    <p className="text-2xl font-extrabold font-mono tracking-tight">
+                      {s(`live code ${pairingCode || '---'}`)}
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
+                  {s('good days')}
+                </h1>
+              );
+            })()}
           </div>
 
           {/* Stats */}
