@@ -973,6 +973,7 @@ export default function MobileApp() {
                   fontSize: '20px',
                   color: textColor,
                   opacity: 0.85,
+                  whiteSpace: 'pre',
                   pointerEvents: 'none',
                 }}>
                   {codeBoldPhase === 'bold' ? (
