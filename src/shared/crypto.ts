@@ -3,6 +3,17 @@
 
 const APP_SECRET = 'good-days-backup-v1-2026';
 
+// Convert Uint8Array to base64 safely — chunked to avoid
+// exceeding the JS engine's max argument limit for String.fromCharCode()
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 // Separate salt for at-rest encryption (distinct from backup salt)
 const ENCRYPT_SALT = 'good-days-encrypt-salt';
 
@@ -85,7 +96,7 @@ export async function encryptWithKey(plaintext: string, key: CryptoKey): Promise
   combined.set(iv);
   combined.set(new Uint8Array(encrypted), iv.length);
 
-  return btoa(String.fromCharCode(...combined));
+  return uint8ToBase64(combined);
 }
 
 export async function decryptWithKey(ciphertext: string, key: CryptoKey): Promise<string> {
@@ -165,7 +176,7 @@ export async function encryptText(plaintext: string): Promise<string> {
   combined.set(iv);
   combined.set(new Uint8Array(encrypted), iv.length);
 
-  return btoa(String.fromCharCode(...combined));
+  return uint8ToBase64(combined);
 }
 
 export async function decryptText(encryptedBase64: string): Promise<string> {

@@ -191,10 +191,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      // Delay cleanup — browser may not start the download synchronously.
-      // Revoking the blob URL or removing the anchor too early causes silent
-      // download failure on some platforms (Windows Chrome in particular).
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       logAction('export.backup', { entryCount: entries.length });
     } catch (err) {
       console.error('Failed to encrypt backup:', err);
