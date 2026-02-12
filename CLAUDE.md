@@ -139,7 +139,7 @@ When pushing changes:
 
 ### Info Box (v2.4.48+)
 
-The **info box** replaces the title text when either the user hovers the title area OR the about panel is open. It shows two lines, both at 24px (`text-2xl font-extrabold font-mono`):
+The **info box** replaces the title text on hover. When the about panel is open, the behavior **flips**: the info box is the resting state, and hovering reveals "good days" instead. It shows two lines, both at 24px (`text-2xl font-extrabold font-mono`):
 
 ```
 v2.4.48
@@ -149,7 +149,7 @@ live code 042
 - **Top line:** Version number (`v${VERSION}`)
 - **Bottom line:** Live code — the 3-digit pairing code for phone-to-desktop sync
 
-Without hover or about panel, the title shows "good days" as usual. Works in both normal and superscramble modes.
+Without hover, the title shows "good days" as usual. Logic: `showAboutPanel ? !titleHovered : titleHovered`. Works in both normal and superscramble modes.
 
 ### Live Code
 
