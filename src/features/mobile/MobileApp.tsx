@@ -32,10 +32,10 @@ export default function MobileApp() {
   const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
   const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Bold sweep placeholder for code input ("000")
+  // Bold sweep placeholder for code input ("live code")
   const [codeBoldCount, setCodeBoldCount] = useState(0);
   const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
-  const codePlaceholder = '000';
+  const codePlaceholder = 'live code';
   const [codeInputFocused, setCodeInputFocused] = useState(false);
   const showCodePlaceholder = codeInput.length === 0 && !codeInputFocused;
   useEffect(() => {
@@ -55,8 +55,7 @@ export default function MobileApp() {
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
 
-  // Flickering digits for code entry title: "g00d d0ys" with random numbers
-  const [flickerDigits, setFlickerDigits] = useState([0, 0, 0]);
+  // Flickering digits removed — code entry title is now plain "good days"
 
   // iOS permission state — computed synchronously to avoid first-render flash
   const [needsPermission, setNeedsPermission] = useState(() => {
@@ -93,16 +92,6 @@ export default function MobileApp() {
   // WebSocket live sync
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
-
-  // Flickering digits effect — runs when code entry screen is visible
-  const codeScreenVisible = sync.pairingState === 'enter-code' || mockScreen === 'code';
-  useEffect(() => {
-    if (!codeScreenVisible) return;
-    const id = setInterval(() => {
-      setFlickerDigits([Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)]);
-    }, 21);
-    return () => clearInterval(id);
-  }, [codeScreenVisible]);
 
   // Throttled WS color update (21ms = ~48fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
@@ -921,18 +910,15 @@ export default function MobileApp() {
           onTouchStart={(e) => { e.preventDefault(); setTitlePressedPersist(true); }}
           onTouchEnd={() => setTitlePressedPersist(false)}
           onTouchCancel={() => setTitlePressedPersist(false)}
-        >{titlePressed ? `v${mobileVersion}` : <>g{flickerDigits[0]}{flickerDigits[1]}d d{flickerDigits[2]}ys</>}</span>
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', padding: '0 24px' }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', color: textColor, textAlign: 'center' }}>
-            enter your desktop code
-          </span>
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '24px',
-            fontSize: 'min(17vw, 70px)',
-            width: '9ch',
+            width: '100%',
+            maxWidth: '280px',
             alignSelf: 'center',
           }}>
             <div style={{ position: 'relative' }}>
@@ -954,7 +940,7 @@ export default function MobileApp() {
                 style={{
                   fontFamily: 'monospace',
                   fontWeight: 800,
-                  fontSize: '48px',
+                  fontSize: '20px',
                   color: textColor,
                   backgroundColor: 'transparent',
                   border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
@@ -965,8 +951,8 @@ export default function MobileApp() {
                   padding: '12px',
                   outline: 'none',
                   caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
-                  letterSpacing: '8px',
-                  textIndent: '8px',
+                  letterSpacing: '4px',
+                  textIndent: '4px',
                 }}
                 onFocus={() => setCodeInputFocused(true)}
                 onBlur={() => setCodeInputFocused(false)}
@@ -984,10 +970,9 @@ export default function MobileApp() {
                   justifyContent: 'center',
                   fontFamily: 'monospace',
                   fontWeight: 800,
-                  fontSize: '48px',
+                  fontSize: '20px',
                   color: textColor,
                   opacity: 0.85,
-                  letterSpacing: '8px',
                   pointerEvents: 'none',
                 }}>
                   {codeBoldPhase === 'bold' ? (
