@@ -981,6 +981,7 @@ export default function MobileApp() {
             <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)`, margin: '12px 0' }} />
             <div
               onTouchStart={(e) => {
+                codeInputRef.current?.blur();
                 e.preventDefault();
                 skipEngaged.current = true;
                 setSkipPressed(true);
@@ -999,6 +1000,7 @@ export default function MobileApp() {
                 setSkipPressed(false);
               }}
               onTouchCancel={() => {
+                if (skipEngaged.current) sync.skipPairing();
                 skipEngaged.current = false;
                 setSkipPressed(false);
               }}
