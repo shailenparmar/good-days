@@ -436,7 +436,7 @@ function AppContent() {
         >
           <div className="p-4" ref={layout.titleRef}>
             {(() => {
-              const showInfo = layout.titleHovered || layout.showAboutPanel;
+              const showInfo = layout.showAboutPanel ? !layout.titleHovered : layout.titleHovered;
               const s = layout.isSuperscramble ? scrambleText : (t: string) => t;
               if (showInfo) {
                 return (
