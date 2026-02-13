@@ -324,13 +324,15 @@ The code entry screen shows a 2px divider line and "skip" button below the main 
 
 Code: `skipPairing()` in `useMobileSync.ts`, "skip" button in `MobileApp.tsx`.
 
-### Save-Preset Carries Phone Colors (v2.4.72+)
+### Save-Preset Carries Phone Colors (v2.4.72+, relay fix v2.4.80)
 
 The `save-preset` message now includes the phone's `colors: ColorPayload`. Previously it was a bare signal with no data — the desktop called `saveCustomPreset()` which read its own React state. If the phone's colors diverged from the desktop (e.g., phone picked colors without streaming), the desktop saved the wrong colors.
 
 **Fix:** Phone sends `{ type: 'save-preset', colors }`. Desktop stores `saveColors` in `WebSyncState`. `WebSyncBridge` passes them to `saveCustomPreset(colors)`. `ThemeContext.saveCustomPreset` accepts an optional `ColorPreset` override — uses it when provided (phone save), falls back to desktop state when omitted (desktop PresetGrid save button).
 
-**Files changed:** `protocol.ts` (message type), `useMobileSync.ts` (`sendSave` accepts colors), `MobileApp.tsx` (passes `colors`), `useWebSync.ts` (`saveColors` state), `WebSyncBridge.tsx` (passes colors through), `types.ts` + `ThemeContext.tsx` (`saveCustomPreset` optional param).
+**Relay fix (v2.4.80):** The relay was forwarding `{ type: 'save-preset' }` without the `colors` field — stripping the phone's colors. The desktop received `undefined` for `msg.colors`, so `saveCustomPreset` fell back to the desktop's own React state. Fixed by forwarding `msg.colors` through the relay. Also updated `server/src/types.ts` to add `colors: ColorPayload` to both the `ClientMessage` and `ServerMessage` `save-preset` variants.
+
+**Files changed:** `protocol.ts` (message type), `useMobileSync.ts` (`sendSave` accepts colors), `MobileApp.tsx` (passes `colors`), `useWebSync.ts` (`saveColors` state), `WebSyncBridge.tsx` (passes colors through), `types.ts` + `ThemeContext.tsx` (`saveCustomPreset` optional param), `server/src/relay.ts` (forward colors), `server/src/types.ts` (add colors to save-preset).
 
 ### Live Stats (removed in v2.3.12)
 
