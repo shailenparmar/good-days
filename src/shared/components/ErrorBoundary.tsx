@@ -12,7 +12,7 @@ interface State {
 }
 
 // Error screen colors: DEFAULT_PRESET_1 (dark green on light yellow)
-const textColor = 'hsl(116, 75%, 11%)';
+const textColor = 'hsl(116, 100%, 12%)';
 const bgColor = 'hsl(52, 100%, 91%)';
 
 export class ErrorBoundary extends Component<Props, State> {
