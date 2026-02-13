@@ -27,6 +27,21 @@
 
 **If you push without documenting, you have failed.** The user should never have to remind you. But always get the code out the door first.
 
+## Branch Strategy
+
+| Branch | Purpose | Deploys? |
+|--------|---------|----------|
+| **main** | Web app (gdays.day) | Yes — GitHub Pages on every push |
+| **electron** | Desktop app (macOS App Store) | No — local builds only |
+
+**Rules:**
+- **All web app changes go to main.** Copy fixes, features, bug fixes — everything that affects gdays.day.
+- **All Electron/desktop work goes to electron.** Desktop-specific code stays off main until the app is ready.
+- **Electron rebases on main** periodically to pick up web app improvements. Run `git checkout electron && git rebase main` then `git push --force-with-lease origin electron`.
+- **Never merge electron into main.** The desktop app will get its own build pipeline when it's ready for the App Store.
+
+**Why:** The Electron commit modifies shared files (`main.tsx`, `journalStorage.ts`, `package.json`) that could affect the live web app. Keeping it on a separate branch eliminates that risk.
+
 ## Deployment
 
 Both apps deploy automatically on push to `main`:
