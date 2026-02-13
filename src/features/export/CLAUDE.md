@@ -253,6 +253,9 @@ function normalizeForComparison(text: string): string {
 - `startedAt` is preserved (uses older timestamp if imported entry is older)
 - Entries are re-sorted by date after import
 - "Copy to clipboard" still copies plain text (not encrypted)
+- Both clipboard copy functions include `entry.title` when present (v2.4.81+):
+  - Normal mode (`formatEntriesForClipboard`): title as plain text between date and content
+  - Poweruser mode (`formatEntriesAsText`): title as bold markdown (`**title**`) between date heading and started-at time
 
 ### Button Text
 
