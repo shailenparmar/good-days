@@ -4,6 +4,6 @@
   <!-- Icon at 400x400 centered -->
   <g transform="translate(400, 115)">
     <rect x="0" y="0" width="400" height="400" rx="90" ry="90" fill="#000000" />
-    <rect x="90" y="90" width="220" height="220" fill="#1FFF0F" />
+    <rect x="100" y="100" width="200" height="200" fill="#1FFF0F" />
   </g>
 </svg>
