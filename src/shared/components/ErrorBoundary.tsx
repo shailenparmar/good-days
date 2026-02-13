@@ -11,9 +11,9 @@ interface State {
   hasError: boolean;
 }
 
-// Error screen colors: DEFAULT_PRESET_1 (dark navy on light yellow)
-const textColor = 'hsl(236, 66%, 18%)';
-const bgColor = 'hsl(52, 100%, 88%)';
+// Error screen colors: DEFAULT_PRESET_1 (dark green on light yellow)
+const textColor = 'hsl(116, 69%, 24%)';
+const bgColor = 'hsl(52, 100%, 91%)';
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
