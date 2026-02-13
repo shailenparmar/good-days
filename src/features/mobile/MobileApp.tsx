@@ -932,9 +932,9 @@ export default function MobileApp() {
                   }
                 }}
                 style={{
-                  ...getButtonStyle(codeInputPressed || codeInputFocused, 'full'),
-                  backgroundColor: (codeInputPressed || codeInputFocused) ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
-                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${(codeInputPressed || codeInputFocused) ? 65 : colors.light}%, ${(codeInputPressed || codeInputFocused) ? 1 : 0.6})`}`,
+                  ...getButtonStyle(codeInputPressed, 'full'),
+                  backgroundColor: codeInputPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${codeInputPressed ? 65 : colors.light}%, ${codeInputPressed ? 1 : 0.6})`}`,
                   textAlign: 'center',
                   width: '100%',
                   boxSizing: 'border-box',
