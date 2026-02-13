@@ -37,6 +37,9 @@ export function formatEntriesAsText(entries: JournalEntry[]): string {
     });
 
     textContent += `\n## ${formattedDate}\n\n`;
+    if (entry.title) {
+      textContent += `**${entry.title}**\n\n`;
+    }
     if (entry.startedAt) {
       const startTime = new Date(entry.startedAt);
       const hours = String(startTime.getHours()).padStart(2, '0');
@@ -85,6 +88,9 @@ export function formatEntriesForClipboard(entries: JournalEntry[]): string {
     });
 
     lines.push(formattedDate);
+    if (entry.title) {
+      lines.push(entry.title);
+    }
 
     // Get text content from HTML, preserving line breaks
     const tempDiv = document.createElement('div');
