@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '@features/theme';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
@@ -318,7 +318,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
   const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
   const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
   // Dynamic status colors using WCAG contrast ratios
-  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+  const { confirm: confirmColor, error: errorColor } = useMemo(
+    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
+    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
+  );
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;

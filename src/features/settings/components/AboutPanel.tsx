@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTheme } from '@features/theme';
 
 import { Link2 } from 'lucide-react';
@@ -38,7 +38,10 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   };
   const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [linkHovered, setLinkHovered] = useState(false);
-  const { confirm: confirmColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+  const { confirm: confirmColor } = useMemo(
+    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
+    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
+  );
 
   // Calculate About width to keep right edge aligned
   // With border-box, the 6px border is inside the width value

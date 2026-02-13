@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
@@ -33,7 +33,10 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const { hovered: importHovered, containerProps: importContainerProps } = useStableHover();
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
-  const { confirm: confirmColor, error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+  const { confirm: confirmColor, error: errorColor } = useMemo(
+    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
+    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
+  );
 
   // Dismiss import feedback on keystroke (clicks are intentional actions)
   useEffect(() => {

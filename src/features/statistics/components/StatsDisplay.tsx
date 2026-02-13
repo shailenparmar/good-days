@@ -101,7 +101,10 @@ function ColorButton({
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
-  const { error: errorColor } = getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+  const { error: errorColor } = useMemo(
+    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
+    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
+  );
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);

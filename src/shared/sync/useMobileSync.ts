@@ -83,7 +83,6 @@ export function useMobileSync(): MobileSyncHandle {
           msg = JSON.parse(e.data);
         } catch { return; }
 
-        console.log('[mobile-sync] received:', msg.type, msg);
         switch (msg.type) {
           case 'paired':
             pairingStateRef.current = 'paired';
