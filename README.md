@@ -26,4 +26,4 @@ safari automatically deletes localstorage after 7 days of inactivity. other majo
 
 i hope you like this place. here's to many colorways and many more good days.
 
-\– shailen
+– shailen
