@@ -11,7 +11,7 @@ import { getStatusColors } from '@shared/utils/confirmColor';
 export default function MobileApp() {
   // Color state
   const [colors, setColors] = useState<ColorState>({
-    hue: 215, sat: 100, light: 0, bgHue: 28, bgSat: 100, bgLight: 83,
+    hue: 236, sat: 66, light: 18, bgHue: 52, bgSat: 100, bgLight: 88,
   });
 
   // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
