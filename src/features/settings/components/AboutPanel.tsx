@@ -114,7 +114,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               onMouseEnter={() => setLinkHovered(true)}
               onMouseLeave={() => setLinkHovered(false)}
             >
-              {s("\u2197 github")}
+              {s("github \u2197")}
             </a>
           </p>
         </div>
