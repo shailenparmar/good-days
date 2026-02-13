@@ -81,7 +81,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 
 | Preset | Text Color | Background Color | Description |
 |--------|------------|------------------|-------------|
-| **1** | hsl(236, 66%, 18%) dark navy #10144c | hsl(52, 100%, 88%) light yellow #fff7c2 | Default for new users |
+| **1** | hsl(116, 69%, 24%) dark green #196713 | hsl(52, 100%, 91%) light yellow #fff9d1 | Default for new users |
 | **2** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
 | **3** | hsl(360, 100%, 49%) red | hsl(360, 100%, 13%) dark red | — |
 | **4** | hsl(36, 58%, 38%) dark gold #996c29 | hsl(181, 52%, 10%) dark teal #0c2627 | — |
@@ -99,8 +99,8 @@ When changing the default preset, update BOTH locations.
 ### Error Screen
 
 The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded DEFAULT_PRESET_1 colors:
-- Text: `hsl(236, 66%, 18%)` - dark navy
-- Background: `hsl(52, 100%, 88%)` - light yellow
+- Text: `hsl(116, 69%, 24%)` - dark green
+- Background: `hsl(52, 100%, 91%)` - light yellow
 
 These are intentionally NOT tied to presets so the error screen always displays consistently. The "something went wrong" screen is the only user-approved copy screen.
 
