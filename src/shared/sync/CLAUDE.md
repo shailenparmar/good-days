@@ -128,7 +128,7 @@ Nine fixes to reduce per-frame overhead during live streaming and phone picking:
 
 6. **Removed `console.log` on every phone WS message** (`useMobileSync.ts`, v2.4.84): Was logging `msg.type` + full message object on every received message. Removed to match the desktop fix in #1.
 
-7. **CSS-only streaming — zero React re-renders** (`WebSyncBridge.tsx`, v2.4.85): The fundamental fix. The rAF callback now sets CSS vars directly on `document.documentElement` instead of calling `applyLivePreset` (which set 7 React states → ThemeProvider re-render → unmemoized context `value` object → 30-50+ `useTheme()` consumer re-renders per frame). During streaming, React is completely uninvolved — all visual updates flow through CSS custom properties. React state syncs once on stream-stop (via `applyLivePreset`) and on disconnect (via individual setters to avoid re-setting `livePreset` to non-null).
+7. **CSS-only streaming — zero React re-renders** (`WebSyncBridge.tsx`, v2.4.85+v2.4.86): The fundamental fix. The rAF callback now sets CSS vars directly on `document.documentElement` instead of calling `applyLivePreset` (which set 7 React states → ThemeProvider re-render → unmemoized context `value` object → 30-50+ `useTheme()` consumer re-renders per frame). During streaming, React is completely uninvolved — all visual updates flow through CSS custom properties. React state syncs once on stream-stop (via `applyLivePreset`) and on disconnect (via individual setters to avoid re-setting `livePreset` to non-null). v2.4.86 added 6 position CSS vars (`--th-p`, `--ts-p`, `--tl-p`, `--bh-p`, `--bs-p`, `--bl-p`) so ColorPicker indicators (SL dot, hue needle) also move via CSS during streaming.
 
 ### StatsDisplay Memoization (v2.3.18+)
 

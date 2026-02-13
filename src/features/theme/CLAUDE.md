@@ -52,6 +52,30 @@ interface StreamingControls {
 
 SL uses `overflow: visible` so the dot can extend beyond the square bounds. Hue uses `overflow: hidden` so the needle clips at the edges (v2.1.37+). SL has `zIndex: 2`, hue has `zIndex: 1` (dot wins over needle when overlapping). The hue needle is a solid black bar (v2.1.38 — reverted from hollow slit). Sizing is standardized across mobile and desktop: alpha/local-drag 16px, beta 8px, idle 4px.
 
+### CSS-Var-Driven Indicator Positions (v2.4.86+)
+
+ColorPicker indicators (SL dot and hue needle) use CSS custom property expressions for positioning instead of JS-computed values. This allows indicators to move during live streaming without React re-renders.
+
+**Position CSS vars** (unitless 0-100, set on `document.documentElement`):
+- `--th-p` — text hue needle position: `(360 - hue) / 360 * 100`
+- `--ts-p` — text SL dot X: `saturation`
+- `--tl-p` — text SL dot Y: `100 - lightness`
+- `--bh-p` — bg hue needle position: `(360 - bgHue) / 360 * 100`
+- `--bs-p` — bg SL dot X: `bgSaturation`
+- `--bl-p` — bg SL dot Y: `100 - bgLightness`
+
+**Usage in ColorPicker:**
+```tsx
+// Static strings — React never detects changes, browser evaluates CSS vars live
+const needleTop = isText ? 'calc(var(--th-p) * 1%)' : 'calc(var(--bh-p) * 1%)';
+const dotLeft = isText ? 'calc(var(--ts-p) * 1%)' : 'calc(var(--bs-p) * 1%)';
+const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
+```
+
+**Set in two places:**
+1. `ThemeContext.tsx` CSS var sync effect — fires on React state changes (desktop drag, preset clicks, stream-stop sync)
+2. `WebSyncBridge.tsx` rAF callback — fires during live streaming (CSS-only, no React state)
+
 ### Drag Listener Cleanup
 
 When the user mousedowns/touchstarts on a picker square, `mousemove`/`touchmove` and `mouseup`/`touchend`/`touchcancel` listeners are added to `document`. The up handler removes all listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag.
