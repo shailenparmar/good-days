@@ -541,7 +541,7 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         const sc = clients.get(clientId);
         if (sc?.partnerId) {
           const partner = clients.get(sc.partnerId);
-          if (partner) send(partner.ws, { type: 'save-preset' });
+          if (partner) send(partner.ws, { type: 'save-preset', colors: msg.colors });
         }
         break;
       }
