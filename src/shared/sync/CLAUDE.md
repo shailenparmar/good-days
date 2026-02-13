@@ -182,13 +182,15 @@ When the phone disconnects (swipe away, tab close, etc.), `useWebSync` waits `GR
 
 **Reconnect grace (v2.4.15+):** The `registered` handler now calls `startGrace()` on every registration. This fixes a bug where force-reconnecting (visibility handler or stale-check) left `livePreset` stale because the old WS's `onclose` race guard (`wsRef.current === ws`) prevented `startGrace()` from being called. The `paired` handler cancels the grace timer if the phone is still connected (server sends `paired` synchronously after `registered` during same-device dedup). If no `paired` follows (phone is gone), the grace fires and clears live state after 200ms.
 
-### Phone Visibility Disconnect (v2.1.4+)
+### Phone Visibility Disconnect (v2.1.4+, updated v2.4.91)
 
-The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~300ms of the user leaving the phone app (relay latency + 200ms grace), and re-enter live mode as soon as they come back.
+The phone immediately closes its WebSocket when the page goes hidden (home screen, app switcher, tab switch, lock screen). When the page becomes visible again, it reconnects immediately. This makes the desktop exit live mode within ~300ms of the user leaving the phone app (relay latency + 200ms grace), and re-enter live mode as soon as they come back.
 
 **Implementation:** `visibilitychange` listener in `useMobileSync.ts`:
-- `hidden` → set `hiddenRef=true`, close WS, clear streaming state, cancel reconnect timer, reset backoff
+- `hidden` → send `going-hidden` message (v2.4.91+), set `hiddenRef=true`, close WS, clear streaming state, cancel reconnect timer, reset backoff
 - `visible` → set `hiddenRef=false`, reset backoff, call `connect()` immediately
+
+**going-hidden message (v2.4.91+):** Before calling `ws.close()`, the phone sends `{ type: 'going-hidden' }` via `ws.send()`. This is critical for iOS lock screen: `ws.close()` initiates a close handshake that requires a round-trip (send close frame → receive close frame), but iOS freezes the page before the handshake completes. The relay never sees the close and must rely on the 30-60s ping/pong timeout to detect the dead connection. In contrast, `ws.send()` data frames are buffered synchronously by the browser into the OS network buffer — the OS sends them even after JS is frozen. The relay handles `going-hidden` as an immediate disconnect (`handleDisconnect` + `ws.terminate()`), so the laptop exits live mode in ~200ms instead of 30-60s.
 
 **Bug fix (v2.1.5):** Closing the WS triggers `onclose`, which calls `scheduleReconnect()`. Without the `hiddenRef` guard, the phone would schedule a reconnect while backgrounded, defeating the purpose of the visibility disconnect. `scheduleReconnect` now checks `hiddenRef.current` and bails if hidden.
 
