@@ -225,7 +225,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       />
       <FunctionButton onClick={handleCopyToClipboard} disabled={entries.length === 0} size="sm">
         <Copy className="w-3 h-3" />
-        <span>{s(stacked ? 'copy markdown format' : 'copy to clipboard')}</span>
+        <span>{s(stacked ? 'copy markdown format' : 'copy entries')}</span>
       </FunctionButton>
       <FunctionButton onClick={handleBackup} disabled={entries.length === 0} size="sm">
         <Upload className="w-3 h-3" />

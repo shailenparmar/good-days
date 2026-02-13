@@ -258,7 +258,7 @@ function normalizeForComparison(text: string): string {
 
 | Mode | Button | Default Text | On Hover |
 |------|--------|--------------|----------|
-| Normal | Copy | "copy to clipboard" | — |
+| Normal | Copy | "copy entries" | — |
 | Normal | Backup | "download backup" | — |
 | Normal | Import | "import backup" | — |
 | Poweruser | Copy | "copy markdown format" | — |
