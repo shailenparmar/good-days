@@ -169,6 +169,8 @@ The **live code** is a 3-digit number (000–999) used for phone-to-desktop pair
 
 Uses coordinate-based hover detection (`mousemove` + `mouseover` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay). The `mouseover` listener (v2.3.3+) helps show the version immediately after page refresh when the cursor is already over the title — `mouseover` fires when new content renders under a stationary cursor, while `mousemove` only fires on actual movement.
 
+**Anti-flicker: max-height approach (v2.4.68+).** Hovering toggles content between 1-line ("good days") and 2-line (version + live code), changing the div height. A `titleMaxHeight` ref tracks the tallest height the div has ever been. The hover zone uses fresh `left/right/top` from the live rect but extends the bottom to `rect.top + maxHeight`. Since maxHeight only grows (via `Math.max`), the hover zone never shrinks when content toggles — breaking the feedback loop that causes flicker. Reset on window resize.
+
 ## Pre-push Hook
 
 A pre-push hook runs `npm run typecheck` before every push to prevent CI failures. This catches TypeScript errors locally before they hit CI.
