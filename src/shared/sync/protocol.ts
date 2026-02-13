@@ -33,6 +33,10 @@ export type ServerMessage =
 
 export function getWsUrl(): string {
   if (typeof window === 'undefined') return '';
+  // Electron loads from file:// — always use the production relay
+  if (window.electronAPI?.platform === 'electron') {
+    return 'wss://relay.gdays.day/ws';
+  }
   const loc = window.location;
   // Production: use relay subdomain
   if (loc.hostname === 'gdays.day' || loc.hostname === 'www.gdays.day') {
