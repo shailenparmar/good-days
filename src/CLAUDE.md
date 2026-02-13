@@ -442,7 +442,7 @@ State preserved across resize using `preNarrowState`.
 
 #### Wide → Narrow
 - `preNarrowState` saves `{ showDebugMenu, showAboutPanel, minizen }`
-- Minizen, showSidebarInNarrow reset to false; panels close; preFocusState cleared
+- Minizen, showSidebarInNarrow reset to false; panels close; preFocusState cleared (resize absorbs focus context — the narrow transition's `preNarrowState` subsumes it)
 - Zen stays zen
 
 #### Narrow → Wide
