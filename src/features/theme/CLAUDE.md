@@ -114,20 +114,38 @@ When settings is open, presets can be controlled with the keyboard:
 
 | Key | Action |
 |-----|--------|
-| Arrow keys | Navigate between presets (auto-applies on move) |
-| Space / Enter | Save current colors to the active preset |
+| Arrow keys | Navigate between presets (auto-applies on move, no undo entry) |
+| Space / Enter | Restart pulse on active preset (no edit/overwrite) |
 | Backspace / Delete | Delete the active preset |
-| Cmd+Z / Ctrl+Z | Undo last preset deletion or edit |
+| Cmd+Z / Ctrl+Z | Undo last color change or preset deletion |
 
-#### Preset Undo (multi-level, v2.3.29+, expanded v2.4.37)
+#### Preset Edit Removed (v2.4.73+)
 
-Multi-level undo for preset deletions AND edits. An `undoStackRef` (array) in `PresetGrid.tsx` stores undo entries with `action: 'delete' | 'edit'`. Each Cmd+Z / Ctrl+Z pops the most recent action: deletions are spliced back at their original index, edits restore the old colors to the preset at that index.
+Re-clicking an active preset (mouse or Space/Enter) no longer overwrites it with current slider colors. It just restarts the pulse animation. The previous "edit preset" behavior and its associated `'edit'` undo action type have been removed.
+
+#### Preset Undo (multi-level, v2.3.29+, expanded v2.4.73)
+
+Multi-level undo for preset deletions AND color changes. An `undoStackRef` (array) in `PresetGrid.tsx` stores undo entries as a discriminated union:
+- `{ action: 'delete'; preset; index; type }` — restores deleted preset at original index
+- `{ action: 'color-change'; snapshot: ColorPreset }` — restores previous colors, activates save button with pulse
+
+**What pushes `color-change` entries:**
+- Picker drags (via `colorPickerDragCount` useEffect, reads `prePickerSnapshotRef`)
+- Preset mouse clicks (before `applyPreset` in both click handlers' else-branches)
+- Rand clicks (before `randomizeTheme` in both mouse and keyboard handlers)
+
+**What does NOT push undo entries:**
+- Arrow key navigation (browsing, not a deliberate choice)
+- Powerscramble keystroke randomization
 
 | Scenario | Behavior |
 |----------|----------|
 | Delete 3, then Cmd+Z 3 times | All three restored in reverse order |
-| Edit preset, Cmd+Z | Old colors restored to that preset |
-| Mix of deletes and edits, Cmd+Z | Undone in reverse order regardless of type |
+| Click preset, Cmd+Z | Previous colors restored, save button pulses |
+| Click rand, Cmd+Z | Previous colors restored, save button pulses |
+| Drag slider, Cmd+Z | Pre-drag colors restored, save button pulses |
+| Mix of deletes and color-changes, Cmd+Z | Undone in reverse order regardless of type |
+| Arrow key nav, Cmd+Z | Does NOT undo arrow navigation (no entry pushed) |
 | Close settings, reopen, Cmd+Z | No undo (ref cleared on unmount) |
 | Cmd+Z with nothing to undo | No-op (but still `preventDefault`s to block native undo) |
 | Cmd+Z while typing in editor | Browser native undo (handler skips input/textarea/contentEditable) |
@@ -135,6 +153,17 @@ Multi-level undo for preset deletions AND edits. An `undoStackRef` (array) in `P
 **No conflict with editor Cmd+Z:** The handler runs in capture phase but has an early return for input/textarea/contentEditable elements, so editor undo works normally.
 
 **No conflict with password inputs (v2.4.37+):** Cmd+Z is blocked from interacting with password fields at three levels: (1) `onKeyDown` on the password `<input>` calls `preventDefault`, (2) the "saved" dismiss handler in PasswordSettings ignores Cmd+Z, (3) the preset undo handler always calls `preventDefault` when settings is open (even with empty stack) to block native undo from reaching any input.
+
+#### Save Pulse on Picker Drag (v2.4.73+)
+
+When the user drags any color picker (SL or hue, text or bg), the save button activates and pulses. This signals "your colors have changed — save them if you want."
+
+**Communication mechanism:** `ColorPicker.startDrag()` snapshots the current 6 color values to `prePickerSnapshotRef` (shared via ThemeContext) and increments `colorPickerDragCount`. `PresetGrid` watches the count in a `useEffect` — when it changes, it reads the snapshot, pushes a `color-change` undo entry, sets `activePresetIndex` to the save button, and increments `pulseKey`.
+
+**Fields on ThemeActions (types.ts):**
+- `colorPickerDragCount: number` — incremented each drag start
+- `incrementColorPickerDragCount: () => void` — stable callback (useCallback, empty deps)
+- `prePickerSnapshotRef: React.RefObject<ColorPreset | null>` — snapshot of colors before drag
 
 #### Editor Auto-Focus & Date Switch (v1.10.23+)
 
@@ -175,12 +204,12 @@ Active presets show a pulsing border animation (`preset-pulse` class). The anima
 
 | Button type | Where pulse reset happens |
 |-------------|--------------------------|
-| Default presets | `handlePresetClick()` (when `wasActive`) |
-| Custom presets | `handleCustomPresetClick()` (when `wasActive`) |
+| Default presets | `handlePresetClick()` (when `wasActive` — just pulse, no edit) |
+| Custom presets | `handleCustomPresetClick()` (when `wasActive` — just pulse, no edit) |
 | live | Inline onClick (only when `isLiveActive` already true) |
 | rand | Inline onClick (every click) |
-| save | Inline onClick (every click) |
-| Space/Enter key | Keyboard handler (line ~220) |
+| save | Inline onClick (every click) + `colorPickerDragCount` useEffect (on picker drag) |
+| Space/Enter key | Keyboard handler (every press on any active preset) |
 
 **`isLiveActive` clearing (v2.3.13+):** All buttons that switch away from live must call `setIsLiveActive(false)`. This includes `handlePresetClick`, `handleCustomPresetClick`, rand onClick, and save onClick.
 
