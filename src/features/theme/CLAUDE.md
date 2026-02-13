@@ -133,6 +133,7 @@ Multi-level undo for preset deletions AND color changes. An `undoStackRef` (arra
 - Picker drags (via `colorPickerDragCount` useEffect, reads `prePickerSnapshotRef`)
 - Preset mouse clicks (before `applyPreset` in both click handlers' else-branches)
 - Rand clicks (before `randomizeTheme` in both mouse and keyboard handlers)
+- Color commands (`\txt#hex`, `\bg#hex`) in `JournalEditor.tsx` (v2.4.76+) — snapshots + signals via `colorPickerDragCount` before applying individual setters
 
 **What does NOT push undo entries:**
 - Arrow key navigation (browsing, not a deliberate choice)
