@@ -69,7 +69,7 @@ export function JournalEditor({
   hidePlaceholder,
   scrambleSeed,
 }: JournalEditorProps) {
-  const { getColor, getBgColor, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway } = useTheme();
+  const { getColor, getBgColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway, incrementColorPickerDragCount, prePickerSnapshotRef } = useTheme();
 
   // Track focus state for placeholder visibility
   const [isFocused, setIsFocused] = useState(false);
@@ -223,6 +223,9 @@ export function JournalEditor({
     const colorRegex = /\\(text|txt|background|bg)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
     let colorMatch = newValue.match(colorRegex);
     if (colorMatch) {
+      // Snapshot current colors for undo + pulse save button
+      prePickerSnapshotRef.current = { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness };
+      incrementColorPickerDragCount();
       while (colorMatch) {
         const type = (colorMatch[1] || 'bg').toLowerCase().replace('text', 'txt').replace('background', 'bg');
         let h: number, s: number, l: number;
@@ -266,7 +269,7 @@ export function JournalEditor({
 
     setValue(newValue);
     onInput(newValue);
-  }, [editorRef, isScrambled, isSuperscramble, onInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway]);
+  }, [editorRef, isScrambled, isSuperscramble, onInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, incrementColorPickerDragCount]);
 
   // Force plain text paste (strips any formatting or styled Unicode)
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
