@@ -108,6 +108,14 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 
 **`applyLivePreset` (v2.4.29+):** Combined method on ThemeContext that sets `livePreset` + all 6 color values in a single synchronous block. Still used for stream-stop sync (single render to flush final colors to React state), pairing, and local desktop drag. During local desktop drag, rAF falls back to `setLivePreset` only (skips color apply to prevent flicker).
 
+### Stream Transition Cascade Reduction (v2.4.92+)
+
+Stream transitions (finger lift/touch) previously caused 2-4 full cascade renders through all 15+ `useTheme()` consumers, blocking the main thread for ~320-400ms per lift-touch cycle. Two fixes halve this:
+
+**Fix 1: Eliminate duplicate cascade on stream-stop.** `WebSyncBridge` now sets `activePresetIndex(saveIndex)` in the same synchronous batch as `applyLivePreset` + `incrementColorPickerDragCount`. When PresetGrid's `colorPickerDragCount` effect fires and calls `setActivePresetIndex(saveIndex)`, React sees the same value (`Object.is` bailout) and skips the re-render. Eliminates 1 full cascade (~80-100ms).
+
+**Fix 2: `streamingControls` moved to module-level ref.** Only ColorPicker needs `streamingControls` for indicator sizing (dotSize/needleHeight based on alpha/beta role). Previously stored in ThemeContext state — every `stream-state` message triggered a full cascade of all consumers. Now stored in `streamingControlsRef` (`src/shared/sync/streamingControlsRef.ts`), written by WebSyncBridge, read by ColorPicker during render. Removed `streamingControls`/`setStreamingControls` from ThemeContext, `LiveSyncState`, and `LiveSyncActions`. ColorPicker picks up the latest controls on its next render (triggered by other context changes on stream-start/stop). Minor tradeoff: indicator sizes won't update mid-stream (e.g., beta finger join) until next stream transition — acceptable since indicator sizing is subtle.
+
 Multiple WS messages arriving within the same animation frame are coalesced — only the latest colors are applied. This caps CSS var updates at the display refresh rate instead of the WS message rate.
 
 The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync` but only mutates refs (no setState). A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).

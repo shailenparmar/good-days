@@ -41,7 +41,7 @@ interface StreamingControls {
 }
 ```
 
-**Data flow**: Phone touch handler → `sendStreamState()` → relay forwards → desktop `useWebSync` → `WebSyncBridge` → `ThemeContext.streamingControls` → `ColorPicker` reads it.
+**Data flow (v2.4.92+)**: Phone touch handler → `sendStreamState()` → relay forwards → desktop `useWebSync` → `WebSyncBridge` writes to `streamingControlsRef` (module-level ref in `src/shared/sync/streamingControlsRef.ts`) → `ColorPicker` reads from ref during render. Bypasses ThemeContext entirely — avoids a full cascade of 15+ consumer re-renders on every stream-state message.
 
 **stream-state sent at 5 control-state change points in `src/features/mobile/MobileApp.tsx`**:
 1. `startPicking()` — initial alpha, no beta
