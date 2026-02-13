@@ -20,6 +20,7 @@ export interface WebSyncState {
   isStreaming: boolean;
   streamingControls: { alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null } | null;
   saveRequested: number;
+  saveColors: ColorPayload | null;
   pairingCode: string | null;
 }
 
@@ -36,6 +37,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     isStreaming: false,
     streamingControls: null,
     saveRequested: 0,
+    saveColors: null,
     pairingCode: null,
   });
 
@@ -154,6 +156,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             setState(prev => ({
               ...prev,
               saveRequested: prev.saveRequested + 1,
+              saveColors: msg.colors,
             }));
             break;
         }
@@ -167,7 +170,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           if (ev.code === 4001) {
             // Superseded by another tab — go dormant, never reconnect
             dormantRef.current = true;
-            setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, pairingCode: prev.pairingCode }));
+            setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, saveColors: prev.saveColors, pairingCode: prev.pairingCode }));
             return;
           }
 
@@ -190,7 +193,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     graceTimer.current = setTimeout(() => {
       graceTimer.current = null;
       if (mountedRef.current) {
-        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, pairingCode: prev.pairingCode }));
+        setState(prev => ({ livePreset: null, streamSide: null, isStreaming: false, streamingControls: null, saveRequested: prev.saveRequested, saveColors: prev.saveColors, pairingCode: prev.pairingCode }));
       }
     }, GRACE_MS);
   }, []);

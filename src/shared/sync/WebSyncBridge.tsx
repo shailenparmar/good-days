@@ -143,7 +143,7 @@ export function WebSyncBridge() {
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
-      theme.saveCustomPreset();
+      theme.saveCustomPreset(syncState.saveColors ?? undefined);
     }
   }, [syncState.saveRequested]);
 

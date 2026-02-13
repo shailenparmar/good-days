@@ -28,6 +28,9 @@ export interface ThemeActions {
   applyPreset: (preset: ColorPreset) => void;
   getColor: (lightnessOffset?: number) => string;
   getBgColor: () => string;
+  colorPickerDragCount: number;
+  incrementColorPickerDragCount: () => void;
+  prePickerSnapshotRef: React.RefObject<ColorPreset | null>;
 }
 
 export interface PresetState {
@@ -46,7 +49,7 @@ export interface PresetActions {
   setSelectedCustomPreset: (index: number | null) => void;
   setActivePresetIndex: (index: number | null) => void;
   savePreset: (index: number, preset: ColorPreset) => void;
-  saveCustomPreset: () => void;
+  saveCustomPreset: (colors?: ColorPreset) => void;
   deleteCustomPreset: (index: number) => void;
   randomizeTheme: () => void;
 }

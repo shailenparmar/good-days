@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
 import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions, StreamingControls } from '../types';
 
@@ -97,6 +97,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Desktop drag override: when true, incoming color-updates skip applyPreset
   const localDragRef = useRef(false);
   const setLocalDragging = (dragging: boolean) => { localDragRef.current = dragging; };
+
+  // Picker drag signaling: ColorPicker increments count on drag start,
+  // PresetGrid watches it to pulse save button and push undo entries
+  const [colorPickerDragCount, setColorPickerDragCount] = useState(0);
+  const incrementColorPickerDragCount = useCallback(() => setColorPickerDragCount(c => c + 1), []);
+  const prePickerSnapshotRef = useRef<ColorPreset | null>(null);
 
   const saveLivePreset = () => {
     if (!livePreset) return;
@@ -275,8 +281,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setPresets(newPresets);
   };
 
-  const saveCustomPreset = () => {
-    const newPreset: ColorPreset = {
+  const saveCustomPreset = (colors?: ColorPreset) => {
+    const newPreset: ColorPreset = colors ?? {
       hue,
       sat: saturation,
       light: lightness,
@@ -289,7 +295,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setSelectedCustomPreset(null);
 
     // Track colorway on save (covers live mode where applyPreset skips tracking)
-    const colorway = getColorwayKey(hue, saturation, lightness, bgHue, bgSaturation, bgLightness);
+    const colorway = getColorwayKey(newPreset.hue, newPreset.sat, newPreset.light, newPreset.bgHue, newPreset.bgSat, newPreset.bgLight);
     trackColorway(colorway);
   };
 
@@ -369,6 +375,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyPreset,
     getColor,
     getBgColor,
+    colorPickerDragCount,
+    incrementColorPickerDragCount,
+    prePickerSnapshotRef,
     // Preset state
     presets,
     customPresets,
