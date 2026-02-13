@@ -134,6 +134,7 @@ Multi-level undo for preset deletions AND color changes. An `undoStackRef` (arra
 - Preset mouse clicks (before `applyPreset` in both click handlers' else-branches)
 - Rand clicks (before `randomizeTheme` in both mouse and keyboard handlers)
 - Color commands (`\txt#hex`, `\bg#hex`) in `JournalEditor.tsx` (v2.4.76+) — snapshots + signals via `colorPickerDragCount` before applying individual setters
+- Live phone stream stops (v2.4.79+) — each finger-lift is an undo checkpoint. `WebSyncBridge` snapshots colors on `stream-start` and increments `colorPickerDragCount` on `stream-stop`, reusing the picker drag undo mechanism.
 
 **What does NOT push undo entries:**
 - Arrow key navigation (browsing, not a deliberate choice)
