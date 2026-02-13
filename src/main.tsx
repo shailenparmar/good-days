@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
 // Maintenance mode: block the entire app with a fullscreen message
 if (MAINTENANCE && MESSAGE) {
   const root = document.getElementById('root')!;
-  root.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(52,100%,91%)"><p style="color:hsl(116,69%,24%);font-family:monospace;font-weight:bold;font-size:16px">${MESSAGE}</p></div>`;
+  root.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;padding:32px;background-color:hsl(52,100%,91%)"><p style="color:hsl(116,75%,11%);font-family:monospace;font-weight:bold;font-size:16px">${MESSAGE}</p></div>`;
 } else {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
