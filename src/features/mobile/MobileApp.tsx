@@ -37,6 +37,7 @@ export default function MobileApp() {
   const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
   const codePlaceholder = 'live code';
   const [codeInputFocused, setCodeInputFocused] = useState(false);
+  const [codeInputPressed, setCodeInputPressed] = useState(false);
   const showCodePlaceholder = codeInput.length === 0 && !codeInputFocused;
   useEffect(() => {
     if (!showCodePlaceholder) return;
@@ -931,9 +932,9 @@ export default function MobileApp() {
                   }
                 }}
                 style={{
-                  ...getButtonStyle(codeInputFocused, 'full'),
-                  backgroundColor: codeInputFocused ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
-                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${codeInputFocused ? 65 : colors.light}%, ${codeInputFocused ? 1 : 0.6})`}`,
+                  ...getButtonStyle(codeInputPressed || codeInputFocused, 'full'),
+                  backgroundColor: (codeInputPressed || codeInputFocused) ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${(codeInputPressed || codeInputFocused) ? 65 : colors.light}%, ${(codeInputPressed || codeInputFocused) ? 1 : 0.6})`}`,
                   textAlign: 'center',
                   width: '100%',
                   boxSizing: 'border-box',
@@ -942,6 +943,9 @@ export default function MobileApp() {
                   letterSpacing: '4px',
                   textIndent: '4px',
                 }}
+                onTouchStart={() => setCodeInputPressed(true)}
+                onTouchEnd={() => setCodeInputPressed(false)}
+                onTouchCancel={() => setCodeInputPressed(false)}
                 onFocus={() => setCodeInputFocused(true)}
                 onBlur={() => setCodeInputFocused(false)}
                 autoComplete="off"
