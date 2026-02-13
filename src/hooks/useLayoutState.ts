@@ -74,7 +74,7 @@ export function useLayoutState() {
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [titleHovered, setTitleHovered] = useState(false);
   const titleRef = useRef<HTMLDivElement>(null);
-  const titleLockedRect = useRef<DOMRect | null>(null);
+  const titleMaxHeight = useRef(0);
 
   // State saved before narrowing window
   const [preNarrowState, setPreNarrowState] = useState<{
@@ -145,28 +145,24 @@ export function useLayoutState() {
   // --- Effects ---
 
   // Title hover detection via coordinates (document-level to bypass z-50 overlay).
-  // Locked-rect prevents flicker when content switches between 1-line and 2-line.
-  // The locked rect is refreshed whenever the cursor is verifiably inside the live
-  // rect, so it never goes stale on resize/layout changes.
+  // Tracks max height to prevent flicker: hover toggles content between 1-line
+  // ("good days") and 2-line (version + live code). The hover zone uses fresh
+  // position from the live rect but extends to the tallest height ever seen,
+  // so it never shrinks when content changes. Reset on resize.
   useEffect(() => {
-    const isInside = (x: number, y: number, rect: DOMRect) =>
-      x >= rect.left - 3 && x <= rect.right + 3 && y >= rect.top - 3 && y <= rect.bottom + 3;
+    const onResize = () => { titleMaxHeight.current = 0; };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
+  useEffect(() => {
     const check = (e: MouseEvent) => {
       if (!titleRef.current) { setTitleHovered(false); return; }
       const rect = titleRef.current.getBoundingClientRect();
-      const inside = isInside(e.clientX, e.clientY, rect);
-
-      if (inside) {
-        // Cursor is verifiably inside — refresh locked rect to stay current
-        titleLockedRect.current = rect;
-        setTitleHovered(true);
-      } else if (titleLockedRect.current && isInside(e.clientX, e.clientY, titleLockedRect.current)) {
-        // Outside live rect but inside locked rect — content shrunk, stay hovered
-      } else {
-        titleLockedRect.current = null;
-        setTitleHovered(false);
-      }
+      titleMaxHeight.current = Math.max(titleMaxHeight.current, rect.height);
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right
+        && e.clientY >= rect.top && e.clientY <= rect.top + titleMaxHeight.current;
+      setTitleHovered(inside);
     };
     document.addEventListener('mousemove', check);
     document.addEventListener('mouseover', check);
