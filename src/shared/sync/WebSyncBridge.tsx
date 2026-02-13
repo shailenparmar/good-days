@@ -37,17 +37,26 @@ export function WebSyncBridge() {
         const c = pendingColorsRef.current;
         if (!c) return;
         const t = themeRef.current;
-        skipBridgeRef.current = true;
 
-        const preset = {
-          hue: c.hue, sat: c.sat, light: c.light,
-          bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-        };
         // Skip color apply during local desktop drag to prevent flicker
         if (t.localDragRef.current) {
-          t.setLivePreset(preset);
+          skipBridgeRef.current = true;
+          t.setLivePreset({
+            hue: c.hue, sat: c.sat, light: c.light,
+            bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
+          });
         } else {
-          t.applyLivePreset(preset);
+          // CSS-only streaming: set CSS vars directly, skip ALL React state.
+          // This eliminates the re-render cascade (30-50+ useTheme consumers
+          // × 48fps) that caused "works for half second then frozen."
+          // React state syncs on stream-stop and disconnect.
+          const el = document.documentElement;
+          el.style.setProperty('--h', String(c.hue));
+          el.style.setProperty('--s', c.sat + '%');
+          el.style.setProperty('--l', c.light + '%');
+          el.style.setProperty('--bh', String(c.bgHue));
+          el.style.setProperty('--bs', c.bgSat + '%');
+          el.style.setProperty('--bl', c.bgLight + '%');
         }
       });
     }
@@ -128,8 +137,17 @@ export function WebSyncBridge() {
       theme.setActivePresetIndex(liveIndex);
     }
 
-    // Stream stop (true → false): push undo entry for the completed drag
+    // Stream stop (true → false): sync final CSS-only colors to React state,
+    // then push undo entry for the completed drag
     if (wasStreaming && !syncState.isStreaming) {
+      const finalColors = pendingColorsRef.current;
+      if (finalColors) {
+        skipBridgeRef.current = true;
+        theme.applyLivePreset({
+          hue: finalColors.hue, sat: finalColors.sat, light: finalColors.light,
+          bgHue: finalColors.bgHue, bgSat: finalColors.bgSat, bgLight: finalColors.bgLight,
+        });
+      }
       theme.incrementColorPickerDragCount();
     }
   }, [syncState.isStreaming]);
@@ -139,9 +157,23 @@ export function WebSyncBridge() {
     theme.setStreamingControls(syncState.streamingControls);
   }, [syncState.streamingControls]);
 
-  // Clear isLiveActive when livePreset goes null
+  // Clear isLiveActive when livePreset goes null (disconnect).
+  // Sync final colors from CSS-only streaming to React state so
+  // localStorage saves and ColorPicker indicators are correct.
+  // Uses individual setters (not applyLivePreset) to avoid setting
+  // livePreset back to non-null after bridge already set it null.
   useEffect(() => {
     if (!syncState.livePreset) {
+      const finalColors = pendingColorsRef.current;
+      if (finalColors) {
+        theme.setHue(finalColors.hue);
+        theme.setSaturation(finalColors.sat);
+        theme.setLightness(finalColors.light);
+        theme.setBgHue(finalColors.bgHue);
+        theme.setBgSaturation(finalColors.bgSat);
+        theme.setBgLightness(finalColors.bgLight);
+      }
+      pendingColorsRef.current = null;
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
       theme.setStreamingControls(null);
