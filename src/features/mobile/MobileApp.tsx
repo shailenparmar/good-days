@@ -864,7 +864,7 @@ export default function MobileApp() {
               </MobileButton>
               {isLive && (
                 <MobileButton
-                  onActivate={() => { sync.sendSave(); if (navigator.vibrate) navigator.vibrate(10); }}
+                  onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); }}
                   style={getButtonStyle(false, 'center', 'aux')}
                   getStyle={(pressed) => getButtonStyle(pressed, 'center', 'aux')}
                 >
@@ -931,9 +931,9 @@ export default function MobileApp() {
                   }
                 }}
                 style={{
-                  ...getButtonStyle(false, 'full'),
-                  backgroundColor: 'transparent',
-                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.6)`}`,
+                  ...getButtonStyle(codeInputFocused, 'full'),
+                  backgroundColor: codeInputFocused ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${codeInputFocused ? 65 : colors.light}%, ${codeInputFocused ? 1 : 0.6})`}`,
                   textAlign: 'center',
                   width: '100%',
                   boxSizing: 'border-box',
