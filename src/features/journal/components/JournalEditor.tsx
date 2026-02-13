@@ -219,12 +219,12 @@ export function JournalEditor({
       commandFired = true;
     }
 
-    // \txt, \bg, \# — change theme colors and vanish (loop for multiple)
-    const colorRegex = /\\(txt|bg)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
+    // \txt, \text, \bg, \background, \# — change theme colors and vanish (loop for multiple)
+    const colorRegex = /\\(text|txt|background|bg)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
     let colorMatch = newValue.match(colorRegex);
     if (colorMatch) {
       while (colorMatch) {
-        const type = (colorMatch[1] || 'bg').toLowerCase();
+        const type = (colorMatch[1] || 'bg').toLowerCase().replace('text', 'txt').replace('background', 'bg');
         let h: number, s: number, l: number;
 
         if (colorMatch[3] !== undefined) {
