@@ -187,13 +187,14 @@ export function WebSyncBridge() {
     }
   }, [syncState.livePreset]);
 
-  // Handle save-preset from phone — React state is always current (applyPreset
-  // runs in rAF), so just save directly.
+  // Handle save-preset from phone — highlight the newly saved preset.
   const prevSaveRef = useRef(0);
   useEffect(() => {
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
+      const newPresetIndex = theme.presets.length + theme.customPresets.length;
       theme.saveCustomPreset(syncState.saveColors ?? undefined);
+      theme.setActivePresetIndex(newPresetIndex);
     }
   }, [syncState.saveRequested]);
 
