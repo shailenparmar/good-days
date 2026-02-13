@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { streamingControlsRef } from '@shared/sync/streamingControlsRef';
 
 interface ColorPickerProps {
   type: 'text' | 'background';
@@ -20,10 +21,11 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     setHue, setSaturation, setLightness,
     setBgHue, setBgSaturation, setBgLightness,
     getColor, getBgColor,
-    isLiveStreaming, streamingControls,
+    isLiveStreaming,
     setLocalDragging,
     incrementColorPickerDragCount, prePickerSnapshotRef,
   } = useTheme();
+  const streamingControls = streamingControlsRef.current;
 
   const isText = type === 'text';
   const setHueValue = isText ? setHue : setBgHue;

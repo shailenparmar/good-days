@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
-import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions, StreamingControls } from '../types';
+import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions } from '../types';
 
 export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 116, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91 },
@@ -92,7 +92,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [livePreset, setLivePreset] = useState<ColorPreset | null>(null);
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
-  const [streamingControls, setStreamingControls] = useState<StreamingControls | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   // Desktop drag override: when true, incoming color-updates skip applyPreset
   const localDragRef = useRef(false);
@@ -412,12 +411,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     livePreset,
     isLiveActive,
     isLiveStreaming,
-    streamingControls,
     pairingCode,
     setLivePreset,
     setIsLiveActive,
     setIsLiveStreaming,
-    setStreamingControls,
     setPairingCode,
     saveLivePreset,
     applyLivePreset,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
+import { streamingControlsRef } from './streamingControlsRef';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
@@ -145,7 +146,11 @@ export function WebSyncBridge() {
     }
 
     // Stream stop (true → false): sync final CSS-only colors to React state,
-    // then push undo entry for the completed drag
+    // then push undo entry for the completed drag.
+    // setActivePresetIndex is set HERE (same batch) so PresetGrid's
+    // colorPickerDragCount effect sees the value already set and React
+    // bails out on the duplicate setState — eliminating a second full
+    // cascade render of all 15+ useTheme() consumers.
     if (wasStreaming && !syncState.isStreaming) {
       const finalColors = pendingColorsRef.current;
       if (finalColors) {
@@ -155,13 +160,19 @@ export function WebSyncBridge() {
           bgHue: finalColors.bgHue, bgSat: finalColors.bgSat, bgLight: finalColors.bgLight,
         });
       }
+      const liveSlotCount = theme.livePreset ? 1 : 0;
+      const saveIndex = theme.presets.length + theme.customPresets.length + liveSlotCount + 1;
+      theme.setActivePresetIndex(saveIndex);
       theme.incrementColorPickerDragCount();
     }
   }, [syncState.isStreaming]);
 
-  // Bridge streamingControls to ThemeContext
+  // Write streamingControls to module-level ref (not ThemeContext).
+  // Only ColorPicker reads this for indicator sizing. Using a ref
+  // avoids a full cascade of 15+ consumer re-renders on every
+  // stream-state message (beta join/leave, side switch).
   useEffect(() => {
-    theme.setStreamingControls(syncState.streamingControls);
+    streamingControlsRef.current = syncState.streamingControls;
   }, [syncState.streamingControls]);
 
   // Clear isLiveActive when livePreset goes null (disconnect).
@@ -183,7 +194,7 @@ export function WebSyncBridge() {
       pendingColorsRef.current = null;
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
-      theme.setStreamingControls(null);
+      streamingControlsRef.current = null;
     }
   }, [syncState.livePreset]);
 

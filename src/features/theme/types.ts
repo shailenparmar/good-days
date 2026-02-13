@@ -63,7 +63,6 @@ export interface LiveSyncState {
   livePreset: ColorPreset | null;
   isLiveActive: boolean;
   isLiveStreaming: boolean;
-  streamingControls: StreamingControls | null;
   pairingCode: string | null;
 }
 
@@ -71,7 +70,6 @@ export interface LiveSyncActions {
   setLivePreset: (preset: ColorPreset | null) => void;
   setIsLiveActive: (active: boolean) => void;
   setIsLiveStreaming: (streaming: boolean) => void;
-  setStreamingControls: (controls: StreamingControls | null) => void;
   setPairingCode: (code: string | null) => void;
   saveLivePreset: () => void;
   applyLivePreset: (preset: ColorPreset) => void;
