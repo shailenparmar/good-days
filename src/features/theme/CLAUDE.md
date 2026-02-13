@@ -138,10 +138,13 @@ When settings is open, presets can be controlled with the keyboard:
 
 | Key | Action |
 |-----|--------|
-| Arrow keys | Navigate between presets (auto-applies on move, no undo entry) |
+| Left / Right | Navigate sequentially across all items, wrapping across rows (v2.4.90+) |
+| Up / Down | Navigate within column, stop at top/bottom (no wrap) |
 | Space / Enter | Restart pulse on active preset (no edit/overwrite) |
 | Backspace / Delete | Delete the active preset |
 | Cmd+Z / Ctrl+Z | Undo last color change or preset deletion |
+
+**Left/right treat the grid as a flat sequence** — hold right to go from preset 1 through all customs, live, rand, to save. Up/down stay column-based for spatial navigation within the 5-column grid.
 
 #### Preset Edit Removed (v2.4.73+)
 
