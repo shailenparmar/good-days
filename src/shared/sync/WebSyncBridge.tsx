@@ -57,6 +57,13 @@ export function WebSyncBridge() {
           el.style.setProperty('--bh', String(c.bgHue));
           el.style.setProperty('--bs', c.bgSat + '%');
           el.style.setProperty('--bl', c.bgLight + '%');
+          // Indicator position vars for ColorPicker
+          el.style.setProperty('--th-p', String(((360 - c.hue) / 360) * 100));
+          el.style.setProperty('--ts-p', String(c.sat));
+          el.style.setProperty('--tl-p', String(100 - c.light));
+          el.style.setProperty('--bh-p', String(((360 - c.bgHue) / 360) * 100));
+          el.style.setProperty('--bs-p', String(c.bgSat));
+          el.style.setProperty('--bl-p', String(100 - c.bgLight));
         }
       });
     }

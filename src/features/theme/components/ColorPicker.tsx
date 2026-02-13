@@ -26,9 +26,6 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   } = useTheme();
 
   const isText = type === 'text';
-  const currentHue = isText ? hue : bgHue;
-  const currentSat = isText ? saturation : bgSaturation;
-  const currentLight = isText ? lightness : bgLightness;
   const setHueValue = isText ? setHue : setBgHue;
   const setSat = isText ? setSaturation : setBgSaturation;
   const setLight = isText ? setLightness : setBgLightness;
@@ -154,10 +151,13 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     if (touch) startDrag(touch.clientX, touch.clientY);
   };
 
-  if (part === 'hue') {
-    // Hue indicator Y position: 0° at bottom, 360° at top
-    const indicatorTop = ((360 - currentHue) / 360) * 100;
+  // CSS var expressions for indicator positions — static strings that update
+  // via CSS vars during streaming (no React re-render needed)
+  const needleTop = isText ? 'calc(var(--th-p) * 1%)' : 'calc(var(--bh-p) * 1%)';
+  const dotLeft = isText ? 'calc(var(--ts-p) * 1%)' : 'calc(var(--bs-p) * 1%)';
+  const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
 
+  if (part === 'hue') {
     return (
       <div
         ref={pickerRef}
@@ -178,7 +178,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
           style={{
             left: 0,
             right: 0,
-            top: `${indicatorTop}%`,
+            top: needleTop,
             height: `${needleHeight}px`,
             transform: 'translateY(-50%)',
             backgroundColor: 'black',
@@ -209,8 +209,8 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
         style={{
           width: `${dotSize}px`,
           height: `${dotSize}px`,
-          left: `${currentSat}%`,
-          top: `${100 - currentLight}%`,
+          left: dotLeft,
+          top: dotTop,
           transform: 'translate(-50%, -50%)',
           backgroundColor: isText ? getBgColor() : getColor(),
         }}

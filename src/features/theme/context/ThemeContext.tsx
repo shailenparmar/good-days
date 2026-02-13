@@ -170,6 +170,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     el.style.setProperty('--bh', String(bgHue));
     el.style.setProperty('--bs', bgSaturation + '%');
     el.style.setProperty('--bl', bgLightness + '%');
+    // Indicator position vars for ColorPicker (unitless 0-100, used as percentages)
+    el.style.setProperty('--th-p', String(((360 - hue) / 360) * 100));
+    el.style.setProperty('--ts-p', String(saturation));
+    el.style.setProperty('--tl-p', String(100 - lightness));
+    el.style.setProperty('--bh-p', String(((360 - bgHue) / 360) * 100));
+    el.style.setProperty('--bs-p', String(bgSaturation));
+    el.style.setProperty('--bl-p', String(100 - bgLightness));
   }, [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]);
 
   // Update Safari toolbar color + page background when background changes.
