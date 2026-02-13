@@ -107,6 +107,7 @@ export function WebSyncBridge() {
   // Bridge streaming state into ThemeContext.
   // Auto-switch selection to [live] when streaming starts, so the live
   // button pulses while the phone is actively sending colors.
+  // On stream stop, push undo snapshot so each finger-lift is undoable.
   const prevStreamingRef = useRef(false);
   useEffect(() => {
     const wasStreaming = prevStreamingRef.current;
@@ -115,11 +116,21 @@ export function WebSyncBridge() {
 
     // Auto-select live on stream start (false → true) when paired
     if (!wasStreaming && syncState.isStreaming && syncState.livePreset) {
+      // Snapshot colors before phone takes over (for undo on stream stop)
+      theme.prePickerSnapshotRef.current = {
+        hue: theme.hue, sat: theme.saturation, light: theme.lightness,
+        bgHue: theme.bgHue, bgSat: theme.bgSaturation, bgLight: theme.bgLightness,
+      };
       const liveIndex = theme.presets.length + theme.customPresets.length;
       theme.setIsLiveActive(true);
       theme.setSelectedPreset(null);
       theme.setSelectedCustomPreset(null);
       theme.setActivePresetIndex(liveIndex);
+    }
+
+    // Stream stop (true → false): push undo entry for the completed drag
+    if (wasStreaming && !syncState.isStreaming) {
+      theme.incrementColorPickerDragCount();
     }
   }, [syncState.isStreaming]);
 
