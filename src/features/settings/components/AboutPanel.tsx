@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 
+import { Link2 } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
@@ -109,12 +110,14 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
-              className="outline-none"
+              className="inline-flex items-center gap-1.5 outline-none"
               style={{ color: linkHovered ? confirmColor : getColor() }}
               onMouseEnter={() => setLinkHovered(true)}
               onMouseLeave={() => setLinkHovered(false)}
+              onClick={(e) => e.stopPropagation()}
             >
-              {s("github \u2197")}
+              <Link2 className="w-4 h-4" />
+              {s("github")}
             </a>
           </p>
         </div>
