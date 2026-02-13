@@ -115,7 +115,7 @@ Usage: `hsl(var(--h), var(--s), var(--l))` — the `%` is baked into the variabl
 ## Screen Copy Approval Policy
 
 **All user-facing copy and screens must be approved by the user.** Do not add new text screens without approval. Currently approved:
-- "something went wrong" (error boundary) — DEFAULT_PRESET_1 colors (black text on peach bg)
+- "something went wrong" (error boundary) — DEFAULT_PRESET_1 colors (dark navy text on light yellow bg)
 
 There is no loading screen (v2.2.8+). The app renders immediately with empty entries; content pops in once IndexedDB loads. Any new screens or copy require user sign-off.
 
