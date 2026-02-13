@@ -239,6 +239,19 @@ Active presets show a pulsing border animation (`preset-pulse` class). The anima
 
 **`isLiveActive` clearing (v2.3.13+):** All buttons that switch away from live must call `setIsLiveActive(false)`. This includes `handlePresetClick`, `handleCustomPresetClick`, rand onClick, and save onClick.
 
+#### Save Button Focus Behavior (v2.4.89+)
+
+Desktop and phone saves highlight different things after saving:
+
+| Source | After save, focus goes to | Why |
+|--------|--------------------------|-----|
+| **Desktop** (click or keyboard) | rand | Enables fast `rand→save→rand→save` loop with arrow keys |
+| **Phone** (save-preset message) | The newly saved preset | User sees which preset was just created |
+
+**How desktop→rand works:** `saveCustomPreset()` appends a new custom preset, shifting all subsequent indices by 1. The pre-save `saveIndex` (`presets.length + customPresets.length + liveSlotCount + 1`) equals the post-save rand index (`presets.length + (customPresets.length+1) + liveSlotCount`). So `setActivePresetIndex(saveIndex)` naturally lands on rand. For keyboard save, no `setActivePresetIndex` call is needed — the stale index has the same effect.
+
+**Phone save** (in `WebSyncBridge.tsx`): Computes `presets.length + customPresets.length` before calling `saveCustomPreset()`, then sets `activePresetIndex` to that — the new preset's position after the array grows.
+
 #### Auto-Switch to Live on Stream Start (v2.3.13+)
 
 When the phone starts streaming colors (user touches color picker), the desktop auto-switches the preset selection to `[live]` so the live button pulses. This happens in `WebSyncBridge.tsx` via a `prevStreamingRef` tracking the `false → true` transition of `syncState.isStreaming`. Previously, auto-select only happened on initial pairing (null → value transition of `livePreset`), meaning the user could click away from live and not see it re-pulse when streaming resumed.
