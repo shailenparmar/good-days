@@ -110,6 +110,18 @@ The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebS
 
 **v2.1.7 fix:** `applyPreset` was previously gated behind `isLiveActive` in the callback. But `isLiveActive` is set by a React effect (async), so on reconnect, color-update messages could arrive before the effect fired. Colors were set in `livePreset` but never applied. Now `applyPreset` is called unconditionally — if the relay is forwarding color-update, we're paired by definition.
 
+### Hot-Path Performance Fixes (v2.4.83+)
+
+Four fixes to reduce per-frame overhead during live streaming and phone picking:
+
+1. **Removed `console.log` on every WS message** (`useWebSync.ts`): Was logging every `color-update` at ~48fps — 48 object serializations/sec. Other lifecycle logs (connect, close, error) remain.
+
+2. **PresetGrid keyboard effect uses refs** (`PresetGrid.tsx`): The keyboard navigation `useEffect` previously had `hue, saturation, lightness, bgHue, bgSaturation, bgLightness, livePreset` in its deps. During streaming these change every frame, causing 60x/sec listener teardown+re-add. Now uses `colorsRef` and `livePresetRef` (updated on every render) so the effect only re-runs when presets/settings change.
+
+3. **Phone: skip localStorage during picking** (`MobileApp.tsx`): The `setItem('mobileColors', ...)` effect now has an `if (editing) return` guard, identical to the desktop's `if (isLiveStreaming) return` pattern. Saves ~60 XOR-encrypted writes/sec during picking. Writes fire when picking ends (`editing` flips null).
+
+4. **Phone: memoize `getStatusColors`** (`MobileApp.tsx`): The WCAG binary search (~80 iterations) was running on every render. Now wrapped in `useMemo` keyed on the 6 color values. Only recalculates when colors actually change (not on tilt re-renders).
+
 ### StatsDisplay Memoization (v2.3.18+)
 
 All expensive stats calculations in `StatsDisplay.tsx` are wrapped in `useMemo`:
