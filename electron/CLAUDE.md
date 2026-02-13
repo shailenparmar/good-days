@@ -41,22 +41,14 @@ Detection: `window.electronAPI?.platform === 'electron'` — exposed by preload 
 
 **Typecheck:** Both `npm run typecheck` and `npm run typecheck:electron` pass clean.
 
-**Bug fixes & build config:**
-- `main.ts` — Fixed `loadFile` path: `path.join(__dirname, '..', '..', 'dist', 'index.html')` (was `..` instead of `../..`, resolving to `electron/dist/` instead of project root `dist/`)
-- `src/main.tsx` — Guarded service worker registration with `if (!window.electronAPI)` to prevent `file://` errors in Electron
-- `src/shared/sync/protocol.ts` — Added Electron check in `getWsUrl()` to return `wss://relay.gdays.day/ws` directly (file:// origin produces broken WebSocket URLs)
-- `build/icon.icns` — Generated from `public/icon-1024.png` via `sips` + `iconutil` (all sizes 16–1024)
-- `electron-builder.yml` — Added icon path, file exclusions (sw.js, workbox, manifest.webmanifest, CNAME, icon-backup), and `electronLanguages: [en]` to reduce bundle size
-- `build/entitlements.mas.plist` — App sandbox + network client entitlements
-- `build/entitlements.mas.inherit.plist` — Inherit entitlements for child processes
-- `build/entitlements.mas.loginhelper.plist` — Login helper entitlements
-
 ### What's NOT done yet (next steps toward App Store)
 
 1. **Smoke test** — Run `npm run dev:electron`, verify entries save/load/persist, backup/import dialogs work, web path has no regressions
-2. **Code signing** — Apple Developer certificate, sign the app
-3. **Auto-update** (optional) — `electron-updater` + GitHub Releases so users don't have to re-download
-4. **App Store submission** — Screenshots, metadata, Apple review
+2. **Electron packaging** — Set up `electron-builder` or `electron-forge` to produce `.app` / `.dmg`
+3. **Code signing** — Apple Developer certificate, sign the app
+4. **App Store sandboxing** — Entitlements, sandbox compliance
+5. **Auto-update** (optional) — `electron-updater` + GitHub Releases so users don't have to re-download
+6. **App Store submission** — Screenshots, metadata, Apple review
 
 ### Key design decisions
 - **Intercept at the lowest level:** All Electron branches are in the private storage functions. Higher-level code (debouncing, encryption, multi-tab sync, auth gating) routes through automatically.

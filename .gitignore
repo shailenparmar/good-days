@@ -24,8 +24,3 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
-
-# Electron
-electron/dist
-release
-*.provisionprofile

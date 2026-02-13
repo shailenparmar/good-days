@@ -17,11 +17,6 @@ let fallbackMode = false;
 // Track dates that failed decryption (prevents "ensure today" from overwriting encrypted data)
 const decryptionFailures = new Set<string>();
 
-// Detect Electron environment (window.electronAPI exposed by preload script)
-function isElectron(): boolean {
-  return typeof window !== 'undefined' && window.electronAPI?.platform === 'electron';
-}
-
 // --- Encryption state ---
 
 let currentKey: CryptoKey | null = null;
@@ -33,12 +28,8 @@ export function setEncryptionKey(key: CryptoKey, mode: 'app' | 'password'): void
   keyMode = mode;
 }
 
-// Get the encryption mode from IndexedDB metadata (or localStorage in Electron)
+// Get the encryption mode from IndexedDB metadata
 export async function getEncryptionMode(): Promise<'app' | 'password' | 'none'> {
-  if (isElectron()) {
-    const mode = localStorage.getItem('electronEncryptionMode');
-    return (mode as 'app' | 'password') || 'none';
-  }
   try {
     const db = await openDatabase();
     const result = await new Promise<string | null>((resolve, reject) => {
@@ -55,12 +46,8 @@ export async function getEncryptionMode(): Promise<'app' | 'password' | 'none'> 
   }
 }
 
-// Set the encryption mode in IndexedDB metadata (or localStorage in Electron)
-async function setEncryptionMode(db: IDBDatabase | null, mode: 'app' | 'password'): Promise<void> {
-  if (isElectron() || db === null) {
-    localStorage.setItem('electronEncryptionMode', mode);
-    return;
-  }
+// Set the encryption mode in IndexedDB metadata
+async function setEncryptionMode(db: IDBDatabase, mode: 'app' | 'password'): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(METADATA_STORE, 'readwrite');
     const store = transaction.objectStore(METADATA_STORE);
@@ -129,43 +116,6 @@ async function decryptEntry(record: unknown): Promise<JournalEntry | null> {
 export async function reEncryptAllEntries(newKey: CryptoKey, newMode: 'app' | 'password'): Promise<void> {
   if (fallbackMode) return; // Skip encryption in fallback mode
 
-  // --- Electron path: load via IPC, re-encrypt, save via IPC ---
-  if (isElectron()) {
-    const api = window.electronAPI!;
-    const rawPairs = await api.storage.loadAllEntries();
-
-    // Parse and decrypt all with current key
-    const entries = (await Promise.all(
-      rawPairs.map(({ data }) => decryptEntry(JSON.parse(data)))
-    )).filter((e): e is JournalEntry => e !== null);
-
-    // Switch to new key
-    const oldKey = currentKey;
-    const oldMode = keyMode;
-    currentKey = newKey;
-    keyMode = newMode;
-
-    try {
-      // Re-encrypt all with new key and save via IPC
-      for (const entry of entries) {
-        const record = await encryptEntry(entry);
-        await api.storage.saveEntry(entry.date, JSON.stringify(record));
-      }
-
-      // Update metadata
-      await setEncryptionMode(null, newMode);
-      log('reEncryptAllEntries: done (electron)', { count: entries.length, mode: newMode });
-      logAction('storage.reencrypt', { count: entries.length, mode: newMode });
-    } catch (error) {
-      // Rollback key on failure
-      currentKey = oldKey;
-      keyMode = oldMode;
-      throw error;
-    }
-    return;
-  }
-
-  // --- Web path: IndexedDB ---
   const db = await openDatabase();
 
   // Read all raw records
@@ -467,52 +417,6 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
   // Clear previous decryption failures on fresh load
   decryptionFailures.clear();
 
-  // --- Electron path: load all entries via IPC, skip IndexedDB entirely ---
-  if (isElectron()) {
-    const api = window.electronAPI!;
-
-    // Dead man's switch: if password protection flag is set but no password hash
-    // exists in localStorage, someone cleared cookies/site data. Wipe entries.
-    const passwordProtected = localStorage.getItem('electronPasswordProtected') === 'true';
-    if (passwordProtected && localStorage.getItem('passwordHash') === null) {
-      log('initJournalStorage: password protection flag set but no password hash — clearing entries (electron, cookie wipe detected)');
-      logAction('storage.init.cookieWipeDetected');
-      const allPairs = await api.storage.loadAllEntries();
-      for (const { date } of allPairs) {
-        await api.storage.deleteEntry(date);
-      }
-      localStorage.removeItem('electronPasswordProtected');
-      localStorage.removeItem('electronEncryptionMode');
-      return [];
-    }
-
-    const rawPairs = await api.storage.loadAllEntries();
-    log('initJournalStorage: loaded from electron IPC', { entryCount: rawPairs.length });
-
-    // Parse and decrypt all entries
-    const entries: JournalEntry[] = [];
-    for (const { data } of rawPairs) {
-      const record = JSON.parse(data);
-      const entry = await decryptEntry(record);
-      if (entry) entries.push(entry);
-    }
-
-    entries.sort((a, b) => b.date.localeCompare(a.date));
-
-    // Surface decryption failures
-    if (decryptionFailures.size > 0) {
-      const failedDates = Array.from(decryptionFailures);
-      log('initJournalStorage: WARNING — decryption failed for entries (electron)', { dates: failedDates, count: failedDates.length });
-      logAction('storage.decryptionFailure', { dates: failedDates, count: failedDates.length });
-      console.warn(`[gdays] ${failedDates.length} entries failed to decrypt and are hidden. Data is preserved in userData/entries/.`);
-    }
-
-    logAction('storage.init.done', { entryCount: entries.length, fallback: false });
-    return entries;
-  }
-
-  // --- Web path: IndexedDB ---
-
   // Request persistent storage so Chrome/Firefox/Android won't evict data under storage pressure
   // (Safari ignores this - its 7-day inactivity policy is not overridable)
   if (navigator.storage?.persist) {
@@ -649,23 +553,6 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
     return;
   }
 
-  // --- Electron path: encrypt and save each entry via IPC ---
-  if (isElectron()) {
-    const api = window.electronAPI!;
-    (async () => {
-      try {
-        for (const entry of entries) {
-          const record = await encryptEntry(entry);
-          await api.storage.saveEntry(entry.date, JSON.stringify(record));
-        }
-        log('saveAllJournalEntries: saved via electron IPC', { entryCount: entries.length });
-      } catch (error) {
-        log('saveAllJournalEntries: FAILED (electron)', error);
-      }
-    })();
-    return;
-  }
-
   // Fire-and-forget IndexedDB write
   (async () => {
     try {
@@ -744,23 +631,6 @@ export function flushPendingSaves(): void {
 }
 
 function writeEntryToStorage(entry: JournalEntry): void {
-  // --- Electron path: encrypt and save via IPC ---
-  if (isElectron()) {
-    const api = window.electronAPI!;
-    (async () => {
-      try {
-        const record = await encryptEntry(entry);
-        await api.storage.saveEntry(entry.date, JSON.stringify(record));
-        log('saveSingleEntry: saved via electron IPC', { date: entry.date });
-        logAction('storage.save', { date: entry.date });
-      } catch (error) {
-        log('saveSingleEntry: FAILED (electron)', { date: entry.date, error });
-        logAction('storage.save.fail', { date: entry.date });
-      }
-    })();
-    return;
-  }
-
   (async () => {
     try {
       const db = await openDatabase();
@@ -805,21 +675,6 @@ export function deleteSingleEntry(date: string): void {
     const entries = parseLocalStorageEntries().filter(e => e.date !== date);
     localStorage.setItem('journalEntries', JSON.stringify(entries));
     log('deleteSingleEntry: deleted from localStorage (fallback)');
-    return;
-  }
-
-  // --- Electron path: delete via IPC ---
-  if (isElectron()) {
-    const api = window.electronAPI!;
-    (async () => {
-      try {
-        await api.storage.deleteEntry(date);
-        log('deleteSingleEntry: deleted via electron IPC', { date });
-        logAction('storage.delete', { date });
-      } catch (error) {
-        log('deleteSingleEntry: FAILED (electron)', { date, error });
-      }
-    })();
     return;
   }
 
@@ -901,16 +756,6 @@ export async function loadSingleEntry(date: string): Promise<JournalEntry | null
   if (fallbackMode) {
     return parseLocalStorageEntries().find(e => e.date === date) || null;
   }
-  // --- Electron path: load via IPC ---
-  if (isElectron()) {
-    try {
-      const data = await window.electronAPI!.storage.loadEntry(date);
-      if (!data) return null;
-      return await decryptEntry(JSON.parse(data));
-    } catch {
-      return null;
-    }
-  }
   try {
     const db = await openDatabase();
     const rawRecord = await new Promise<unknown>((resolve, reject) => {
@@ -934,14 +779,6 @@ export async function loadSingleEntry(date: string): Promise<JournalEntry | null
  * exists in localStorage, entries self-destruct (someone cleared cookies).
  */
 export async function setPasswordProtectedFlag(value: boolean): Promise<void> {
-  if (isElectron()) {
-    if (value) {
-      localStorage.setItem('electronPasswordProtected', 'true');
-    } else {
-      localStorage.removeItem('electronPasswordProtected');
-    }
-    return;
-  }
   try {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
@@ -961,9 +798,6 @@ export async function setPasswordProtectedFlag(value: boolean): Promise<void> {
  * Get the passwordProtected flag from IndexedDB metadata.
  */
 export async function getPasswordProtectedFlag(): Promise<boolean> {
-  if (isElectron()) {
-    return localStorage.getItem('electronPasswordProtected') === 'true';
-  }
   try {
     const db = await openDatabase();
     const result = await new Promise<boolean>((resolve, reject) => {
@@ -987,23 +821,6 @@ export async function clearJournalStorage(): Promise<void> {
   logAction('storage.clear');
   if (fallbackMode) {
     localStorage.removeItem('journalEntries');
-    return;
-  }
-
-  // --- Electron path: delete all entry files via IPC ---
-  if (isElectron()) {
-    try {
-      const api = window.electronAPI!;
-      const allPairs = await api.storage.loadAllEntries();
-      for (const { date } of allPairs) {
-        await api.storage.deleteEntry(date);
-      }
-      localStorage.removeItem('electronEncryptionMode');
-      localStorage.removeItem('electronPasswordProtected');
-      log('clearJournalStorage: cleared via electron IPC', { count: allPairs.length });
-    } catch (error) {
-      console.error('Failed to clear electron storage:', error);
-    }
     return;
   }
 
