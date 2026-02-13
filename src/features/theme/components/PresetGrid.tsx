@@ -175,19 +175,15 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
         const cols = 5;
         let newIndex = activePresetIndex === null ? 0 : activePresetIndex;
-        const currentRow = Math.floor(newIndex / cols);
 
         if (e.key === 'ArrowRight') {
-          const rowStart = currentRow * cols;
-          const rowEnd = Math.min(rowStart + cols, totalPresets);
-          // Stop at end of row (no wrap)
-          if (newIndex < rowEnd - 1) {
+          // Sequential: wraps across rows (stop at last item)
+          if (newIndex < totalPresets - 1) {
             newIndex = newIndex + 1;
           }
         } else if (e.key === 'ArrowLeft') {
-          const rowStart = currentRow * cols;
-          // Stop at start of row (no wrap)
-          if (newIndex > rowStart) {
+          // Sequential: wraps across rows (stop at first item)
+          if (newIndex > 0) {
             newIndex = newIndex - 1;
           }
         } else if (e.key === 'ArrowDown') {
