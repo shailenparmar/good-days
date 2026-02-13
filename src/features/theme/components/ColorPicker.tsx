@@ -22,6 +22,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
     getColor, getBgColor,
     isLiveStreaming, streamingControls,
     setLocalDragging,
+    incrementColorPickerDragCount, prePickerSnapshotRef,
   } = useTheme();
 
   const isText = type === 'text';
@@ -68,6 +69,13 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
   const startDrag = (clientX: number, clientY: number) => {
     setIsDragging(true);
     setLocalDragging(true);
+
+    // Snapshot current colors before any updates (for undo)
+    prePickerSnapshotRef.current = {
+      hue, sat: saturation, light: lightness,
+      bgHue, bgSat: bgSaturation, bgLight: bgLightness,
+    };
+    incrementColorPickerDragCount();
 
     if (part === 'sl') {
       const updateColor = (cx: number, cy: number) => {

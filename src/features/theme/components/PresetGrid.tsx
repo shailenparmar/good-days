@@ -25,6 +25,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     applyPreset, saveCustomPreset, deleteCustomPreset, randomizeTheme,
     getColor,
     livePreset, isLiveActive, setIsLiveActive, saveLivePreset,
+    colorPickerDragCount, prePickerSnapshotRef,
   } = useTheme();
 
   // Live slot shifts rand/save indices by 1 when present
@@ -34,7 +35,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const undoStackRef = useRef<{ preset: ColorPreset; index: number; type: 'default' | 'custom'; action: 'delete' | 'edit' }[]>([]);
+  const undoStackRef = useRef<(
+    | { action: 'delete'; preset: ColorPreset; index: number; type: 'default' | 'custom' }
+    | { action: 'color-change'; snapshot: ColorPreset }
+  )[]>([]);
+  const prevDragCountRef = useRef(0);
 
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
@@ -115,6 +120,23 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     setIsLiveActive(false);
     setPulseKey(k => k + 1);
   }, [scrambleSeed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pulse save button when color picker is dragged
+  useEffect(() => {
+    if (colorPickerDragCount === 0 || colorPickerDragCount === prevDragCountRef.current) return;
+    prevDragCountRef.current = colorPickerDragCount;
+
+    // Push undo entry from the snapshot taken before the drag
+    const snapshot = prePickerSnapshotRef.current;
+    if (snapshot) {
+      undoStackRef.current.push({ action: 'color-change', snapshot });
+    }
+
+    // Activate save button with pulse
+    const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
+    setActivePresetIndex(saveIndex);
+    setPulseKey(k => k + 1);
+  }, [colorPickerDragCount, presets.length, customPresets.length, liveSlotCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Note: activePresetIndex persists across settings open/close because PresetGrid
   // unmounts when settings closes, so any clearing code here never runs.
@@ -222,43 +244,20 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           setIsLiveActive(false);
         }
       } else if ((e.key === ' ' || e.key === 'Enter') && activePresetIndex !== null) {
-        // Space/Enter = click behavior (save current colors to preset)
         e.preventDefault();
         setKeyboardUseCount(c => c + 1);
         setPulseKey(k => k + 1);
 
         if (activePresetIndex < presets.length) {
-          // Default preset - save old colors to undo stack, then overwrite
-          undoStackRef.current.push({ preset: { ...presets[activePresetIndex] }, index: activePresetIndex, type: 'default', action: 'edit' });
-          const newPresets = [...presets];
-          newPresets[activePresetIndex] = {
-            hue,
-            sat: saturation,
-            light: lightness,
-            bgHue,
-            bgSat: bgSaturation,
-            bgLight: bgLightness,
-          };
-          setPresets(newPresets);
+          // Default preset - just pulse (no edit)
         } else if (activePresetIndex < totalDefaultAndCustom) {
-          // Custom preset - save old colors to undo stack, then overwrite
-          const customIndex = activePresetIndex - presets.length;
-          undoStackRef.current.push({ preset: { ...customPresets[customIndex] }, index: customIndex, type: 'custom', action: 'edit' });
-          const newCustomPresets = [...customPresets];
-          newCustomPresets[customIndex] = {
-            hue,
-            sat: saturation,
-            light: lightness,
-            bgHue,
-            bgSat: bgSaturation,
-            bgLight: bgLightness,
-          };
-          setCustomPresets(newCustomPresets);
+          // Custom preset - just pulse (no edit)
         } else if (hasLive && activePresetIndex === totalDefaultAndCustom) {
           // [live] slot — no-op (use save button to save)
 
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
-          // Rand
+          // Rand — push undo before randomizing
+          undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
           // Save
@@ -316,25 +315,15 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
             setSelectedCustomPreset(entry.index);
             setActivePresetIndex(presets.length + entry.index);
           }
-        } else {
-          // Restore edited preset's old colors
-          if (entry.type === 'default') {
-            const newPresets = [...presets];
-            newPresets[entry.index] = entry.preset;
-            setPresets(newPresets);
-            applyPreset(entry.preset);
-            setSelectedPreset(entry.index);
-            setSelectedCustomPreset(null);
-            setActivePresetIndex(entry.index);
-          } else {
-            const newCustomPresets = [...customPresets];
-            newCustomPresets[entry.index] = entry.preset;
-            setCustomPresets(newCustomPresets);
-            applyPreset(entry.preset);
-            setSelectedPreset(null);
-            setSelectedCustomPreset(entry.index);
-            setActivePresetIndex(presets.length + entry.index);
-          }
+        } else if (entry.action === 'color-change') {
+          // Restore previous colors
+          applyPreset(entry.snapshot);
+          setSelectedPreset(null);
+          setSelectedCustomPreset(null);
+          // Activate save button with pulse
+          const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
+          setActivePresetIndex(saveIndex);
+          setPulseKey(k => k + 1);
         }
 
         return;
@@ -373,7 +362,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
     window.addEventListener('keydown', handleKeyDown, true); // capture phase - runs before App.tsx
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, setCustomPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset]);
+  }, [activePresetIndex, customPresets, presets, showDebugMenu, deleteCustomPreset, setPresets, setCustomPresets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, liveSlotCount]);
 
   const handlePresetClick = (index: number, preset: ColorPreset) => {
     // Track mouse clicks for first-time user hint
@@ -382,20 +371,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const wasActive = activePresetIndex === index;
 
     if (wasActive) {
-      // Already pulsing - save old colors to undo stack, then overwrite
-      undoStackRef.current.push({ preset: { ...preset }, index, type: 'default', action: 'edit' });
+      // Re-click active preset — just restart pulse (no edit)
       setPulseKey(k => k + 1);
-      const newPresets = [...presets];
-      newPresets[index] = {
-        hue,
-        sat: saturation,
-        light: lightness,
-        bgHue,
-        bgSat: bgSaturation,
-        bgLight: bgLightness,
-      };
-      setPresets(newPresets);
     } else {
+      // Push undo before applying
+      undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
       applyPreset(preset);
       setSelectedPreset(index);
       setSelectedCustomPreset(null);
@@ -411,20 +391,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const wasActive = activePresetIndex === (presets.length + index);
 
     if (wasActive) {
-      // Save old colors to undo stack, then overwrite
-      undoStackRef.current.push({ preset: { ...preset }, index, type: 'custom', action: 'edit' });
+      // Re-click active preset — just restart pulse (no edit)
       setPulseKey(k => k + 1);
-      const newCustomPresets = [...customPresets];
-      newCustomPresets[index] = {
-        hue,
-        sat: saturation,
-        light: lightness,
-        bgHue,
-        bgSat: bgSaturation,
-        bgLight: bgLightness,
-      };
-      setCustomPresets(newCustomPresets);
     } else {
+      // Push undo before applying
+      undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
       applyPreset(preset);
       setSelectedPreset(null);
       setSelectedCustomPreset(index);
@@ -556,6 +527,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
               onClick={() => {
                 setPresetClickCount(c => c + 1);
                 setPulseKey(k => k + 1);
+                undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
                 setIsLiveActive(false);
