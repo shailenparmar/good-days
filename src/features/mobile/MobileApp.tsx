@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMobileSync } from '@shared/sync/useMobileSync';
 import { setItem } from '@shared/storage';
 import { VERSION } from '@shared/version';
@@ -140,10 +140,13 @@ export default function MobileApp() {
     };
   }, [pasteInvalid]);
 
-  // Persist colors
+  // Persist colors — skip during picking for performance.
+  // At 60fps picking, XOR-encrypted localStorage writes push the frame budget.
+  // When picking ends, editing flips null → this dep changes → effect saves.
   useEffect(() => {
+    if (editing) return;
     setItem('mobileColors', JSON.stringify(colors));
-  }, [colors]);
+  }, [colors, editing]);
 
   // Update theme-color meta — always black so Safari chrome + safe areas stay black
   useEffect(() => {
@@ -610,7 +613,10 @@ export default function MobileApp() {
     return () => { [t1, t2, t3, t4, t5].forEach(clearTimeout); };
   }, [sync.codeRejectedCount]);
 
-  const { error: errorColor } = getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight);
+  const { error: errorColor } = useMemo(
+    () => getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight),
+    [colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight]
+  );
 
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';

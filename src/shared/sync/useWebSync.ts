@@ -98,7 +98,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           msg = JSON.parse(e.data);
         } catch { return; }
 
-        console.log('[ws-sync] received:', msg.type, msg);
         switch (msg.type) {
           case 'registered':
             if (msg.pairingCode) {

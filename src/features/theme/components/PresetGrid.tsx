@@ -41,6 +41,14 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   )[]>([]);
   const prevDragCountRef = useRef(0);
 
+  // Refs for values used in keyboard handlers — avoids putting fast-changing
+  // values (colors, livePreset) in useEffect deps which would tear down and
+  // re-add event listeners 60x/sec during live streaming.
+  const colorsRef = useRef({ hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness });
+  colorsRef.current = { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness };
+  const livePresetRef = useRef(livePreset);
+  livePresetRef.current = livePreset;
+
   // Track preset mouse clicks for first-time user hint
   const [presetClickCount, setPresetClickCount] = useState(0);
   const [showKeyboardHint, setShowKeyboardHint] = useState(false);
@@ -234,7 +242,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           setIsLiveActive(false);
         } else if (hasLive && newIndex === liveIndex) {
           // Navigated to [live] slot
-          applyPreset(livePreset);
+          applyPreset(livePresetRef.current!);
           setSelectedPreset(null);
           setSelectedCustomPreset(null);
           setIsLiveActive(true);
@@ -257,7 +265,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
 
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
           // Rand — push undo before randomizing
-          undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
+          undoStackRef.current.push({ action: 'color-change', snapshot: { ...colorsRef.current } });
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
           // Save
@@ -273,7 +281,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [showDebugMenu, activePresetIndex, customPresets, presets, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset, hasLive, livePreset, isLiveActive, setIsLiveActive, saveLivePreset, liveSlotCount]);
+  }, [showDebugMenu, activePresetIndex, customPresets, presets, applyPreset, setActivePresetIndex, setSelectedPreset, setSelectedCustomPreset, setPresets, randomizeTheme, saveCustomPreset, hasLive, isLiveActive, setIsLiveActive, saveLivePreset, liveSlotCount]);
 
   // Handle delete key and Cmd+Z undo for presets
   useEffect(() => {
