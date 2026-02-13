@@ -177,6 +177,13 @@ export function useMobileSync(): MobileSyncHandle {
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         hiddenRef.current = true;
+        // Send going-hidden before close — ws.send() data frames are buffered
+        // synchronously by the OS, while ws.close() requires a handshake that
+        // iOS may never complete before freezing the page. This lets the relay
+        // immediately unpair instead of waiting for the 30-60s ping timeout.
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'going-hidden' }));
+        }
         wsRef.current?.close();
         wsRef.current = null;
         isStreamingRef.current = false;

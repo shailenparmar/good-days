@@ -18,7 +18,8 @@ export type ClientMessage =
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
-  | { type: 'save-preset'; colors: ColorPayload };
+  | { type: 'save-preset'; colors: ColorPayload }
+  | { type: 'going-hidden' };
 
 // Server → Client messages
 export type ServerMessage =

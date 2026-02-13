@@ -545,6 +545,17 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         }
         break;
       }
+
+      case 'going-hidden':
+        // Phone is being backgrounded/locked — disconnect immediately
+        // so the laptop exits live mode without waiting for ping timeout.
+        // ws.send() data frames reach the server reliably on iOS even when
+        // ws.close() handshake frames don't (page frozen before completion).
+        disconnected = true;
+        clearInterval(pingInterval);
+        handleDisconnect(clientId);
+        ws.terminate();
+        break;
     }
   });
 
