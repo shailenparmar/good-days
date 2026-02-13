@@ -97,22 +97,24 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 2. `WebSyncBridge` effect → `theme.setLivePreset()` → render 2
 3. `WebSyncBridge` effect → `theme.applyPreset()` → render 3
 
-**After (1 render per animation frame, v2.3.11+, optimized v2.4.29):**
-1. `ws.onmessage` → `onColorUpdate` callback increments `colorUpdateCountRef` + buffers latest colors in a ref
+**After (zero renders during streaming, v2.4.85+):**
+1. `ws.onmessage` → `onColorUpdate` callback buffers latest colors in `pendingColorsRef`
 2. `useWebSync` skips setState for ongoing color-updates (only updates on initial null→value transition)
-3. `requestAnimationFrame` callback reads buffered colors → calls `applyLivePreset` → 1 render
+3. `requestAnimationFrame` callback reads buffered colors → sets CSS vars directly on `document.documentElement` → **zero React re-renders**
+4. On stream-stop: syncs final colors from `pendingColorsRef` to React state via `applyLivePreset`
+5. On disconnect: syncs final colors via individual setters (not `applyLivePreset` to avoid setting `livePreset` back to non-null)
 
-**`applyLivePreset` (v2.4.29+):** Combined method on ThemeContext that sets `livePreset` + all 6 color values in a single synchronous block. All 7 state setters fire in one call stack → React batches into exactly 1 render. Previously, the rAF callback called `setLivePreset()` then `applyPreset()` separately. During local desktop drag, falls back to `setLivePreset` only (skips color apply to prevent flicker).
+**CSS-only streaming (v2.4.85+):** The rAF callback sets CSS custom properties directly (`--h`, `--s`, `--l`, `--bh`, `--bs`, `--bl`) instead of calling `applyLivePreset`. This bypasses the entire React re-render cascade: `applyLivePreset` triggered 7 state changes → ThemeProvider re-render → unmemoized `value` object → ALL `useTheme()` consumers (30-50+ components) re-rendered every frame → overwhelmed the 16ms frame budget after ~500ms → complete freeze. With CSS-only streaming, the page visuals update via CSS vars (all inline styles use `hsl(var(--h), ...)` static strings), and React is not involved at all during streaming.
 
-Multiple WS messages arriving within the same animation frame are coalesced — only the latest colors are applied. This caps React renders at the display refresh rate instead of the WS message rate, preventing periodic timer work (localStorage writes, statistics ticks) from overflowing the frame budget and causing dropped frames.
+**`applyLivePreset` (v2.4.29+):** Combined method on ThemeContext that sets `livePreset` + all 6 color values in a single synchronous block. Still used for stream-stop sync (single render to flush final colors to React state), pairing, and local desktop drag. During local desktop drag, rAF falls back to `setLivePreset` only (skips color apply to prevent flicker).
+
+Multiple WS messages arriving within the same animation frame are coalesced — only the latest colors are applied. This caps CSS var updates at the display refresh rate instead of the WS message rate.
 
 The `onColorUpdate` callback fires synchronously from `ws.onmessage` in `useWebSync` but only mutates refs (no setState). A `skipBridgeRef` flag prevents the bridge effect from double-applying. Pairing (null→value), disconnect (value→null), and save-preset still use effect chains (not latency-sensitive).
 
-**v2.1.7 fix:** `applyPreset` was previously gated behind `isLiveActive` in the callback. But `isLiveActive` is set by a React effect (async), so on reconnect, color-update messages could arrive before the effect fired. Colors were set in `livePreset` but never applied. Now `applyPreset` is called unconditionally — if the relay is forwarding color-update, we're paired by definition.
+### Hot-Path Performance Fixes (v2.4.83–v2.4.85)
 
-### Hot-Path Performance Fixes (v2.4.83+, extended v2.4.84)
-
-Eight fixes to reduce per-frame overhead during live streaming and phone picking:
+Nine fixes to reduce per-frame overhead during live streaming and phone picking:
 
 1. **Removed `console.log` on every WS message** (`useWebSync.ts`, v2.4.83): Was logging every `color-update` at ~48fps — 48 object serializations/sec. Other lifecycle logs (connect, close, error) remain.
 
@@ -125,6 +127,8 @@ Eight fixes to reduce per-frame overhead during live streaming and phone picking
 5. **Desktop: memoize `getStatusColors` in 4 components** (v2.4.84): `AboutPanel.tsx`, `PasswordSettings.tsx`, `ExportButtons.tsx`, and `StatsDisplay.tsx` each called `getStatusColors()` unmemoized — running ~80-iteration WCAG binary search on every render. During 60fps streaming with poweruser mode open, that's 4 × 80 = 320 binary search iterations per frame. All 4 now wrapped in `useMemo` keyed on `[hue, saturation, lightness, bgHue, bgSaturation, bgLightness]`.
 
 6. **Removed `console.log` on every phone WS message** (`useMobileSync.ts`, v2.4.84): Was logging `msg.type` + full message object on every received message. Removed to match the desktop fix in #1.
+
+7. **CSS-only streaming — zero React re-renders** (`WebSyncBridge.tsx`, v2.4.85): The fundamental fix. The rAF callback now sets CSS vars directly on `document.documentElement` instead of calling `applyLivePreset` (which set 7 React states → ThemeProvider re-render → unmemoized context `value` object → 30-50+ `useTheme()` consumer re-renders per frame). During streaming, React is completely uninvolved — all visual updates flow through CSS custom properties. React state syncs once on stream-stop (via `applyLivePreset`) and on disconnect (via individual setters to avoid re-setting `livePreset` to non-null).
 
 ### StatsDisplay Memoization (v2.3.18+)
 

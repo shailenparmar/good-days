@@ -40,39 +40,9 @@ When clicking the settings/about buttons exits focus mode directly (bypassing `e
 
 ### Scroll Position Persistence
 
-Scroll positions persist across page refresh for all scrollable panels:
+Scroll positions persist across refresh. Settings/About save to localStorage (debounced 100ms). Editor uses `useKeyedPersisted` for per-date positions with double `requestAnimationFrame` to ensure content renders before restoring. The `\time` command captures and restores `scrollTop` in the same rAF to prevent scroll jump.
 
-| Panel | Storage Key | Restore Timing |
-|-------|-------------|----------------|
-| Settings | `settingsScrollTop` | On mount |
-| About | `aboutScrollTop` | On mount |
-| Editor | `scrollPosition:{date}` | After content loads (double rAF) |
-
-**Implementation:**
-- Settings/About: Direct localStorage read/write with debounced save (100ms)
-- Editor: Uses `useKeyedPersisted` hook for per-date scroll positions
-- Editor needs double `requestAnimationFrame` to ensure content is rendered before restoring scroll
-
-```typescript
-// Editor scroll restore (after content loads)
-requestAnimationFrame(() => {
-  requestAnimationFrame(() => {
-    if (editorRef.current) {
-      editorRef.current.scrollTop = savedScrollTop;
-    }
-  });
-});
-```
-
-**Inline text replacement scroll preservation:**
-- The `\time` command replaces text inline, which can cause the browser to jump scroll position after React re-renders
-- Before replacement, `scrollTop` is captured and restored in the same `requestAnimationFrame` that sets cursor position
-- This works across all modes (zen, minizen, scramble, settings open) because the textarea DOM element is the same in all modes
-
-Code locations:
-- `src/features/settings/components/SettingsPanel.tsx`
-- `src/features/settings/components/AboutPanel.tsx`
-- `src/features/journal/components/JournalEditor.tsx`
+Code: `SettingsPanel.tsx`, `AboutPanel.tsx`, `JournalEditor.tsx`
 
 ## CSS Custom Properties for Live Streaming (v2.4.6+, simplified v2.4.9)
 
@@ -92,9 +62,7 @@ Usage: `hsl(var(--h), var(--s), var(--l))` — the `%` is baked into the variabl
 
 2. **ThemeContext:** A `useEffect` syncs CSS vars whenever React color state changes. `getColor()` and `getBgColor()` return static CSS variable strings (e.g. `hsl(var(--h), var(--s), var(--l))`). React sees the same string every render — no DOM attribute updates needed.
 
-3. **WebSyncBridge (streaming, v2.4.9):** The rAF callback calls `setLivePreset()` + `applyPreset()` to update React state (capped at 60fps). React state is always current, so ColorPicker indicators, save-preset, and all consumers work correctly. The ThemeContext CSS var sync effect fires after each render to update CSS variables. Inline styles referencing CSS vars (`hsl(var(--h), ...)`) are static strings, so React's DOM diffing skips attribute writes.
-
-   **Previous approach (v2.4.6-v2.4.8):** Set CSS vars directly in the rAF callback, bypassing React entirely. This caused ColorPicker indicators to freeze during streaming (React state was stale) and required complex disconnect sync-back and save-preset pre-sync logic. Reverted in v2.4.9 for simplicity.
+3. **WebSyncBridge (streaming, v2.4.85+):** The rAF callback sets CSS vars **directly** on `document.documentElement`, bypassing React state entirely during streaming. Zero re-renders per frame. React state syncs once on stream-stop (via `applyLivePreset`) and on disconnect (via individual setters). During local desktop drag, falls back to `setLivePreset` only. ColorPicker indicators and save-preset work correctly because they use CSS vars or sync on stream-stop.
 
 ### Common CSS Variable Patterns
 
@@ -235,20 +203,6 @@ const aboutWidth = stacked
   : ABOUT_WIDTH;                   // 720px
 ```
 
-#### Common Mistake
-
-Don't add border width separately! With `border-box`:
-- ❌ `720 - 320 - 6 = 394px` (wrong - double-counts border)
-- ✅ `720 - 320 = 400px` (correct - border already in width)
-
-#### To Change Panel Widths
-
-1. Update `ABOUT_WIDTH` in `AboutPanel.tsx` to change About panel size
-2. The stacked width auto-calculates: `ABOUT_WIDTH - SETTINGS_WIDTH`
-3. If Settings width changes, update `SETTINGS_WIDTH` constant
-
-The right edge will stay aligned regardless of content changes.
-
 ## Opacity Standards
 
 All opacities in the app follow this hierarchy:
@@ -351,73 +305,16 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx`
 
 ## Bold Sweep Animation
 
-The signature placeholder animation where text sweeps bold left-to-right, then unbolds left-to-right.
-
-### Visual Effect
-
-```
-Phase 1 (bold):     Phase 2 (unbold):
-s                   start typing        (all bold)
-st                  start typing        (s normal, rest bold)
-sta                 start typing        (st normal, rest bold)
-star                start typing
-start               start typing
-start               start typing
-start t             start typing
-start ty            start typing
-start typ           start typing
-start typi          start typing
-start typin         start typing
-start typing        start typing        (all normal)
-```
-
-### Implementation
-
-Two state variables drive the animation:
-
-```tsx
-const [boldCount, setBoldCount] = useState(0);
-const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-```
-
-**Timer:** Increments `boldCount` every **83ms** (~12 characters/second)
-
-**Phase flip:** When `boldCount` reaches text length, phase toggles and count resets
-
-**Rendering:**
-```tsx
-{animPhase === 'bold' ? (
-  <>
-    <span className="font-bold">{text.slice(0, boldCount)}</span>
-    <span>{text.slice(boldCount)}</span>
-  </>
-) : (
-  <>
-    <span>{text.slice(0, boldCount)}</span>
-    <span className="font-bold">{text.slice(boldCount)}</span>
-  </>
-)}
-```
-
-### Where It's Used
+The signature placeholder animation: text sweeps bold left-to-right, then unbolds left-to-right. Uses `boldCount` (incrementing index) and `animPhase` ('bold' | 'unbold') state variables. **83ms per character** (~12 chars/second). Full cycle for "start typing": ~2 seconds.
 
 | Location | Text | File |
 |----------|------|------|
 | Editor placeholder | "start typing" | `JournalEditor.tsx` |
 | Lock screen | "password" | `LockScreen.tsx` |
-| Password settings | varies ("password", "old password", etc.) | `PasswordSettings.tsx` |
+| Password settings | varies | `PasswordSettings.tsx` |
 | Preset keyboard hint | "use arrow keys..." | `PresetGrid.tsx` |
 
-### Timing
-
-- **83ms per character** = ~12 chars/second
-- Full cycle for "start typing" (12 chars): ~2 seconds (1s bold sweep + 1s unbold sweep)
-
-### Reset Behavior
-
-Animation resets (`boldCount = 0`, `animPhase = 'bold'`) when:
-- Placeholder becomes visible (e.g., input cleared)
-- Component mounts
+Resets (`boldCount = 0`, `animPhase = 'bold'`) when placeholder becomes visible or component mounts.
 
 ## Layout Modes & Focus States
 
@@ -464,49 +361,15 @@ preNarrowState: {
 } | null
 ```
 
-### State Lifecycle
-
-#### `preFocusState`
-
-| Action | Effect |
-|--------|--------|
-| `enterMinizen()` | Set to current state, then close panels |
-| `exitMinizen()` | Restore from it, then set to `null` |
-| `enterZen()` (not from minizen) | Set to current state, then close panels |
-| `exitZen()` (not from minizen) | Restore from it, then set to `null` |
-| `enterZen()` (from minizen) | Don't overwrite (already set by enterMinizen) |
-| `exitZen()` (from minizen) | Don't clear (still needed for exitMinizen) |
-| Resize wide → narrow | Set to `null` (focus state cleared) |
-
-#### `preNarrowState`
-
-| Action | Effect |
-|--------|--------|
-| Resize wide → narrow | Set to `{ showDebugMenu, showAboutPanel, minizen }` |
-| Resize narrow → wide | Restore from it, then set to `null` |
-| **Commit actions in narrow:** | Set to `null` (user committed to narrow) |
-| - Toggle sidebar (header click) | |
-| - Open/close panel buttons | |
-| **Non-commit actions:** | No effect (preNarrowState preserved) |
-| - Typing | |
-| - Click in editor | |
-| - Select entry | |
-
-#### `zenFromMinizen`
-
-Tracks whether zen was entered from minizen. This matters because:
-- If zen entered from minizen: `preFocusState` was set by `enterMinizen()`, not `enterZen()`
-- On `exitZen()`: if `zenFromMinizen`, just exit zen (stay in minizen, keep preFocusState)
-- On `exitZen()`: if NOT `zenFromMinizen`, restore preFocusState fully
-
-| Action | Effect |
-|--------|--------|
-| `enterZen()` from minizen | Set to `true` |
-| `enterZen()` not from minizen | Set to `false` |
-| `exitZen()` | Set to `false` |
-| Resize wide → narrow | Set to `false` |
-
 ### Visual States
+
+Both modes share the same 3-layout pattern:
+
+| Concept | Wide Mode | Narrow Mode |
+|---------|-----------|-------------|
+| Base (most UI) | Sidebar visible | Sidebar visible |
+| Middle (no sidebar) | Minizen | Default (no sidebar) |
+| Focused (just editor) | Zen | Zen |
 
 #### Wide Mode - Full (default)
 ```
@@ -534,15 +397,6 @@ Tracks whether zen was entered from minizen. This matters because:
 └────────────────────────────────────┘
 ```
 
-#### Wide Mode - Zen (just editor)
-```
-┌────────────────────────────────────┐
-│                                    │
-│              Editor                │ ← ESC → restore previous state
-│                                    │
-└────────────────────────────────────┘
-```
-
 #### Narrow Mode - Default (sidebar hidden)
 ```
 ┌────────────────────────────────────┐
@@ -556,20 +410,7 @@ Tracks whether zen was entered from minizen. This matters because:
 └────────────────────────────────────┘
 ```
 
-#### Narrow Mode - Sidebar Visible
-```
-┌─────────────┬──────────────────────┐
-│  Sidebar    │  Header (date)       │ ← click header → hide sidebar
-│  (overlay)  │──────────────────────│
-│             │                      │
-│             │  Editor              │
-│             │                      │
-│             │──────────────────────│
-│             │  Footer (word count) │ ← click footer → zen
-└─────────────┴──────────────────────┘
-```
-
-#### Narrow Mode - Zen (just editor)
+#### Zen Mode (both wide and narrow)
 ```
 ┌────────────────────────────────────┐
 │                                    │
@@ -578,204 +419,44 @@ Tracks whether zen was entered from minizen. This matters because:
 └────────────────────────────────────┘
 ```
 
-### State Machine - Wide Mode
+### State Machine (unified for both modes)
 
-```
-                    ┌─────────────────┐
-       header click │                 │ header click
-            ┌───────┤      FULL       ├───────┐
-            │       │                 │       │
-            ▼       └────────┬────────┘       │
-    ┌───────────────┐        │                │
-    │    MINIZEN    │        │ footer click   │
-    │               │        │   (save: full) │
-    └───────┬───────┘        │                │
-            │                ▼                │
-            │ footer    ┌─────────┐           │
-            │ click     │   ZEN   │───────────┘
-            │(save:mini)│         │  ESC/click = restore saved state
-            └──────────►└─────────┘
-```
+Both modes follow the same 3-layout bounce pattern: Base ↔ Middle ↔ Zen.
 
-**Zen remembers where you came from:**
+| From | Action | To | Notes |
+|------|--------|----|-------|
+| Base | header click | Middle | Wide: hide sidebar. Narrow: toggle sidebar |
+| Base | footer click | Zen | Saves state to `preFocusState` |
+| Middle | header click | Base | Wide: show sidebar. Narrow: toggle sidebar |
+| Middle | footer click | Zen | Saves state to `preFocusState` |
+| Zen (from Base) | ESC | Base | Restores full layout |
+| Zen (from Middle) | ESC | Middle | Restores middle layout |
 
-| Current State | Action | Next State | `preFocusState` |
-|---------------|--------|------------|---------------|
-| Full | footer click | Zen | saves "full" |
-| Minizen | footer click | Zen | saves "minizen" |
-| Zen | ESC/click | (restore) | restores saved state |
+**Narrow-specific sidebar auto-close:** When sidebar is visible in narrow mode, these actions hide it and return to Default: **click editor**, **start typing**, **click overlay**. This auto-close is NOT a "commit" (doesn't clear `preNarrowState`).
 
-| Current State | Action | Next State | What Changes |
-|---------------|--------|------------|--------------|
-| Full | header click | Minizen | Sidebar hides |
-| Full | footer click | Zen | Sidebar + header + footer hide, save "full" |
-| Minizen | header click | Full | Sidebar shows |
-| Minizen | footer click | Zen | Header + footer hide, save "minizen" |
-| Zen (from Full) | ESC/click | Full | Restore full layout |
-| Zen (from Minizen) | ESC/click | Minizen | Restore minizen layout |
-
-### State Machine - Narrow Mode
-
-```
-                    ┌──────────────────┐
-       header click │     SIDEBAR      │ header click
-            ┌───────┤     VISIBLE      ├───────┐
-            │       │                  │       │
-            ▼       └────────┬─────────┘       │
-    ┌────────────────┐       │                 │
-    │    DEFAULT     │       │ footer click    │
-    │ (sidebar hidden)       │ (save: visible) │
-    └───────┬────────┘       │                 │
-            │                ▼                 │
-            │ footer    ┌─────────┐            │
-            │ click     │   ZEN   │────────────┘
-            │(save:def) │         │  ESC/click = restore saved state
-            └──────────►└─────────┘
-```
-
-**Zen remembers where you came from:**
-
-| Current State | Action | Next State | `preFocusState` |
-|---------------|--------|------------|---------------|
-| Default | footer click | Zen | saves "default" |
-| Sidebar Visible | footer click | Zen | saves "sidebar-visible" |
-| Zen | ESC/click | (restore) | restores saved state |
-
-| Current State | Action | Next State | What Changes |
-|---------------|--------|------------|--------------|
-| Default (no sidebar) | header click | Sidebar Visible | Sidebar overlay appears |
-| Default (no sidebar) | ESC | Sidebar Visible | Sidebar overlay appears |
-| Default (no sidebar) | footer click | Zen | Header + footer hide, save "default" |
-| Sidebar Visible | header click | Default | Sidebar hides |
-| Sidebar Visible | click editor | Default | Sidebar hides, focus editor |
-| Sidebar Visible | start typing | Default | Sidebar hides, focus editor |
-| Sidebar Visible | click overlay | Default | Sidebar hides |
-| Sidebar Visible | footer click | Zen | Sidebar + header + footer hide, save "visible" |
-| Sidebar Visible | ESC | Lock | Locks app |
-| Zen (from Default) | ESC/click | Default | Restore default (no sidebar) |
-| Zen (from Visible) | ESC/click | Sidebar Visible | Restore sidebar overlay |
-
-### ESC Key Priority
-
-ESC checks are evaluated in this order:
-
-1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
-2. **Scramble active** → Unscramble only
-3. **User in `<input>`** → Do nothing (NOT `<textarea>`)
-4. **Narrow mode** → bounce cycle (see below)
-5. **Wide mode** → bounce cycle (see below)
-
-**ESC bounce cycle (v2.4.22+, updated v2.4.24, narrow mode v2.4.40+):**
-
-Both modes use the same bounce principle: you must see all 3 layouts before ESC can lock. A `visitedZen` flag (ref, default `false`) tracks whether zen has been visited in the current ESC sequence. Any non-ESC interaction (keypress or click) resets the flag — the cycle always starts fresh.
-
-**State mapping between modes:**
-
-| Concept | Wide Mode | Narrow Mode |
-|---------|-----------|-------------|
-| Base (most UI) | Sidebar visible | Sidebar visible |
-| Middle (no sidebar) | Minizen | Default (no sidebar) |
-| Focused (just editor) | Zen | Zen |
-
-```
-ESC press (wide mode):
-  [panels open]            → closePanels + exit zen/mz → base, visitedZen=false
-  [zen]                    → mz, visitedZen=true
-  [mz + !visitedZen]       → zen (going up)
-  [mz + visitedZen]        → base (coming down)
-  [base + visitedZen + pw] → save + lock
-  [base + visitedZen + !pw]→ mz, visitedZen=false (restart)
-  [base + !visitedZen]     → mz (always go up first, never lock)
-
-ESC press (narrow mode):
-  [panels open]            → closePanels → sidebar visible (base), visitedZen=false
-  [zen]                    → default (no sidebar), visitedZen=true
-  [default + !visitedZen]  → zen (going up)
-  [default + visitedZen]   → sidebar visible (coming down)
-  [sidebar + visitedZen + pw]  → save + lock
-  [sidebar + visitedZen + !pw] → default, visitedZen=false (restart)
-  [sidebar + !visitedZen]  → default (always go up first, never lock)
-```
-
-**Example sequences (both modes, with password):**
-- From base/sidebar: 5 presses to lock
-- From mz/default: 4 presses to lock
-- From zen: 3 presses to lock
-- No password: loops forever
-
-**Cycle reset:** `escVisitedZenRef` resets to `false` on any non-ESC keydown, mousedown, or window resize (global listeners in a separate `useEffect`). This means typing, clicking, resizing, or any other interaction breaks the ESC sequence — the next ESC from base always starts the full cycle.
-
-**Both modes use raw setters** (`setZenMode`/`setMinizen`/`setShowSidebarInNarrow`) instead of `enterZen`/`exitZen` to bypass `preFocusState` restoration. `preFocusState` and `zenFromMinizen` are cleared on panels→base and zen→middle transitions.
+**Zen remembers where you came from** via `zenFromMinizen`: if zen was entered from minizen, `exitZen()` returns to minizen (keeps `preFocusState`); if from full, restores everything.
 
 ### Resize Transitions
 
-State is preserved across resize using `preNarrowState`. Resizing to narrow "agrees to the narrow experience" but preserves your wide-mode intent for when you resize back.
+State preserved across resize using `preNarrowState`.
 
 #### Wide → Narrow
-
-| Before | After | Reason |
-|--------|-------|--------|
-| Full | Default | Sidebar becomes overlay-style in narrow |
-| Minizen | Default | Same visual (no sidebar, has header+footer) |
-| Zen | Zen | Stay in zen |
-| Panels open | Panels closed (saved) | No room, but state saved for restore |
-
-**State changes:**
 - `preNarrowState` saves `{ showDebugMenu, showAboutPanel, minizen }`
-- `minizen = false` (reset)
-- `showSidebarInNarrow = false` (reset)
-- `closePanels()` (close settings/about)
-- `preFocusState = null` (clear focus mode state)
-- `zenMode` preserved (if in zen, stay in zen)
+- Minizen, showSidebarInNarrow reset to false; panels close; preFocusState cleared
+- Zen stays zen
 
 #### Narrow → Wide
-
-| Before | After | Reason |
-|--------|-------|--------|
-| Default (not committed) | Restore saved state | Panels + minizen restored from preNarrowState |
-| Default (committed) | Full | User interacted in narrow, start fresh |
-| Sidebar Visible | Full or Minizen | Depends on preNarrowState |
-| Zen | Zen | Stay in zen |
-
-**State changes:**
-- `preNarrowState` restored → panels AND minizen restored if saved
-- `showSidebarInNarrow = false` (reset)
-- `zenMode` preserved (if in zen, stay in zen)
+- If `preNarrowState` exists and NOT in zen: restore panels + minizen
+- If committed to narrow (user interacted with UI): start fresh as Full
+- Zen stays zen
 
 #### "Committing" to Narrow Mode
 
-Certain interactions in narrow mode clear `preNarrowState`, meaning you've committed to the narrow experience and won't restore wide-mode state on resize back.
-
-**Actions that commit (clear `preNarrowState`):**
-- Toggle sidebar (header click)
-- Open/close panel buttons
-- ESC to show sidebar (v2.3.17)
-
-**Actions that DON'T commit:**
-- Typing (content creation)
-- Click in editor
-- Scrolling
-- Selecting an entry
-
-This distinction matters: typing and clicking to focus are about **content**, not **UI navigation**. You shouldn't lose your wide-mode state just because you typed something while narrow.
+Actions that clear `preNarrowState` (commit): toggle sidebar, open/close panels, ESC to show sidebar. Actions that don't: typing, clicking editor, scrolling, selecting entries.
 
 #### preNarrowState Consistency (IMPORTANT)
 
-When saving to `preNarrowState`, the saved state must be internally consistent. Panels require the sidebar to be visible, and minizen hides the sidebar. Therefore: **if panels are open, minizen must be false**.
-
-**The edge case:**
-
-If you're in a focus mode (minizen) when resizing to narrow, the app must save the *pre-focus* state, not a mix of pre-focus panels with current minizen.
-
-**Bug scenario (fixed in v1.9.3):**
-1. Wide mode, settings open (minizen=false)
-2. Click header → enter minizen (saves panels to `preFocusState`, sets minizen=true, closes panels)
-3. Resize to narrow → if we saved `{ showDebugMenu: preFocusState.showDebugMenu, minizen: minizen }` we'd get `{ showDebugMenu: true, minizen: true }` (inconsistent!)
-4. Resize back to wide → settings panel visible but no sidebar (minizen=true)
-
-**The fix:**
-
-When `preFocusState` exists, save the entire pre-focus state consistently:
+When saving to `preNarrowState` during a focus mode, save the *pre-focus* state (from `preFocusState`), not a mix. **Invariant:** `(showDebugMenu || showAboutPanel) → !minizen` — panels require sidebar visible.
 
 ```tsx
 const stateToSave = preFocusState
@@ -783,37 +464,9 @@ const stateToSave = preFocusState
   : { showDebugMenu, showAboutPanel, minizen };
 ```
 
-**The invariant:** Saved state must always satisfy: `(showDebugMenu || showAboutPanel) → !minizen`
-
 #### Zen Mode Purity on Resize (IMPORTANT)
 
-When restoring from `preNarrowState` on narrow→wide resize, we must NOT restore panels if currently in zen mode. Zen should be pure - just the editor, no panels.
-
-**Bug scenario (fixed in v1.9.4):**
-1. Wide mode, settings open
-2. Resize to narrow → `preNarrowState = { showDebugMenu: true, ... }`, panels close
-3. Enter zen in narrow (click footer)
-4. Resize back to wide → if we restored `preNarrowState`, settings panel would appear while in zen!
-5. Result: zen mode with floating settings panel (should be just editor)
-
-**The fix:**
-
-Only restore from `preNarrowState` if NOT in zen mode:
-
-```tsx
-} else if (!narrow && wasNarrow) {
-  // Narrow → Wide: restore state if not committed AND not in zen
-  if (preNarrowState && !zenMode) {
-    setShowDebugMenu(preNarrowState.showDebugMenu);
-    setShowAboutPanel(preNarrowState.showAboutPanel);
-    setMinizen(preNarrowState.minizen);
-    setPreNarrowState(null);
-  }
-  setShowSidebarInNarrow(false);
-}
-```
-
-**The invariant:** `zenMode → !showDebugMenu && !showAboutPanel` (zen is always pure)
+Only restore from `preNarrowState` if NOT in zen. **Invariant:** `zenMode → !showDebugMenu && !showAboutPanel` (zen is always pure).
 
 ### Panel Behavior
 
@@ -909,61 +562,14 @@ See `src/hooks/useLayoutState.ts` for state machine and `src/App.tsx` for ESC ha
 
 ### Key Principles
 
-1. **Focus modes are fully reversible** - Exiting any focus mode restores the exact prior state, including open panels
-2. **Footer = zen toggle** - Footer click enters/exits zen in both modes
-3. **Header = sidebar toggle** - Header click toggles sidebar visibility (minizen in wide, overlay in narrow)
-4. **Zen survives resize** - If in zen, stay in zen across breakpoint
-5. **`preFocusState` captures full context** - See "State Lifecycle" section above for details
+1. **Focus modes are fully reversible** — exiting restores exact prior state including panels
+2. **Footer = zen, Header = sidebar toggle** (minizen in wide, overlay in narrow)
+3. **Zen survives resize**
+4. **The rule**: settings open → zen → exit zen = settings open again
 
-**The rule**: If settings was open → zen → exit zen = settings open again. Same for minizen.
-
-### Persistence Framework (v1.10.19+)
-
-The layout state system has three domains with different persistence rules.
-
-#### Three State Domains
-
-| Domain | Variables | Persisted? | Rationale |
-|--------|-----------|------------|-----------|
-| **Focus** | `zenMode`, `minizen` | **No** (v1.10.37+) | Ephemeral focus states; refresh = escape hatch |
-| **Width** | `isNarrow` | No (computed) | Determined by current window size |
-| **Panels** | `showDebugMenu`, `showAboutPanel` | Yes | User opened these; should survive close/reopen |
-
-#### Restoration Ticket Pattern
-
-`preFocusState` and `preNarrowState` are "restoration tickets" — snapshots of state saved before a transition so the reverse transition can restore it.
-
-**Persistence rule for tickets:** `preFocusState` persists so that panel state can be restored on refresh from a focus mode. `preNarrowState` does not persist (resize context is session-bound).
-
-| Ticket | Restores from... | That state persists? | Ticket persists? |
-|--------|-------------------|---------------------|-----------------|
-| `preFocusState` | Focus modes (zen/minizen) | No (v1.10.37+) | **Yes** (for panel restoration on refresh) |
-| `preNarrowState` | Narrow layout (resize) | No (computed) | **No** |
-
-**Why `preFocusState` still persists (v1.10.37+):** Even though zen/minizen no longer persist, `preFocusState` must persist so panels can be restored on refresh. When entering a focus mode, panels are closed (written as `false` to localStorage). On refresh, the init IIFE reads `preFocusState` to restore the original panel state, then clears it. Without this, panels would be lost on refresh from a focus mode.
-
-**Why `preNarrowState` doesn't persist:** Resize context is session-bound. When you reopen the app, `isNarrow` is freshly computed from the current window width — there's no "returning from narrow" to restore.
-
-#### Domain Boundaries
-
-When crossing from one domain to another, restoration tickets may be absorbed:
-
-- **Resize wide→narrow absorbs focus tickets:** `preFocusState` is cleared because the narrow transition saves its own `preNarrowState` (which includes the pre-focus panel state if `preFocusState` exists). Focus mode context is subsumed into the resize transition.
-
-#### `zenFromMinizen` — No Longer Persisted (v1.10.37+)
-
-`zenFromMinizen` is now `useState(false)` — it resets on refresh along with zen/minizen. Since focus modes don't survive refresh, the metadata tracking how zen was entered doesn't need to either.
+**Why `preFocusState` persists but zen/minizen don't:** Zen and minizen reset on refresh (escape hatch). But `preFocusState` MUST persist so panels can be restored on refresh. When entering focus mode, panels close (written as `false` to localStorage). Without persisted `preFocusState`, the original panel state would be lost on refresh. The init IIFE reads `preFocusState`, restores panels, then clears it.
 
 ## ESC Key Behavior (IMPORTANT)
-
-ESC key has context-dependent behavior. Two handlers coordinate this:
-
-### Handler Architecture
-
-| Handler | Location | Phase | Purpose |
-|---------|----------|-------|---------|
-| Password flow | `PasswordSettings.tsx` | Capture (runs first) | Reset password flow, call `preventDefault()` |
-| App handler | `App.tsx` | Bubble (runs second) | Exit zen or lock app |
 
 ### ESC Priority (checked in order)
 
@@ -1015,24 +621,7 @@ const escVisitedZenRef = useRef(false);
 
 This pattern ensures the handler always sees the current values without re-registering on every state change. The `escVisitedZenRef` is reset by global keydown/mousedown listeners (any non-ESC interaction).
 
-### When ESC Should NOT Lock
-
-1. **Password flow is active** - `showInput && !isSaving` in PasswordSettings
-2. **ESC was already handled** - Check `e.defaultPrevented`
-3. **Scramble is active** - Unscramble instead (v2.4.18+)
-4. **User in `<input>`** - Only blocks `<input>` elements, NOT the editor `<textarea>`
-5. **Narrow + any non-base state** - Zen, panels, sidebar hidden all handled before lock
-6. **Wide + any non-base state** - Bounce cycle handles zen, mz, panels
-7. **Wide + base + no password** - Restarts cycle instead of locking
-8. **Wide + base + !visitedZen** - Haven't seen all 3 layouts yet, enters mz
-
-### When ESC SHOULD Lock
-
-1. **Wide + base + visitedZen + hasPassword** - Completed full cycle, save + lock
-2. **Narrow + sidebar visible** - No panels open, no zen
-3. **After password saved** - Label says "esc to lock", `isSaving=true`
-
-**Pre-lock save (v2.4.21+):** Before locking, the ESC handler saves the editor content via `saveEntry()` — but **only if `auth.hasPassword` is true**. Without this guard, ESC on a fresh journal (no password) would persist the empty today placeholder to IndexedDB, creating a ghost sidebar entry. The save is only needed to flush pending content before the lock screen appears.
+**Pre-lock save (v2.4.21+):** Before locking, ESC saves editor content via `saveEntry()` — but **only if `auth.hasPassword`**. Without this guard, ESC on a fresh journal would persist an empty placeholder to IndexedDB.
 
 ## Font Sizes
 
@@ -1199,31 +788,3 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx` (color stat
 | Same button, different text lengths | Absolute Hover Layer |
 | Copy/paste buttons replacing stats display | Grid Overlay |
 
-### Why FunctionButton?
-
-FunctionButton handles all the required behaviors:
-- **State management**: Uses `useState` for `isHovered` and `isClicked`
-- **Border colors**: Default (60% opacity) → Hover (full color) → Click (65% lightness)
-- **Background**: Transparent → Hover (20% opacity fill)
-- **Mouse events**: Proper `onMouseEnter`, `onMouseLeave`, `onMouseDown`, `onMouseUp`
-- **Click handling**: `e.stopPropagation()` and `e.currentTarget.blur()`
-- **Accessibility**: `tabIndex={-1}`, `outline-none`, `select-none`
-
-### DO NOT
-
-```tsx
-// BAD - Never do this:
-<button
-  onClick={handleClick}
-  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'white'}
-  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'gray'}
->
-  bad button
-</button>
-```
-
-This breaks the style guide because:
-1. No proper state management (border flickers)
-2. Inline style manipulation is fragile
-3. Missing click behaviors (stopPropagation, blur)
-4. Missing accessibility attributes
