@@ -268,8 +268,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           undoStackRef.current.push({ action: 'color-change', snapshot: { ...colorsRef.current } });
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
-          // Save
+          // Save — highlight the newly saved preset
+          const newPresetIndex = presets.length + customPresets.length;
           saveCustomPreset();
+          setActivePresetIndex(newPresetIndex);
         }
       }
     };
@@ -568,8 +570,10 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
               onClick={() => {
                 setPresetClickCount(c => c + 1);
                 setPulseKey(k => k + 1);
+                // Highlight the newly saved preset (will be at end of custom presets)
+                const newPresetIndex = presets.length + customPresets.length;
                 saveCustomPreset();
-                setActivePresetIndex(saveIndex);
+                setActivePresetIndex(newPresetIndex);
                 setIsLiveActive(false);
               }}
               className={`h-6 rounded text-xs font-mono font-bold flex items-center justify-center select-none ${activePresetIndex === saveIndex ? 'preset-pulse' : ''}`}
