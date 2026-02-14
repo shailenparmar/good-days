@@ -113,22 +113,21 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 | **4** | hsl(36, 58%, 38%) dark gold #996c29 | hsl(181, 52%, 10%) dark teal #0c2627 | — |
 | **5** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
 
-### New User Defaults
+### Preset 1 = Flagship (IMPORTANT)
 
-New users see **Preset 1** (green on deep purple). Two places set this:
+**Preset 1 is the flagship colorway.** Its colors are the app's identity and must be synced across ALL of these locations when changed:
 
-1. **React defaults**: `ThemeContext.tsx` uses `DEFAULT_PRESETS[0]` for initial state
-2. **HTML fallbacks**: `index.html` has hardcoded values for pre-React page load (prevents flash)
+| Location | File | What to update |
+|----------|------|----------------|
+| **Preset definition** | `ThemeContext.tsx` | `DEFAULT_PRESETS[0]` (React reads this dynamically) |
+| **HTML fallback** | `index.html` | Hardcoded HSL values in the IIFE (prevents color flash) |
+| **Error screen** | `ErrorBoundary.tsx` | Hardcoded HSL text + bg colors |
+| **Maintenance screen** | `main.tsx` | Inline HSL in the maintenance HTML template |
+| **Mobile default** | `MobileApp.tsx` | Initial `colors` state (fallback before localStorage loads) |
 
-When changing the default preset, update BOTH locations.
+**When changing preset 1, update ALL FIVE locations. No exceptions.**
 
-### Error Screen
-
-The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded colors (dark green on light yellow, the original preset 1 before v2.4.110 swap):
-- Text: `hsl(116, 100%, 12%)` - dark green
-- Background: `hsl(52, 100%, 91%)` - light yellow
-
-These are intentionally NOT tied to presets so the error screen always displays consistently. The "something went wrong" screen is the only user-approved copy screen.
+The "something went wrong" error screen is the only user-approved copy screen.
 
 ### Preset Grid Layout
 
