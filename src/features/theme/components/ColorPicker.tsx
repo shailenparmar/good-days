@@ -184,6 +184,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
             height: `${needleHeight}px`,
             transform: 'translateY(-50%)',
             backgroundColor: 'black',
+            transition: 'top 30ms linear',
           }}
         />
       </div>
@@ -215,6 +216,7 @@ export function ColorPicker({ type, part }: ColorPickerProps) {
           top: dotTop,
           transform: 'translate(-50%, -50%)',
           backgroundColor: isText ? getBgColor() : getColor(),
+          transition: 'left 30ms linear, top 30ms linear',
         }}
       />
     </div>
