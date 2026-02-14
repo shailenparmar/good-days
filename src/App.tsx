@@ -144,10 +144,11 @@ function AppContent() {
   }, [layout.scrambleHotkeyActive]);
 
   // ESC key behavior — infinite bounce cycle: base ↔ mz ↔ zen ↔ mz ↔ base ↔ ...
-  // Tap ESC (keyup) = cycle layouts. Hold ESC (~500ms) = lock (if password exists).
+  // Tap ESC = cycle instantly (keydown). Hold ESC (~500ms) = revert cycle + lock.
   const escDirectionRef = useRef<'up' | 'down'>('up');
   const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const escPendingCycleRef = useRef(false); // true between keydown and keyup
+  // Snapshot of layout state before the cycle, so hold-to-lock can revert
+  const escPreCycleRef = useRef<{ zenMode: boolean; minizen: boolean; showSidebarInNarrow: boolean; direction: 'up' | 'down' } | null>(null);
 
   // Reset direction on any non-ESC interaction
   useEffect(() => {
@@ -165,73 +166,21 @@ function AppContent() {
     };
   }, []);
 
-  // Cycle logic — extracted so keyup can call it
-  const escCycle = useCallback(() => {
-    // Narrow mode bounce cycle
-    if (layout.isNarrow) {
-      if (layout.showDebugMenu || layout.showAboutPanel) {
-        layout.closePanels();
-        layout.setZenMode(false);
-        layout.setShowSidebarInNarrow(true);
-        layout.setPreFocusState(null);
-        layout.setZenFromMinizen(false);
-        layout.setPreNarrowState(null);
-        escDirectionRef.current = 'up';
-        return;
-      }
-      if (layout.zenModeRef.current) {
-        layout.setZenMode(false);
-        layout.setShowSidebarInNarrow(false);
-        layout.setPreFocusState(null);
-        layout.setZenFromMinizen(false);
-        escDirectionRef.current = 'down';
-        return;
-      }
-      if (!layout.showSidebarInNarrow) {
-        if (escDirectionRef.current === 'down') {
-          layout.setShowSidebarInNarrow(true);
-          layout.setPreNarrowState(null);
-        } else {
-          layout.setZenMode(true);
+  // Clear lock timer on ESC keyup
+  useEffect(() => {
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (escLockTimerRef.current) {
+          clearTimeout(escLockTimerRef.current);
+          escLockTimerRef.current = null;
         }
-        return;
+        escPreCycleRef.current = null;
       }
-      layout.setShowSidebarInNarrow(false);
-      escDirectionRef.current = 'up';
-      return;
-    }
+    };
+    window.addEventListener('keyup', handleKeyUp);
+    return () => window.removeEventListener('keyup', handleKeyUp);
+  }, []);
 
-    // Wide mode bounce cycle
-    if (layout.showDebugMenu || layout.showAboutPanel) {
-      layout.closePanels();
-      layout.setZenMode(false);
-      layout.setMinizen(false);
-      layout.setPreFocusState(null);
-      layout.setZenFromMinizen(false);
-      escDirectionRef.current = 'up';
-      return;
-    }
-    if (layout.zenModeRef.current) {
-      layout.setZenMode(false);
-      layout.setMinizen(true);
-      layout.setPreFocusState(null);
-      layout.setZenFromMinizen(false);
-      escDirectionRef.current = 'down';
-      return;
-    }
-    if (layout.minizenRef.current) {
-      if (escDirectionRef.current === 'down') {
-        layout.setMinizen(false);
-      } else {
-        layout.setZenMode(true);
-      }
-      return;
-    }
-    layout.setMinizen(true);
-    escDirectionRef.current = 'up';
-  }, [layout]);
-
-  // Keydown: start hold-to-lock timer, mark pending cycle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
@@ -247,43 +196,103 @@ function AppContent() {
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        escPendingCycleRef.current = true;
+        // Snapshot state before cycling (for hold-to-lock revert)
+        escPreCycleRef.current = {
+          zenMode: layout.zenModeRef.current,
+          minizen: layout.minizenRef.current,
+          showSidebarInNarrow: layout.showSidebarInNarrow,
+          direction: escDirectionRef.current,
+        };
 
-        // Hold-to-lock: start timer (cancelled on keyup → tap cycles instead)
+        // Hold-to-lock: start timer — reverts cycle, then locks
         if (auth.hasPassword) {
           if (escLockTimerRef.current) clearTimeout(escLockTimerRef.current);
           escLockTimerRef.current = setTimeout(() => {
             escLockTimerRef.current = null;
-            escPendingCycleRef.current = false; // consumed by lock, don't cycle on keyup
+            // Revert the cycle that happened on keydown
+            const snap = escPreCycleRef.current;
+            if (snap) {
+              layout.setZenMode(snap.zenMode);
+              layout.setMinizen(snap.minizen);
+              layout.setShowSidebarInNarrow(snap.showSidebarInNarrow);
+              escDirectionRef.current = snap.direction;
+              escPreCycleRef.current = null;
+            }
             if (editorRef.current) {
               journal.saveEntry(editorRef.current.value || '', Date.now());
             }
             auth.lock();
           }, 500);
         }
+
+        // Cycle immediately (responsive tap)
+        // Narrow mode bounce cycle
+        if (layout.isNarrow) {
+          if (layout.showDebugMenu || layout.showAboutPanel) {
+            layout.closePanels();
+            layout.setZenMode(false);
+            layout.setShowSidebarInNarrow(true);
+            layout.setPreFocusState(null);
+            layout.setZenFromMinizen(false);
+            layout.setPreNarrowState(null);
+            escDirectionRef.current = 'up';
+            return;
+          }
+          if (layout.zenModeRef.current) {
+            layout.setZenMode(false);
+            layout.setShowSidebarInNarrow(false);
+            layout.setPreFocusState(null);
+            layout.setZenFromMinizen(false);
+            escDirectionRef.current = 'down';
+            return;
+          }
+          if (!layout.showSidebarInNarrow) {
+            if (escDirectionRef.current === 'down') {
+              layout.setShowSidebarInNarrow(true);
+              layout.setPreNarrowState(null);
+            } else {
+              layout.setZenMode(true);
+            }
+            return;
+          }
+          layout.setShowSidebarInNarrow(false);
+          escDirectionRef.current = 'up';
+          return;
+        }
+
+        // Wide mode bounce cycle
+        if (layout.showDebugMenu || layout.showAboutPanel) {
+          layout.closePanels();
+          layout.setZenMode(false);
+          layout.setMinizen(false);
+          layout.setPreFocusState(null);
+          layout.setZenFromMinizen(false);
+          escDirectionRef.current = 'up';
+          return;
+        }
+        if (layout.zenModeRef.current) {
+          layout.setZenMode(false);
+          layout.setMinizen(true);
+          layout.setPreFocusState(null);
+          layout.setZenFromMinizen(false);
+          escDirectionRef.current = 'down';
+          return;
+        }
+        if (layout.minizenRef.current) {
+          if (escDirectionRef.current === 'down') {
+            layout.setMinizen(false);
+          } else {
+            layout.setZenMode(true);
+          }
+          return;
+        }
+        layout.setMinizen(true);
+        escDirectionRef.current = 'up';
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [auth, journal, layout]);
-
-  // Keyup: if tap (timer didn't fire), cycle layout
-  useEffect(() => {
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (escLockTimerRef.current) {
-          clearTimeout(escLockTimerRef.current);
-          escLockTimerRef.current = null;
-        }
-        if (escPendingCycleRef.current) {
-          escPendingCycleRef.current = false;
-          escCycle();
-        }
-      }
-    };
-    window.addEventListener('keyup', handleKeyUp);
-    return () => window.removeEventListener('keyup', handleKeyUp);
-  }, [escCycle]);
 
   // Auto-focus editor when typing anywhere
   useEffect(() => {
