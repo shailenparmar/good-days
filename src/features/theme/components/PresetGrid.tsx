@@ -516,7 +516,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 borderRadius: '6px',
               }}
             >
-              {s('live')}
+              {s('pair')}
             </button>
           );
         })()}

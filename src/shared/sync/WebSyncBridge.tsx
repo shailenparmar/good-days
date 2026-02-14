@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
-import { streamingControlsRef } from './streamingControlsRef';
+import { setStreamingControls } from './streamingControlsRef';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
@@ -168,12 +168,12 @@ export function WebSyncBridge() {
     }
   }, [syncState.isStreaming]);
 
-  // Write streamingControls to module-level ref (not ThemeContext).
-  // Only ColorPicker reads this for indicator sizing. Using a ref
-  // avoids a full cascade of 15+ consumer re-renders on every
-  // stream-state message (beta join/leave, side switch).
+  // Write streamingControls to module-level store (not ThemeContext).
+  // Only ColorPicker subscribes via useStreamingControls(). Using a
+  // dedicated store avoids a full cascade of 15+ consumer re-renders
+  // on every stream-state message (beta join/leave, side switch).
   useEffect(() => {
-    streamingControlsRef.current = syncState.streamingControls;
+    setStreamingControls(syncState.streamingControls);
   }, [syncState.streamingControls]);
 
   // Clear isLiveActive when livePreset goes null (disconnect).
@@ -195,7 +195,7 @@ export function WebSyncBridge() {
       pendingColorsRef.current = null;
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
-      streamingControlsRef.current = null;
+      setStreamingControls(null);
     }
   }, [syncState.livePreset]);
 
