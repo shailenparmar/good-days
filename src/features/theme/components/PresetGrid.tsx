@@ -120,11 +120,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     }
   }, [showKeyboardHint, boldCount, animPhase]);
 
-  // During powerscramble, each keystroke randomizes the theme — select rand and pulse
+  // During powerscramble, each keystroke randomizes the theme — activate save button
   useEffect(() => {
     if (!superscramble || !scrambleSeed) return;
-    const randIndex = presets.length + customPresets.length + liveSlotCount;
-    setActivePresetIndex(randIndex);
+    const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
+    setActivePresetIndex(saveIndex);
     setIsLiveActive(false);
     setPulseKey(k => k + 1);
   }, [scrambleSeed]); // eslint-disable-line react-hooks/exhaustive-deps
