@@ -1,5 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Favicon: black border, green square, rounded -->
-  <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229" fill="#000000" />
-  <rect x="256" y="256" width="512" height="512" fill="#1FFF0F" />
+  <!-- Favicon: dark green border, light yellow square, rounded -->
+  <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229" fill="#043d00" />
+  <rect x="256" y="256" width="512" height="512" fill="#fff9d1" />
 </svg>

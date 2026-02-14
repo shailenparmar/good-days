@@ -28,8 +28,8 @@ export default defineConfig({
         name: 'good days',
         short_name: 'good days',
         description: 'A journaling app for good days',
-        background_color: '#000000',
-        theme_color: '#000000',
+        background_color: '#043d00',
+        theme_color: '#043d00',
         display: 'standalone',
         icons: [
           {
