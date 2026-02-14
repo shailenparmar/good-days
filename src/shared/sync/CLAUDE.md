@@ -101,8 +101,8 @@ Color updates from the phone follow a **direct callback** path instead of a Reac
 1. `ws.onmessage` → `onColorUpdate` callback buffers latest colors in `pendingColorsRef`
 2. `useWebSync` skips setState for ongoing color-updates (only updates on initial null→value transition)
 3. `requestAnimationFrame` callback reads buffered colors → sets CSS vars directly on `document.documentElement` → **zero React re-renders**
-4. On stream-stop: syncs final colors from `pendingColorsRef` to React state via `applyLivePreset`
-5. On disconnect: syncs final colors via individual setters (not `applyLivePreset` to avoid setting `livePreset` back to non-null)
+4. On stream-stop: syncs final colors from `pendingColorsRef` to React state via `applyLivePreset`, then **clears `pendingColorsRef`** (v2.4.95+)
+5. On disconnect: syncs final colors via individual setters (not `applyLivePreset` to avoid setting `livePreset` back to non-null) — skipped if `pendingColorsRef` is already null (user clicked a preset after streaming stopped)
 
 **CSS-only streaming (v2.4.85+):** The rAF callback sets CSS custom properties directly (`--h`, `--s`, `--l`, `--bh`, `--bs`, `--bl`) instead of calling `applyLivePreset`. This bypasses the entire React re-render cascade: `applyLivePreset` triggered 7 state changes → ThemeProvider re-render → unmemoized `value` object → ALL `useTheme()` consumers (30-50+ components) re-rendered every frame → overwhelmed the 16ms frame budget after ~500ms → complete freeze. With CSS-only streaming, the page visuals update via CSS vars (all inline styles use `hsl(var(--h), ...)` static strings), and React is not involved at all during streaming.
 
@@ -183,6 +183,16 @@ if (skipBridgeRef.current) {
 ```
 
 Code: `src/shared/sync/WebSyncBridge.tsx` (bridge effect, line ~65)
+
+### Stale pendingColorsRef on Disconnect Fix (v2.4.95)
+
+`pendingColorsRef` buffers the latest phone colors during CSS-only streaming. On stream-stop, the ref is flushed to React state via `applyLivePreset`. On disconnect (`livePreset` → null), the cleanup effect reads the ref to sync final colors.
+
+**The bug:** The stream-stop handler flushed `pendingColorsRef` but didn't clear it. If the user clicked a preset on the laptop after streaming stopped (changing React state but not the ref), then the phone disconnected (lock screen, swipe away), the disconnect effect read the stale ref and overwrote the preset with the phone's old colors.
+
+**The fix:** `pendingColorsRef.current = null` after `applyLivePreset` in the stream-stop handler. The disconnect effect checks `if (finalColors)` — null means no override, so the laptop keeps whatever the user selected.
+
+Code: `src/shared/sync/WebSyncBridge.tsx` (stream-stop effect, line ~183)
 
 ### Disconnect Grace Period (v2.1.0+, updated v2.4.15)
 
