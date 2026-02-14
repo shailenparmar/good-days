@@ -108,7 +108,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 | Preset | Text Color | Background Color | Description |
 |--------|------------|------------------|-------------|
 | **1** | hsl(141, 85%, 53%) green #21ed69 | hsl(250, 70%, 32%) deep purple #2c188b | Default for new users |
-| **2** | hsl(187, 100%, 12%) dark teal #00363d | hsl(52, 100%, 91%) light yellow #fff9d1 | — |
+| **2** | hsl(63, 100%, 12%) dark olive #3a3d00 | hsl(52, 100%, 91%) light yellow #fff9d1 | — |
 | **3** | hsl(360, 100%, 49%) red | hsl(360, 100%, 13%) dark red | — |
 | **4** | hsl(36, 58%, 38%) dark gold #996c29 | hsl(181, 52%, 10%) dark teal #0c2627 | — |
 | **5** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
