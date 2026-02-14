@@ -94,20 +94,15 @@ export default function MobileApp() {
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
 
-  // Throttled WS color update — configurable via ?fps=N (default 48)
-  const throttleMs = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fps = parseInt(params.get('fps') || '48', 10);
-    return Math.round(1000 / Math.max(1, Math.min(120, fps)));
-  }, []);
+  // Throttled WS color update (21ms = ~48fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
     if (!sync.isStreamingRef.current || sync.wsRef.current?.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
-    if (now - lastWsSendRef.current >= throttleMs) {
+    if (now - lastWsSendRef.current >= 21) {
       lastWsSendRef.current = now;
       sync.sendColorUpdate(next);
     }
-  }, [throttleMs]);
+  }, []);
 
   // Helper: send current stream-state to desktop (alpha/beta sides)
   const sendCurrentStreamState = useCallback(() => {
