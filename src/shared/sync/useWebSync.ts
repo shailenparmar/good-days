@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWsUrl } from './protocol';
 import type { ServerMessage, ClientMessage, ColorPayload } from './protocol';
-import { recordWsMessage } from './streamDebugStats';
 
 const DEVICE_ID_KEY = 'wsDeviceId2';
 const GRACE_MS = 200;
@@ -125,7 +124,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
             break;
 
           case 'color-update':
-            recordWsMessage(performance.now());
             setState(prev => prev.livePreset ? prev : { ...prev, livePreset: msg.colors });
             onColorUpdateRef.current?.(msg.colors);
             break;

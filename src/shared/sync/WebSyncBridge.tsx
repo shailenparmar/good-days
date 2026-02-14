@@ -3,8 +3,6 @@ import { useTheme } from '@features/theme';
 import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { setStreamingControls } from './streamingControlsRef';
-import { recordRafRender, setStreamActive } from './streamDebugStats';
-import { StreamDebugOverlay } from './StreamDebugOverlay';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
@@ -37,7 +35,6 @@ export function WebSyncBridge() {
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = 0;
-        recordRafRender();
         const c = pendingColorsRef.current;
         if (!c) return;
         const t = themeRef.current;
@@ -132,7 +129,6 @@ export function WebSyncBridge() {
     const wasStreaming = prevStreamingRef.current;
     prevStreamingRef.current = syncState.isStreaming;
     theme.setIsLiveStreaming(syncState.isStreaming);
-    setStreamActive(syncState.isStreaming);
 
     // Auto-select live on stream start (false → true) when paired
     if (!wasStreaming && syncState.isStreaming && syncState.livePreset) {
@@ -218,5 +214,5 @@ export function WebSyncBridge() {
     theme.setPairingCode(syncState.pairingCode);
   }, [syncState.pairingCode]);
 
-  return <StreamDebugOverlay />;
+  return null;
 }
