@@ -155,7 +155,7 @@ Inline `<script>` in `index.html` unregisters service workers and clears caches 
 
 ## App Icons
 
-Icons generated from `public/icon.svg`. See `docs/infrastructure.md` for icon files, design spec, and generation commands.
+Icons generated from `public/icon.svg`. Design: Preset 1 inverted — dark green outer (`#043d00`) with light yellow inner square (`#fff9d1`). See `docs/infrastructure.md` for icon files, design spec, and generation commands.
 
 ## Easter Eggs
 
