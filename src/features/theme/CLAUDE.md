@@ -107,15 +107,15 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 
 | Preset | Text Color | Background Color | Description |
 |--------|------------|------------------|-------------|
-| **1** | hsl(116, 100%, 12%) dark green #043d00 | hsl(52, 100%, 91%) light yellow #fff9d1 | Default for new users |
+| **1** | hsl(141, 85%, 53%) green #21ed69 | hsl(250, 70%, 32%) deep purple #2c188b | Default for new users |
 | **2** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
 | **3** | hsl(360, 100%, 49%) red | hsl(360, 100%, 13%) dark red | — |
 | **4** | hsl(36, 58%, 38%) dark gold #996c29 | hsl(181, 52%, 10%) dark teal #0c2627 | — |
-| **5** | hsl(141, 85%, 53%) green #21ed69 | hsl(250, 70%, 32%) deep purple #2c188b | — |
+| **5** | hsl(116, 100%, 12%) dark green #043d00 | hsl(52, 100%, 91%) light yellow #fff9d1 | — |
 
 ### New User Defaults
 
-New users see **Preset 1** (black on peach). Two places set this:
+New users see **Preset 1** (green on deep purple). Two places set this:
 
 1. **React defaults**: `ThemeContext.tsx` uses `DEFAULT_PRESETS[0]` for initial state
 2. **HTML fallbacks**: `index.html` has hardcoded values for pre-React page load (prevents flash)
@@ -124,7 +124,7 @@ When changing the default preset, update BOTH locations.
 
 ### Error Screen
 
-The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded DEFAULT_PRESET_1 colors:
+The error boundary (`src/shared/components/ErrorBoundary.tsx`) uses hardcoded colors (dark green on light yellow, the original preset 1 before v2.4.110 swap):
 - Text: `hsl(116, 100%, 12%)` - dark green
 - Background: `hsl(52, 100%, 91%)` - light yellow
 
