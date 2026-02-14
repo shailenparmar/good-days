@@ -701,26 +701,44 @@ import { FunctionButton } from '@shared/components';
 
 ### The Hover Flicker Problem
 
-**The problem:** When button text changes on hover to something that occupies fewer lines, the button height shrinks. If the cursor was near the bottom edge, it's now outside the button. This triggers mouse leave, which restores the original text, the button grows, the cursor is inside again, mouse enter fires — infinite flicker loop.
+**The problem:** When button text changes on hover, the button resizes. If it shrinks, the cursor may land outside the new boundary, triggering mouseLeave, which reverts the text, the button grows, cursor is inside again — infinite flicker. If it grows, the hover tracking zone (anchored to the old size) may falsely detect an exit when the cursor moves into the expanded area.
 
 **Key insight:** This is a LINE COUNT problem, not a character count problem. The same text might fit on one line when the app is wide, but wrap to two lines when narrow.
 
 **Pattern name:** We call this **"stable hover"** — the hover hitbox stays stable while the button can visually change.
 
-#### Solution: Coordinate-Based Stable Hover (Button Visually Shrinks)
+#### Stable Hover Formalization (v2.4.100+)
+
+**Frame 1** = default state (no hover). **Frame 2** = hover state.
+
+**Core rule:** On hover enter, the exit hitbox expands to `max(Frame 1 rect, current container rect)`. On hover exit, the hitbox returns to Frame 1's natural size. The visual button always matches its current content — only the invisible exit zone is enlarged.
+
+**Why not always max?** If the hitbox were permanently max, and Frame 2 is larger than Frame 1, there would be an invisible hover zone extending beyond the visible idle button — hovering over nothing would activate the button. The expansion is a one-directional safety net that only activates once you're already interacting.
+
+**State machine:**
+```
+IDLE
+  hitbox = Frame 1 natural size (what you see is what you hit)
+  ↓ mouseenter (must reach the real visible button)
+
+HOVERED
+  visual = Frame 2 (natural size, may be bigger or smaller)
+  hitbox = max(Frame 1 rect, current container rect)
+  ↓ mouseleave/mousemove outside hitbox, OR window resize
+
+IDLE
+  hitbox = Frame 1 natural size (reset)
+```
+
+**Handles both directions:**
+- **Frame 2 smaller** (button shrinks): Entry rect is larger → cursor stays in safe zone → no flicker
+- **Frame 2 larger** (button grows): Current rect is larger → cursor can roam expanded area → no false exit
+
+#### Solution: Coordinate-Based Stable Hover
 
 Use the `useStableHover` hook from `@shared/hooks`.
 
-Use when you want the button to visually shrink but need the hover state to stay stable. Pure coordinate math — no overlay div, no scroll blocking.
-
-```
-How it works:
-1. Mouse enters → capture bounding rect → set hovered
-2. Button shrinks → mouseLeave fires
-3. Check: is cursor still in captured rect?
-   ├─ Yes: stay hovered (global mousemove monitors for real exit)
-   └─ No: unhover
-```
+Use when button content changes on hover and you want the hover state to stay stable regardless of whether the button grows or shrinks. Pure coordinate math — no overlay div, no scroll blocking.
 
 ```tsx
 import { useStableHover } from '@shared/hooks';
@@ -730,16 +748,17 @@ const { hovered, containerProps } = useStableHover();
 // In JSX:
 <div {...containerProps}>
   <FunctionButton>
-    {hovered ? 'short text' : 'longer text that might wrap'}
+    {hovered ? 'hover text' : 'default text'}
   </FunctionButton>
 </div>
 ```
 
 **How it works:**
-- On enter: captures bounding rect before any state change
-- On leave: checks if cursor is still inside captured rect — if so, stays hovered
-- Global mousemove listener (only while hovered) detects true exit from original rect
-- No overlay div blocking scroll events
+- On enter: captures bounding rect (Frame 1) before any state change
+- `getExitRect()`: computes `max(entry rect, live container rect)` — the exit zone
+- On leave: checks cursor against exit zone — if inside, stays hovered
+- Global mousemove listener (only while hovered) detects true exit from exit zone
+- Window resize while hovered: clean unhover + rect reset (positions are stale)
 - Button freely shrinks/grows based on content
 - **Border buffer**: `isInsideRect` adds a 3px buffer to the rect check, matching the FunctionButton `3px solid` border. Without this, cursor positions at the exact border edge oscillate in/out, causing flicker in a narrow strip around the button.
 
@@ -783,8 +802,7 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx` (color stat
 
 | Scenario | Solution |
 |----------|----------|
-| Button text changes, want visual shrink | Absolute Hover Layer |
+| Button text changes on hover (any direction) | Stable Hover (`useStableHover`) |
 | Swapping between different UIs, want consistent size | Grid Overlay |
-| Same button, different text lengths | Absolute Hover Layer |
 | Copy/paste buttons replacing stats display | Grid Overlay |
 

@@ -3,13 +3,26 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 /**
  * useStableHover - Prevents hover flicker when button content changes size
  *
- * Problem: When button text changes on hover to something shorter, the button shrinks.
- * If cursor was near an edge that moved, it's now outside, triggering mouseLeave,
- * which reverts the text, button grows, cursor inside again — infinite flicker.
+ * Problem: When button text changes on hover, the button resizes. If it shrinks,
+ * the cursor may land outside the new boundary, triggering mouseLeave, which
+ * reverts the text, button grows, cursor inside again — infinite flicker.
+ * If it grows, the mousemove listener (tracking the old rect) may falsely
+ * detect an exit when the cursor moves into the expanded area.
  *
- * Solution: On mouseEnter, capture the bounding rect. On mouseLeave, check if the
- * cursor is still within the captured rect — if so, stay hovered. A global mousemove
- * listener detects when the cursor truly exits the original rect.
+ * Solution: On mouseEnter, capture the entry rect (Frame 1). All exit checks
+ * compare the cursor against max(entry rect, current container rect) — the
+ * largest zone the button has ever occupied. This handles both directions:
+ * shrink (entry rect is larger, prevents premature exit) and grow (current
+ * rect is larger, allows cursor to roam the expanded area).
+ *
+ * On exit, everything resets. The entry hitbox returns to Frame 1's natural size.
+ *
+ * State machine:
+ *   IDLE:    hitbox = natural Frame 1 size
+ *            mouseenter → capture Frame 1 rect → HOVERED
+ *   HOVERED: hitbox = max(Frame 1 rect, current container rect)
+ *            mouseleave/mousemove outside hitbox → clear rects → IDLE
+ *            window resize → clear rects → IDLE
  *
  * No overlay div needed. No scroll blocking. Pure coordinate math.
  *
@@ -35,18 +48,36 @@ export function useStableHover() {
     return x >= rect.left - buffer && x <= rect.right + buffer && y >= rect.top - buffer && y <= rect.bottom + buffer;
   };
 
+  // Exit zone: max(entry rect, current container rect).
+  // Handles both directions — if button shrank, entry rect is larger;
+  // if button grew, current rect is larger. Cursor must exit the larger
+  // of the two to trigger unhover.
+  const getExitRect = () => {
+    if (!lockedRect.current) return null;
+    if (!containerRef.current) return lockedRect.current;
+    const live = containerRef.current.getBoundingClientRect();
+    const f1 = lockedRect.current;
+    return new DOMRect(
+      Math.min(f1.left, live.left),
+      Math.min(f1.top, live.top),
+      Math.max(f1.right, live.right) - Math.min(f1.left, live.left),
+      Math.max(f1.bottom, live.bottom) - Math.min(f1.top, live.top),
+    );
+  };
+
   const onMouseEnter = useCallback(() => {
     if (containerRef.current) {
-      // Capture the rect BEFORE any state change causes shrinking
+      // Capture the rect BEFORE any state change causes resizing
       lockedRect.current = containerRef.current.getBoundingClientRect();
     }
     setHovered(true);
   }, []);
 
   const onMouseLeave = useCallback((e: React.MouseEvent) => {
-    // If we have a locked rect, check if cursor is still inside it
-    // (button may have shrunk but cursor is still in original area)
-    if (lockedRect.current && isInsideRect(e.clientX, e.clientY, lockedRect.current)) {
+    // Check if cursor is still inside the exit zone
+    // (button may have resized but cursor is still in the safe area)
+    const exitRect = getExitRect();
+    if (exitRect && isInsideRect(e.clientX, e.clientY, exitRect)) {
       // Stay hovered — global mousemove will handle actual exit
       return;
     }
@@ -54,13 +85,13 @@ export function useStableHover() {
     setHovered(false);
   }, []);
 
-  // Global mousemove to detect when cursor truly exits the locked rect
+  // Global mousemove to detect when cursor truly exits the exit zone
   useEffect(() => {
     if (!hovered || !lockedRect.current) return;
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!lockedRect.current) return;
-      if (!isInsideRect(e.clientX, e.clientY, lockedRect.current)) {
+      const exitRect = getExitRect();
+      if (!exitRect || !isInsideRect(e.clientX, e.clientY, exitRect)) {
         lockedRect.current = null;
         setHovered(false);
       }
@@ -68,6 +99,17 @@ export function useStableHover() {
 
     document.addEventListener('mousemove', onMouseMove);
     return () => document.removeEventListener('mousemove', onMouseMove);
+  }, [hovered]);
+
+  // Window resize invalidates captured rects — clean exit
+  useEffect(() => {
+    if (!hovered) return;
+    const onResize = () => {
+      lockedRect.current = null;
+      setHovered(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, [hovered]);
 
   const containerProps = {
