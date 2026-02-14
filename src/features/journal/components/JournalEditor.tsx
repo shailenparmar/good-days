@@ -219,15 +219,16 @@ export function JournalEditor({
       commandFired = true;
     }
 
-    // \txt, \text, \bg, \background, \# — change theme colors and vanish (loop for multiple)
-    const colorRegex = /\\(text|txt|background|bg)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
+    // \t, \txt, \text, \b, \bg, \background, \# — change theme colors and vanish (loop for multiple)
+    const colorRegex = /\\(text|txt|t|background|bg|b)?:?\s*#([0-9a-f]{6})(?:\s+h(\d+)\s+s(\d+)\s+l(\d+))?/i;
     let colorMatch = newValue.match(colorRegex);
     if (colorMatch) {
       // Snapshot current colors for undo + pulse save button
       prePickerSnapshotRef.current = { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness };
       incrementColorPickerDragCount();
       while (colorMatch) {
-        const type = (colorMatch[1] || 'bg').toLowerCase().replace('text', 'txt').replace('background', 'bg');
+        const raw = (colorMatch[1] || 'bg').toLowerCase();
+        const type = raw === 'text' || raw === 'txt' || raw === 't' ? 'txt' : 'bg';
         let h: number, s: number, l: number;
 
         if (colorMatch[3] !== undefined) {
