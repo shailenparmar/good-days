@@ -162,24 +162,25 @@ function normalizeForComparison(text: string): string {
 4. Build import block: `--- ${normalizedTitle} ${normalizedContent}`
 5. Skip if: empty import, exact match (content + title), or import block found in existing. Otherwise → append.
 
-### Preset Backup & Restore (v2.4.96+, simplified v2.4.108)
+### Preset Backup & Restore (v2.4.96+, simplified v2.4.108, fixed v2.4.119)
 
-Backups include color presets. Default presets are factory (not modifiable) so only custom presets matter for import.
+Backups include color presets. Both default and custom presets are merged on import.
 
 **Format:** `BackupV2` adds optional `presets` and `customPresets` fields (both `ColorPreset[]`). Version bumped from 1 to 2.
 
-**Export:** `formatEntriesAsJson` includes both default and custom presets in the backup JSON (for backward compat).
+**Export:** `formatEntriesAsJson` includes both default and custom presets in the backup JSON.
 
 **Import behavior:**
-- **Default presets (`backup.presets`)**: ignored on import. Defaults are factory and cannot be modified, so there's nothing to restore.
-- **Custom presets (`backup.customPresets`)**: **merged**. Existing custom presets are kept; new unique ones from the backup are appended. Deduplication compares all 6 HSL values via `presetsEqual()`.
+- **Default presets (`backup.presets`)**: **merged** (v2.4.119+). Existing kept; missing ones from backup added back. Users can delete default presets, so they must be restorable from backup.
+- **Custom presets (`backup.customPresets`)**: **merged**. Existing custom presets are kept; new unique ones from the backup are appended.
+- Both use `presetsEqual()` for deduplication (compares all 6 HSL values).
 - v1 backups: no preset change (backward compatible).
-- Multi-file import: custom presets are threaded through the processing loop (like entries) so each file merges against the accumulated result, not the stale closure value.
-- `" + presets"` feedback only shows when custom presets actually changed. Empty or identical backup presets don't trigger it.
+- Multi-file import: both preset arrays are threaded through the processing loop (like entries) so each file merges against the accumulated result, not the stale closure value.
+- `" + presets"` feedback only shows when presets actually changed. Empty or identical backup presets don't trigger it.
 
 **Types:** `parseBackupJson` returns a `ParsedBackup` object (`{ entries, presets, customPresets }`) instead of bare `JournalEntry[]`. Presets are `ColorPreset[] | null` — null for v1 backups.
 
-**Threading pattern:** `processBackupContent` accepts `currentCustomPresets` as a param and returns the new value (no side effects). Callers thread it through and call `setCustomPresets` once at the end. Same pattern as `currentEntries` for entry merging.
+**Threading pattern:** `processBackupContent` accepts `currentPresets` and `currentCustomPresets` as params and returns the new values (no side effects). Callers thread both through and call `setPresets`/`setCustomPresets` once at the end. Same pattern as `currentEntries` for entry merging.
 
 Code locations:
 - `BackupV2` type: `src/features/export/utils/formatEntries.ts`
