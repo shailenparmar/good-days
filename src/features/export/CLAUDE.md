@@ -171,18 +171,20 @@ Backups include color presets so they round-trip through export/import. Both the
 **Export:** `formatEntriesAsJson` receives presets from `useTheme()` and writes them into the backup JSON.
 
 **Import behavior:**
-- **Default presets (`presets`)**: replaced on import (positional 5-slot array).
-- **Custom presets (`customPresets`)**: **merged** (v2.4.104+). Existing custom presets are kept; new unique ones from the backup are appended. Deduplication compares all 6 HSL values (`hue`, `sat`, `light`, `bgHue`, `bgSat`, `bgLight`).
+- **Default presets (`presets`)**: replaced on import (positional 5-slot array). Before replacing, any current defaults that don't exist in the incoming backup (defaults + customs) are auto-saved as custom presets so user modifications are never silently lost (v2.4.105+).
+- **Custom presets (`customPresets`)**: **merged** (v2.4.104+). Existing custom presets are kept; new unique ones from the backup are appended. Deduplication compares all 6 HSL values (`hue`, `sat`, `light`, `bgHue`, `bgSat`, `bgLight`) via `presetsEqual()`.
 - v1 backups: no preset change (backward compatible).
-- Multi-file import: each file's presets merge into the running state.
-- Success message appends `" + presets"` when presets were restored.
+- Multi-file import: presets are threaded through the processing loop (like entries) so each file merges against the accumulated result (v2.4.105+). Previously used stale closure value, causing data loss.
+- `" + presets"` feedback only shows when presets actually changed (v2.4.105+). Empty or identical backup presets don't trigger it.
 
 **Types:** `parseBackupJson` returns a `ParsedBackup` object (`{ entries, presets, customPresets }`) instead of bare `JournalEntry[]`. Presets are `ColorPreset[] | null` — null for v1 backups.
+
+**Threading pattern:** `processBackupContent` accepts `currentPresets` and `currentCustomPresets` as params and returns the new values (no side effects). Callers thread them through and call `setPresets`/`setCustomPresets` once at the end. This mirrors how `currentEntries` is threaded for entry merging.
 
 Code locations:
 - `BackupV2` type: `src/features/export/utils/formatEntries.ts`
 - `ParsedBackup` type + extraction: `src/features/export/utils/parseBackup.ts`
-- Wiring (export/import): `src/features/export/components/ExportButtons.tsx`
+- Wiring (export/import) + `presetsEqual()`: `src/features/export/components/ExportButtons.tsx`
 
 ### Key Behaviors
 
