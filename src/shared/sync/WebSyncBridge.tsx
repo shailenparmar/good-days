@@ -180,6 +180,7 @@ export function WebSyncBridge() {
           hue: finalColors.hue, sat: finalColors.sat, light: finalColors.light,
           bgHue: finalColors.bgHue, bgSat: finalColors.bgSat, bgLight: finalColors.bgLight,
         });
+        pendingColorsRef.current = null;
       }
       const liveSlotCount = theme.livePreset ? 1 : 0;
       const saveIndex = theme.presets.length + theme.customPresets.length + liveSlotCount + 1;
