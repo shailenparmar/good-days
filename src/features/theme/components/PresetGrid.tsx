@@ -492,11 +492,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 e.preventDefault();
                 e.stopPropagation();
                 setPresetClickCount(c => c + 1);
-                if (isLiveActive) {
+                if (isActive) {
                   // Already active — restart pulse animation
                   setPulseKey(k => k + 1);
                 } else {
-                  // Switch to live — don't increment shared pulseKey to avoid
+                  // Switch to pair — don't increment shared pulseKey to avoid
                   // remounting the previously-active button (visual border snap)
                   applyPreset(livePreset);
                   setSelectedPreset(null);
