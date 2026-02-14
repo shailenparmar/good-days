@@ -256,6 +256,10 @@ When the phone starts streaming colors (user touches color picker), the desktop 
 
 Code location: `src/features/theme/components/PresetGrid.tsx`
 
+#### Live Button Real-Time Colors (v2.4.117+)
+
+The `[live]` button uses CSS vars (`hsl(var(--h), var(--s), var(--l))`) for its colors when `isLiveActive` is true. During CSS-only streaming, `livePreset` React state is stale (not updated per-frame), so reading from it would show the colors from pairing or the last stream-stop. CSS vars are updated every frame by `WebSyncBridge`'s rAF callback, so the button shows real-time phone colors with zero additional React renders (the CSS var string is static from React's perspective). When `isLiveActive` is false (paired but user clicked a different preset), the button falls back to `livePreset` state for its static swatch colors.
+
 #### Keyboard Hint Text
 
 When the hint appears (after clicking presets a few times), it shows:
