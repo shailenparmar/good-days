@@ -17,6 +17,14 @@ export function WebSyncBridge() {
   const pendingColorsRef = useRef<ColorPayload | null>(null);
   const rafIdRef = useRef(0);
 
+  // DIAGNOSTIC — remove after fps testing
+  const diagElRef = useRef<HTMLDivElement>(null);
+  const diagMsgCountRef = useRef(0);
+  const diagFrameCountRef = useRef(0);
+  const diagFrameGapsRef = useRef<number[]>([]);
+  const diagLastFrameRef = useRef(0);
+  const diagTransitionMsRef = useRef(0);
+
   const currentColorway: ColorPayload = {
     hue: theme.hue,
     sat: theme.saturation,
@@ -32,12 +40,21 @@ export function WebSyncBridge() {
   // within one frame coalesce into a single render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
     pendingColorsRef.current = colors;
+    diagMsgCountRef.current++;
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = 0;
         const c = pendingColorsRef.current;
         if (!c) return;
         const t = themeRef.current;
+
+        // DIAGNOSTIC — track frame timing
+        const now = performance.now();
+        if (diagLastFrameRef.current > 0) {
+          diagFrameGapsRef.current.push(now - diagLastFrameRef.current);
+        }
+        diagLastFrameRef.current = now;
+        diagFrameCountRef.current++;
 
         // Skip color apply during local desktop drag to prevent flicker
         if (t.localDragRef.current) {
@@ -133,6 +150,7 @@ export function WebSyncBridge() {
 
     // Auto-select live on stream start (false → true) when paired
     if (!wasStreaming && syncState.isStreaming && syncState.livePreset) {
+      const t0 = performance.now();
       // Snapshot colors before phone takes over (for undo on stream stop)
       theme.prePickerSnapshotRef.current = {
         hue: theme.hue, sat: theme.saturation, light: theme.lightness,
@@ -143,6 +161,8 @@ export function WebSyncBridge() {
       theme.setSelectedPreset(null);
       theme.setSelectedCustomPreset(null);
       theme.setActivePresetIndex(liveIndex);
+      // DIAGNOSTIC — measure total cascade time (setState → next frame)
+      requestAnimationFrame(() => { diagTransitionMsRef.current = performance.now() - t0; });
     }
 
     // Stream stop (true → false): sync final CSS-only colors to React state,
@@ -152,6 +172,7 @@ export function WebSyncBridge() {
     // bails out on the duplicate setState — eliminating a second full
     // cascade render of all 15+ useTheme() consumers.
     if (wasStreaming && !syncState.isStreaming) {
+      const t0 = performance.now();
       const finalColors = pendingColorsRef.current;
       if (finalColors) {
         skipBridgeRef.current = true;
@@ -164,6 +185,8 @@ export function WebSyncBridge() {
       const saveIndex = theme.presets.length + theme.customPresets.length + liveSlotCount + 1;
       theme.setActivePresetIndex(saveIndex);
       theme.incrementColorPickerDragCount();
+      // DIAGNOSTIC — measure total cascade time (setState → next frame)
+      requestAnimationFrame(() => { diagTransitionMsRef.current = performance.now() - t0; });
     }
   }, [syncState.isStreaming]);
 
@@ -214,5 +237,49 @@ export function WebSyncBridge() {
     theme.setPairingCode(syncState.pairingCode);
   }, [syncState.pairingCode]);
 
-  return null;
+  // DIAGNOSTIC — update overlay every 500ms (all-ref, zero React re-renders)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const el = diagElRef.current;
+      if (!el) return;
+      const msgs = diagMsgCountRef.current;
+      const frames = diagFrameCountRef.current;
+      const gaps = diagFrameGapsRef.current.slice();
+      diagMsgCountRef.current = 0;
+      diagFrameCountRef.current = 0;
+      diagFrameGapsRef.current = [];
+      if (msgs === 0 && frames === 0) {
+        el.style.display = 'none';
+        diagLastFrameRef.current = 0;
+        return;
+      }
+      el.style.display = 'block';
+      const msgRate = msgs * 2;
+      const frameRate = frames * 2;
+      const avgGap = gaps.length ? gaps.reduce((a, b) => a + b) / gaps.length : 0;
+      const maxGap = gaps.length ? Math.max(...gaps) : 0;
+      const transition = diagTransitionMsRef.current;
+      el.textContent = [
+        `ws: ${msgRate}/s  frames: ${frameRate}/s`,
+        `gap: ${avgGap.toFixed(1)}ms avg  ${maxGap.toFixed(1)}ms max`,
+        transition > 0 ? `transition: ${transition.toFixed(0)}ms` : null,
+      ].filter(Boolean).join('\n');
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // DIAGNOSTIC overlay — hidden by default, shown during streaming
+  return (
+    <div
+      ref={diagElRef}
+      style={{
+        display: 'none',
+        position: 'fixed', bottom: 8, right: 8, zIndex: 99999,
+        background: 'rgba(0,0,0,0.85)', color: '#00ff00',
+        fontFamily: 'monospace', fontSize: 11, lineHeight: '15px',
+        padding: '4px 8px', borderRadius: 4,
+        whiteSpace: 'pre', pointerEvents: 'none',
+      }}
+    />
+  );
 }
