@@ -146,7 +146,7 @@ export function useLayoutState() {
 
   // Title hover detection via coordinates (document-level to bypass z-50 overlay).
   // Tracks max height to prevent flicker: hover toggles content between 1-line
-  // ("good days") and 2-line (version + live code). The hover zone uses fresh
+  // ("good days") and 2-line (version + pairing code). The hover zone uses fresh
   // position from the live rect but extends to the tallest height ever seen,
   // so it never shrinks when content changes. Reset on resize.
   useEffect(() => {

@@ -32,7 +32,7 @@ export default function MobileApp() {
   const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
   const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Bold sweep placeholder for code input ("live code")
+  // Bold sweep placeholder for code input ("pairing code")
   const [codeBoldCount, setCodeBoldCount] = useState(0);
   const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
   const codePlaceholder = 'pairing code';

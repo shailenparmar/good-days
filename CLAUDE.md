@@ -97,17 +97,17 @@ The **info box** replaces the title text on hover. When the about panel is open,
 
 ```
 v2.4.48
-live code 042
+pairing code 042
 ```
 
 - **Top line:** Version number (`v${VERSION}`)
-- **Bottom line:** Live code — the 3-digit pairing code for phone-to-desktop sync
+- **Bottom line:** Pairing code — the 3-digit code for phone-to-desktop sync
 
 Without hover, the title shows "good days" as usual. Logic: `showAboutPanel ? !titleHovered : titleHovered`. Works in both normal and superscramble modes.
 
-### Live Code
+### Pairing Code
 
-The **live code** is a 3-digit number (000–999) used for phone-to-desktop pairing when devices aren't on the same wifi. Derived from the browser's `deviceId` (a UUID persisted in localStorage as `wsDeviceId2`).
+The **pairing code** (formerly "live code", renamed v2.4.96) is a 3-digit number (000–999) used for phone-to-desktop pairing when devices aren't on the same wifi. Derived from the browser's `deviceId` (a UUID persisted in localStorage as `wsDeviceId2`).
 
 **Formula:** `parseInt(deviceId.slice(0,6), 16) % 1000`, zero-padded to 3 digits. Server handles collisions by incrementing until an open slot is found.
 
@@ -117,13 +117,13 @@ The **live code** is a 3-digit number (000–999) used for phone-to-desktop pair
 - Different browser/device = different code (new UUID)
 - Never cleared during the session — persists across pair/unpair cycles
 
-**Device ID rotation (v2.4.48):** Key changed from `wsDeviceId` → `wsDeviceId2` to rotate all users to fresh live codes.
+**Device ID rotation (v2.4.48):** Key changed from `wsDeviceId` → `wsDeviceId2` to rotate all users to fresh pairing codes.
 
 ### Title Hover Detection
 
 Uses coordinate-based hover detection (`mousemove` + `mouseover` + `getBoundingClientRect`) via a ref on the title div. This bypasses the z-50 overlay that sits on top for minizen click handling — hover and click are fully independent. No `onMouseEnter`/`onMouseLeave` (those would be blocked by the overlay). The `mouseover` listener (v2.3.3+) helps show the version immediately after page refresh when the cursor is already over the title — `mouseover` fires when new content renders under a stationary cursor, while `mousemove` only fires on actual movement.
 
-**Anti-flicker: max-height approach (v2.4.68+).** Hovering toggles content between 1-line ("good days") and 2-line (version + live code), changing the div height. A `titleMaxHeight` ref tracks the tallest height the div has ever been. The hover zone uses fresh `left/right/top` from the live rect but extends the bottom to `rect.top + maxHeight`. Since maxHeight only grows (via `Math.max`), the hover zone never shrinks when content toggles — breaking the feedback loop that causes flicker. Reset on window resize.
+**Anti-flicker: max-height approach (v2.4.68+).** Hovering toggles content between 1-line ("good days") and 2-line (version + pairing code), changing the div height. A `titleMaxHeight` ref tracks the tallest height the div has ever been. The hover zone uses fresh `left/right/top` from the live rect but extends the bottom to `rect.top + maxHeight`. Since maxHeight only grows (via `Math.max`), the hover zone never shrinks when content toggles — breaking the feedback loop that causes flicker. Reset on window resize.
 
 ## Pre-push Hook
 

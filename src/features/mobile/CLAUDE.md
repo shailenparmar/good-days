@@ -133,8 +133,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │          good days             │  ← title (same as all screens)
 │                                │
 │       ┌─────────────┐         │
-│       │  live code   │         │  ← standard button, 3-digit input
-│       └─────────────┘         │     bold sweep "live code" placeholder
+│       │ pairing code │         │  ← standard button, 3-digit input
+│       └─────────────┘         │     bold sweep "pairing code" placeholder
 │                                │
 │       ───────────────         │  ← 2px divider (24px group gap)
 │                                │
@@ -146,7 +146,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 The candidates picker ("which one is yours?") was removed in v2.4.27. All ambiguous cases (2+ laptops or 0 on same IP) now show the code entry screen. Auto-pair (1 laptop) still happens without any screen.
 
-**Bold sweep placeholder (v2.4.39+, updated v2.4.44+):** When the code input is empty, an overlay shows "live code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "live" and "code" at span boundaries during the sweep. Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
+**Bold sweep placeholder (v2.4.39+, updated v2.4.96):** When the code input is empty, an overlay shows "pairing code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "pairing" and "code" at span boundaries during the sweep. Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
 
 **False red flash fix (v2.4.39+):** `pairingStateRef` in `useMobileSync.ts` is reset to `'standalone'` on every new WS connection (`onopen`). Previously, reconnecting while already in `enter-code` state caused the relay's initial `enter-code` message to be misinterpreted as a code rejection, triggering the triple red flash on open.
 
