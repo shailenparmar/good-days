@@ -84,7 +84,22 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         presetsRestored = true;
       }
       if (backup.customPresets) {
-        setCustomPresets(backup.customPresets);
+        // Merge: keep existing custom presets, add new unique ones from backup
+        const merged = [...customPresets];
+        for (const imported of backup.customPresets) {
+          const isDuplicate = merged.some(existing =>
+            existing.hue === imported.hue &&
+            existing.sat === imported.sat &&
+            existing.light === imported.light &&
+            existing.bgHue === imported.bgHue &&
+            existing.bgSat === imported.bgSat &&
+            existing.bgLight === imported.bgLight
+          );
+          if (!isDuplicate) {
+            merged.push(imported);
+          }
+        }
+        setCustomPresets(merged);
         presetsRestored = true;
       }
 
