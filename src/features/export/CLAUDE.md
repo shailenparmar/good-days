@@ -171,9 +171,10 @@ Backups include color presets so they round-trip through export/import. Both the
 **Export:** `formatEntriesAsJson` receives presets from `useTheme()` and writes them into the backup JSON.
 
 **Import behavior:**
-- v2+ backups with presets: **replace** current presets (not merged). Matches the "restore" mental model.
+- **Default presets (`presets`)**: replaced on import (positional 5-slot array).
+- **Custom presets (`customPresets`)**: **merged** (v2.4.104+). Existing custom presets are kept; new unique ones from the backup are appended. Deduplication compares all 6 HSL values (`hue`, `sat`, `light`, `bgHue`, `bgSat`, `bgLight`).
 - v1 backups: no preset change (backward compatible).
-- Multi-file import: last backup's presets win.
+- Multi-file import: each file's presets merge into the running state.
 - Success message appends `" + presets"` when presets were restored.
 
 **Types:** `parseBackupJson` returns a `ParsedBackup` object (`{ entries, presets, customPresets }`) instead of bare `JournalEntry[]`. Presets are `ColorPreset[] | null` — null for v1 backups.
