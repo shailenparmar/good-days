@@ -143,15 +143,16 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleHotkey);
   }, [layout.scrambleHotkeyActive]);
 
-  // ESC key behavior — bounce cycle in wide mode: base ↔ mz ↔ zen
-  // Must visit all 3 layouts (base → mz → zen) before ESC can lock.
-  const escVisitedZenRef = useRef(false);
+  // ESC key behavior — infinite bounce cycle: base ↔ mz ↔ zen ↔ mz ↔ base ↔ ...
+  // Tap ESC = cycle layouts. Hold ESC (~500ms) = lock (if password exists).
+  const escDirectionRef = useRef<'up' | 'down'>('up');
+  const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset cycle on any non-ESC interaction (typing, clicking, resizing)
+  // Reset direction on any non-ESC interaction
   useEffect(() => {
     const resetCycle = (e: Event) => {
       if (e instanceof KeyboardEvent && e.key === 'Escape') return;
-      escVisitedZenRef.current = false;
+      escDirectionRef.current = 'up';
     };
     window.addEventListener('keydown', resetCycle);
     window.addEventListener('mousedown', resetCycle);
@@ -163,10 +164,23 @@ function AppContent() {
     };
   }, []);
 
+  // Clear lock timer on ESC keyup
+  useEffect(() => {
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && escLockTimerRef.current) {
+        clearTimeout(escLockTimerRef.current);
+        escLockTimerRef.current = null;
+      }
+    };
+    window.addEventListener('keyup', handleKeyUp);
+    return () => window.removeEventListener('keyup', handleKeyUp);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !auth.isLocked) {
         if (e.defaultPrevented) return;
+        if (e.repeat) return; // Ignore held-key repeats
 
         // Scramble check (unchanged)
         if (layout.isScrambled) {
@@ -179,10 +193,21 @@ function AppContent() {
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        // Narrow mode bounce cycle — same principle as wide mode
-        // Mapping: sidebar visible = base, default (no sidebar) = minizen, zen = zen
+        // Hold-to-lock: start timer (cleared on keyup)
+        if (auth.hasPassword) {
+          if (escLockTimerRef.current) clearTimeout(escLockTimerRef.current);
+          escLockTimerRef.current = setTimeout(() => {
+            escLockTimerRef.current = null;
+            if (editorRef.current) {
+              journal.saveEntry(editorRef.current.value || '', Date.now());
+            }
+            auth.lock();
+          }, 500);
+        }
+
+        // Narrow mode bounce cycle
         if (layout.isNarrow) {
-          // Panels → close panels, show sidebar (base), reset cycle
+          // Panels → close panels, show sidebar (base), reset direction
           if (layout.showDebugMenu || layout.showAboutPanel) {
             layout.closePanels();
             layout.setZenMode(false);
@@ -190,23 +215,23 @@ function AppContent() {
             layout.setPreFocusState(null);
             layout.setZenFromMinizen(false);
             layout.setPreNarrowState(null);
-            escVisitedZenRef.current = false;
+            escDirectionRef.current = 'up';
             return;
           }
 
-          // Zen → default (no sidebar), mark visited
+          // Zen → default (no sidebar), start coming down
           if (layout.zenModeRef.current) {
             layout.setZenMode(false);
             layout.setShowSidebarInNarrow(false);
             layout.setPreFocusState(null);
             layout.setZenFromMinizen(false);
-            escVisitedZenRef.current = true;
+            escDirectionRef.current = 'down';
             return;
           }
 
           // Default (no sidebar) = narrow's "minizen"
           if (!layout.showSidebarInNarrow) {
-            if (escVisitedZenRef.current) {
+            if (escDirectionRef.current === 'down') {
               layout.setShowSidebarInNarrow(true); // → sidebar (coming down)
               layout.setPreNarrowState(null);
             } else {
@@ -215,31 +240,20 @@ function AppContent() {
             return;
           }
 
-          // Sidebar visible = narrow's "base" — lock or restart
-          if (escVisitedZenRef.current) {
-            if (auth.hasPassword) {
-              if (editorRef.current) {
-                journal.saveEntry(editorRef.current.value || '', Date.now());
-              }
-              auth.lock();
-            } else {
-              layout.setShowSidebarInNarrow(false);
-              escVisitedZenRef.current = false; // restart cycle
-            }
-          } else {
-            layout.setShowSidebarInNarrow(false); // → default (go up first)
-          }
+          // Sidebar visible = narrow's "base" — restart cycle
+          layout.setShowSidebarInNarrow(false);
+          escDirectionRef.current = 'up';
           return;
         }
 
-        // Wide mode bounce cycle — must see all 3 layouts before lock
+        // Wide mode bounce cycle
         if (layout.showDebugMenu || layout.showAboutPanel) {
           layout.closePanels();
           layout.setZenMode(false);
           layout.setMinizen(false);
           layout.setPreFocusState(null);
           layout.setZenFromMinizen(false);
-          escVisitedZenRef.current = false;
+          escDirectionRef.current = 'up';
           return;
         }
 
@@ -248,33 +262,22 @@ function AppContent() {
           layout.setMinizen(true);
           layout.setPreFocusState(null);
           layout.setZenFromMinizen(false);
-          escVisitedZenRef.current = true;
+          escDirectionRef.current = 'down';
           return;
         }
 
         if (layout.minizenRef.current) {
-          if (escVisitedZenRef.current) {
-            layout.setMinizen(false); // → base (coming down from zen)
+          if (escDirectionRef.current === 'down') {
+            layout.setMinizen(false); // → base (coming down)
           } else {
             layout.setZenMode(true); // → zen (going up)
           }
           return;
         }
 
-        // Base state — lock only after visiting all 3 layouts
-        if (escVisitedZenRef.current) {
-          if (auth.hasPassword) {
-            if (editorRef.current) {
-              journal.saveEntry(editorRef.current.value || '', Date.now());
-            }
-            auth.lock();
-          } else {
-            layout.setMinizen(true);
-            escVisitedZenRef.current = false; // restart cycle
-          }
-        } else {
-          layout.setMinizen(true); // → mz (always go up first)
-        }
+        // Base state — always restart cycle upward
+        layout.setMinizen(true);
+        escDirectionRef.current = 'up';
       }
     };
     window.addEventListener('keydown', handleKeyDown);
