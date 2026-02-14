@@ -9,7 +9,12 @@ import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { logAction } from '@shared/logger';
-import { useTheme } from '@features/theme';
+import { useTheme, type ColorPreset } from '@features/theme';
+
+function presetsEqual(a: ColorPreset, b: ColorPreset): boolean {
+  return a.hue === b.hue && a.sat === b.sat && a.light === b.light &&
+    a.bgHue === b.bgHue && a.bgSat === b.bgSat && a.bgLight === b.bgLight;
+}
 
 interface ExportButtonsProps {
   entries: JournalEntry[];
@@ -52,12 +57,21 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     };
   }, [importFeedback]);
 
-  // Shared logic: process a single backup file's content string into merged entries
+  // Shared logic: process a single backup file's content string
+  // Presets are threaded through (like entries) to avoid stale closure bugs in multi-file import
   const processBackupContent = async (
     fileContent: string,
     currentEntries: JournalEntry[],
+    currentPresets: ColorPreset[],
+    currentCustomPresets: ColorPreset[],
     label: string,
-  ): Promise<{ entries: JournalEntry[]; importedCount: number; presetsRestored?: boolean } | null> => {
+  ): Promise<{
+    entries: JournalEntry[];
+    importedCount: number;
+    presets: ColorPreset[];
+    customPresets: ColorPreset[];
+    presetsChanged: boolean;
+  } | null> => {
     if (!fileContent) return null;
 
     // Extract encrypted content (skips any header lines)
@@ -77,38 +91,58 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       // JSON format - entries already have HTML content
       const result = mergeJsonEntries(currentEntries, backup.entries, Date.now());
 
-      // Restore presets if present (v2+)
-      let presetsRestored = false;
+      let presetsChanged = false;
+      let newPresets = currentPresets;
+      let newCustomPresets = currentCustomPresets;
+
       if (backup.presets) {
-        setPresets(backup.presets);
-        presetsRestored = true;
-      }
-      if (backup.customPresets) {
-        // Merge: keep existing custom presets, add new unique ones from backup
-        const merged = [...customPresets];
-        for (const imported of backup.customPresets) {
-          const isDuplicate = merged.some(existing =>
-            existing.hue === imported.hue &&
-            existing.sat === imported.sat &&
-            existing.light === imported.light &&
-            existing.bgHue === imported.bgHue &&
-            existing.bgSat === imported.bgSat &&
-            existing.bgLight === imported.bgLight
-          );
-          if (!isDuplicate) {
-            merged.push(imported);
+        // Before replacing defaults, save any that would be lost as custom presets
+        // A default is "orphaned" if it doesn't exist in the incoming presets or current customs
+        const allIncoming = [...backup.presets, ...(backup.customPresets || [])];
+        for (const existing of currentPresets) {
+          const preserved = allIncoming.some(p => presetsEqual(p, existing)) ||
+            newCustomPresets.some(p => presetsEqual(p, existing));
+          if (!preserved) {
+            newCustomPresets = [...newCustomPresets, existing];
+            presetsChanged = true;
           }
         }
-        setCustomPresets(merged);
-        presetsRestored = true;
+        // Check if defaults actually differ before flagging as changed
+        const defaultsChanged = backup.presets.length !== currentPresets.length ||
+          backup.presets.some((p, i) => !presetsEqual(p, currentPresets[i]));
+        if (defaultsChanged) presetsChanged = true;
+        newPresets = backup.presets;
       }
 
-      return { entries: result.entries, importedCount: result.importedCount, presetsRestored };
+      if (backup.customPresets && backup.customPresets.length > 0) {
+        // Merge: keep existing custom presets, add new unique ones from backup
+        for (const imported of backup.customPresets) {
+          const isDuplicate = newCustomPresets.some(e => presetsEqual(e, imported));
+          if (!isDuplicate) {
+            newCustomPresets = [...newCustomPresets, imported];
+            presetsChanged = true;
+          }
+        }
+      }
+
+      return {
+        entries: result.entries,
+        importedCount: result.importedCount,
+        presets: newPresets,
+        customPresets: newCustomPresets,
+        presetsChanged,
+      };
     } else {
       // Legacy markdown format - needs HTML conversion
       const parsed = parseBackupText(decrypted);
       const result = mergeEntries(currentEntries, parsed, Date.now());
-      return { entries: result.entries, importedCount: result.importedCount };
+      return {
+        entries: result.entries,
+        importedCount: result.importedCount,
+        presets: currentPresets,
+        customPresets: currentCustomPresets,
+        presetsChanged: false,
+      };
     }
   };
 
@@ -120,11 +154,15 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const fileContent = await window.electronAPI.backup.importBackup();
         if (!fileContent) return; // User cancelled
 
-        const result = await processBackupContent(fileContent, entries, 'electron-import');
+        const result = await processBackupContent(fileContent, entries, presets, customPresets, 'electron-import');
         if (result) {
           onImport(result.entries);
-          setImportFeedback({ type: 'success', count: result.importedCount, presetsRestored: result.presetsRestored });
-          logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsRestored: result.presetsRestored });
+          if (result.presetsChanged) {
+            setPresets(result.presets);
+            setCustomPresets(result.customPresets);
+          }
+          setImportFeedback({ type: 'success', count: result.importedCount, presetsRestored: result.presetsChanged });
+          logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsRestored: result.presetsChanged });
         } else {
           setImportFeedback({ type: 'error' });
           logAction('import.fail', { fileCount: 1 });
@@ -156,20 +194,24 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     };
 
     let currentEntries = entries;
+    let currentPresets = presets;
+    let currentCustomPresets = customPresets;
     let totalImported = 0;
     let anyFileSucceeded = false;
-    let anyPresetsRestored = false;
+    let anyPresetsChanged = false;
 
-    // Process all files sequentially
+    // Process all files sequentially — presets are threaded through like entries
     for (const file of Array.from(files)) {
       try {
         const fileContent = await readFile(file);
-        const result = await processBackupContent(fileContent, currentEntries, file.name);
+        const result = await processBackupContent(fileContent, currentEntries, currentPresets, currentCustomPresets, file.name);
         if (result) {
           currentEntries = result.entries;
+          currentPresets = result.presets;
+          currentCustomPresets = result.customPresets;
           totalImported += result.importedCount;
           anyFileSucceeded = true;
-          if (result.presetsRestored) anyPresetsRestored = true;
+          if (result.presetsChanged) anyPresetsChanged = true;
         }
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
@@ -182,8 +224,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       logAction('import.fail', { fileCount: files.length });
     } else {
       onImport(currentEntries);
-      setImportFeedback({ type: 'success', count: totalImported, presetsRestored: anyPresetsRestored });
-      logAction('import.done', { totalImported, fileCount: files.length, presetsRestored: anyPresetsRestored });
+      if (anyPresetsChanged) {
+        setPresets(currentPresets);
+        setCustomPresets(currentCustomPresets);
+      }
+      setImportFeedback({ type: 'success', count: totalImported, presetsRestored: anyPresetsChanged });
+      logAction('import.done', { totalImported, fileCount: files.length, presetsRestored: anyPresetsChanged });
     }
 
     // Reset input so same files can be selected again
