@@ -51,14 +51,14 @@
           h = lsGet('bgHue');
           s = lsGet('bgSaturation');
           l = lsGet('bgLightness');
-          h = h !== null ? parseFloat(h) : 52;
-          s = s !== null ? parseFloat(s) : 100;
-          l = l !== null ? parseFloat(l) : 91;
+          h = h !== null ? parseFloat(h) : 250;
+          s = s !== null ? parseFloat(s) : 70;
+          l = l !== null ? parseFloat(l) : 32;
         }
         // Also read text color for CSS custom properties
-        var th = lsGet('colorHue'); th = th !== null ? parseFloat(th) : 116;
-        var ts = lsGet('colorSaturation'); ts = ts !== null ? parseFloat(ts) : 100;
-        var tl = lsGet('colorLightness'); tl = tl !== null ? parseFloat(tl) : 12;
+        var th = lsGet('colorHue'); th = th !== null ? parseFloat(th) : 141;
+        var ts = lsGet('colorSaturation'); ts = ts !== null ? parseFloat(ts) : 85;
+        var tl = lsGet('colorLightness'); tl = tl !== null ? parseFloat(tl) : 53;
         // Set CSS custom properties on :root for all 6 color values
         var el = document.documentElement;
         el.style.setProperty('--h', th);
