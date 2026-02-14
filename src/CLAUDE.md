@@ -596,7 +596,7 @@ Wide:   base → mz → zen → mz → base → mz → zen → ...  (infinite)
 Narrow: sidebar → default → zen → default → sidebar → ...  (infinite)
 ```
 
-**Hold-to-lock:** On ESC keydown, a 500ms timer starts. If the key is released before the timer fires (a tap), the timer is cancelled and the layout cycles. If the key is held past 500ms, the app saves the entry and locks. Only active when `auth.hasPassword`.
+**Hold-to-lock (v2.4.106+):** On ESC keydown, a 500ms timer starts — but no cycle happens yet. On keyup (tap), the timer is cancelled and the layout cycles. If the timer fires before keyup (hold), it locks the app and clears the pending-cycle flag so keyup does nothing. This means a hold locks cleanly with zero layout change. Only active when `auth.hasPassword`.
 
 **Direction tracking:** `escDirectionRef` (`'up' | 'down'`) replaces the old `escVisitedZenRef`. Starts `'up'`, flips to `'down'` when leaving zen, flips back to `'up'` when reaching base. Any non-ESC interaction (keydown, mousedown, resize) resets direction to `'up'`.
 
@@ -611,12 +611,13 @@ useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
 const minizenRef = useRef(minizen);
 useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 
-// Direction + lock timer in App.tsx
+// Direction, lock timer, and pending-cycle flag in App.tsx
 const escDirectionRef = useRef<'up' | 'down'>('up');
 const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const escPendingCycleRef = useRef(false); // set on keydown, consumed on keyup or lock
 ```
 
-Direction ref is reset by global keydown/mousedown/resize listeners (any non-ESC interaction). Lock timer is cleared on keyup.
+Direction ref is reset by global keydown/mousedown/resize listeners (any non-ESC interaction). Lock timer is cleared on keyup. Cycle logic is extracted into `escCycle()` (a `useCallback`) called from the keyup handler.
 
 **Pre-lock save (v2.4.21+):** Before locking (in the hold timer callback), saves editor content via `saveEntry()` — but **only if `auth.hasPassword`**. Without this guard, ESC on a fresh journal would persist an empty placeholder to IndexedDB.
 
