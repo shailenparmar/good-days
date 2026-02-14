@@ -575,34 +575,30 @@ See `src/hooks/useLayoutState.ts` for state machine and `src/App.tsx` for ESC ha
 
 1. **Password flow active** → Reset flow (handled by PasswordSettings, capture phase)
 2. **Scramble active (v2.4.18+)** → Unscramble only (no other ESC behavior fires). Works from editor, title input, or anywhere. In the title input, `stopPropagation()` is skipped when scrambled so the event bubbles to the App handler.
-3. **Zen mode** → Exit zen, restore previous state (works even when typing in editor!)
+3. **Held key repeat** → Ignored (`e.repeat` returns early)
 4. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
-5. **Minizen mode (wide)** → Exit minizen, restore previous state (including panels)
-6. **Function menus open** → Close all panels (both at once)
-7. **Narrow + sidebar hidden** → Show sidebar
-8. **Base state** → Lock app (sidebar visible, no menus open)
+5. **Panels open** → Close panels, reset to base, direction = up
+6. **Zen mode** → Exit zen to minizen/default, direction = down
+7. **Minizen / narrow default** → Go up (zen) or down (base/sidebar) based on direction
+8. **Base state** → Go up (minizen/default), direction = up (restart)
 
-**IMPORTANT:** Scramble check comes BEFORE everything else (after password flow). This means ESC while scrambled ONLY unscrambles — it won't exit zen, close panels, or lock. Zen mode check comes BEFORE the input check, ensuring ESC exits zen even when focused in the editor textarea.
+**IMPORTANT:** Scramble check comes BEFORE everything else (after password flow). This means ESC while scrambled ONLY unscrambles — it won't exit zen, close panels, or cycle.
 
-### The ESC Philosophy
+### The ESC Philosophy (v2.4.105+)
 
-**ESC = see all 3 layouts before you can lock (both modes, v2.4.40+)**
+**Tap ESC = infinite layout cycle. Hold ESC = lock.**
 
-ESC walks through all 3 layouts before locking. In wide mode: base → mz → zen → mz → base. In narrow mode: sidebar → default → zen → default → sidebar. You must visit all 3 layouts in a single ESC sequence. Any non-ESC interaction (typing, clicking) resets the sequence. Panels close first (any state → base/sidebar). At base/sidebar after the full cycle with password, ESC locks. Without password, it restarts.
+Tapping ESC bounces through all 3 layouts forever — it never locks. Holding ESC (~500ms) locks the app (if password exists). This decouples layout exploration from locking, so users don't avoid setting a password just to keep the cycle.
 
-**Example flows (with password):**
+**Bounce cycle:**
 ```
-Wide from base:     base → mz → zen → mz → base → 🔒 LOCK      (5 presses)
-Wide from mz:       mz → zen → mz → base → 🔒 LOCK              (4 presses)
-Wide from zen:      zen → mz → base → 🔒 LOCK                     (3 presses)
-Narrow from sidebar: sidebar → default → zen → default → sidebar → 🔒 LOCK (5 presses)
-Narrow from default: default → zen → default → sidebar → 🔒 LOCK  (4 presses)
-Narrow from zen:     zen → default → sidebar → 🔒 LOCK             (3 presses)
+Wide:   base → mz → zen → mz → base → mz → zen → ...  (infinite)
+Narrow: sidebar → default → zen → default → sidebar → ...  (infinite)
 ```
 
-**No password:** loops forever in both modes.
+**Hold-to-lock:** On ESC keydown, a 500ms timer starts. If the key is released before the timer fires (a tap), the timer is cancelled and the layout cycles. If the key is held past 500ms, the app saves the entry and locks. Only active when `auth.hasPassword`.
 
-**Cycle resets:** Any non-ESC keydown, mousedown, or window resize resets `escVisitedZenRef` to `false` (global listeners). This ensures the cycle always starts fresh after any interaction — you can't lock with a stale flag from a previous cycle.
+**Direction tracking:** `escDirectionRef` (`'up' | 'down'`) replaces the old `escVisitedZenRef`. Starts `'up'`, flips to `'down'` when leaving zen, flips back to `'up'` when reaching base. Any non-ESC interaction (keydown, mousedown, resize) resets direction to `'up'`.
 
 ### Ref Pattern for Layout State in ESC Handler
 
@@ -615,13 +611,14 @@ useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
 const minizenRef = useRef(minizen);
 useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 
-// Visited-zen flag in App.tsx (tracks cycle progress)
-const escVisitedZenRef = useRef(false);
+// Direction + lock timer in App.tsx
+const escDirectionRef = useRef<'up' | 'down'>('up');
+const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 ```
 
-This pattern ensures the handler always sees the current values without re-registering on every state change. The `escVisitedZenRef` is reset by global keydown/mousedown listeners (any non-ESC interaction).
+Direction ref is reset by global keydown/mousedown/resize listeners (any non-ESC interaction). Lock timer is cleared on keyup.
 
-**Pre-lock save (v2.4.21+):** Before locking, ESC saves editor content via `saveEntry()` — but **only if `auth.hasPassword`**. Without this guard, ESC on a fresh journal would persist an empty placeholder to IndexedDB.
+**Pre-lock save (v2.4.21+):** Before locking (in the hold timer callback), saves editor content via `saveEntry()` — but **only if `auth.hasPassword`**. Without this guard, ESC on a fresh journal would persist an empty placeholder to IndexedDB.
 
 ## Font Sizes
 
@@ -707,7 +704,7 @@ import { FunctionButton } from '@shared/components';
 
 **Pattern name:** We call this **"stable hover"** — the hover hitbox stays stable while the button can visually change.
 
-#### Stable Hover Formalization (v2.4.100+)
+#### Stable Hover Formalization (v2.4.97+)
 
 **Frame 1** = default state (no hover). **Frame 2** = hover state.
 
