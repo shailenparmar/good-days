@@ -16,10 +16,10 @@ U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
 [base64 encrypted content]
 ```
 
-**Decrypted content** (JSON format, v1+):
+**Decrypted content** (JSON format, v2+):
 ```json
 {
-  "version": 1,
+  "version": 2,
   "exportedAt": 1706969445000,
   "entries": [
     {
@@ -29,7 +29,9 @@ U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
       "startedAt": 1706345400000,
       "lastModified": 1706345400000
     }
-  ]
+  ],
+  "presets": [{ "hue": 116, "sat": 100, "light": 12, "bgHue": 52, "bgSat": 100, "bgLight": 91 }],
+  "customPresets": [{ "hue": 200, "sat": 80, "light": 40, "bgHue": 30, "bgSat": 90, "bgLight": 95 }]
 }
 ```
 
@@ -37,6 +39,7 @@ U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
 - Preserves all entry fields (`title`, `lastModified` were lost in legacy format)
 - No regex parsing edge cases
 - Version field for future format changes
+- v2 includes color presets (both default and custom) so they round-trip through backup/restore
 
 **Legacy markdown format** (still supported for import):
 ```
@@ -159,6 +162,27 @@ function normalizeForComparison(text: string): string {
 4. Build import block: `--- ${normalizedTitle} ${normalizedContent}`
 5. Skip if: empty import, exact match (content + title), or import block found in existing. Otherwise → append.
 
+### Preset Backup & Restore (v2.4.96+)
+
+Backups include color presets so they round-trip through export/import. Both the 5 default presets (which may have been modified) and all custom presets are included.
+
+**Format:** `BackupV2` adds optional `presets` and `customPresets` fields (both `ColorPreset[]`). Version bumped from 1 to 2.
+
+**Export:** `formatEntriesAsJson` receives presets from `useTheme()` and writes them into the backup JSON.
+
+**Import behavior:**
+- v2+ backups with presets: **replace** current presets (not merged). Matches the "restore" mental model.
+- v1 backups: no preset change (backward compatible).
+- Multi-file import: last backup's presets win.
+- Success message appends `" + presets"` when presets were restored.
+
+**Types:** `parseBackupJson` returns a `ParsedBackup` object (`{ entries, presets, customPresets }`) instead of bare `JournalEntry[]`. Presets are `ColorPreset[] | null` — null for v1 backups.
+
+Code locations:
+- `BackupV2` type: `src/features/export/utils/formatEntries.ts`
+- `ParsedBackup` type + extraction: `src/features/export/utils/parseBackup.ts`
+- Wiring (export/import): `src/features/export/components/ExportButtons.tsx`
+
 ### Key Behaviors
 
 - **Import only accepts encrypted backups** (files must start with `good days encrypted backup`)
@@ -206,6 +230,7 @@ After import, the import button shows feedback:
 | State | Text | Color |
 |-------|------|-------|
 | Success | "X entry/entries imported" | Confirm color (WCAG green) |
+| Success + presets | "X entry/entries imported + presets" | Confirm color (WCAG green) |
 | Failure | "import failed" | Error color (WCAG red) |
 
 **Behaviors:**
