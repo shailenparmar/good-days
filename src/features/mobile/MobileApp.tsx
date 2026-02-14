@@ -35,7 +35,7 @@ export default function MobileApp() {
   // Bold sweep placeholder for code input ("live code")
   const [codeBoldCount, setCodeBoldCount] = useState(0);
   const [codeBoldPhase, setCodeBoldPhase] = useState<'bold' | 'unbold'>('bold');
-  const codePlaceholder = 'live code';
+  const codePlaceholder = 'pairing code';
   const [codeInputFocused, setCodeInputFocused] = useState(false);
   const [codeInputPressed, setCodeInputPressed] = useState(false);
   const showCodePlaceholder = codeInput.length === 0 && !codeInputFocused;

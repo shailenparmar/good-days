@@ -447,7 +447,7 @@ function AppContent() {
                       {s(`v${VERSION}`)}
                     </h1>
                     <p className="text-2xl font-extrabold font-mono tracking-tight">
-                      {s(`live code ${pairingCode || '---'}`)}
+                      {s(`pairing code ${pairingCode || '---'}`)}
                     </p>
                   </div>
                 );
