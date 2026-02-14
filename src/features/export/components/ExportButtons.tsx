@@ -28,10 +28,10 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Import feedback state: success (count) or failure
-  const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number } | { type: 'error' } | null>(null);
+  const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number; presetsRestored?: boolean } | { type: 'error' } | null>(null);
   // Stable hover for import button - hover hitbox stays stable even when button shrinks
   const { hovered: importHovered, containerProps: importContainerProps } = useStableHover();
-  const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = useMemo(
     () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
@@ -57,7 +57,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     fileContent: string,
     currentEntries: JournalEntry[],
     label: string,
-  ): Promise<{ entries: JournalEntry[]; importedCount: number } | null> => {
+  ): Promise<{ entries: JournalEntry[]; importedCount: number; presetsRestored?: boolean } | null> => {
     if (!fileContent) return null;
 
     // Extract encrypted content (skips any header lines)
@@ -71,12 +71,24 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     const decrypted = await decryptText(encryptedContent);
 
     // Try JSON format first (v1+), fall back to legacy markdown
-    const jsonEntries = parseBackupJson(decrypted);
+    const backup = parseBackupJson(decrypted);
 
-    if (jsonEntries) {
+    if (backup) {
       // JSON format - entries already have HTML content
-      const result = mergeJsonEntries(currentEntries, jsonEntries, Date.now());
-      return { entries: result.entries, importedCount: result.importedCount };
+      const result = mergeJsonEntries(currentEntries, backup.entries, Date.now());
+
+      // Restore presets if present (v2+)
+      let presetsRestored = false;
+      if (backup.presets) {
+        setPresets(backup.presets);
+        presetsRestored = true;
+      }
+      if (backup.customPresets) {
+        setCustomPresets(backup.customPresets);
+        presetsRestored = true;
+      }
+
+      return { entries: result.entries, importedCount: result.importedCount, presetsRestored };
     } else {
       // Legacy markdown format - needs HTML conversion
       const parsed = parseBackupText(decrypted);
@@ -96,8 +108,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const result = await processBackupContent(fileContent, entries, 'electron-import');
         if (result) {
           onImport(result.entries);
-          setImportFeedback({ type: 'success', count: result.importedCount });
-          logAction('import.done', { totalImported: result.importedCount, fileCount: 1 });
+          setImportFeedback({ type: 'success', count: result.importedCount, presetsRestored: result.presetsRestored });
+          logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsRestored: result.presetsRestored });
         } else {
           setImportFeedback({ type: 'error' });
           logAction('import.fail', { fileCount: 1 });
@@ -131,6 +143,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     let currentEntries = entries;
     let totalImported = 0;
     let anyFileSucceeded = false;
+    let anyPresetsRestored = false;
 
     // Process all files sequentially
     for (const file of Array.from(files)) {
@@ -141,6 +154,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           currentEntries = result.entries;
           totalImported += result.importedCount;
           anyFileSucceeded = true;
+          if (result.presetsRestored) anyPresetsRestored = true;
         }
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
@@ -153,8 +167,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       logAction('import.fail', { fileCount: files.length });
     } else {
       onImport(currentEntries);
-      setImportFeedback({ type: 'success', count: totalImported });
-      logAction('import.done', { totalImported, fileCount: files.length });
+      setImportFeedback({ type: 'success', count: totalImported, presetsRestored: anyPresetsRestored });
+      logAction('import.done', { totalImported, fileCount: files.length, presetsRestored: anyPresetsRestored });
     }
 
     // Reset input so same files can be selected again
@@ -165,8 +179,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     if (entries.length === 0) return;
 
     try {
-      // Use JSON format for backup
-      const jsonContent = formatEntriesAsJson(entries);
+      // Use JSON format for backup (v2: includes color presets)
+      const jsonContent = formatEntriesAsJson(entries, presets, customPresets);
       const encrypted = await encryptText(jsonContent);
       const fileContent = formatEncryptedBackup(encrypted);
 
@@ -245,7 +259,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           <span>
             {importFeedback
               ? importFeedback.type === 'success'
-                ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported`)
+                ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported${importFeedback.presetsRestored ? ' + presets' : ''}`)
                 : s('import failed')
               : stacked && importHovered
                 ? s('multiple files accepted')

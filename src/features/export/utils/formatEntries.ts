@@ -1,4 +1,5 @@
 import type { JournalEntry } from '@features/journal';
+import type { ColorPreset } from '@features/theme';
 
 // JSON backup format (v1)
 export interface BackupV1 {
@@ -7,12 +8,27 @@ export interface BackupV1 {
   entries: JournalEntry[];
 }
 
+// JSON backup format (v2) - adds color presets
+export interface BackupV2 {
+  version: 2;
+  exportedAt: number;
+  entries: JournalEntry[];
+  presets?: ColorPreset[];
+  customPresets?: ColorPreset[];
+}
+
 // For encrypted backup (JSON format)
-export function formatEntriesAsJson(entries: JournalEntry[]): string {
-  const backup: BackupV1 = {
-    version: 1,
+export function formatEntriesAsJson(
+  entries: JournalEntry[],
+  presets?: ColorPreset[],
+  customPresets?: ColorPreset[],
+): string {
+  const backup: BackupV2 = {
+    version: 2,
     exportedAt: Date.now(),
     entries: [...entries].sort((a, b) => a.date.localeCompare(b.date)), // oldest first
+    presets,
+    customPresets,
   };
   return JSON.stringify(backup);
 }

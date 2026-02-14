@@ -1,5 +1,6 @@
 import type { JournalEntry } from '@features/journal';
-import type { BackupV1 } from './formatEntries';
+import type { ColorPreset } from '@features/theme';
+import type { BackupV1, BackupV2 } from './formatEntries';
 import { htmlToText } from '@shared/utils/html';
 
 interface ParsedEntry {
@@ -8,14 +9,29 @@ interface ParsedEntry {
   startedAt?: number;
 }
 
+export interface ParsedBackup {
+  entries: JournalEntry[];
+  presets: ColorPreset[] | null;
+  customPresets: ColorPreset[] | null;
+}
+
 // Try to parse as JSON backup (v1+), returns null if not JSON format
-export function parseBackupJson(text: string): JournalEntry[] | null {
+export function parseBackupJson(text: string): ParsedBackup | null {
   try {
     const parsed = JSON.parse(text);
     // Check if it's our backup format
     if (parsed && typeof parsed.version === 'number' && Array.isArray(parsed.entries)) {
+      if (parsed.version >= 2) {
+        const backup = parsed as BackupV2;
+        return {
+          entries: backup.entries,
+          presets: backup.presets ?? null,
+          customPresets: backup.customPresets ?? null,
+        };
+      }
+      // v1 backup - no presets
       const backup = parsed as BackupV1;
-      return backup.entries;
+      return { entries: backup.entries, presets: null, customPresets: null };
     }
     return null;
   } catch {
