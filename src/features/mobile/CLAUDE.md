@@ -211,7 +211,7 @@ The picker uses a **seamless press-hold-drag-release** interaction:
 - `liveTouch` - Current finger position `{ x, y }`
 - `barsMounted` - Counter for when both hue bars have mounted
 
-**`sendColorThrottled` helper (v2.4.29+, updated v2.4.120):** A `useCallback` that wraps the WS send with 33ms throttle (~30fps). Used by both `processTouchAt` (hue changes) and the orientation handler (sat/light changes). Replaces 4 identical inline throttle blocks. Was 21ms (~48fps) before v2.4.120.
+**`sendColorThrottled` helper (v2.4.29+, updated v2.4.123):** A `useCallback` that wraps the WS send with 42ms throttle (~24fps). Used by both `processTouchAt` (hue changes) and the orientation handler (sat/light changes). Replaces 4 identical inline throttle blocks. Was 33ms (~30fps) before v2.4.123, 21ms (~48fps) before v2.4.120.
 
 ### Tilt Controls (Absolute Mapping)
 
