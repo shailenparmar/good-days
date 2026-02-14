@@ -39,13 +39,12 @@ export function WebSyncBridge() {
         if (!c) return;
         const t = themeRef.current;
 
-        // Skip color apply during local desktop drag to prevent flicker
+        // Skip all updates during local desktop drag — just buffer in pendingColorsRef.
+        // setLivePreset was called here before but triggered a React re-render every
+        // rAF frame on top of the drag's own state updates, causing lag. The phone's
+        // latest colors are always in pendingColorsRef and sync on stream-stop.
         if (t.localDragRef.current) {
           skipBridgeRef.current = true;
-          t.setLivePreset({
-            hue: c.hue, sat: c.sat, light: c.light,
-            bgHue: c.bgHue, bgSat: c.bgSat, bgLight: c.bgLight,
-          });
         } else {
           // CSS-only streaming: set CSS vars directly, skip ALL React state.
           // This eliminates the re-render cascade (30-50+ useTheme consumers
