@@ -86,15 +86,15 @@ Code location: `src/features/theme/components/ColorPicker.tsx`
 
 ### Desktop Drag During Live Streaming (v2.1.18+)
 
-When the phone is streaming colors at 60fps and the desktop user drags a color picker, the phone's `color-update` messages would fight the local drag setters, causing visible flicker. A `localDragRef` flag suppresses `applyPreset` in the WebSocket callback during desktop drags.
+When the phone is streaming colors at 60fps and the desktop user drags a color picker, the phone's `color-update` messages would fight the local drag setters, causing visible flicker. A `localDragRef` flag suppresses all updates in the WebSocket rAF callback during desktop drags.
 
 **How it works:**
 1. Desktop `ColorPicker.startDrag()` sets `localDragRef.current = true`
-2. `WebSyncBridge.handleColorUpdate()` checks the flag — if true, calls `setLivePreset()` (so the phone's colors are tracked) but skips `applyPreset()` (so the local drag isn't overwritten)
+2. `WebSyncBridge.handleColorUpdate()` checks the flag — if true, skips everything (no CSS var writes, no `setLivePreset`, no `applyPreset`). Phone colors just buffer in `pendingColorsRef`.
 3. Desktop `handleUp()` sets `localDragRef.current = false`
-4. Next `color-update` from phone resumes normal `applyPreset()` flow
+4. Next `color-update` from phone resumes normal CSS-only streaming flow
 
-**Key insight:** `setLivePreset` still runs during the drag, so the phone's latest colors are always tracked. When the user releases, the phone's colors resume immediately from wherever it left off.
+**Key insight (v2.4.114+):** During a local drag, `pendingColorsRef` still buffers the phone's latest colors — `setLivePreset` is no longer called per-frame. Previously, `setLivePreset` fired every rAF frame during the drag, triggering a React re-render on top of the drag's own state updates and causing lag. The phone's final colors sync on stream-stop (which reads `pendingColorsRef`).
 
 Code locations:
 - `localDragRef` + `setLocalDragging`: `ThemeContext.tsx`
