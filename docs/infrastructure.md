@@ -87,29 +87,29 @@ The `www` DNS record must be **Proxied** (orange cloud) for Cloudflare to handle
 
 ### Icon Design
 
-Dark green rounded rect (rx=229) with light yellow square centered inside (25% border, 512px inner square on 1024px canvas). Colors are Preset 1 inverted. All icons are this same rounded shape — no square variants.
+Black rounded rect (rx=229) with green square centered inside (25% border, 512px inner square on 1024px canvas). All icons are this same rounded shape — no square variants.
 
 | Element | Color | HEX |
 |---------|-------|-----|
-| Inner square | Light yellow | `#fff9d1` |
-| Border/background | Dark green | `#043d00` |
+| Inner square | Green | `#1FFF0F` |
+| Border/background | Black | `#000000` |
 
 ### Generating Icons
 
-All PNGs are generated from the single `icon.svg` with `-b '#043d00'` to fill the entire canvas (no transparency — ensures full-size icons on macOS/iOS dock):
+All PNGs are generated from the single `icon.svg` with `-b black` to fill the entire canvas (no transparency — ensures full-size icons on macOS/iOS dock):
 
 ```bash
 cd public
-rsvg-convert icon.svg -w 1024 -h 1024 -b '#043d00' -o apple-touch-icon.png
-rsvg-convert icon.svg -w 192 -h 192 -b '#043d00' -o icon-192.png
-rsvg-convert icon.svg -w 512 -h 512 -b '#043d00' -o icon-512.png
-rsvg-convert icon.svg -w 1024 -h 1024 -b '#043d00' -o icon-1024.png
+rsvg-convert icon.svg -w 1024 -h 1024 -b black -o apple-touch-icon.png
+rsvg-convert icon.svg -w 192 -h 192 -b black -o icon-192.png
+rsvg-convert icon.svg -w 512 -h 512 -b black -o icon-512.png
+rsvg-convert icon.svg -w 1024 -h 1024 -b black -o icon-1024.png
 rsvg-convert og-source.svg -w 1200 -h 630 -o og-image.png
 ```
 
 ### Manifest Config (vite.config.ts)
 
-- `background_color: '#043d00'`
+- `background_color: '#000000'`
 - `purpose: 'any'` — NOT `maskable`
 - apple-touch-icon is linked in HTML separately, not in manifest
 

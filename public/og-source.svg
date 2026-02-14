@@ -3,7 +3,7 @@
   <rect x="0" y="0" width="1200" height="630" fill="#FFFFFF" />
   <!-- Icon at 400x400 centered -->
   <g transform="translate(400, 115)">
-    <rect x="0" y="0" width="400" height="400" rx="90" ry="90" fill="#043d00" />
-    <rect x="100" y="100" width="200" height="200" fill="#fff9d1" />
+    <rect x="0" y="0" width="400" height="400" rx="90" ry="90" fill="#000000" />
+    <rect x="100" y="100" width="200" height="200" fill="#1FFF0F" />
   </g>
 </svg>
