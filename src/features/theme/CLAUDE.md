@@ -76,7 +76,7 @@ const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
 1. `ThemeContext.tsx` CSS var sync effect — fires on React state changes (desktop drag, preset clicks, stream-stop sync)
 2. `WebSyncBridge.tsx` rAF callback — fires during live streaming (CSS-only, no React state)
 
-**Indicator interpolation (v2.4.95+):** Both the SL dot and hue needle have `transition: 30ms linear` on their position properties (`left`/`top`). At ~40fps actual WS message rate, indicators would jump in visible pixel steps without interpolation. The 30ms CSS transition makes the browser smoothly interpolate between position updates at the display's native refresh rate (60fps+). The 30ms duration slightly exceeds the average frame gap (~25ms), ensuring continuous smooth motion with ~15ms average visual lag — imperceptible given the 20-80ms network latency already in the pipeline.
+**Indicator interpolation (v2.4.95+, fixed v2.4.111):** Both the SL dot and hue needle have `transition: 30ms linear` on their position properties (`left`/`top`) — but **only when not dragging locally**. During local desktop drags, the transition is `'none'` for instant feedback. During streaming (phone pair mode), the 30ms transition smooths the ~40fps WS updates at the display's native refresh rate. The conditional is simply `isDragging ? 'none' : 'top 30ms linear'`. Without this fix, the 30ms transition overlapped with rapid mousemove events during local drags, causing the indicator to visibly lag behind the cursor.
 
 ### Drag Listener Cleanup
 
