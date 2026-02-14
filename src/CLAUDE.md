@@ -722,50 +722,148 @@ IDLE
 HOVERED
   visual = Frame 2 (natural size, may be bigger or smaller)
   hitbox = max(Frame 1 rect, current container rect)
-  ↓ mouseleave/mousemove outside hitbox, OR window resize
+  global mousemove is SOLE AUTHORITY on hover state
+  mouseEnter/mouseLeave are COMPLETELY IGNORED
+  ↓ mousemove outside hitbox, OR window resize, OR document leave
 
 IDLE
   hitbox = Frame 1 natural size (reset)
+  lockedRect cleared → next mouseEnter starts fresh
 ```
 
 **Handles both directions:**
 - **Frame 2 smaller** (button shrinks): Entry rect is larger → cursor stays in safe zone → no flicker
 - **Frame 2 larger** (button grows): Current rect is larger → cursor can roam expanded area → no false exit
 
-#### Solution: Coordinate-Based Stable Hover
+#### Architecture: Sole Authority Pattern (v2.4.126+)
 
-Use the `useStableHover` hook from `@shared/hooks`.
+The stable hover system has two phases with strict ownership:
 
-Use when button content changes on hover and you want the hover state to stay stable regardless of whether the button grows or shrinks. Pure coordinate math — no overlay div, no scroll blocking.
+**Phase 1 — Entry (mouseEnter handler):**
+- Only fires on initial entry (when `lockedRect` is null)
+- Captures `lockedRect` = button's bounding rect BEFORE React re-renders
+- Sets `isHovered = true` → React renders `hoverChildren` → button may resize
+- After this point, `mouseEnter` is dead — the `if (lockedRect.current) return` guard blocks all re-entry events
 
-```tsx
-import { useStableHover } from '@shared/hooks';
+**Phase 2 — Tracking (global mousemove effect):**
+- Activated by `isHovered === true && hoverChildren !== undefined`
+- Computes exit zone on every mouse move: `max(lockedRect, live button rect) + 3px buffer`
+- If cursor is outside exit zone → unhover (clears `lockedRect`, sets `isHovered = false`)
+- Also listens for `document.documentElement` mouseleave (cursor left the page)
+- **This is the ONLY thing that can end a hover cycle.** Not mouseLeave, not mouseEnter, not anything else.
 
-const { hovered, containerProps } = useStableHover();
+**Phase 3 — Exit (unhover):**
+- `lockedRect.current = null` → next mouseEnter can fire again (Phase 1)
+- `isHovered = false` → React renders `children` → button restores original size
+- Effect cleanup removes global listeners
 
-// In JSX:
-<div {...containerProps}>
-  <FunctionButton>
-    {hovered ? 'hover text' : 'default text'}
-  </FunctionButton>
-</div>
+```
+mouseEnter ──→ capture lockedRect ──→ isHovered=true ──→ global mousemove takes over
+                                                              │
+                                                              ├── cursor inside exit zone → do nothing
+                                                              ├── cursor outside exit zone → UNHOVER
+                                                              ├── cursor leaves page → UNHOVER
+                                                              └── window resize → UNHOVER
 ```
 
-**How it works:**
-- On enter: captures bounding rect (Frame 1) before any state change
-- `getExitRect()`: computes `max(entry rect, live container rect)` — the exit zone
-- On leave: checks cursor against exit zone — if inside, stays hovered
-- Global mousemove listener (only while hovered) detects true exit from exit zone
-- Window resize while hovered: clean unhover + rect reset (positions are stale)
-- Button freely shrinks/grows based on content
-- **Border buffer**: `isInsideRect` adds a 3px buffer to the rect check, matching the FunctionButton `3px solid` border. Without this, cursor positions at the exact border edge oscillate in/out, causing flicker in a narrow strip around the button.
+#### The lockedRect Overwrite Bug (Root Cause of Flicker)
 
-**Edge case:** Scrolling while hovering makes the captured rect stale relative to viewport. Cursor will "exit" even if visually over button. Acceptable — scrolling while hovering is unusual.
+**THIS IS THE BUG THAT TOOK THE LONGEST TO FIND. Read carefully.**
+
+**Scenario (before fix):**
+1. Cursor enters button → `lockedRect` captures Frame 1 rect (e.g., bottom = 466)
+2. `isHovered = true` → button renders `hoverChildren` → button shrinks (e.g., bottom = 450)
+3. Cursor drifts into the gap (y = 455, between live bottom 450 and locked bottom 466)
+4. Cursor is OUTSIDE the shrunken button → browser fires `mouseLeave` then `mouseEnter` as cursor re-enters
+5. **BUG:** `mouseEnter` handler captures NEW `lockedRect` = shrunken button rect (bottom = 450)
+6. Exit zone shrinks to the smaller rect → cursor at y = 455 is now OUTSIDE → unhover → flicker
+
+**The fix:**
+```tsx
+const handleMouseEnter = useCallback(() => {
+  if (disabled) return;
+  if (hoverChildren !== undefined) {
+    // Already in a hover cycle — ignore. Global mousemove owns hover state.
+    if (lockedRect.current) return;  // ← THIS LINE PREVENTS THE BUG
+    if (buttonRef.current) {
+      lockedRect.current = buttonRef.current.getBoundingClientRect();
+    }
+  }
+  setIsHovered(true);
+}, [disabled, hoverChildren]);
+```
+
+**Why it works:** Once `lockedRect` is captured, it is NEVER overwritten until `unhover()` clears it to null. The browser can fire as many mouseEnter/mouseLeave events as it wants during a hover cycle — they are all no-ops. Only the global mousemove can end the cycle.
+
+**The mouseLeave handler:**
+```tsx
+const handleMouseLeave = useCallback(() => {
+  if (hoverChildren !== undefined) {
+    return;  // ← Complete no-op. Global mousemove owns exit.
+  }
+  // Only used for normal buttons (no hoverChildren)
+  setIsHovered(false);
+  setIsClicked(false);
+}, [hoverChildren]);
+```
+
+#### Invariants (NEVER VIOLATE THESE)
+
+1. **`lockedRect` is write-once per hover cycle.** Set in `handleMouseEnter` (Phase 1), cleared only in `unhover()` (Phase 3). Never overwritten in between.
+2. **Global mousemove is the sole authority.** During a hover cycle, NOTHING else can change `isHovered`. Not mouseEnter, not mouseLeave, not any other event.
+3. **mouseEnter is blocked during active hover.** The `if (lockedRect.current) return` guard ensures re-entry events from the shrunken button are completely ignored.
+4. **mouseLeave is always a no-op** when `hoverChildren` is present. Full stop.
+5. **Content and size change atomically.** Both driven by `isHovered` state → same React render → same paint. There is no frame where the button has resized but still shows old content.
+6. **Exit zone only grows, never shrinks** during a hover cycle. `max(lockedRect, liveRect)` ensures the zone covers both the entry size and the current size.
+7. **No timers, no cooldowns, no debouncing.** The system is purely coordinate-based. If cursor is inside → hovered. If outside → not hovered. Instant, deterministic.
+
+#### Solution: `hoverChildren` Prop on FunctionButton
+
+Pass `hoverChildren` to `FunctionButton` when button content should change on hover. The stable hover coordinate logic is built into the button itself — no wrapper div needed.
+
+```tsx
+<FunctionButton
+  onClick={handleClick}
+  hoverChildren={<span>hover text</span>}
+>
+  <span>default text</span>
+</FunctionButton>
+```
+
+**Implementation details:**
+- When `hoverChildren` is provided, a ref is attached to the `<button>` element
+- On initial entry: captures bounding rect (Frame 1) before any state change. All subsequent mouseEnter events are blocked.
+- `getExitRect()`: computes `max(entry rect, live button rect)` — the exit zone
+- mouseLeave: complete no-op (returns immediately)
+- Global `mousemove` listener (only while hovered + `hoverChildren` present): sole authority on exit detection
+- `document.documentElement` `mouseleave` listener: handles cursor leaving the page (no more mousemove events)
+- Window resize while hovered: clean unhover + rect reset (viewport positions are stale)
+- **Border buffer**: `isInsideRect` adds a 3px buffer to the rect check, matching the FunctionButton `3px solid` border. Without this, cursor positions at the exact border edge oscillate in/out.
+- When `hoverChildren` is NOT provided, the button uses simple `onMouseEnter`/`onMouseLeave` with no overhead
+
+**Edge cases:**
+- Scrolling while hovering: captured rect becomes stale relative to viewport. Cursor will "exit" even if visually over button. Acceptable — scrolling while hovering is unusual.
+- Window resize while hovering: `lockedRect` cleared, clean unhover. No stale rects.
+- Cursor leaves page: `documentElement` mouseleave fires unhover. No orphaned hover state.
+
+**Key advantage:** Border/background hover state and text content hover state are always in sync — both driven by the same `isHovered` state inside the button.
 
 Code locations:
-- Hook: `src/shared/hooks/useStableHover.ts`
+- Component: `src/shared/components/FunctionButton.tsx`
 - Scramble hotkey button: `src/features/settings/components/SettingsPanel.tsx`
 - Import button: `src/features/export/components/ExportButtons.tsx`
+
+#### Title Hover (useLayoutState.ts)
+
+The "good days" title in the header uses the same entry-first principle but with a different mechanism (coordinate detection via `mousemove`/`mouseover` on `document`, not a button component). The title area changes content on hover (shows version + pairing code when about panel is open).
+
+**Entry-first principle:**
+- When NOT hovered: use the live rect for entry detection. Cursor must reach the visible title to trigger hover.
+- When hovered: `titleMaxHeight` grows via `Math.max(current, rect.height)` so the exit zone never shrinks during a hover cycle.
+- On unhover: `titleMaxHeight` resets to 0 — next entry requires reaching the visible title again.
+- On `showAboutPanel` change: reset `titleMaxHeight` and unhover (content flips between modes, old max height is stale).
+
+Code location: `src/hooks/useLayoutState.ts` (title hover effect + showAboutPanel reset effect)
 
 #### Solution 2: Grid Overlay (UI Swap, No Visual Shrink)
 
@@ -800,7 +898,18 @@ Code location: `src/features/statistics/components/StatsDisplay.tsx` (color stat
 
 | Scenario | Solution |
 |----------|----------|
-| Button text changes on hover (any direction) | Stable Hover (`useStableHover`) |
+| Button text changes on hover (any direction) | `hoverChildren` prop on `FunctionButton` |
+| Title/header area with content swap on hover | Entry-first coordinate detection (`useLayoutState.ts`) |
 | Swapping between different UIs, want consistent size | Grid Overlay |
 | Copy/paste buttons replacing stats display | Grid Overlay |
+
+#### Debugging Hover Issues
+
+If hover flicker reappears, check these in order:
+
+1. **Is `lockedRect` being overwritten?** The `if (lockedRect.current) return` guard in `handleMouseEnter` MUST be present. If removed, the bug returns immediately.
+2. **Is mouseLeave doing anything?** When `hoverChildren` is present, mouseLeave MUST be a complete no-op (just `return`). Any state changes in mouseLeave will fight with the global mousemove.
+3. **Is the exit zone correct?** `getExitRect` must return `max(lockedRect, liveRect)`. If it only returns one or the other, one direction of size change will flicker.
+4. **Is the 3px buffer present?** `isInsideRect` needs the buffer to account for the button's `3px solid` border. Without it, the border strip flickers.
+5. **Add debug overlays** to visualize: set `const DEBUG_HOVER = true` at the top of `FunctionButton.tsx`, add a `debugState` useState, render colored rect overlays via `createPortal` to `document.body`. Red dashed = lockedRect, blue solid = exit zone, green dotted = live button rect. Include a state readout panel (position: fixed, bottom-left) showing `isHovered`, `lastEvent`, `cursorPos`, `insideExit`, and all three rects. **Strip all debug code before pushing.**
 
