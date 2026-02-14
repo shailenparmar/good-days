@@ -480,8 +480,14 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         {/* [live] swatch — only visible when paired */}
         {hasLive && (() => {
           const liveIndex = presets.length + customPresets.length;
-          const liveTextColor = `hsl(${livePreset.hue}, ${livePreset.sat}%, ${livePreset.light}%)`;
-          const liveBgColor = `hsl(${livePreset.bgHue}, ${livePreset.bgSat}%, ${livePreset.bgLight}%)`;
+          // When live is active, use CSS vars so button colors update in real-time
+          // during streaming (CSS-only path doesn't update livePreset React state)
+          const liveTextColor = isLiveActive
+            ? 'hsl(var(--h), var(--s), var(--l))'
+            : `hsl(${livePreset.hue}, ${livePreset.sat}%, ${livePreset.light}%)`;
+          const liveBgColor = isLiveActive
+            ? 'hsl(var(--bh), var(--bs), var(--bl))'
+            : `hsl(${livePreset.bgHue}, ${livePreset.bgSat}%, ${livePreset.bgLight}%)`;
           const isActive = activePresetIndex === liveIndex;
 
           return (
