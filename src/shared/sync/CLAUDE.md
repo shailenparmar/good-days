@@ -374,6 +374,20 @@ The `save-preset` message now includes the phone's `colors: ColorPayload`. Previ
 
 **Files changed:** `protocol.ts` (message type), `useMobileSync.ts` (`sendSave` accepts colors), `MobileApp.tsx` (passes `colors`), `useWebSync.ts` (`saveColors` state), `WebSyncBridge.tsx` (passes colors through), `types.ts` + `ThemeContext.tsx` (`saveCustomPreset` optional param), `server/src/relay.ts` (forward colors), `server/src/types.ts` (add colors to save-preset).
 
+### Stream Debug Overlay (v2.4.121+, temporary)
+
+Debug-only overlay for evaluating the 30fps mobile streaming change. Shows real-time stream health stats in a dark semi-transparent box (top-right, monospace 12px, zIndex 10000, `pointerEvents: none`). Rendered via `createPortal` to `document.body` from `WebSyncBridge`.
+
+**Stats displayed:** msg/s (WS messages in last second), render fps (rAF frames that applied CSS vars), avg latency (mean gap between consecutive WS messages in ms), jitter (std deviation of message gaps in ms), coalesced (messages overwritten in buffer before rAF consumed them), duration (seconds since stream started).
+
+**Behavior:** Auto-shows when streaming starts, shows "ENDED" for 2s after stream stop, then disappears. Updates at 2fps (500ms `setInterval`) — human-readable, zero impact on stream perf.
+
+**Architecture:** Follows the `streamingControlsRef.ts` pattern (`useSyncExternalStore`). `streamDebugStats.ts` is a module-level store with rolling 60-entry timestamp buffers. `recordWsMessage()` called from `useWebSync.ts` on each `color-update`. `recordRafRender()` called from `WebSyncBridge.tsx` rAF callback. `setStreamActive()` called from the streaming state effect.
+
+**Files:** `src/shared/sync/streamDebugStats.ts` (store), `src/shared/sync/StreamDebugOverlay.tsx` (component). Modified: `useWebSync.ts` (recordWsMessage call), `WebSyncBridge.tsx` (recordRafRender, setStreamActive, renders overlay).
+
+**Removal:** This is temporary debug tooling. When done evaluating, revert all 4 files and delete the 2 new files.
+
 ### Live Stats (removed in v2.3.12)
 
 The live stats section (hue travel, sl travel, hz, live saves) was removed from the poweruser menu display. The `useLiveStats` hook in `src/features/statistics/hooks/useLiveStats.ts` is now orphaned (not imported anywhere). `phoneSaveCount`, `incrementPhoneSaveCount`, and `colorUpdateCountRef` were removed from ThemeContext since they existed solely for live stats. WebSyncBridge no longer increments `colorUpdateCountRef` or calls `incrementPhoneSaveCount`. The orphaned localStorage keys (`liveHueDistance`, `liveHslDistance`, `liveLiveSaves`) will persist harmlessly in existing users' browsers.
