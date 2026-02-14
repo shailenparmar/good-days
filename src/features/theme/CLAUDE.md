@@ -76,6 +76,8 @@ const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
 1. `ThemeContext.tsx` CSS var sync effect — fires on React state changes (desktop drag, preset clicks, stream-stop sync)
 2. `WebSyncBridge.tsx` rAF callback — fires during live streaming (CSS-only, no React state)
 
+**Indicator interpolation (v2.4.95+):** Both the SL dot and hue needle have `transition: 30ms linear` on their position properties (`left`/`top`). At ~40fps actual WS message rate, indicators would jump in visible pixel steps without interpolation. The 30ms CSS transition makes the browser smoothly interpolate between position updates at the display's native refresh rate (60fps+). The 30ms duration slightly exceeds the average frame gap (~25ms), ensuring continuous smooth motion with ~15ms average visual lag — imperceptible given the 20-80ms network latency already in the pipeline.
+
 ### Drag Listener Cleanup
 
 When the user mousedowns/touchstarts on a picker square, `mousemove`/`touchmove` and `mouseup`/`touchend`/`touchcancel` listeners are added to `document`. The up handler removes all listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag.
