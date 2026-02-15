@@ -717,9 +717,9 @@ export default function MobileApp() {
             onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
             onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
             onTouchCancel={() => setSetTiltPressed(false)}
-            style={getButtonStyle(setTiltPressed, 'full', 'aux')}
+            style={getButtonStyle(setTiltPressed, 'full')}
           >
-            calibrate tilt
+            allow motion access
           </div>
 
           {/* Placeholder rows to match home screen button stack height */}
@@ -838,7 +838,7 @@ export default function MobileApp() {
             style={getButtonStyle(false, 'full', 'aux')}
             getStyle={(pressed) => getButtonStyle(pressed, 'full', 'aux')}
           >
-            recalibrate tilt
+            recalibrate
           </MobileButton>
 
           <div style={{ display: 'flex' }}>
@@ -950,6 +950,7 @@ export default function MobileApp() {
                   textIndent: '4px',
                 }}
                 onTouchStart={() => setCodeInputPressed(true)}
+                onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
                 onTouchEnd={() => setCodeInputPressed(false)}
                 onTouchCancel={() => setCodeInputPressed(false)}
                 onFocus={() => setCodeInputFocused(true)}
