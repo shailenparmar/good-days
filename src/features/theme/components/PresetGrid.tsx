@@ -58,7 +58,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [keyboardUseCount, setKeyboardUseCount] = useState(0);
 
   // Hint animation state
-  const hintLine1 = 'navigate with arrow keys.';
+  const hintLine1 = 'navigate colorway menu with arrow keys.';
   const hintLine2 = 'select with spacebar.';
   const hintLine3 = 'delete with backspace.';
   const hintFullText = hintLine1 + hintLine2 + hintLine3;
