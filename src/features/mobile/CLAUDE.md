@@ -100,7 +100,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 │        └────────┘              │     (tilt feedback)
 │                                │
 ├────────────────────────────────┤
-│      recalibrate tilt          │  ← Full-width button (edge-to-edge)
+│      recalibrate          │  ← Full-width button (edge-to-edge)
 ├───────────────┬────────────────┤
 │     text      │   background   │  ← Split button (enters adjusting)
 ├───────────────┼────────────────┤
@@ -311,7 +311,7 @@ See **Mobile Style Guide** at the top of this file for the full button system (s
 - **standard** (default, 14px): code entry input, skip
 - **compact** (`'aux'`, 7px): calibrate tilt, recalibrate, copy, save, paste
 
-**Button order** (top to bottom): recalibrate tilt → text|background → copy|paste (+ save when live)
+**Button order** (top to bottom): recalibrate → text|background → copy|paste (+ save when live)
 
 The invisible spacer buttons on the picker screen and permission screen use matching roles to keep heights consistent across all screens.
 
