@@ -727,7 +727,7 @@ export default function MobileApp() {
   return (
     <>
       {/* ===== BASE SCREEN (always visible, colored bg + title only) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', zIndex: 0, ...safeAreaStyle }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', zIndex: -100, ...safeAreaStyle }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         {title}
         </div>
