@@ -14,7 +14,7 @@ as a privacy guarantee, the entire product is open source.
 
 a new page spawns at midnight; old logs are set in stone.
 
-keystrokes save in 300ms. clicking the footer bows in to zen mode. \time delivers a stamp. draft while scrambled to slip prying eyes or writer's block. settings *and* about join forces for a poweruser menu.
+keystrokes save in 300ms. clicking the footer bows in to zen mode. \time delivers a stamp. draft while scrambled to slip prying eyes or writer's block. toggle and for a poweruser menu.
 
 the right end of a chromium address bar shelters an install button. beyond that door, a standalone app awaits. victoriously, pair your phone for rc colorways.
 

@@ -18,7 +18,7 @@ interface AboutPanelProps {
 // Change ABOUT_WIDTH if you want the About panel wider/narrower
 // The About panel's right edge will be at the same position whether stacked or not
 // Note: Tailwind uses border-box, so widths INCLUDE the 6px border
-const ABOUT_WIDTH = 720;    // About panel width when alone (includes border)
+const ABOUT_WIDTH = 600;    // About panel width when alone (includes border)
 const SETTINGS_WIDTH = 320; // Settings panel width (w-80, includes border)
 
 export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: AboutPanelProps) {
@@ -37,7 +37,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   // Render text with *word* as italic and [icon:name] as inline icons
   const renderWithEmphasis = (text: string) => {
     // Split on icons first, then handle emphasis within each text segment
-    const iconParts = text.split(/\[icon:(\w+)\]\s?/g);
+    const iconParts = text.split(/\[icon:(\w+)\]/g);
     if (iconParts.length === 1) {
       // No icons — just handle emphasis
       const parts = text.split(/\*([^*]+)\*/g);
@@ -47,7 +47,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       );
     }
     return iconParts.map((part, i) => {
-      if (i % 2 === 1) return <span key={i}>{iconMap[part]}{' '}</span>;
+      if (i % 2 === 1) return <span key={i}>{iconMap[part]}</span>;
       // Handle emphasis within text segments
       const emphParts = part.split(/\*([^*]+)\*/g);
       if (emphParts.length === 1) return <span key={i}>{s(part)}</span>;
@@ -66,8 +66,8 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   // Calculate About width to keep right edge aligned
   // With border-box, the 6px border is inside the width value
   const aboutWidth = stacked
-    ? ABOUT_WIDTH - SETTINGS_WIDTH  // 400px
-    : ABOUT_WIDTH;                   // 720px
+    ? ABOUT_WIDTH - SETTINGS_WIDTH  // 280px
+    : ABOUT_WIDTH;                   // 600px
 
   // Scroll position persistence
   const scrollRef = useRef<HTMLDivElement>(null);
