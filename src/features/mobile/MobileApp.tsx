@@ -97,11 +97,11 @@ export default function MobileApp() {
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
 
-  // Throttled WS color update (33ms = ~30fps)
+  // Throttled WS color update (42ms = ~24fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
     if (!sync.isStreamingRef.current || sync.wsRef.current?.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
-    if (now - lastWsSendRef.current >= 33) {
+    if (now - lastWsSendRef.current >= 42) {
       lastWsSendRef.current = now;
       sync.sendColorUpdate(next);
     }
