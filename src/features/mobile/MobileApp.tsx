@@ -725,12 +725,6 @@ export default function MobileApp() {
   // All screens always rendered (visibility-toggled) for seamless transitions.
   return (
     <>
-      {/* ===== BASE SCREEN (always visible, colored bg + title only) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', zIndex: 0, ...safeAreaStyle }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-          {title}
-        </div>
-      </div>
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
       <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 30 : -2, ...safeAreaStyle }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
@@ -781,8 +775,8 @@ export default function MobileApp() {
           userSelect: 'none',
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
-          visibility: (isPicking || showCalibrate || sync.pairingState === 'enter-code') ? 'hidden' : 'visible',
-          zIndex: (isPicking || showCalibrate || sync.pairingState === 'enter-code') ? -1 : 1,
+          visibility: isPicking ? 'visible' : 'hidden',
+          zIndex: isPicking ? 10 : -1,
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
