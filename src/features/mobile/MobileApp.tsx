@@ -59,11 +59,14 @@ export default function MobileApp() {
   // Flickering digits removed — code entry title is now plain "good days"
 
   // iOS permission state — computed synchronously to avoid first-render flash
+  // If previously granted (persisted in localStorage), skip the permission screen entirely
   const [needsPermission, setNeedsPermission] = useState(() => {
+    if (localStorage.getItem('motionPermissionGranted')) return false;
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission === 'function';
   });
   const [permissionGranted, setPermissionGranted] = useState(() => {
+    if (localStorage.getItem('motionPermissionGranted')) return true;
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission !== 'function';
   });
@@ -181,6 +184,7 @@ export default function MobileApp() {
       try {
         const result = await DOE.requestPermission();
         if (result === 'granted') {
+          localStorage.setItem('motionPermissionGranted', '1');
           setPermissionGranted(true);
           setNeedsPermission(false);
         }
