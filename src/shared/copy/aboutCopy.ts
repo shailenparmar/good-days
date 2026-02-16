@@ -27,7 +27,9 @@ export const ABOUT_COPY = {
   system: {
     header: "system:",
     paragraphs: [
-      "safari automatically deletes localstorage after 7 days of inactivity. other major browsers will only clear data under disk storage pressure.",
+      "good days is optimized for chromium.",
+      "safari automatically deletes localstorage after 7 days of inactivity.",
+      "manually deleting site data in browser settings will clear the app.",
     ],
   },
 
