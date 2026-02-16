@@ -341,12 +341,14 @@ The recalibrate, copy, and paste buttons support **drag-off cancellation**: pres
 
 iOS 13+ requires explicit permission for DeviceOrientationEvent:
 1. Permission screen shown on first visit
-2. User taps "calibrate tilt" button
+2. User taps "allow motion access" button
 3. `DeviceOrientationEvent.requestPermission()` called
-4. If granted, home screen shown
+4. If granted, `motionPermissionGranted` flag saved to localStorage, home screen shown
 5. If denied, tilt controls won't work (hue-only mode)
 
-**Synchronous init (v2.4.28+):** `needsPermission` and `permissionGranted` are initialized via `useState` initializers (not `useEffect`). The check (`typeof DOE.requestPermission === 'function'`) is synchronous, so the correct screen shows on the very first render — no flash of the home screen before calibrate appears on iOS.
+**Repeat visit skip (v2.5.3+):** On init, if `localStorage.getItem('motionPermissionGranted')` exists, `needsPermission` starts `false` and `permissionGranted` starts `true` — the permission screen is skipped entirely. Previously, iOS always showed the permission screen because `typeof DOE.requestPermission === 'function'` is always true regardless of prior grant. The button said "allow motion access" even though the browser would silently auto-grant.
+
+**Synchronous init (v2.4.28+):** `needsPermission` and `permissionGranted` are initialized via `useState` initializers (not `useEffect`). The localStorage check and the `typeof DOE.requestPermission` check are both synchronous, so the correct screen shows on the very first render — no flash.
 
 ### Tap-to-Randomize (v2.2.8+, narrowed v2.3.26)
 
