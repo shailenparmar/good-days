@@ -153,11 +153,13 @@ When settings is open, presets can be controlled with the keyboard:
 
 Re-clicking an active preset (mouse or Space/Enter) no longer overwrites it with current slider colors. It just restarts the pulse animation. The previous "edit preset" behavior and its associated `'edit'` undo action type have been removed.
 
-#### Preset Undo (multi-level, v2.3.29+, expanded v2.4.73)
+#### Preset Undo/Redo (multi-level, v2.3.29+, expanded v2.4.73, redo v2.5.8)
 
-Multi-level undo for preset deletions AND color changes. An `undoStackRef` (array) in `PresetGrid.tsx` stores undo entries as a discriminated union:
+Multi-level undo and redo for preset deletions AND color changes. `undoStackRef` and `redoStackRef` (arrays) in `PresetGrid.tsx` store entries as a discriminated union (`UndoEntry` type):
 - `{ action: 'delete'; preset; index; type }` — restores deleted preset at original index
 - `{ action: 'color-change'; snapshot: ColorPreset }` — restores previous colors, activates save button with pulse
+
+**Redo (Cmd+Shift+Z, v2.5.8+):** Mirrors undo. On undo, the current state is pushed to the redo stack. On redo, the current state is pushed back to the undo stack. The redo stack is cleared on any NEW user action (preset click, rand, drag, delete) — not on undo/redo operations themselves.
 
 **What pushes `color-change` entries:**
 - Picker drags (via `colorPickerDragCount` useEffect, reads `prePickerSnapshotRef`)
@@ -181,6 +183,10 @@ Multi-level undo for preset deletions AND color changes. An `undoStackRef` (arra
 | Close settings, reopen, Cmd+Z | No undo (ref cleared on unmount) |
 | Cmd+Z with nothing to undo | No-op (but still `preventDefault`s to block native undo) |
 | Cmd+Z while typing in editor | Browser native undo (handler skips input/textarea/contentEditable) |
+| Cmd+Z then Cmd+Shift+Z | Redo re-applies the undone change |
+| Cmd+Z, Cmd+Z, Cmd+Shift+Z, Cmd+Shift+Z | Full round-trip: undo 2, redo 2 |
+| Cmd+Z then new action | Redo stack cleared — can't redo past the new action |
+| Cmd+Shift+Z with nothing to redo | No-op |
 
 **No conflict with editor Cmd+Z:** The handler runs in capture phase but has an early return for input/textarea/contentEditable elements, so editor undo works normally.
 
