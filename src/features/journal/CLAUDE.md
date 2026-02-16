@@ -123,6 +123,7 @@ When `isScrambled` is true:
 2. Overlay div shows scrambled text
 3. Scroll position synced via `translateY(-${scrollTop}px)`
 4. Scrambled text is memoized (`useMemo`) on `[value, scrambleSeed]` — re-scrambles when content changes or seed bumps
+5. **Scroll sync in handleChange (v2.5.11+):** `setScrollTop(editorRef.current.scrollTop)` is called inside `handleChange` alongside `setValue`, so both batch into the same React render. Without this, pressing Enter at the bottom of the editor causes the textarea to auto-scroll (browser native), but `onScroll` fires as a separate event — React could render the new scrambled text at the old scroll position for one frame, producing a visible flash.
 
 ### HTML Migration
 
