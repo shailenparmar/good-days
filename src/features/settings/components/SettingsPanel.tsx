@@ -6,7 +6,6 @@ import { PasswordSettings } from '@features/auth';
 import { ExportButtons } from '@features/export';
 import { TimeDisplay } from './TimeDisplay';
 import { FunctionButton } from '@shared/components';
-import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { getItem, setItem } from '@shared/storage';
 import { cancelPendingSaves, clearJournalStorage } from '@shared/storage/journalStorage';
@@ -47,8 +46,6 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   // Suppress unused variable warning
   void scrambleSeed;
-  // Stable hover for scramble hotkey button
-  const { hovered: hotkeyButtonHovered, containerProps: hotkeyContainerProps } = useStableHover();
   const [resetStep, setResetStep] = useState(0); // 0: reset app, 1: are you sure?, 2: are you sure you're sure?!
 
   // Scroll position persistence
@@ -191,20 +188,14 @@ export function SettingsPanel({
           className="p-4"
           style={{ borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)' }}
         >
-          {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
-          <div {...hotkeyContainerProps}>
-            <FunctionButton onClick={onToggleScrambleHotkey} isActive={scrambleHotkeyActive} size="sm">
-              <span>
-                {(() => {
-                  const showShortcut = hotkeyButtonHovered && scrambleHotkeyActive;
-                  const text = showShortcut
-                    ? 'option/alt + s'
-                    : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated');
-                  return superscramble ? scrambleText(text) : text;
-                })()}
-              </span>
-            </FunctionButton>
-          </div>
+          <FunctionButton
+            onClick={onToggleScrambleHotkey}
+            isActive={scrambleHotkeyActive}
+            size="sm"
+            hoverChildren={scrambleHotkeyActive ? <span>{superscramble ? scrambleText('option/alt + s') : 'option/alt + s'}</span> : undefined}
+          >
+            <span>{superscramble ? scrambleText(scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated') : (scrambleHotkeyActive ? 'scramble hotkey activated' : 'scramble hotkey deactivated')}</span>
+          </FunctionButton>
         </div>
       )}
 

@@ -145,24 +145,46 @@ export function useLayoutState() {
   // --- Effects ---
 
   // Title hover detection via coordinates (document-level to bypass z-50 overlay).
-  // Tracks max height to prevent flicker: hover toggles content between 1-line
-  // ("good days") and 2-line (version + pairing code). The hover zone uses fresh
-  // position from the live rect but extends to the tallest height ever seen,
-  // so it never shrinks when content changes. Reset on resize.
+  // Entry-first principle: you must reach the visible title to trigger hover.
+  // Once hovered, the exit zone expands to max(entry height, live height) so
+  // content toggling (1-line ↔ 2-line) doesn't cause flicker. On unhover,
+  // the expanded zone resets — next entry requires reaching the visible title again.
   useEffect(() => {
-    const onResize = () => { titleMaxHeight.current = 0; };
+    const onResize = () => { titleMaxHeight.current = 0; setTitleHovered(false); };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Reset title hover when about panel toggles — default/hover content swaps,
+  // so the old max height from one mode is stale for the other.
+  useEffect(() => {
+    titleMaxHeight.current = 0;
+    setTitleHovered(false);
+  }, [showAboutPanel]);
 
   useEffect(() => {
     const check = (e: MouseEvent) => {
       if (!titleRef.current) { setTitleHovered(false); return; }
       const rect = titleRef.current.getBoundingClientRect();
-      titleMaxHeight.current = Math.max(titleMaxHeight.current, rect.height);
-      const inside = e.clientX >= rect.left && e.clientX <= rect.right
-        && e.clientY >= rect.top && e.clientY <= rect.top + titleMaxHeight.current;
-      setTitleHovered(inside);
+
+      if (titleMaxHeight.current > 0) {
+        // Already hovered — expand exit zone to max height seen
+        titleMaxHeight.current = Math.max(titleMaxHeight.current, rect.height);
+        const inside = e.clientX >= rect.left && e.clientX <= rect.right
+          && e.clientY >= rect.top && e.clientY <= rect.top + titleMaxHeight.current;
+        if (!inside) {
+          titleMaxHeight.current = 0;
+          setTitleHovered(false);
+        }
+      } else {
+        // Not hovered — use live rect for entry detection
+        const inside = e.clientX >= rect.left && e.clientX <= rect.right
+          && e.clientY >= rect.top && e.clientY <= rect.top + rect.height;
+        if (inside) {
+          titleMaxHeight.current = rect.height;
+          setTitleHovered(true);
+        }
+      }
     };
     document.addEventListener('mousemove', check);
     document.addEventListener('mouseover', check);

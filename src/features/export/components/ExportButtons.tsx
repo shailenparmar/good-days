@@ -5,7 +5,6 @@ import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } f
 import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '@shared/crypto';
 import { FunctionButton } from '@shared/components';
-import { useStableHover } from '@shared/hooks';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { logAction } from '@shared/logger';
@@ -34,8 +33,6 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number; presetsRestored?: boolean } | { type: 'error' } | null>(null);
-  // Stable hover for import button - hover hitbox stays stable even when button shrinks
-  const { hovered: importHovered, containerProps: importContainerProps } = useStableHover();
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = useMemo(
@@ -288,25 +285,21 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <Upload className="w-3 h-3" />
         <span>{s(stacked ? 'download AES-256-GCM backup' : 'download backup')}</span>
       </FunctionButton>
-      {/* Stable hover container - hover hitbox stays stable even when button shrinks */}
-      <div {...importContainerProps}>
-        <FunctionButton
-          onClick={handleImport}
-          size="sm"
-          overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
-        >
-          {!importFeedback && <Download className="w-3 h-3" />}
-          <span>
-            {importFeedback
-              ? importFeedback.type === 'success'
-                ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported${importFeedback.presetsRestored ? ' + presets' : ''}`)
-                : s('import failed')
-              : stacked && importHovered
-                ? s('multiple files accepted')
-                : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
-          </span>
-        </FunctionButton>
-      </div>
+      <FunctionButton
+        onClick={handleImport}
+        size="sm"
+        overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
+        hoverChildren={stacked && !importFeedback ? <><Download className="w-3 h-3" /><span>{s('multiple files accepted')}</span></> : undefined}
+      >
+        {!importFeedback && <Download className="w-3 h-3" />}
+        <span>
+          {importFeedback
+            ? importFeedback.type === 'success'
+              ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported${importFeedback.presetsRestored ? ' + presets' : ''}`)
+              : s('import failed')
+            : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
+        </span>
+      </FunctionButton>
     </div>
   );
 }
