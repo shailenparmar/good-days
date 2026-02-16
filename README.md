@@ -20,11 +20,7 @@ the right end of a chromium address bar shelters an install button. beyond that 
 
 ## system
 
-good days is optimized for chromium.
-
-safari automatically deletes localstorage after 7 days of inactivity.
-
-manually deleting site data in browser settings will clear the app.
+good days is optimized for chromium. safari automatically deletes localstorage after 7 days of inactivity. manually deleting site data in browser settings will clear the app.
 
 ---
 
