@@ -13,7 +13,7 @@ function getOrCreateDeviceId(): string {
   return id;
 }
 
-export type PairingState = 'connecting' | 'paired' | 'enter-code';
+export type PairingState = 'connecting' | 'paired' | 'enter-code' | 'standalone';
 
 export interface MobileSyncHandle {
   pairingState: PairingState;
