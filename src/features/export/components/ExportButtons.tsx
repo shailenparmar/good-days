@@ -32,7 +32,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Import feedback state: success (count) or failure
-  const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number; presetsRestored?: boolean } | { type: 'error' } | null>(null);
+  const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number; presetsImportedCount?: number } | { type: 'error' } | null>(null);
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = useMemo(
@@ -67,7 +67,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     importedCount: number;
     presets: ColorPreset[];
     customPresets: ColorPreset[];
-    presetsChanged: boolean;
+    presetsImportedCount: number;
   } | null> => {
     if (!fileContent) return null;
 
@@ -89,14 +89,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
       // Merge default presets: keep existing, add back any missing from backup
       let newPresets = currentPresets;
-      let presetsChanged = false;
+      let presetsImportedCount = 0;
 
       if (backup.presets && backup.presets.length > 0) {
         for (const imported of backup.presets) {
           const isDuplicate = newPresets.some(e => presetsEqual(e, imported));
           if (!isDuplicate) {
             newPresets = [...newPresets, imported];
-            presetsChanged = true;
+            presetsImportedCount++;
           }
         }
       }
@@ -109,16 +109,16 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           const isDuplicate = newCustomPresets.some(e => presetsEqual(e, imported));
           if (!isDuplicate) {
             newCustomPresets = [...newCustomPresets, imported];
-            presetsChanged = true;
+            presetsImportedCount++;
           }
         }
       }
 
-      return { entries: result.entries, importedCount: result.importedCount, presets: newPresets, customPresets: newCustomPresets, presetsChanged };
+      return { entries: result.entries, importedCount: result.importedCount, presets: newPresets, customPresets: newCustomPresets, presetsImportedCount };
     } else {
       const parsed = parseBackupText(decrypted);
       const result = mergeEntries(currentEntries, parsed, Date.now());
-      return { entries: result.entries, importedCount: result.importedCount, presets: currentPresets, customPresets: currentCustomPresets, presetsChanged: false };
+      return { entries: result.entries, importedCount: result.importedCount, presets: currentPresets, customPresets: currentCustomPresets, presetsImportedCount: 0 };
     }
   };
 
@@ -133,12 +133,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         const result = await processBackupContent(fileContent, entries, presets, customPresets, 'electron-import');
         if (result) {
           onImport(result.entries);
-          if (result.presetsChanged) {
+          if (result.presetsImportedCount > 0) {
             setPresets(result.presets);
             setCustomPresets(result.customPresets);
           }
-          setImportFeedback({ type: 'success', count: result.importedCount, presetsRestored: result.presetsChanged });
-          logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsRestored: result.presetsChanged });
+          setImportFeedback({ type: 'success', count: result.importedCount, presetsImportedCount: result.presetsImportedCount });
+          logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsImported: result.presetsImportedCount });
         } else {
           setImportFeedback({ type: 'error' });
           logAction('import.fail', { fileCount: 1 });
@@ -174,7 +174,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     let currentCustomPresets = customPresets;
     let totalImported = 0;
     let anyFileSucceeded = false;
-    let anyPresetsChanged = false;
+    let totalPresetsImported = 0;
 
     // Process all files sequentially — presets threaded through like entries
     for (const file of Array.from(files)) {
@@ -186,8 +186,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           currentPresets = result.presets;
           currentCustomPresets = result.customPresets;
           totalImported += result.importedCount;
+          totalPresetsImported += result.presetsImportedCount;
           anyFileSucceeded = true;
-          if (result.presetsChanged) anyPresetsChanged = true;
         }
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
@@ -200,12 +200,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       logAction('import.fail', { fileCount: files.length });
     } else {
       onImport(currentEntries);
-      if (anyPresetsChanged) {
+      if (totalPresetsImported > 0) {
         setPresets(currentPresets);
         setCustomPresets(currentCustomPresets);
       }
-      setImportFeedback({ type: 'success', count: totalImported, presetsRestored: anyPresetsChanged });
-      logAction('import.done', { totalImported, fileCount: files.length, presetsRestored: anyPresetsChanged });
+      setImportFeedback({ type: 'success', count: totalImported, presetsImportedCount: totalPresetsImported });
+      logAction('import.done', { totalImported, fileCount: files.length, presetsImported: totalPresetsImported });
     }
 
     // Reset input so same files can be selected again
@@ -295,7 +295,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         <span>
           {importFeedback
             ? importFeedback.type === 'success'
-              ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'} imported${importFeedback.presetsRestored ? ' + presets' : ''}`)
+              ? s(`${importFeedback.count} ${importFeedback.count === 1 ? 'entry' : 'entries'}${importFeedback.presetsImportedCount ? ` + ${importFeedback.presetsImportedCount} ${importFeedback.presetsImportedCount === 1 ? 'preset' : 'presets'}` : ''} imported`)
               : s('import failed')
             : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
         </span>
