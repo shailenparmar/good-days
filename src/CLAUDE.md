@@ -125,7 +125,7 @@ The app has special modes that activate when multiple panels are open.
 
 | Feature | Description |
 |---------|-------------|
-| About panel shrinks | Width goes from 675px → 400px |
+| About panel shrinks | Width goes from 600px → 280px |
 | Scramble hotkey toggle | Button appears in Settings to enable Option/Alt+S hotkey |
 | Horizontal stats | StatsDisplay switches to horizontal layout |
 | Export debug log button | Downloads human-readable action log for debugging |
@@ -168,8 +168,8 @@ Code location: `src/App.tsx` (isSuperscramble definition, line ~110)
 |-------|-------|-------|
 | Sidebar | 320px (`w-80`) | Includes 6px right border |
 | Settings | 320px (`w-80`) | Includes 6px right border |
-| About (alone) | 720px | Includes 6px right border |
-| About (stacked) | 400px | Includes 6px right border |
+| About (alone) | 600px | Includes 6px right border |
+| About (stacked) | 280px | Includes 6px right border |
 
 ### Right Edge Alignment (IMPORTANT)
 
@@ -181,10 +181,10 @@ Tailwind uses `box-sizing: border-box` globally, meaning **borders are inside th
 
 ```
 About-only mode:
-  Sidebar (320px) + About (720px) = 1040px right edge
+  Sidebar (320px) + About (600px) = 920px right edge
 
 Poweruser mode:
-  Sidebar (320px) + Settings (320px) + About (400px) = 1040px right edge
+  Sidebar (320px) + Settings (320px) + About (280px) = 920px right edge
 ```
 
 Both modes have the same right edge position (1040px from viewport left).
@@ -195,12 +195,12 @@ Constants in `AboutPanel.tsx`:
 
 ```tsx
 // Widths INCLUDE the 6px border (border-box sizing)
-const ABOUT_WIDTH = 720;    // About panel width when alone
+const ABOUT_WIDTH = 600;    // About panel width when alone
 const SETTINGS_WIDTH = 320; // Settings panel width (w-80)
 
 const aboutWidth = stacked
-  ? ABOUT_WIDTH - SETTINGS_WIDTH  // 720 - 320 = 400px
-  : ABOUT_WIDTH;                   // 720px
+  ? ABOUT_WIDTH - SETTINGS_WIDTH  // 600 - 320 = 280px
+  : ABOUT_WIDTH;                   // 600px
 ```
 
 ## Opacity Standards
