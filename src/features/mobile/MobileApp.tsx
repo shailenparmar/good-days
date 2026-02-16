@@ -59,7 +59,7 @@ export default function MobileApp() {
   // Flickering digits removed — code entry title is now plain "good days"
 
   // iOS permission state — computed synchronously to avoid first-render flash
-  // If previously granted (persisted in localStorage), skip the permission screen entirely
+  // iOS permission state — always starts on permission screen, useEffect auto-skips if data is flowing
   const [needsPermission, setNeedsPermission] = useState(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission === 'function';
@@ -68,39 +68,27 @@ export default function MobileApp() {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission !== 'function';
   });
-  // Verify motion permission is actually active (Safari can silently revoke)
-  // If we skipped the permission screen based on localStorage but no data arrives,
-  // Then show the permission button
+  // Auto-detect motion permission: if data is already flowing, skip permission screen
   useEffect(() => {
-    if (!permissionGranted || needsPermission) return;
-    
-    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-    if (typeof DOE.requestPermission !== 'function') return;
+    if (permissionGranted || !needsPermission) return;
 
-    let gotData = false;
     let cancelled = false;
 
     const testListener = (e: DeviceOrientationEvent) => {
       if (e.beta !== null || e.gamma !== null) {
-        gotData = true;
+        if (!cancelled) {
+          localStorage.setItem('motionPermissionGranted', '1');
+          setNeedsPermission(false);
+          setPermissionGranted(true);
+        }
         window.removeEventListener('deviceorientation', testListener);
       }
     };
 
     window.addEventListener('deviceorientation', testListener);
 
-    const timeout = setTimeout(() => {
-      window.removeEventListener('deviceorientation', testListener);
-      if (!gotData && !cancelled) {
-        localStorage.removeItem('motionPermissionGranted');
-        setNeedsPermission(true);
-        setPermissionGranted(false);
-      }
-    }, 800);
-
     return () => {
       cancelled = true;
-      clearTimeout(timeout);
       window.removeEventListener('deviceorientation', testListener);
     };
   }, [permissionGranted, needsPermission]);
