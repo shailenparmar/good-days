@@ -37,9 +37,11 @@ When a laptop sleeps, the WebSocket connection dies on the server (killed by kee
 
 **Why 45 seconds:** The server pings every 30s. If we haven't received anything in 45s, we've missed at least one full ping cycle, meaning the connection is dead. This threshold avoids false positives from normal tab switches (where the connection stays alive and messages flow).
 
-**Why not close on hidden (like mobile does):** The mobile closes its WebSocket when backgrounded because leaving the phone app means you're not using it. Desktop tabs stay open while switching between apps — closing the WebSocket on every tab switch would be disruptive and unnecessary. Instead, we only reconnect on `visible` if the connection is actually stale.
+**Desktop close-on-hide (v2.4.132+):** The desktop now mirrors the phone's pattern: sends `going-hidden`, closes the WS, and reconnects unconditionally on visible. This replaces the stale/dead/pwaFrozen heuristics. The relay's 3s handoff grace period covers brief tab switches — if the desktop returns within 3s, the phone never sees `unpaired`.
 
-Code: `handleVisibility` listener + `lastWsActivityRef` in `useWebSync.ts`.
+**Previous approach (pre-v2.4.132):** Desktop kept the WS open during tab switches and only reconnected on visible if the connection was stale (>45s no activity), dead (readyState > OPEN), or PWA-frozen (standalone + hidden >3s). This was unreliable because Chrome freezes backgrounded tabs unpredictably, leaving zombie connections.
+
+Code: `handleVisibility` listener in `useWebSync.ts`.
 
 ### PWA Freeze-Resilient Reconnect (v2.2.7+)
 

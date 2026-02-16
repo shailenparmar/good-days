@@ -1,5 +1,15 @@
 # Claude Code Instructions — Auth
 
+### Lock Screen Rate Limiting (v2.4.131+)
+
+After 3 consecutive failed password attempts, the lock screen enforces an exponential backoff cooldown before the next attempt. During cooldown, the input and submit button are disabled, and the placeholder shows a countdown number with the bold sweep animation.
+
+**Backoff schedule:** `min(2^(attempts-2), 30)` seconds — 2s, 4s, 8s, 16s, max 30s. Resets to 0 on successful unlock.
+
+**Countdown display:** The placeholder text switches from "password" to the remaining seconds (e.g., "4"). The bold sweep animation resets on each number change. Input is cleared when cooldown starts. Focus returns to the input when cooldown ends.
+
+Code location: `src/features/auth/components/LockScreen.tsx`
+
 ### Password Dead Man's Switch (v2.1.32+)
 
 If a user has password protection enabled and then clears cookies/site data (which wipes localStorage but not IndexedDB), the journal entries self-destruct on next load. This prevents someone from bypassing the password by clearing browser data.
