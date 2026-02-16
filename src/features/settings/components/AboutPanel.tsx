@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTheme } from '@features/theme';
 
-import { Link2 } from 'lucide-react';
+import { Link2, Settings, Heart } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
@@ -28,13 +28,33 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
 
-  // Render text with *word* as italic
+  // Icon map for [icon:name] tokens in about copy
+  const iconMap: Record<string, React.ReactNode> = {
+    settings: <Settings className="w-4 h-4 inline align-middle" />,
+    about: <Heart className="w-4 h-4 inline align-middle" />,
+  };
+
+  // Render text with *word* as italic and [icon:name] as inline icons
   const renderWithEmphasis = (text: string) => {
-    const parts = text.split(/\*([^*]+)\*/g);
-    if (parts.length === 1) return s(text);
-    return parts.map((part, i) =>
-      i % 2 === 1 ? <em key={i}>{s(part)}</em> : s(part)
-    );
+    // Split on icons first, then handle emphasis within each text segment
+    const iconParts = text.split(/\[icon:(\w+)\]\s?/g);
+    if (iconParts.length === 1) {
+      // No icons — just handle emphasis
+      const parts = text.split(/\*([^*]+)\*/g);
+      if (parts.length === 1) return s(text);
+      return parts.map((part, i) =>
+        i % 2 === 1 ? <em key={i}>{s(part)}</em> : s(part)
+      );
+    }
+    return iconParts.map((part, i) => {
+      if (i % 2 === 1) return <span key={i}>{iconMap[part]}{' '}</span>;
+      // Handle emphasis within text segments
+      const emphParts = part.split(/\*([^*]+)\*/g);
+      if (emphParts.length === 1) return <span key={i}>{s(part)}</span>;
+      return <span key={i}>{emphParts.map((ep, j) =>
+        j % 2 === 1 ? <em key={j}>{s(ep)}</em> : s(ep)
+      )}</span>;
+    });
   };
   const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
   const [linkHovered, setLinkHovered] = useState(false);

@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
 const privacyParagraphs = [...ABOUT_COPY.privacy.paragraphs, ABOUT_COPY.privacy.lastParagraph].join('\n\n');
-const featuresParagraphs = ABOUT_COPY.features.paragraphs.join('\n\n');
+const featuresParagraphs = ABOUT_COPY.features.paragraphs.join('\n\n').replace(/\[icon:\w+\]\s?/g, '');
 const systemParagraphs = ABOUT_COPY.system.paragraphs.join('\n\n');
 
 const readme = `# [good days](https://gdays.day)

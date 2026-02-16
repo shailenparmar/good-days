@@ -8,7 +8,7 @@ entries are not sent to servers. a developer couldn't view your writing even if 
 
 everything added lives encrypted or hashed in localstorage. your browser pulls from it to display content, but entries, passwords, and colorways never leave your computer.
 
-as a privacy guarantee, the entire product is open-source.
+as a privacy guarantee, the entire product is open source.
 
 ## features
 
