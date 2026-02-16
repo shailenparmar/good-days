@@ -577,28 +577,38 @@ See `src/hooks/useLayoutState.ts` for state machine and `src/App.tsx` for ESC ha
 2. **Scramble active (v2.4.18+)** → Unscramble only (no other ESC behavior fires). Works from editor, title input, or anywhere. In the title input, `stopPropagation()` is skipped when scrambled so the event bubbles to the App handler.
 3. **Held key repeat** → Ignored (`e.repeat` returns early)
 4. **User in password input** → Do nothing (only `<input>`, NOT `<textarea>`)
-5. **Panels open** → Close panels, reset to base, direction = up
-6. **Zen mode** → Exit zen to minizen/default, direction = down
-7. **Minizen / narrow default** → Go up (zen) or down (base/sidebar) based on direction
-8. **Base state** → Go up (minizen/default), direction = up (restart)
+5. **Unwinding phase** → Resolve state top-down using state machine functions (see below)
+6. **Bounce cycle** → Infinite layout cycle (only reached when neutral)
 
 **IMPORTANT:** Scramble check comes BEFORE everything else (after password flow). This means ESC while scrambled ONLY unscrambles — it won't exit zen, close panels, or cycle.
 
-### The ESC Philosophy (v2.4.105+)
+### The ESC Philosophy (v2.5.0+)
 
-**Tap ESC = infinite layout cycle. Hold ESC = lock.**
+**Tap ESC = unwind first, then bounce. Hold ESC = lock.**
 
-Tapping ESC bounces through all 3 layouts forever — it never locks. Holding ESC (~500ms) locks the app (if password exists). This decouples layout exploration from locking, so users don't avoid setting a password just to keep the cycle.
+ESC resolves accumulated state top-down before starting the infinite bounce cycle. Each ESC press unwinds one layer. Only once everything is neutral does the bounce cycle begin.
 
-**Bounce cycle:**
+**Phase 1 — Unwinding** (uses `exitZen()`/`exitMinizen()`/`closePanels()`):
+- Zen with saved state (`preFocusState !== null || zenFromMinizen`) → `exitZen()` restores previous state
+- Minizen with saved state (`preFocusState !== null`) → `exitMinizen()` restores previous state (wide only)
+- Panels open → `closePanels()`
+
+**Phase 2 — Bounce cycle** (only reached when no saved state, no panels):
+
 ```
 Wide:   base → mz → zen → mz → base → mz → zen → ...  (infinite)
-Narrow: sidebar → default → zen → default → sidebar → ...  (infinite)
+Narrow: sidebar → mz → zen → mz → sidebar → mz → zen → ...  (infinite)
 ```
 
-**Hold-to-lock (v2.4.109+):** On ESC keydown, the layout cycles instantly (no lag) AND a 500ms lock timer starts. Before cycling, a snapshot of the layout state is saved to `escPreCycleRef`. On keyup (tap), the timer is cancelled and the snapshot cleared — the cycle sticks. If the timer fires before keyup (hold), the snapshot is restored (reverting the cycle), then the app locks. Brief visual flash during a hold is harmless since the lock screen covers it. Only active when `auth.hasPassword`.
+**Key discriminator:** `preFocusState !== null` (or `zenFromMinizen`) means "entered via UI, has state to restore." `null` means "entered via bounce cycle, just keep cycling."
 
-**Direction tracking:** `escDirectionRef` (`'up' | 'down'`) replaces the old `escVisitedZenRef`. Starts `'up'`, flips to `'down'` when leaving zen, flips back to `'up'` when reaching base. Any non-ESC interaction (keydown, mousedown, resize) resets direction to `'up'`.
+**Example:** Full + settings open → footer → zen → ESC → settings restored (exitZen). ESC → settings closed (closePanels). ESC → bounce cycle starts (base → mz).
+
+**Narrow direction is flipped (v2.5.0+):** In narrow mode, `escDirectionRef` semantics are opposite to wide mode. Direction resets to `'up'` on non-ESC interaction, and `'up'` at the mz junction → sidebar (toward base). This means the first ESC from narrow mz always goes toward sidebar, not zen.
+
+**Hold-to-lock (v2.4.109+):** On ESC keydown, ESC acts instantly (no lag) AND a 500ms lock timer starts. Before acting, a full snapshot of layout state is saved to `escPreCycleRef` (includes panels, preFocusState, zenFromMinizen). On keyup (tap), the timer is cancelled and the snapshot cleared — the action sticks. If the timer fires before keyup (hold), the snapshot is restored (reverting the action), then the app locks. Only active when `auth.hasPassword`.
+
+**Direction tracking:** `escDirectionRef` (`'up' | 'down'`). Starts `'up'`, reset to `'up'` by any non-ESC interaction (keydown, mousedown, resize). In wide mode: `'up'` = toward zen, `'down'` = toward base. In narrow mode: `'up'` = toward sidebar, `'down'` = toward zen.
 
 ### Ref Pattern for Layout State in ESC Handler
 
@@ -614,7 +624,11 @@ useEffect(() => { minizenRef.current = minizen; }, [minizen]);
 // Direction, lock timer, and pre-cycle snapshot in App.tsx
 const escDirectionRef = useRef<'up' | 'down'>('up');
 const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const escPreCycleRef = useRef<{ zenMode, minizen, showSidebarInNarrow, direction } | null>(null);
+const escPreCycleRef = useRef<{
+  zenMode, minizen, showSidebarInNarrow,
+  showDebugMenu, showAboutPanel, preFocusState, zenFromMinizen,
+  direction
+} | null>(null);
 ```
 
 Direction ref is reset by global keydown/mousedown/resize listeners (any non-ESC interaction). Lock timer and pre-cycle snapshot are both cleared on keyup.
