@@ -5,7 +5,7 @@ import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions,
 export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 141, sat: 85, light: 53, bgHue: 250, bgSat: 70, bgLight: 32 },
   { hue: 63, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91 },
-  { hue: 360, sat: 100, light: 49, bgHue: 360, bgSat: 100, bgLight: 13 },
+  { hue: 0, sat: 100, light: 25, bgHue: 0, bgSat: 100, bgLight: 8 },
   { hue: 36, sat: 58, light: 38, bgHue: 181, bgSat: 52, bgLight: 10 },
   { hue: 229, sat: 61, light: 100, bgHue: 251, bgSat: 100, bgLight: 59 },
 ];
