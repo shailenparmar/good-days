@@ -217,6 +217,20 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         hiddenAtRef.current = Date.now();
+        // Send going-hidden before close — data frames are buffered by OS,
+        // survives page freeze (same pattern as phone). Relay unpairs phone
+        // immediately. The 3s handoff grace period covers tab switches —
+        // if we come back within 3s, the phone never sees 'unpaired'.
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'going-hidden' }));
+        }
+        wsRef.current?.close();
+        wsRef.current = null;
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        backoffRef.current = 1000;
         return;
       }
       if (document.visibilityState !== 'visible') return;
@@ -231,27 +245,18 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
         return;
       }
 
-      const stale = Date.now() - lastWsActivityRef.current > 45_000;
-      const dead = !wsRef.current || wsRef.current.readyState > WebSocket.OPEN;
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-        || (window.navigator as { standalone?: boolean }).standalone === true;
-      const pwaFrozen = isStandalone && hiddenAtRef.current > 0
-        && (Date.now() - hiddenAtRef.current > 3_000);
-
-      if (stale || dead || pwaFrozen) {
-        console.log('[ws-sync] wake detected, reconnecting (stale=%s, dead=%s, pwaFrozen=%s)', stale, dead, pwaFrozen);
-        hiddenAtRef.current = 0;
-        backoffRef.current = 1000;
-        if (reconnectTimer.current) {
-          clearTimeout(reconnectTimer.current);
-          reconnectTimer.current = null;
-        }
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
-        connect();
+      // Reconnect immediately — WS was closed on hidden
+      hiddenAtRef.current = 0;
+      backoffRef.current = 1000;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
       }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      connect();
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
