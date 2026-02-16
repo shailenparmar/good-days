@@ -143,12 +143,19 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleHotkey);
   }, [layout.scrambleHotkeyActive]);
 
-  // ESC key behavior — infinite bounce cycle: base ↔ mz ↔ zen ↔ mz ↔ base ↔ ...
-  // Tap ESC = cycle instantly (keydown). Hold ESC (~500ms) = revert cycle + lock.
+  // ESC key behavior — unwind first, then bounce.
+  // Phase 1: ESC resolves state top-down (exitZen → exitMinizen → closePanels).
+  // Phase 2: Once neutral, ESC starts infinite bounce: base ↔ mz ↔ zen ↔ mz ↔ base ↔ ...
+  // Tap ESC = one step (keydown). Hold ESC (~500ms) = revert step + lock.
   const escDirectionRef = useRef<'up' | 'down'>('up');
   const escLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Snapshot of layout state before the cycle, so hold-to-lock can revert
-  const escPreCycleRef = useRef<{ zenMode: boolean; minizen: boolean; showSidebarInNarrow: boolean; direction: 'up' | 'down' } | null>(null);
+  const escPreCycleRef = useRef<{
+    zenMode: boolean; minizen: boolean; showSidebarInNarrow: boolean;
+    showDebugMenu: boolean; showAboutPanel: boolean;
+    preFocusState: typeof layout.preFocusState; zenFromMinizen: boolean;
+    direction: 'up' | 'down';
+  } | null>(null);
 
   // Reset direction on any non-ESC interaction
   useEffect(() => {
@@ -196,11 +203,15 @@ function AppContent() {
         const tagName = activeEl?.tagName?.toLowerCase();
         if (tagName === 'input') return;
 
-        // Snapshot state before cycling (for hold-to-lock revert)
+        // Snapshot full state before cycling (for hold-to-lock revert)
         escPreCycleRef.current = {
           zenMode: layout.zenModeRef.current,
           minizen: layout.minizenRef.current,
           showSidebarInNarrow: layout.showSidebarInNarrow,
+          showDebugMenu: layout.showDebugMenu,
+          showAboutPanel: layout.showAboutPanel,
+          preFocusState: layout.preFocusState,
+          zenFromMinizen: layout.zenFromMinizen,
           direction: escDirectionRef.current,
         };
 
@@ -209,12 +220,16 @@ function AppContent() {
           if (escLockTimerRef.current) clearTimeout(escLockTimerRef.current);
           escLockTimerRef.current = setTimeout(() => {
             escLockTimerRef.current = null;
-            // Revert the cycle that happened on keydown
+            // Revert everything that happened on keydown
             const snap = escPreCycleRef.current;
             if (snap) {
               layout.setZenMode(snap.zenMode);
               layout.setMinizen(snap.minizen);
               layout.setShowSidebarInNarrow(snap.showSidebarInNarrow);
+              layout.setShowDebugMenu(snap.showDebugMenu);
+              layout.setShowAboutPanel(snap.showAboutPanel);
+              layout.setPreFocusState(snap.preFocusState);
+              layout.setZenFromMinizen(snap.zenFromMinizen);
               escDirectionRef.current = snap.direction;
               escPreCycleRef.current = null;
             }
@@ -225,29 +240,35 @@ function AppContent() {
           }, 500);
         }
 
-        // Cycle immediately (responsive tap)
-        // Narrow mode bounce cycle
+        // Two-phase ESC: unwind saved state first, then bounce cycle.
+        // Phase 1 (unwinding) uses state machine functions to restore.
+        // Phase 2 (bounce) uses raw setters to cycle layouts.
+        // Discriminator: preFocusState !== null (or zenFromMinizen) means
+        // "entered via UI, has state to restore." null = bounce cycle.
+
         if (layout.isNarrow) {
-          if (layout.showDebugMenu || layout.showAboutPanel) {
-            layout.closePanels();
-            layout.setZenMode(false);
-            layout.setShowSidebarInNarrow(true);
-            layout.setPreFocusState(null);
-            layout.setZenFromMinizen(false);
-            layout.setPreNarrowState(null);
-            escDirectionRef.current = 'up';
-            return;
-          }
-          if (layout.zenModeRef.current) {
-            layout.setZenMode(false);
-            layout.setShowSidebarInNarrow(false);
-            layout.setPreFocusState(null);
-            layout.setZenFromMinizen(false);
+          // --- NARROW: UNWINDING ---
+          if (layout.zenModeRef.current && (layout.preFocusState !== null || layout.zenFromMinizen)) {
+            layout.exitZen();
             escDirectionRef.current = 'down';
             return;
           }
+          if (layout.showDebugMenu || layout.showAboutPanel) {
+            layout.closePanels();
+            escDirectionRef.current = 'up';
+            return;
+          }
+          // --- NARROW: BOUNCE CYCLE (sidebar → mz → zen → mz → sidebar → ...) ---
+          // Direction is flipped vs wide: 'up' (default/reset) → sidebar, 'down' → zen.
+          // This means the first ESC from mz always goes toward base (sidebar).
+          if (layout.zenModeRef.current) {
+            layout.setZenMode(false);
+            layout.setShowSidebarInNarrow(false);
+            escDirectionRef.current = 'up';
+            return;
+          }
           if (!layout.showSidebarInNarrow) {
-            if (escDirectionRef.current === 'down') {
+            if (escDirectionRef.current === 'up') {
               layout.setShowSidebarInNarrow(true);
               layout.setPreNarrowState(null);
             } else {
@@ -256,25 +277,30 @@ function AppContent() {
             return;
           }
           layout.setShowSidebarInNarrow(false);
-          escDirectionRef.current = 'up';
+          escDirectionRef.current = 'down';
           return;
         }
 
-        // Wide mode bounce cycle
+        // --- WIDE: UNWINDING ---
+        if (layout.zenModeRef.current && (layout.preFocusState !== null || layout.zenFromMinizen)) {
+          layout.exitZen();
+          escDirectionRef.current = 'down';
+          return;
+        }
+        if (layout.minizenRef.current && layout.preFocusState !== null) {
+          layout.exitMinizen();
+          escDirectionRef.current = 'down';
+          return;
+        }
         if (layout.showDebugMenu || layout.showAboutPanel) {
           layout.closePanels();
-          layout.setZenMode(false);
-          layout.setMinizen(false);
-          layout.setPreFocusState(null);
-          layout.setZenFromMinizen(false);
           escDirectionRef.current = 'up';
           return;
         }
+        // --- WIDE: BOUNCE CYCLE (base → mz → zen → mz → base → ...) ---
         if (layout.zenModeRef.current) {
           layout.setZenMode(false);
           layout.setMinizen(true);
-          layout.setPreFocusState(null);
-          layout.setZenFromMinizen(false);
           escDirectionRef.current = 'down';
           return;
         }

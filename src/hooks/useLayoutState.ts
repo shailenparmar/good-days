@@ -327,5 +327,7 @@ export function useLayoutState() {
     // State management (for panel toggle handlers)
     setPreNarrowState, setPreFocusState, setZenFromMinizen,
     setZenMode, setMinizen,
+    // Focus state values (for ESC handler unwinding detection)
+    preFocusState, zenFromMinizen,
   };
 }
