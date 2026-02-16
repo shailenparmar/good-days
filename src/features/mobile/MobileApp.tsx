@@ -695,7 +695,6 @@ export default function MobileApp() {
 
   const isPicking = editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
-  const showHome = !isPicking && !showCalibrate && (sync.pairingState === 'paired' || sync.pairingState === 'standalone');  
 
   // Hue bar indicator — horizontal line showing current hue position
   const renderHueIndicator = (side: 'left' | 'right', hue: number) => {
@@ -726,14 +725,6 @@ export default function MobileApp() {
   // All screens always rendered (visibility-toggled) for seamless transitions.
   return (
     <>
-      {/* ===== BASE SCREEN (always visible, colored bg + title only) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', zIndex: -100, ...safeAreaStyle }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        {title}
-        </div>
-      </div>
-```
-
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
       <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 30 : -2, ...safeAreaStyle }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
@@ -853,8 +844,8 @@ export default function MobileApp() {
           userSelect: 'none',
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
-          visibility: showHome ? 'visible' : 'hidden',
-          zIndex: showHome ? -1 : 1,
+          visibility: isPicking ? 'hidden' : 'visible',
+          zIndex: isPicking ? -1 : 1,
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
@@ -943,8 +934,8 @@ export default function MobileApp() {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#000',
-          visibility: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') || mockScreen === 'code') ? 'visible' : 'hidden',
-zIndex: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') || mockScreen === 'code') ? 20 : -3,
+          visibility: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 'visible' : 'hidden',
+          zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
       >
@@ -1064,9 +1055,3 @@ zIndex: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') 
     </>
   );
 }
-
-
-
-
-
-
