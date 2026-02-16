@@ -78,6 +78,8 @@ const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
 
 **Indicator interpolation (v2.4.95+, fixed v2.4.111):** Both the SL dot and hue needle have `transition: 30ms linear` on their position properties (`left`/`top`) — but **only when not dragging locally**. During local desktop drags, the transition is `'none'` for instant feedback. During streaming (phone pair mode), the 30ms transition smooths the ~40fps WS updates at the display's native refresh rate. The conditional is simply `isDragging ? 'none' : 'top 30ms linear'`. Without this fix, the 30ms transition overlapped with rapid mousemove events during local drags, causing the indicator to visibly lag behind the cursor.
 
+**SL gradient freeze during streaming (v2.5.3+):** The SL picker gradients use React state (`hue`/`bgHue`) instead of CSS vars (`var(--h)`/`var(--bh)`) for their background hue. During CSS-only streaming, WebSyncBridge writes CSS vars directly without updating React state, so the gradients stay frozen — eliminating expensive gradient bitmap regeneration ~40x/sec. The indicator dots still move smoothly via CSS vars. Gradients update normally during local drags (React state changes) and catch up on stream-stop (when `applyLivePreset` syncs React state). This was the cause of indicator stutter when settings was open during pair mode.
+
 ### Drag Listener Cleanup
 
 When the user mousedowns/touchstarts on a picker square, `mousemove`/`touchmove` and `mouseup`/`touchend`/`touchcancel` listeners are added to `document`. The up handler removes all listeners. Active listeners are tracked in a ref (`listenersRef`) so they can be cleaned up on component unmount - this prevents a memory leak if the component is removed mid-drag.
