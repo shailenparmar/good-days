@@ -61,12 +61,10 @@ export default function MobileApp() {
   // iOS permission state — computed synchronously to avoid first-render flash
   // If previously granted (persisted in localStorage), skip the permission screen entirely
   const [needsPermission, setNeedsPermission] = useState(() => {
-    if (localStorage.getItem('motionPermissionGranted')) return false;
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission === 'function';
   });
   const [permissionGranted, setPermissionGranted] = useState(() => {
-    if (localStorage.getItem('motionPermissionGranted')) return true;
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission !== 'function';
   });
@@ -740,7 +738,7 @@ export default function MobileApp() {
   return (
     <>
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 20 : -2, ...safeAreaStyle }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 30 : -2, ...safeAreaStyle }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
         {title}
 
@@ -949,7 +947,7 @@ export default function MobileApp() {
           flexDirection: 'column',
           backgroundColor: '#000',
           visibility: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 'visible' : 'hidden',
-          zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 30 : -3,
+          zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
       >
