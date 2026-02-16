@@ -263,7 +263,7 @@ The `[live]` button uses CSS vars (`hsl(var(--h), var(--s), var(--l))`) for its 
 
 When the hint appears (after clicking presets a few times), it shows:
 ```
-navigate colorway menu with arrow keys.
+navigate presets with arrow keys.
 select with spacebar.
 delete with backspace.
 ```
