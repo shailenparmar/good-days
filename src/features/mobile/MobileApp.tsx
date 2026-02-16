@@ -70,6 +70,42 @@ export default function MobileApp() {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     return typeof DOE.requestPermission !== 'function';
   });
+  // Verify motion permission is actually active (Safari can silently revoke)
+  // If we skipped the permission screen based on localStorage but no data arrives,
+  // Then show the permission button
+  useEffect(() => {
+    if (!permissionGranted || needsPermission) return;
+    
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission !== 'function') return;
+
+    let gotData = false;
+    let cancelled = false;
+
+    const testListener = (e: DeviceOrientationEvent) => {
+      if (e.beta !== null || e.gamma !== null) {
+        gotData = true;
+        window.removeEventListener('deviceorientation', testListener);
+      }
+    };
+
+    window.addEventListener('deviceorientation', testListener);
+
+    const timeout = setTimeout(() => {
+      window.removeEventListener('deviceorientation', testListener);
+      if (!gotData && !cancelled) {
+        localStorage.removeItem('motionPermissionGranted');
+        setNeedsPermission(true);
+        setPermissionGranted(false);
+      }
+    }, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      window.removeEventListener('deviceorientation', testListener);
+    };
+  }, [permissionGranted, needsPermission]);
 
   // Refs
   const baseline = useRef({ beta: 0, gamma: 0 });
