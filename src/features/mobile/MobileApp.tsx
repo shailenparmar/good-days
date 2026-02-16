@@ -934,8 +934,8 @@ export default function MobileApp() {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#000',
-          visibility: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 'visible' : 'hidden',
-          zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 20 : -3,
+          visibility: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') || mockScreen === 'code') ? 'visible' : 'hidden',
+zIndex: (sync.pairingState !== 'paired' && sync.pairingState !== 'standalone' || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
       >
@@ -1055,3 +1055,9 @@ export default function MobileApp() {
     </>
   );
 }
+
+
+
+
+
+
