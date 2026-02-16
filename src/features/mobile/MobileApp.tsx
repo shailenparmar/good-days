@@ -722,14 +722,16 @@ export default function MobileApp() {
             allow motion access
           </div>
 
-          {/* Placeholder rows to match home screen button stack height */}
+          {/* Placeholder rows to match home screen button stack height.
+             "allow motion access" is standard (14px) vs home's recalibrate aux (7px) = 14px taller.
+             Compensate by removing padding from the last invisible row. */}
           <div style={{ display: 'flex' }}>
             <div style={{ ...getButtonStyle(false, 'left', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
             <div style={{ ...getButtonStyle(false, 'right', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
           </div>
           <div style={{ display: 'flex' }}>
-            <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
           </div>
         </div>
       </div>
