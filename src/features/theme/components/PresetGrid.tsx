@@ -35,10 +35,11 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
   const [pulseKey, setPulseKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const undoStackRef = useRef<(
+  type UndoEntry =
     | { action: 'delete'; preset: ColorPreset; index: number; type: 'default' | 'custom' }
-    | { action: 'color-change'; snapshot: ColorPreset }
-  )[]>([]);
+    | { action: 'color-change'; snapshot: ColorPreset };
+  const undoStackRef = useRef<UndoEntry[]>([]);
+  const redoStackRef = useRef<UndoEntry[]>([]);
   const prevDragCountRef = useRef(0);
 
   // Refs for values used in keyboard handlers — avoids putting fast-changing
@@ -138,6 +139,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     const snapshot = prePickerSnapshotRef.current;
     if (snapshot) {
       undoStackRef.current.push({ action: 'color-change', snapshot });
+      redoStackRef.current = [];
     }
 
     // Activate save button with pulse
@@ -262,6 +264,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount) {
           // Rand — push undo before randomizing
           undoStackRef.current.push({ action: 'color-change', snapshot: { ...colorsRef.current } });
+          redoStackRef.current = [];
           randomizeTheme();
         } else if (activePresetIndex === totalDefaultAndCustom + liveSlotCount + 1) {
           // Save — focus the newly saved preset
@@ -303,7 +306,8 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
         const entry = stack.pop()!;
 
         if (entry.action === 'delete') {
-          // Restore deleted preset at original index
+          // Restore deleted preset at original index — push to redo so it can be re-deleted
+          redoStackRef.current.push(entry);
           if (entry.type === 'default') {
             const newPresets = [...presets];
             newPresets.splice(entry.index, 0, entry.preset);
@@ -322,11 +326,49 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
             setActivePresetIndex(presets.length + entry.index);
           }
         } else if (entry.action === 'color-change') {
-          // Restore previous colors
+          // Snapshot current colors for redo, then restore previous
+          redoStackRef.current.push({ action: 'color-change', snapshot: { ...colorsRef.current } });
           applyPreset(entry.snapshot);
           setSelectedPreset(null);
           setSelectedCustomPreset(null);
           // Activate save button with pulse
+          const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
+          setActivePresetIndex(saveIndex);
+          setPulseKey(k => k + 1);
+        }
+
+        return;
+      }
+
+      // Cmd+Shift+Z / Ctrl+Shift+Z: redo
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && e.shiftKey && showDebugMenu) {
+        e.preventDefault();
+        const stack = redoStackRef.current;
+        if (stack.length === 0) return;
+        const entry = stack.pop()!;
+
+        if (entry.action === 'delete') {
+          // Re-delete the preset — push to undo so it can be undone again
+          undoStackRef.current.push(entry);
+          if (entry.type === 'default') {
+            const newPresets = presets.filter((_, i) => i !== entry.index);
+            setPresets(newPresets);
+            if (newPresets.length > 0) {
+              const newIndex = Math.min(entry.index, newPresets.length - 1);
+              setActivePresetIndex(newIndex);
+              applyPreset(newPresets[newIndex]);
+              setSelectedPreset(newIndex);
+              setSelectedCustomPreset(null);
+            }
+          } else {
+            deleteCustomPreset(entry.index);
+          }
+        } else if (entry.action === 'color-change') {
+          // Snapshot current colors for undo, then apply redo
+          undoStackRef.current.push({ action: 'color-change', snapshot: { ...colorsRef.current } });
+          applyPreset(entry.snapshot);
+          setSelectedPreset(null);
+          setSelectedCustomPreset(null);
           const saveIndex = presets.length + customPresets.length + liveSlotCount + 1;
           setActivePresetIndex(saveIndex);
           setPulseKey(k => k + 1);
@@ -341,6 +383,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           // Delete default preset — save to ref for undo
           e.preventDefault();
           undoStackRef.current.push({ preset: presets[activePresetIndex], index: activePresetIndex, type: 'default', action: 'delete' });
+          redoStackRef.current = [];
           const newPresets = presets.filter((_, i) => i !== activePresetIndex);
           setPresets(newPresets);
           // Move to next available preset or stay at end
@@ -361,6 +404,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           e.preventDefault();
           const customIndex = activePresetIndex - presets.length;
           undoStackRef.current.push({ preset: customPresets[customIndex], index: customIndex, type: 'custom', action: 'delete' });
+          redoStackRef.current = [];
           deleteCustomPreset(customIndex);
         }
       }
@@ -382,6 +426,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     } else {
       // Push undo before applying
       undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
+      redoStackRef.current = [];
       applyPreset(preset);
       setSelectedPreset(index);
       setSelectedCustomPreset(null);
@@ -402,6 +447,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     } else {
       // Push undo before applying
       undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
+      redoStackRef.current = [];
       applyPreset(preset);
       setSelectedPreset(null);
       setSelectedCustomPreset(index);
@@ -540,6 +586,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
                 setPresetClickCount(c => c + 1);
                 setPulseKey(k => k + 1);
                 undoStackRef.current.push({ action: 'color-change', snapshot: { hue, sat: saturation, light: lightness, bgHue, bgSat: bgSaturation, bgLight: bgLightness } });
+                redoStackRef.current = [];
                 randomizeTheme();
                 setActivePresetIndex(randIndex);
                 setIsLiveActive(false);
