@@ -944,7 +944,7 @@ export default function MobileApp() {
           flexDirection: 'column',
           backgroundColor: '#000',
           visibility: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') || mockScreen === 'code') ? 'visible' : 'hidden',
-zIndex: (sync.pairingState !== 'paired' && sync.pairingState !== 'standalone' || mockScreen === 'code') ? 20 : -3,
+zIndex: ((sync.pairingState !== 'paired' && sync.pairingState !== 'standalone') || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
       >
