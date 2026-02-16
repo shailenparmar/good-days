@@ -234,7 +234,7 @@ After import, the import button shows feedback:
 | State | Text | Color |
 |-------|------|-------|
 | Success | "X entry/entries imported" | Confirm color (WCAG green) |
-| Success + presets | "X entry/entries imported + presets" | Confirm color (WCAG green) |
+| Success + presets | "X entries + Y presets imported" | Confirm color (WCAG green) |
 | Failure | "import failed" | Error color (WCAG red) |
 
 **Behaviors:**
