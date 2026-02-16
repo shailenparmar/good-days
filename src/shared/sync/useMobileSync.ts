@@ -13,7 +13,7 @@ function getOrCreateDeviceId(): string {
   return id;
 }
 
-export type PairingState = 'standalone' | 'paired' | 'enter-code';
+export type PairingState = 'connecting' | 'paired' | 'enter-code';
 
 export interface MobileSyncHandle {
   pairingState: PairingState;
@@ -31,9 +31,9 @@ export interface MobileSyncHandle {
 }
 
 export function useMobileSync(): MobileSyncHandle {
-  const [pairingState, setPairingState] = useState<PairingState>('standalone');
+  const [pairingState, setPairingState] = useState<PairingState>('connecting');
   const [codeRejectedCount, setCodeRejectedCount] = useState(0);
-  const pairingStateRef = useRef<PairingState>('standalone');
+  const pairingStateRef = useRef<PairingState>('connecting');
 
   const wsRef = useRef<WebSocket | null>(null);
   const isStreamingRef = useRef(false);
