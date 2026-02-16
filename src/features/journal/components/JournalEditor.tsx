@@ -269,6 +269,9 @@ export function JournalEditor({
     }
 
     setValue(newValue);
+    // Sync scrollTop in the same batch as setValue — prevents a 1-frame flash
+    // where the scramble overlay has new text but old scroll position
+    if (editorRef.current) setScrollTop(editorRef.current.scrollTop);
     onInput(newValue);
   }, [editorRef, isScrambled, isSuperscramble, onInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, incrementColorPickerDragCount]);
 
