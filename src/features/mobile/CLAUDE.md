@@ -154,13 +154,15 @@ The candidates picker ("which one is yours?") was removed in v2.4.27. All ambigu
 
 The tilt square complex (square + L corners + sat/light labels) is dynamically sized and centered between the title and bottom section.
 
-**Key principle:** The L corners must be at the **exact same position** on both the home screen and picker screen. No visual jump on transition.
+**Key principle:** The L corners must be at the **exact same position** on all screens (home, picker, permission). No visual jump on transition.
+
+**Alignment rule (v2.4.133+):** The top border of the first visible button must sit at the same y-coordinate on every screen. Since button stacks are bottom-anchored (44px bottom padding, column direction), this means the total height of the button area must be identical across screens. When a visible button uses a different size role than the home screen's equivalent (e.g., permission's standard "allow motion access" vs home's aux "recalibrate"), the invisible spacer rows compensate by adjusting their padding so the total matches.
 
 **How it works:**
-1. Both screens have identical bottom section heights (picker uses invisible buttons matching home buttons; hex codes are inside the overlay, not adding extra height)
-2. Both `flex: 1` containers use the same padding, so the available space is identical
+1. All screens have identical total bottom section heights (invisible spacer buttons compensate for any size differences in visible buttons)
+2. All `flex: 1` containers use the same padding, so the available space is identical
 3. A `ResizeObserver` measures the home container and computes the largest square that fits: `squareSize = min(availableHeight, availableWidth)`
-4. Both screens render `tiltSquare(squareSize)` — same size, same position
+4. All screens render `tiltSquare(squareSize)` — same size, same position
 
 **Spacing from label bounds:**
 
