@@ -78,7 +78,7 @@ const dotTop = isText ? 'calc(var(--tl-p) * 1%)' : 'calc(var(--bl-p) * 1%)';
 
 **Indicator interpolation (v2.4.95+, fixed v2.4.111):** Both the SL dot and hue needle have `transition: 30ms linear` on their position properties (`left`/`top`) — but **only when not dragging locally**. During local desktop drags, the transition is `'none'` for instant feedback. During streaming (phone pair mode), the 30ms transition smooths the ~40fps WS updates at the display's native refresh rate. The conditional is simply `isDragging ? 'none' : 'top 30ms linear'`. Without this fix, the 30ms transition overlapped with rapid mousemove events during local drags, causing the indicator to visibly lag behind the cursor.
 
-**SL gradient and streaming (v2.5.5+):** The SL picker gradients use CSS vars (`var(--h)`/`var(--bh)`) for their background hue — same vars used by everything else. During streaming, these update at ~30fps (phone's 33ms throttle). Previously attempted freezing gradients during streaming (v2.5.3-v2.5.4) by switching to React state, but this broke live gradient feedback needed for color selection. Reverted — at 30fps on ~140px squares, gradient regen cost is acceptable.
+**SL gradient and streaming (v2.5.5+):** The SL picker gradients use CSS vars (`var(--h)`/`var(--bh)`) for their background hue — same vars used by everything else. During streaming, these update at ~24fps (phone's 42ms throttle). Previously attempted freezing gradients during streaming (v2.5.3-v2.5.4) by switching to React state, but this broke live gradient feedback needed for color selection. Reverted — at 30fps on ~140px squares, gradient regen cost is acceptable.
 
 ### Drag Listener Cleanup
 
