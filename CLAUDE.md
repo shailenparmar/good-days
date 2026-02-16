@@ -72,6 +72,8 @@ The about page copy and `README.md` are architecturally linked via `src/shared/c
 
 **Inline emphasis (v2.4.17+):** `aboutCopy.ts` supports `*word*` syntax for italic text. `AboutPanel.tsx` has a `renderWithEmphasis()` helper that splits on `*...*` and wraps matches in `<em>`. Currently used in features paragraphs (`settings *and* about`). The scramble function `s()` is applied per-segment so superscramble still works.
 
+**Inline icons (v2.5.6+):** `aboutCopy.ts` supports `[icon:name]` tokens. `renderWithEmphasis()` splits on these first, then handles emphasis within each text segment. Icon map: `settings` → `<Settings>` (gear), `about` → `<Heart>`. Icons render at `w-4 h-4 inline align-middle`. `generate-readme.ts` strips icon tokens with `.replace(/\[icon:\w+\]\s?/g, '')`.
+
 ## Tech Stack
 
 - Vite + React + TypeScript
