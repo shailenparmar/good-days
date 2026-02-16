@@ -20,14 +20,15 @@ export const ABOUT_COPY = {
     paragraphs: [
       "a new page spawns at midnight; old logs are set in stone.",
       "keystrokes save in 300ms. clicking the footer bows in to zen mode. \\time delivers a stamp. draft while scrambled to slip prying eyes or writer's block. toggle [icon:settings] and [icon:about] for a poweruser menu.",
-      "the right end of a chromium address bar shelters an install button. beyond that door, a standalone app awaits. victoriously, pair your phone for rc colorways.",
+      "the right end of a chromium address bar shelters an install button; beyond that door, a standalone app awaits. victoriously, pair your phone for rc colorways.",
     ],
   },
 
   system: {
     header: "system:",
     paragraphs: [
-      "good days is optimized for chromium. safari automatically deletes localstorage after 7 days of inactivity. manually deleting site data in browser settings will clear the app.",
+      "entries are unaffected by refreshing, closing, and quitting. however, manually deleting site data in browser settings clears the app.",
+      "good days is optimized for chromium. safari automatically deletes localstorage after 7 days of inactivity.",
     ],
   },
 
