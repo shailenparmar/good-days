@@ -16,11 +16,36 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
+  // Rate limiting
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const isCoolingDown = cooldownEnd !== null && cooldownRemaining > 0;
+
+  useEffect(() => {
+    if (!cooldownEnd) return;
+
+    const tick = () => {
+      const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCooldownEnd(null);
+        setCooldownRemaining(0);
+        inputRef.current?.focus();
+      } else {
+        setCooldownRemaining(remaining);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 100);
+    return () => clearInterval(interval);
+  }, [cooldownEnd]);
+
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const placeholderText = 'password';
-  const showPlaceholder = passwordInput.length === 0 && !isFocused;
+  const placeholderText = isCoolingDown ? String(cooldownRemaining) : 'password';
+  const showPlaceholder = isCoolingDown || (passwordInput.length === 0 && !isFocused);
 
   useEffect(() => {
     if (!showPlaceholder) return;
@@ -53,6 +78,14 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     }
   }, [showPlaceholder]);
 
+  // Reset animation when cooldown number changes
+  useEffect(() => {
+    if (isCoolingDown) {
+      setBoldCount(0);
+      setAnimPhase('bold');
+    }
+  }, [cooldownRemaining, isCoolingDown]);
+
   // Auto-focus input when user starts typing anywhere on the lock screen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,15 +112,28 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (isCoolingDown) return;
 
     setIsSubmitting(true);
     const success = await onSubmit(e);
     setIsSubmitting(false);
 
-    if (!success) {
+    if (success) {
+      setFailedAttempts(0);
+      setCooldownEnd(null);
+      setCooldownRemaining(0);
+    } else {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      if (newAttempts >= 3) {
+        // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+        const delay = Math.min(Math.pow(2, newAttempts - 2), 30) * 1000;
+        setCooldownEnd(Date.now() + delay);
+        onPasswordChange('');
+      }
+
       flashRed();
-      // Refocus input after failed attempt so cursor stays active
-      // Use setTimeout to ensure DOM has updated after isSubmitting becomes false
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
@@ -138,7 +184,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
           onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
           onMouseDown={() => setIsPressed(true)}
           onMouseUp={() => setIsPressed(false)}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isCoolingDown}
           className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
           style={{
             backgroundColor: getBackgroundColor(),
