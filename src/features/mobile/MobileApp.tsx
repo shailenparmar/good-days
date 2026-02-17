@@ -978,7 +978,9 @@ export default function MobileApp() {
         {title}
 
         {/* Square with just L corners - matches home screen layout */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onTouchStart={() => codeInputRef.current?.blur()}
+        >
           <div style={{ width: '252px', height: '252px', position: 'relative' }}>
             <CornerBrackets size={252} color={textColor} showLabels={false} />
           </div>
@@ -1080,15 +1082,14 @@ export default function MobileApp() {
               skipEngaged.current = false;
               setSkipPressed(false);
             }}
-            style={{ ...getButtonStyle(skipPressed, 'full', 'aux'), marginTop: '12px' }}
+            style={{ ...getButtonStyle(skipPressed, 'full'), marginTop: '12px' }}
           >
             skip
           </div>
-          {/* Invisible spacer to match home screen button stack height */}
-          <div style={{ display: 'flex', visibility: 'hidden' }}>
-            <div style={{ ...getButtonStyle(false, 'left', 'aux'), padding: '1px 0' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right', 'aux'), padding: '1px 0' }}>&nbsp;</div>
-          </div>
+          {/* Invisible spacer to match home screen button stack height:
+              Home: aux(42)+12+picker(84)+12+aux(42) = 192px
+              Code: picker(84)+24+standard(56)+12+spacer = 192 → spacer = 16px */}
+          <div style={{ height: '16px', visibility: 'hidden' }} />
         </div>
       </div>
       </div>
