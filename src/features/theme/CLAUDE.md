@@ -227,11 +227,11 @@ Code location: `App.tsx` `handleGlobalKeyDown`
 
 Before v1.10.59, both guards bailed unconditionally, so clicking an old entry's editor and typing did nothing.
 
-**Settings protection:** When settings is open (whether just settings, poweruser menu, or powerscramble), Space/Enter/Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. This is handled in `App.tsx`:
+**Settings protection (v2.5.26+):** When settings is open (whether just settings, poweruser menu, or powerscramble), Space and Backspace must NOT trigger this auto-focus. These keys are reserved for preset controls. Enter is NOT blocked — it focuses the editor, which feels natural as a "go/confirm" action. This is handled in `App.tsx`:
 
 ```tsx
-// When settings open, protect Enter/Backspace/Space from focusing editor (for preset controls)
-if (showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) return;
+// When settings open, protect Backspace/Space from focusing editor (for preset controls)
+if (showDebugMenu && (e.key === 'Backspace' || e.key === ' ')) return;
 ```
 
 **Important distinction:** This protection only prevents these keys from *focusing* the editor. Once you're already focused in the editor, all keys work normally (Backspace deletes characters, Space adds spaces, Enter adds newlines).
