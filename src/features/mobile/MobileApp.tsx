@@ -674,8 +674,6 @@ export default function MobileApp() {
     return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
   };
 
-  // Set tilt button press state
-  const [setTiltPressed, setSetTiltPressed] = useState(false);
   const [recalPressed, setRecalPressed] = useState(false);
 
   // Title hold to show version — persists across refresh so you don't have to re-press
@@ -756,14 +754,13 @@ export default function MobileApp() {
 
         {/* Button area - same position as home screen buttons */}
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-          <div
-            onTouchStart={(e) => { e.preventDefault(); setSetTiltPressed(true); }}
-            onTouchEnd={(e) => { e.preventDefault(); setSetTiltPressed(false); requestPermission(); }}
-            onTouchCancel={() => setSetTiltPressed(false)}
-            style={getButtonStyle(setTiltPressed, 'full')}
+          <MobileButton
+            onActivate={requestPermission}
+            style={getButtonStyle(false, 'full')}
+            getStyle={(pressed) => getButtonStyle(pressed, 'full')}
           >
             allow motion access
-          </div>
+          </MobileButton>
 
           {/* Placeholder rows to match home screen button stack height.
              "allow motion access" is standard (14px) vs home's recalibrate aux (7px) = 14px taller.
