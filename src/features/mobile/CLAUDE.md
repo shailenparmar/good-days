@@ -78,7 +78,17 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 ### Screens
 
-**Screen layering (v2.5.12+):** Permission screen zIndex 30, code entry zIndex 20, home screen is the base layer. Permission always overlays code entry if both are active. Initial `pairingState` is `'connecting'` (shows home screen while WebSocket connects), then transitions to `'paired'`, `'enter-code'`, or `'standalone'`.
+**Screen layering (v2.5.26+):** A base canvas layer (preset 1 flagship colors: `hsl(158, 53%, 40%)` text on `hsl(250, 70%, 32%)` bg) sits at the bottom with no zIndex — just the "good days" title, always visible. Every other screen asserts itself on top with explicit zIndex:
+
+| Layer | zIndex (active) | zIndex (inactive) | Condition |
+|-------|----------------|-------------------|-----------|
+| Base canvas | — (natural) | — | Always visible |
+| Picker | 10 | -1 | `isPicking` |
+| Home | 10 | -1 | `paired/standalone && !isPicking` |
+| Code entry | 20 | -3 | `pairingState === 'enter-code'` |
+| Permission | 30 | -2 | `showCalibrate` |
+
+Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pairingState` is `'paired'` or `'standalone'` — during `'connecting'` the base canvas is the only visible layer, giving a clean resting state before WS resolves.
 
 **Permission Screen** (iOS only, first visit):
 ```
