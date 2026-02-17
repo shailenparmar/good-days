@@ -258,15 +258,15 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 
 ### Live Continuous Calibration (v2.5.29+)
 
-The recalibrate button uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off stops calibration early but the last zero-point sticks (no cancellation).
+The recalibrate button uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off pauses calibration (last zero-point sticks), but dragging back in resumes it — calibration toggles with finger position as long as the touch is held.
 
 **Implementation:** Uses `isCalibratingRef` (a `useRef(false)`) checked in the `deviceorientation` handler. While true, `baseline.current.beta/gamma` are overwritten with the current raw orientation every frame. Raw touch handlers on the button (not `MobileButton`) control the flag.
 
 | Event | Behavior |
 |-------|----------|
 | touchStart | `isCalibratingRef = true`, haptic 10ms, pressed visual |
-| touchMove (inside) | No change — calibration continues |
-| touchMove (outside) | `isCalibratingRef = false`, disengage — won't re-engage if finger slides back |
+| touchMove (inside) | `isCalibratingRef = true`, pressed visual — resumes if finger returns |
+| touchMove (outside) | `isCalibratingRef = false`, clear pressed — pauses calibration, last zero sticks |
 | touchEnd | `isCalibratingRef = false`, clear pressed visual |
 | touchCancel | `isCalibratingRef = false`, clear pressed visual |
 
@@ -274,7 +274,6 @@ The recalibrate button uses **hold-to-calibrate**: pressing and holding continuo
 
 **Key refs:**
 - `isCalibratingRef`: `useRef(false)` — checked every orientation event
-- `recalDisengaged`: `useRef(false)` — prevents re-engagement after drag-off
 - `recalPressed`: state for visual pressed style
 
 ### Direct Adjusting (v1.10.61+)
