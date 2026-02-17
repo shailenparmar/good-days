@@ -128,23 +128,6 @@ function AppContent() {
   // Log app load (once on mount)
   useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
 
-  // Adjust theme-color to match what's directly below the title bar.
-  // Sidebar visible → +2% lightness (sidebar bg). Hidden → base (editor bg).
-  useEffect(() => {
-    const meta = document.getElementById('theme-color-meta');
-    if (!meta) return;
-    const { bgHue, bgSaturation, bgLightness } = theme;
-    const l = layout.zenMode ? bgLightness : Math.min(100, bgLightness + 2);
-    const s = bgSaturation / 100, ll = l / 100;
-    const a = s * Math.min(ll, 1 - ll);
-    const f = (n: number) => {
-      const k = (n + bgHue / 30) % 12;
-      const c = ll - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * c).toString(16).padStart(2, '0');
-    };
-    meta.setAttribute('content', `#${f(0)}${f(8)}${f(4)}`);
-  }, [layout.zenMode, theme.bgHue, theme.bgSaturation, theme.bgLightness]);
-
   // Option/Alt+S hotkey for scramble toggle
   useEffect(() => {
     const handleHotkey = (e: KeyboardEvent) => {
@@ -437,7 +420,7 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex h-screen wco-root" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}>
+    <div className="flex h-screen" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}>
       {/* Global styles */}
       <style>
         {`
@@ -459,7 +442,7 @@ function AppContent() {
       {/* Sidebar - hidden in zen mode, minizen (wide), or narrow (unless toggled) */}
       {!layout.zenMode && (layout.isNarrow ? layout.showSidebarInNarrow : !layout.minizen) && (
       <div
-        className="w-80 flex flex-col relative"
+        className="w-80 flex flex-col min-h-screen relative"
         style={{
           backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
           borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'

@@ -143,22 +143,6 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 
 **Workflow:** User says "push [under construction]" (or any bracketed message) → set `MAINTENANCE = true` and `MESSAGE = '[under construction]'` → bump version → push. User says "take it down" → set `MAINTENANCE = false`, `MESSAGE = ''` → push.
 
-## PWA Title Bar (v2.5.43+, updated v2.5.48)
-
-`display_override: ['window-controls-overlay']` in the manifest removes the Chrome PWA title bar text ("good days") in windowed mode. User must click the caret (^) in the title bar to activate WCO. Falls back to `standalone` on unsupported browsers.
-
-**WCO padding (v2.5.46+):** CSS media query `.wco-root > *:not(style)` adds `padding-top: env(titlebar-area-height, 0px)` to each direct child of the main flex container. Each column extends its own background into the titlebar area — sidebar shows +2% bg, editor shows base bg. Only applies when WCO is active.
-
-**Dynamic theme-color (v2.5.48+):** The Chrome title bar background color adapts to layout state via a `useEffect` in `App.tsx`. Zen mode → base bg lightness (matches editor). Everything else (base, minizen, panels open) → +2% bg lightness (matches sidebar/header bg). Uses the same hslToHex conversion as ThemeContext. This effect runs AFTER ThemeContext's theme-color effect and overrides it.
-
-**macOS fullscreen limitation:** WCO only applies in windowed mode. macOS fullscreen (green button) reverts to `standalone` behavior — Chrome shows the title bar with app name and there's no WCO caret to dismiss it. This is a Chrome limitation with no web API workaround.
-
-Chrome PWA title bar icon/text colors (white or black) are **controlled by Chrome** based on contrast with `theme-color`. Cannot be set to a custom color via web APIs.
-
-### Future: Fullscreen API (not implemented)
-
-The Fullscreen API (`document.documentElement.requestFullscreen()`) would truly hide the title bar in fullscreen, unlike macOS native fullscreen. Combined with `navigator.keyboard.lock(['Escape'])`, ESC would still work for the app's zen/minizen cycling. Hold durations: tap ESC → app cycle, hold 500ms → app lock, hold ~2s → Chrome exits fullscreen (browser safety valve). Requires a user gesture to enter — auto-trigger on first click/keypress after PWA opens. Consider implementing when the macOS fullscreen title bar becomes a bigger UX issue.
-
 ## Service Worker & Auto-Update (v2.4.7+)
 
 Manual SW registration in `main.tsx` (`injectRegister: false`). Polls `registration.update()` every 60s. PWA resume check via `visibilitychange` (hidden >3s threshold, independent of WebSocket handlers). Auto-reload via `controllerchange` + `skipWaiting`. Workbox precache with content hashes.

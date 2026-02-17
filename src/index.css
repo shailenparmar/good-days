@@ -117,10 +117,3 @@ button:focus-visible {
 .scrollbar-hide::-webkit-scrollbar {
   display: none !important;
 }
-
-/* Window Controls Overlay: each column extends its own background into the titlebar area */
-@media (display-mode: window-controls-overlay) {
-  .wco-root > *:not(style) {
-    padding-top: env(titlebar-area-height, 0px);
-  }
-}
