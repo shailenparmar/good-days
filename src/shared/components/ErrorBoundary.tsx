@@ -13,7 +13,7 @@ interface State {
 
 // Error screen colors: must match DEFAULT_PRESETS[0] (preset 1 = flagship)
 const textColor = 'hsl(158, 53%, 40%)';
-const bgColor = 'hsl(250, 70%, 32%)';
+const bgColor = 'hsl(239, 70%, 32%)';
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
