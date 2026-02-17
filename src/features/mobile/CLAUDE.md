@@ -139,20 +139,20 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 └────────────────┻──────────────┘
 ```
 
-**Code Entry Screen** (v2.4.27+, updated v2.4.44+, shown when 0 or 2+ desktops on same IP):
+**Code Entry Screen** (v2.4.27+, updated v2.5.31, shown when 0 or 2+ desktops on same IP):
 ```
 ┌────────────────────────────────┐
 │          good days             │  ← title (same as all screens)
 │                                │
-│       ┌─────────────┐         │
-│       │ pairing code │         │  ← standard button, 3-digit input
-│       └─────────────┘         │     bold sweep "pairing code" placeholder
+│        ┌────────┐              │
+│        │        │              │  ← Corner brackets only (no dot)
+│        └────────┘              │
 │                                │
-│       ───────────────         │  ← 2px divider (24px group gap)
-│                                │
-│       ┌─────────────┐         │
-│       │     skip     │         │  ← standard button
-│       └─────────────┘         │
+├────────────────────────────────┤
+│      pairing code         │  ← picker-height input, 3-digit
+│                                │     bold sweep placeholder
+│                                │  ← 24px gap (double standard)
+│          skip              │  ← aux-height button
 └────────────────────────────────┘
 ```
 
