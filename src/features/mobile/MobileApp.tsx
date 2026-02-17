@@ -96,6 +96,7 @@ export default function MobileApp() {
   const baseline = useRef({ beta: 0, gamma: 0 });
   const rawOrientation = useRef({ beta: 0, gamma: 0 });
   const baselineCaptured = useRef(false);
+  const isCalibratingRef = useRef(false);
   const editingRef = useRef(editing);
   editingRef.current = editing;
   const leftBarRef = useRef<HTMLDivElement>(null);
@@ -268,6 +269,12 @@ export default function MobileApp() {
 
       // Store raw values for reset
       rawOrientation.current = { beta, gamma };
+
+      // Live calibration: re-zero every frame while button is held
+      if (isCalibratingRef.current) {
+        baseline.current.beta = beta;
+        baseline.current.gamma = gamma;
+      }
 
       // Capture baseline on first event
       if (!baselineCaptured.current) {
@@ -523,13 +530,6 @@ export default function MobileApp() {
     setEditing('adjusting');
   };
 
-  // Reset tilt baseline - captures current orientation as new zero point
-  const handleResetTilt = () => {
-    if (navigator.vibrate) navigator.vibrate(10);
-    baseline.current.beta = rawOrientation.current.beta;
-    baseline.current.gamma = rawOrientation.current.gamma;
-  };
-
   // Copy
   const handleCopy = () => {
     if (navigator.vibrate) navigator.vibrate(10);
@@ -676,6 +676,8 @@ export default function MobileApp() {
 
   // Set tilt button press state
   const [setTiltPressed, setSetTiltPressed] = useState(false);
+  const [recalPressed, setRecalPressed] = useState(false);
+  const recalDisengaged = useRef(false);
 
   // Title hold to show version — persists across refresh so you don't have to re-press
   const [titlePressed, setTitlePressed] = useState(() => sessionStorage.getItem('titlePressed') === '1');
@@ -877,13 +879,37 @@ export default function MobileApp() {
         </div>
 
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-          <MobileButton
-            onActivate={handleResetTilt}
-            style={getButtonStyle(false, 'full', 'aux')}
-            getStyle={(pressed) => getButtonStyle(pressed, 'full', 'aux')}
+          <div
+            onTouchStart={(e) => {
+              e.preventDefault();
+              isCalibratingRef.current = true;
+              recalDisengaged.current = false;
+              setRecalPressed(true);
+              if (navigator.vibrate) navigator.vibrate(10);
+            }}
+            onTouchMove={(e) => {
+              if (recalDisengaged.current) return;
+              if (!isTouchInside(e)) {
+                isCalibratingRef.current = false;
+                recalDisengaged.current = true;
+                setRecalPressed(false);
+              }
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              isCalibratingRef.current = false;
+              recalDisengaged.current = false;
+              setRecalPressed(false);
+            }}
+            onTouchCancel={() => {
+              isCalibratingRef.current = false;
+              recalDisengaged.current = false;
+              setRecalPressed(false);
+            }}
+            style={getButtonStyle(recalPressed, 'full', 'aux')}
           >
             recalibrate
-          </MobileButton>
+          </div>
 
           <div style={{ display: 'flex' }}>
             <div
