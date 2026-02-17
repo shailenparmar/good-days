@@ -975,113 +975,119 @@ export default function MobileApp() {
         }}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        <span
-          style={titleStyle}
-          onTouchStart={(e) => { e.preventDefault(); setTitlePressedPersist(true); }}
-          onTouchEnd={() => setTitlePressedPersist(false)}
-          onTouchCancel={() => setTitlePressedPersist(false)}
-        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+        {title}
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <input
-                ref={codeInputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={3}
-                value={codeInput}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
-                  setCodeInput(val);
-                  if (codeFlash !== 'none') setCodeFlash('none');
-                  if (val.length === 3) {
-                    sync.pairByCode(val);
-                  }
-                }}
-                style={{
-                  ...getButtonStyle(codeInputPressed, 'full'),
-                  backgroundColor: codeInputPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
-                  border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${codeInputPressed ? 65 : colors.light}%, ${codeInputPressed ? 1 : 0.6})`}`,
-                  textAlign: 'center',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
-                  letterSpacing: '4px',
-                  textIndent: '4px',
-                }}
-                onTouchStart={() => setCodeInputPressed(true)}
-                onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
-                onTouchEnd={() => setCodeInputPressed(false)}
-                onTouchCancel={() => setCodeInputPressed(false)}
-                onFocus={() => setCodeInputFocused(true)}
-                onBlur={() => setCodeInputFocused(false)}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-              />
-              {showCodePlaceholder && (
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'monospace',
-                  fontWeight: 800,
-                  fontSize: '20px',
-                  color: textColor,
-                  opacity: 0.85,
-                  whiteSpace: 'pre',
-                  pointerEvents: 'none',
-                }}>
-                  {codeBoldPhase === 'bold' ? (
-                    <>
-                      <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
-                      <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(codeBoldCount)}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
-                      <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(codeBoldCount)}</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div style={{ width: '100%', height: '2px', backgroundColor: `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.85)`, margin: '12px 0' }} />
-            <div
-              onTouchStart={(e) => {
-                codeInputRef.current?.blur();
-                e.preventDefault();
-                skipEngaged.current = true;
-                setSkipPressed(true);
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              onTouchMove={(e) => {
-                if (!isTouchInside(e)) {
-                  skipEngaged.current = false;
-                  setSkipPressed(false);
+        {/* Square with just L corners - matches home screen layout */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '252px', height: '252px', position: 'relative' }}>
+            <CornerBrackets size={252} color={textColor} showLabels={false} />
+          </div>
+        </div>
+
+        {/* Button area - top border of pairing code aligns with top border of recalibrate */}
+        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <input
+              ref={codeInputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={3}
+              value={codeInput}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                setCodeInput(val);
+                if (codeFlash !== 'none') setCodeFlash('none');
+                if (val.length === 3) {
+                  sync.pairByCode(val);
                 }
               }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                if (skipEngaged.current) sync.skipPairing();
+              style={{
+                ...getButtonStyle(codeInputPressed, 'full', 'picker'),
+                backgroundColor: codeInputPressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent',
+                border: `4px solid ${codeFlash === 'red' ? errorColor : `hsla(${colors.hue}, ${colors.sat}%, ${codeInputPressed ? 65 : colors.light}%, ${codeInputPressed ? 1 : 0.6})`}`,
+                textAlign: 'center',
+                width: '100%',
+                boxSizing: 'border-box',
+                outline: 'none',
+                caretColor: codeInput.length >= 3 ? 'transparent' : textColor,
+                letterSpacing: '4px',
+                textIndent: '4px',
+              }}
+              onTouchStart={() => setCodeInputPressed(true)}
+              onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
+              onTouchEnd={() => setCodeInputPressed(false)}
+              onTouchCancel={() => setCodeInputPressed(false)}
+              onFocus={() => setCodeInputFocused(true)}
+              onBlur={() => setCodeInputFocused(false)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+            />
+            {showCodePlaceholder && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '20px',
+                color: textColor,
+                opacity: 0.85,
+                whiteSpace: 'pre',
+                pointerEvents: 'none',
+              }}>
+                {codeBoldPhase === 'bold' ? (
+                  <>
+                    <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
+                    <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(codeBoldCount)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
+                    <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(codeBoldCount)}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          {/* 24px gap = 12px flex gap + 12px extra margin */}
+          <div
+            onTouchStart={(e) => {
+              codeInputRef.current?.blur();
+              e.preventDefault();
+              skipEngaged.current = true;
+              setSkipPressed(true);
+              if (navigator.vibrate) navigator.vibrate(10);
+            }}
+            onTouchMove={(e) => {
+              if (!isTouchInside(e)) {
                 skipEngaged.current = false;
                 setSkipPressed(false);
-              }}
-              onTouchCancel={() => {
-                if (skipEngaged.current) sync.skipPairing();
-                skipEngaged.current = false;
-                setSkipPressed(false);
-              }}
-              style={getButtonStyle(skipPressed, 'full')}
-            >
-              skip
-            </div>
+              }
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              if (skipEngaged.current) sync.skipPairing();
+              skipEngaged.current = false;
+              setSkipPressed(false);
+            }}
+            onTouchCancel={() => {
+              if (skipEngaged.current) sync.skipPairing();
+              skipEngaged.current = false;
+              setSkipPressed(false);
+            }}
+            style={{ ...getButtonStyle(skipPressed, 'full', 'aux'), marginTop: '12px' }}
+          >
+            skip
+          </div>
+          {/* Invisible spacer to match home screen button stack height */}
+          <div style={{ display: 'flex', visibility: 'hidden' }}>
+            <div style={{ ...getButtonStyle(false, 'left', 'aux'), padding: '0 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'aux'), padding: '0 0' }}>&nbsp;</div>
           </div>
         </div>
       </div>
