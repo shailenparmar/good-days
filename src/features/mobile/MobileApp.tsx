@@ -1086,8 +1086,8 @@ export default function MobileApp() {
           </div>
           {/* Invisible spacer to match home screen button stack height */}
           <div style={{ display: 'flex', visibility: 'hidden' }}>
-            <div style={{ ...getButtonStyle(false, 'left', 'aux'), padding: '0 0' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right', 'aux'), padding: '0 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'aux'), padding: '1px 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'aux'), padding: '1px 0' }}>&nbsp;</div>
           </div>
         </div>
       </div>
