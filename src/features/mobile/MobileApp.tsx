@@ -58,7 +58,6 @@ export default function MobileApp() {
 
   // Flickering digits removed — code entry title is now plain "good days"
 
-  // iOS permission state — computed synchronously to avoid first-render flash
   // iOS permission state — always starts on permission screen, useEffect auto-skips if data is flowing
   const [needsPermission, setNeedsPermission] = useState(() => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };

@@ -78,6 +78,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 ### Screens
 
+**Screen layering (v2.5.12+):** Permission screen zIndex 30, code entry zIndex 20, home screen is the base layer. Permission always overlays code entry if both are active. Initial `pairingState` is `'connecting'` (shows home screen while WebSocket connects), then transitions to `'paired'`, `'enter-code'`, or `'standalone'`.
+
 **Permission Screen** (iOS only, first visit):
 ```
 ┌────────────────────────────────┐
@@ -346,9 +348,7 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 4. If granted, `motionPermissionGranted` flag saved to localStorage, home screen shown
 5. If denied, tilt controls won't work (hue-only mode)
 
-**Repeat visit skip (v2.5.3+):** On init, if `localStorage.getItem('motionPermissionGranted')` exists, `needsPermission` starts `false` and `permissionGranted` starts `true` — the permission screen is skipped entirely. Previously, iOS always showed the permission screen because `typeof DOE.requestPermission === 'function'` is always true regardless of prior grant. The button said "allow motion access" even though the browser would silently auto-grant.
-
-**Synchronous init (v2.4.28+):** `needsPermission` and `permissionGranted` are initialized via `useState` initializers (not `useEffect`). The localStorage check and the `typeof DOE.requestPermission` check are both synchronous, so the correct screen shows on the very first render — no flash.
+**Auto-detect permission (v2.5.12+, replaces v2.5.3 localStorage skip):** The permission screen always shows initially on iOS (`typeof DOE.requestPermission === 'function'`). A `useEffect` adds a `deviceorientation` listener — if events are already flowing (beta/gamma not null), it sets `motionPermissionGranted` in localStorage and auto-skips the permission screen. This is more reliable than the previous localStorage-only check, which could be stale (permission revoked since last visit). Tradeoff: returning iOS users may see a brief flash of the permission screen before auto-skip fires.
 
 ### Tap-to-Randomize (v2.2.8+, narrowed v2.3.26)
 
