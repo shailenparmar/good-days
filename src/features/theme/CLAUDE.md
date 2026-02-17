@@ -143,7 +143,7 @@ When settings is open, presets can be controlled with the keyboard:
 |-----|--------|
 | Left / Right | Navigate sequentially across all items, wrapping across rows (v2.4.90+) |
 | Up / Down | Navigate within column, stop at top/bottom (no wrap) |
-| Space / Enter | Restart pulse on active preset (no edit/overwrite) |
+| Space | Restart pulse on active preset (no edit/overwrite). Enter is NOT used — it passes through to focus the editor. |
 | Backspace / Delete | Delete the active preset |
 | Cmd+Z / Ctrl+Z | Undo last color change or preset deletion |
 
@@ -151,7 +151,7 @@ When settings is open, presets can be controlled with the keyboard:
 
 #### Preset Edit Removed (v2.4.73+)
 
-Re-clicking an active preset (mouse or Space/Enter) no longer overwrites it with current slider colors. It just restarts the pulse animation. The previous "edit preset" behavior and its associated `'edit'` undo action type have been removed.
+Re-clicking an active preset (mouse or Space) no longer overwrites it with current slider colors. It just restarts the pulse animation. The previous "edit preset" behavior and its associated `'edit'` undo action type have been removed.
 
 #### Preset Undo/Redo (multi-level, v2.3.29+, expanded v2.4.73, redo v2.5.8)
 
@@ -249,7 +249,7 @@ Active presets show a pulsing border animation (`preset-pulse` class). The anima
 | live | Inline onClick (only when `isLiveActive` already true) |
 | rand | Inline onClick (every click) |
 | save | Inline onClick (every click) + `colorPickerDragCount` useEffect (on picker drag) |
-| Space/Enter key | Keyboard handler (every press on any active preset) |
+| Space key | Keyboard handler (every press on any active preset) |
 
 **`isLiveActive` clearing (v2.3.13+):** All buttons that switch away from live must call `setIsLiveActive(false)`. This includes `handlePresetClick`, `handleCustomPresetClick`, rand onClick, and save onClick.
 
