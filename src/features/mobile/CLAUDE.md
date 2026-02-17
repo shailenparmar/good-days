@@ -78,7 +78,7 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 ### Screens
 
-**Screen layering (v2.5.26+):** A base canvas layer (preset 1 flagship colors: `hsl(158, 53%, 40%)` text on `hsl(250, 70%, 32%)` bg) sits at the bottom with no zIndex — just the "good days" title, always visible. Every other screen asserts itself on top with explicit zIndex:
+**Screen layering (v2.5.26+):** A base canvas layer (preset 1 flagship colors: `hsl(158, 53%, 40%)` text on `hsl(239, 70%, 32%)` bg) sits at the bottom with no zIndex — just the "good days" title, always visible. Every other screen asserts itself on top with explicit zIndex:
 
 | Layer | zIndex (active) | zIndex (inactive) | Condition |
 |-------|----------------|-------------------|-----------|
