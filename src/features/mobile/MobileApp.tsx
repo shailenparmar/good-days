@@ -694,6 +694,7 @@ export default function MobileApp() {
 
   const isPicking = editing === 'adjusting';
   const showCalibrate = needsPermission && !permissionGranted;
+  const showHome = (sync.pairingState === 'paired' || sync.pairingState === 'standalone') && !isPicking;
 
   // Hue bar indicator — horizontal line showing current hue position
   const renderHueIndicator = (side: 'left' | 'right', hue: number) => {
@@ -721,9 +722,25 @@ export default function MobileApp() {
     >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
   );
 
+  // Preset 1 colors for base canvas (hardcoded)
+  const baseTextColor = 'hsl(158, 53%, 40%)';
+  const baseBgColor = 'hsl(250, 70%, 32%)';
+
   // All screens always rendered (visibility-toggled) for seamless transitions.
   return (
     <>
+      {/* ===== BASE CANVAS (always visible, natural z-order bottom) ===== */}
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', ...safeAreaStyle }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: baseBgColor }}>
+        <span
+          style={{ ...titleStyle, color: baseTextColor }}
+          onTouchStart={(e) => { e.preventDefault(); setTitlePressedPersist(true); }}
+          onTouchEnd={() => setTitlePressedPersist(false)}
+          onTouchCancel={() => setTitlePressedPersist(false)}
+        >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+      </div>
+      </div>
+
       {/* ===== CALIBRATE SCREEN (visible when needs permission) ===== */}
       <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000', visibility: showCalibrate ? 'visible' : 'hidden', zIndex: showCalibrate ? 30 : -2, ...safeAreaStyle }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
@@ -843,8 +860,8 @@ export default function MobileApp() {
           userSelect: 'none',
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
-          visibility: isPicking ? 'hidden' : 'visible',
-          zIndex: isPicking ? -1 : 1,
+          visibility: showHome ? 'visible' : 'hidden',
+          zIndex: showHome ? 10 : -1,
           ...safeAreaStyle,
         } as React.CSSProperties}
       >
