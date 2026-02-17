@@ -143,6 +143,12 @@ A quick-deploy gate that replaces the entire app with a fullscreen message. Used
 
 **Workflow:** User says "push [under construction]" (or any bracketed message) → set `MAINTENANCE = true` and `MESSAGE = '[under construction]'` → bump version → push. User says "take it down" → set `MAINTENANCE = false`, `MESSAGE = ''` → push.
 
+## PWA Title Bar (v2.5.43+)
+
+`display_override: ['window-controls-overlay']` in the manifest removes the Chrome PWA title bar text ("good days"). Falls back to `standalone` on unsupported browsers. In fullscreen mode, no visual change. In windowed mode, traffic lights and 3-dot menu float over the app content (no padding offset currently — add if needed).
+
+Chrome PWA title bar icon/text colors (white or black) are **controlled by Chrome** based on contrast with `theme-color`. Cannot be set to a custom color via web APIs.
+
 ## Service Worker & Auto-Update (v2.4.7+)
 
 Manual SW registration in `main.tsx` (`injectRegister: false`). Polls `registration.update()` every 60s. PWA resume check via `visibilitychange` (hidden >3s threshold, independent of WebSocket handlers). Auto-reload via `controllerchange` + `skipWaiting`. Workbox precache with content hashes.
