@@ -136,18 +136,15 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
         // Selected or hovered = filled background
         const currentBg = (isSelected || isHovered) ? hoverBg : 'transparent';
 
-        // In poweruser mode, show "1/28/2026 9:24 am" format with startedAt time
+        // In poweruser mode, show "feb 15, 2025 9:24 am" format with startedAt time
         let dateText: string;
         if (stacked && entry.startedAt) {
-          const date = new Date(entry.startedAt);
-          dateText = date.toLocaleString('en-US', {
-            month: 'numeric',
-            day: 'numeric',
-            year: 'numeric',
+          const time = new Date(entry.startedAt).toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true
           }).toLowerCase();
+          dateText = `${formatDate(entry.date)}, ${time}`;
         } else {
           dateText = formatDate(entry.date);
         }
