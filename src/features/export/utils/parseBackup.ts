@@ -277,7 +277,7 @@ function normalizeForComparison(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-// Format startedAt timestamp for merge separator (e.g., "started at: 10:28 PM")
+// Format startedAt timestamp for merge separator (e.g., "started at: 10:28 pm")
 function formatStartedAt(timestamp: number): string {
   const d = new Date(timestamp);
   const hours = d.getHours();

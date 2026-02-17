@@ -82,13 +82,13 @@ Note: This is obfuscation (prevents casual reading), not security. Anyone with s
 
 See **At-Rest Encryption** in `src/shared/storage/CLAUDE.md` for encryption architecture, key lifecycle, password transition flows, and API exports.
 
-### Import Conflict Handling (v2.3.37+)
+### Import Conflict Handling (v2.3.37+, updated v2.5.28)
 
 Entries are treated as **units** (title + content). When importing, entries are **merged** (not replaced). If an imported entry's date already exists:
 
 1. **Exact match** (same content AND same title): Skip
-2. **Already appended**: The formatted import block (`--- title content`) is found in the existing text → skip (prevents duplicates on re-import)
-3. **Any difference** (content, title, or both): Append the imported entry below existing with a `---` separator. The imported title (if any) is always included after the `---`
+2. **Already appended**: `[from backup]` marker found in existing text + title/content match → skip (prevents duplicates on re-import)
+3. **Any difference** (content, title, or both): Append the imported entry below existing with a `--- [from backup] ---` separator, plus labeled metadata (`title:`, `started at:`)
 
 ### Import `lastModified` Preservation (v1.10.0+)
 
@@ -108,13 +108,14 @@ Imported entries preserve their original `lastModified` timestamp from the backu
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
-The conflict separator is a clean `---`. The imported entry's title (if any) always appears after the separator:
+The conflict separator is `--- [from backup] ---` with labeled metadata. Format (v2.5.28+):
 
 ```
 [existing content]
 
----
-a very rainy day
+--- [from backup] ---
+title: a very rainy day
+started at: 10:28 pm
 
 [imported content]
 ```
@@ -123,11 +124,22 @@ Without a title:
 ```
 [existing content]
 
----
+--- [from backup] ---
+started at: 10:28 pm
+
 [imported content]
 ```
 
-**Import block duplicate detection (v2.3.37+):** Instead of checking if the existing content *contains* the imported content (which would skip when existing is a superset), we check if the formatted import block (`--- title content`, normalized) already exists in the existing text. This only matches actual previous imports (content after a `---` separator), not organic content. This preserves fearless re-import while treating any actual difference as meaningful.
+Neither title nor startedAt:
+```
+[existing content]
+
+--- [from backup] ---
+
+[imported content]
+```
+
+**Import block duplicate detection (v2.5.28+):** Uses a split check: `[from backup]` marker must be present in existing text AND imported content must be present AND (for titled entries) `title: X` must be present. The split check avoids the contiguous-substring problem where `startedAt` metadata sits between the marker and content. This preserves fearless re-import while treating any actual difference as meaningful.
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
