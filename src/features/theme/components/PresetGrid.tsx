@@ -249,7 +249,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
           setSelectedCustomPreset(null);
           setIsLiveActive(false);
         }
-      } else if ((e.key === ' ' || e.key === 'Enter') && activePresetIndex !== null) {
+      } else if (e.key === ' ' && activePresetIndex !== null) {
         e.preventDefault();
         setKeyboardUseCount(c => c + 1);
         setPulseKey(k => k + 1);
