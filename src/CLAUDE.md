@@ -653,6 +653,16 @@ The entry header shows "started at HH:MM" by default. Seconds are only shown whe
 
 Code location: `src/features/journal/components/EntryHeader.tsx`
 
+### Lowercase am/pm (v2.5.28+)
+
+All time displays use lowercase `am`/`pm`. This applies to: entry header ("started at"), sidebar dates, `\time` command, live clock, and import merge separators. Enforced via `.toLowerCase()` on `toLocaleTimeString()` calls and lowercase literals in custom formatters.
+
+### Poweruser Sidebar Date Format (v2.5.29+)
+
+In poweruser mode, sidebar entries with `startedAt` show the standard `formatDate()` output with time appended: `"feb 15, 2025, 9:24 am"`, `"today, 9:24 am"`, `"yesterday, 3:15 pm"`. Previously used numeric date format (`"2/15/2025 9:24 am"`).
+
+Code location: `src/features/journal/components/EntrySidebar.tsx`
+
 ## Button Sizes
 
 | Name | Size Prop | Font | Weight | Usage |
