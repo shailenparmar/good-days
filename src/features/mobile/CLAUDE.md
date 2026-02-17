@@ -256,6 +256,27 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 - No sat/light number stats (removed in v1.10.7)
 - Square is dynamically sized via `ResizeObserver` — largest square that fits (v1.10.17+)
 
+### Live Continuous Calibration (v2.5.29+)
+
+The recalibrate button uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off stops calibration early but the last zero-point sticks (no cancellation).
+
+**Implementation:** Uses `isCalibratingRef` (a `useRef(false)`) checked in the `deviceorientation` handler. While true, `baseline.current.beta/gamma` are overwritten with the current raw orientation every frame. Raw touch handlers on the button (not `MobileButton`) control the flag.
+
+| Event | Behavior |
+|-------|----------|
+| touchStart | `isCalibratingRef = true`, haptic 10ms, pressed visual |
+| touchMove (inside) | No change — calibration continues |
+| touchMove (outside) | `isCalibratingRef = false`, disengage — won't re-engage if finger slides back |
+| touchEnd | `isCalibratingRef = false`, clear pressed visual |
+| touchCancel | `isCalibratingRef = false`, clear pressed visual |
+
+**Why not MobileButton?** `MobileButton` fires an action on release if engaged. This feature needs "fire continuously from press, stop on disengage/release." Simpler to use raw handlers than add a niche prop to the shared component.
+
+**Key refs:**
+- `isCalibratingRef`: `useRef(false)` — checked every orientation event
+- `recalDisengaged`: `useRef(false)` — prevents re-engagement after drag-off
+- `recalPressed`: state for visual pressed style
+
 ### Direct Adjusting (v1.10.61+)
 
 The picker goes directly to adjusting — no seeking/docking phase. Pressing "text" or "background" immediately enters adjusting mode. The active color jumps to the current tilt position (color jump is the accepted tradeoff for keeping tilt calibration true — center = center).
@@ -331,7 +352,7 @@ The invisible spacer buttons on the picker screen and permission screen use matc
 
 ### Button Drag-Off Cancellation (v1.10.22+)
 
-The recalibrate, copy, and paste buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
+The copy and paste buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
 
 **Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
 
@@ -344,6 +365,8 @@ The recalibrate, copy, and paste buttons support **drag-off cancellation**: pres
 | touchCancel (long press) | Clear state, do NOT fire action (intentional) |
 
 **Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
+
+**Recalibrate button uses live calibration (v2.5.29+)** — see [Live Continuous Calibration](#live-continuous-calibration-v2529) below. Not a MobileButton; uses raw touch handlers.
 
 **Applied to pairing screen skip button:** Uses `skipEngaged` ref and `isTouchInside` for the same engage/disengage pattern. (Candidate buttons were removed in v2.4.27 along with the candidates picker.) **Safari keyboard fix (v2.4.56+):** Skip button blurs the code input on `touchStart` (before `preventDefault`) to dismiss the keyboard cleanly. Also fires `skipPairing()` on `touchCancel` — Safari may cancel touches instead of ending them during keyboard/focus transitions, which previously caused the skip action to silently not fire.
 
