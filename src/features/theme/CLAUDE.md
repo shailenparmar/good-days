@@ -198,6 +198,8 @@ When the user drags any color picker (SL or hue, text or bg), the save button ac
 
 **Communication mechanism:** `ColorPicker.startDrag()` snapshots the current 6 color values to `prePickerSnapshotRef` (shared via ThemeContext) and increments `colorPickerDragCount`. `PresetGrid` watches the count in a `useEffect` — when it changes, it reads the snapshot, pushes a `color-change` undo entry, sets `activePresetIndex` to the save button, and increments `pulseKey`.
 
+**Stale drag count guard (v2.5.22+):** `prevDragCountRef` initializes to `colorPickerDragCount` (not `0`). Without this, closing and reopening settings would remount `PresetGrid` with `prevDragCountRef = 0` while `colorPickerDragCount` in ThemeContext retained its value from earlier drags — the useEffect would fire spuriously and snap `activePresetIndex` to the save button, losing the user's preset selection.
+
 **Fields on ThemeActions (types.ts):**
 - `colorPickerDragCount: number` — incremented each drag start
 - `incrementColorPickerDragCount: () => void` — stable callback (useCallback, empty deps)
