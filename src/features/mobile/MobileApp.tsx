@@ -1091,7 +1091,7 @@ export default function MobileApp() {
                 skipEngaged.current = false;
                 setSkipPressed(false);
               }}
-              style={getButtonStyle(skipPressed, 'full')}
+              style={getButtonStyle(skipPressed, 'full', 'picker')}
             >
               skip
             </div>
