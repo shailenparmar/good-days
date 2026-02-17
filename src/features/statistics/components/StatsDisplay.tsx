@@ -100,7 +100,7 @@ function ColorButton({
 }
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
-  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset } = useTheme();
+  const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, presets, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset, setActivePresetIndex } = useTheme();
   const { error: errorColor } = useMemo(
     () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
     [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
@@ -401,9 +401,10 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           bgLight: bgL,
         };
         setCustomPresets([...customPresets, newPreset]);
-        // Select the new preset
+        // Select and focus the new preset
         setSelectedPreset(null);
         setSelectedCustomPreset(customPresets.length);
+        setActivePresetIndex(presets.length + customPresets.length);
         setColorAreaHovered(false);
       } else {
         setPasteInvalid(true);
@@ -411,7 +412,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
     } catch {
       // Clipboard access denied or empty
     }
-  }, [parseColorInput, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset]);
+  }, [parseColorInput, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, presets, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset, setActivePresetIndex]);
 
   if (horizontal) {
     return (
