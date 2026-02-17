@@ -205,7 +205,7 @@ export function JournalEditor({
         hour: 'numeric',
         minute: '2-digit',
         second: '2-digit'
-      });
+      }).toLowerCase();
       const timestampText = `[${timestamp}]`;
 
       while (timeMatch) {

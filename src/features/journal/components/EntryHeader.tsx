@@ -187,7 +187,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
       } else {
         const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
         if (stacked) options.second = '2-digit';
-        return `started at ${date.toLocaleTimeString('en-US', options)}`;
+        return `started at ${date.toLocaleTimeString('en-US', options).toLowerCase()}`;
       }
     }
     const date = new Date(selectedDate + 'T00:00:00');

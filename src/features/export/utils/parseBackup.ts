@@ -63,22 +63,28 @@ export function mergeJsonEntries(
       const importedNormalized = normalizeForComparison(importedText);
       const titlesMatch = (existing.title || '') === (imported.title || '');
 
-      // Build the import block for duplicate detection
-      const importBlock = imported.title
-        ? `--- ${normalizeForComparison(imported.title)} ${importedNormalized}`
-        : `--- ${importedNormalized}`;
+      // Duplicate detection: check for [from backup] marker + title/content
+      const hasImportMarker = existingNormalized.includes('[from backup]');
+      const hasImportedContent = existingNormalized.includes(importedNormalized);
+      const hasImportedTitle = imported.title
+        ? existingNormalized.includes(`title: ${normalizeForComparison(imported.title)}`)
+        : true;
+      const alreadyAppended = hasImportMarker && hasImportedContent && hasImportedTitle;
 
       // Skip if: empty import, exact match (same content + title), or already appended
       if (
         importedNormalized === '' ||
         (existingNormalized === importedNormalized && titlesMatch) ||
-        existingNormalized.includes(importBlock)
+        alreadyAppended
       ) {
         // no-op: nothing new to import
       } else {
         // Different entry - append as a unit with separator
-        const importedTitle = imported.title ? imported.title + '\n\n' : '';
-        const separator = `\n\n---\n${importedTitle}`;
+        const metaParts: string[] = [];
+        if (imported.title) metaParts.push(`title: ${imported.title}`);
+        if (imported.startedAt) metaParts.push(formatStartedAt(imported.startedAt));
+        const metaBlock = metaParts.length > 0 ? '\n' + metaParts.join('\n') : '';
+        const separator = `\n\n--- [from backup] ---${metaBlock}\n\n`;
 
         result[existingIndex] = {
           ...existing,
@@ -210,19 +216,21 @@ export function mergeEntries(
       const existingNormalized = normalizeForComparison(existingText);
       const importedNormalized = normalizeForComparison(importedText);
 
-      // Build import block for duplicate detection
-      const importBlock = `--- ${importedNormalized}`;
+      // Duplicate detection: check for [from backup] marker + content
+      const alreadyAppended = existingNormalized.includes('[from backup]') &&
+        existingNormalized.includes(importedNormalized);
 
       // Skip if: empty import, exact match, or already appended
       if (
         importedNormalized === '' ||
         existingNormalized === importedNormalized ||
-        existingNormalized.includes(importBlock)
+        alreadyAppended
       ) {
         // no-op: nothing new to import
       } else {
         // Different content - append with separator
-        const separator = '\n\n---\n';
+        const startedAtLine = imported.startedAt ? '\n' + formatStartedAt(imported.startedAt) : '';
+        const separator = `\n\n--- [from backup] ---${startedAtLine}\n\n`;
 
         // Convert imported plain text to HTML (preserve line breaks)
         const importedHtml = imported.content
@@ -267,4 +275,14 @@ export function mergeEntries(
 // Normalize text for comparison (collapse all whitespace)
 function normalizeForComparison(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+// Format startedAt timestamp for merge separator (e.g., "started at: 10:28 PM")
+function formatStartedAt(timestamp: number): string {
+  const d = new Date(timestamp);
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const h = hours % 12 || 12;
+  return `started at: ${h}:${minutes} ${ampm}`;
 }

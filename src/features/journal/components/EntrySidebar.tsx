@@ -147,7 +147,7 @@ export function EntrySidebar({ entries, selectedDate, onSelectDate, settingsOpen
             hour: 'numeric',
             minute: '2-digit',
             hour12: true
-          });
+          }).toLowerCase();
         } else {
           dateText = formatDate(entry.date);
         }

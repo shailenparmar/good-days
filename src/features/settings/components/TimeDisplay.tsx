@@ -104,7 +104,7 @@ export function TimeDisplay({ stacked, superscramble, scrambleSeed }: TimeDispla
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit'
-  });
+  }).toLowerCase();
 
   // Only show milliseconds in poweruser mode (stacked)
   let format12: string;
