@@ -128,6 +128,26 @@ function AppContent() {
   // Log app load (once on mount)
   useEffect(() => { logAction('app.load', { version: VERSION }); }, []);
 
+  // Adjust theme-color to match what's directly below the title bar.
+  // Sidebar visible → +2% lightness (sidebar bg). Hidden → base (editor bg).
+  useEffect(() => {
+    const meta = document.getElementById('theme-color-meta');
+    if (!meta) return;
+    const showSidebar = layout.isNarrow
+      ? layout.showSidebarInNarrow
+      : (!layout.zenMode && !layout.minizen);
+    const { bgHue, bgSaturation, bgLightness } = theme;
+    const l = showSidebar ? Math.min(100, bgLightness + 2) : bgLightness;
+    const s = bgSaturation / 100, ll = l / 100;
+    const a = s * Math.min(ll, 1 - ll);
+    const f = (n: number) => {
+      const k = (n + bgHue / 30) % 12;
+      const c = ll - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * c).toString(16).padStart(2, '0');
+    };
+    meta.setAttribute('content', `#${f(0)}${f(8)}${f(4)}`);
+  }, [layout.zenMode, layout.minizen, layout.isNarrow, layout.showSidebarInNarrow, theme.bgHue, theme.bgSaturation, theme.bgLightness]);
+
   // Option/Alt+S hotkey for scramble toggle
   useEffect(() => {
     const handleHotkey = (e: KeyboardEvent) => {
