@@ -40,7 +40,7 @@ export function PresetGrid({ showDebugMenu, superscramble, scrambleSeed }: Prese
     | { action: 'color-change'; snapshot: ColorPreset };
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
-  const prevDragCountRef = useRef(0);
+  const prevDragCountRef = useRef(colorPickerDragCount);
 
   // Refs for values used in keyboard handlers — avoids putting fast-changing
   // values (colors, livePreset) in useEffect deps which would tear down and
