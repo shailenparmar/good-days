@@ -3,7 +3,7 @@ import { getItem, setItem, removeItem } from '@shared/storage';
 import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions } from '../types';
 
 export const DEFAULT_PRESETS: ColorPreset[] = [
-  { hue: 158, sat: 64, light: 42, bgHue: 250, bgSat: 70, bgLight: 32 },
+  { hue: 158, sat: 53, light: 40, bgHue: 250, bgSat: 70, bgLight: 32 },
   { hue: 63, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91 },
   { hue: 0, sat: 100, light: 25, bgHue: 0, bgSat: 100, bgLight: 8 },
   { hue: 36, sat: 58, light: 38, bgHue: 181, bgSat: 52, bgLight: 10 },
