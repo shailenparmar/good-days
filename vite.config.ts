@@ -31,6 +31,7 @@ export default defineConfig({
         background_color: '#000000',
         theme_color: '#000000',
         display: 'standalone',
+        display_override: ['window-controls-overlay'],
         icons: [
           {
             src: 'icon-192.png',
