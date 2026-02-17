@@ -677,7 +677,6 @@ export default function MobileApp() {
   // Set tilt button press state
   const [setTiltPressed, setSetTiltPressed] = useState(false);
   const [recalPressed, setRecalPressed] = useState(false);
-  const recalDisengaged = useRef(false);
 
   // Title hold to show version — persists across refresh so you don't have to re-press
   const [titlePressed, setTitlePressed] = useState(() => sessionStorage.getItem('titlePressed') === '1');
@@ -883,27 +882,21 @@ export default function MobileApp() {
             onTouchStart={(e) => {
               e.preventDefault();
               isCalibratingRef.current = true;
-              recalDisengaged.current = false;
               setRecalPressed(true);
               if (navigator.vibrate) navigator.vibrate(10);
             }}
             onTouchMove={(e) => {
-              if (recalDisengaged.current) return;
-              if (!isTouchInside(e)) {
-                isCalibratingRef.current = false;
-                recalDisengaged.current = true;
-                setRecalPressed(false);
-              }
+              const inside = isTouchInside(e);
+              isCalibratingRef.current = inside;
+              setRecalPressed(inside);
             }}
             onTouchEnd={(e) => {
               e.preventDefault();
               isCalibratingRef.current = false;
-              recalDisengaged.current = false;
               setRecalPressed(false);
             }}
             onTouchCancel={() => {
               isCalibratingRef.current = false;
-              recalDisengaged.current = false;
               setRecalPressed(false);
             }}
             style={getButtonStyle(recalPressed, 'full', 'aux')}
