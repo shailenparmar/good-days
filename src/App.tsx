@@ -420,7 +420,7 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))', height: 'calc(100vh - env(titlebar-area-height, 0px))', marginTop: 'env(titlebar-area-height, 0px)' }}>
+    <div className="flex h-screen wco-root" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}>
       {/* Global styles */}
       <style>
         {`
