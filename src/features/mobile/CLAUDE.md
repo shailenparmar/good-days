@@ -139,7 +139,7 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 └────────────────┻──────────────┘
 ```
 
-**Code Entry Screen** (v2.4.27+, updated v2.5.31, shown when 0 or 2+ desktops on same IP):
+**Code Entry Screen** (v2.4.27+, updated v2.5.36, shown when 0 or 2+ desktops on same IP):
 ```
 ┌────────────────────────────────┐
 │          good days             │  ← title (same as all screens)
@@ -151,14 +151,14 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 ├────────────────────────────────┤
 │      pairing code         │  ← picker-height input, 3-digit
 │                                │     bold sweep placeholder
-│                                │  ← 24px gap (double standard)
-│          skip              │  ← aux-height button
+│                                │  ← 24px gap
+│          skip              │  ← picker-height button
 └────────────────────────────────┘
 ```
 
 The candidates picker ("which one is yours?") was removed in v2.4.27. All ambiguous cases (2+ laptops or 0 on same IP) now show the code entry screen. Auto-pair (1 laptop) still happens without any screen.
 
-**Bold sweep placeholder (v2.4.39+, updated v2.4.96):** When the code input is empty, an overlay shows "pairing code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "pairing" and "code" at span boundaries during the sweep. Disappears when the user starts typing. Positioned absolutely over the input with `pointerEvents: 'none'`.
+**Bold sweep placeholder (v2.4.39+, updated v2.5.33):** When the code input is empty and not focused, an overlay shows "pairing code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "pairing" and "code" at span boundaries during the sweep. Disappears when focused (user taps input). Reappears when blurred — tapping the corner brackets area blurs the input (iOS doesn't auto-blur on non-interactive taps). Positioned absolutely over the input with `pointerEvents: 'none'`.
 
 **False red flash fix (v2.4.39+):** `pairingStateRef` in `useMobileSync.ts` is reset to `'standalone'` on every new WS connection (`onopen`). Previously, reconnecting while already in `enter-code` state caused the relay's initial `enter-code` message to be misinterpreted as a code rejection, triggering the triple red flash on open.
 
@@ -168,13 +168,14 @@ The tilt square complex (square + L corners + sat/light labels) is dynamically s
 
 **Key principle:** The L corners must be at the **exact same position** on all screens (home, picker, permission). No visual jump on transition.
 
-**Alignment rule (v2.4.133+):** The top border of the first visible button must sit at the same y-coordinate on every screen. Since button stacks are bottom-anchored (44px bottom padding, column direction), this means the total height of the button area must be identical across screens. When a visible button uses a different size role than the home screen's equivalent (e.g., permission's standard "allow motion access" vs home's aux "recalibrate"), the invisible spacer rows compensate by adjusting their padding so the total matches.
+**Alignment rule (v2.5.34+):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 3-row button structure (aux + picker + aux with 12px gaps = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + picker + aux) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
 
 **How it works:**
-1. All screens have identical total bottom section heights (invisible spacer buttons compensate for any size differences in visible buttons)
-2. All `flex: 1` containers use the same padding, so the available space is identical
-3. A `ResizeObserver` measures the home container and computes the largest square that fits: `squareSize = min(availableHeight, availableWidth)`
-4. All screens render `tiltSquare(squareSize)` — same size, same position
+1. All screens render the home screen's button structure invisibly (sets exact height)
+2. Visible buttons are absolutely positioned within the same container
+3. All `flex: 1` containers use the same padding, so the available space is identical
+4. A `ResizeObserver` measures the home container and computes the largest square that fits: `squareSize = min(availableHeight, availableWidth)`
+5. All screens render `tiltSquare(squareSize)` — same size, same position
 
 **Spacing from label bounds:**
 
@@ -341,17 +342,17 @@ Alpha is always the thick needle. When beta is promoted to alpha, its needle gro
 
 See **Mobile Style Guide** at the top of this file for the full button system (sizes, positions, appearance, spacing). Quick reference:
 
-- **action** (`'picker'`, 28px): text \| background
-- **standard** (default, 14px): code entry input, skip
-- **compact** (`'aux'`, 7px): calibrate tilt, recalibrate, copy, save, paste
+- **action** (`'picker'`, 28px): text \| background, pairing code input, skip
+- **standard** (default, 14px): allow motion access
+- **compact** (`'aux'`, 7px): recalibrate, copy, save, paste
 
 **Button order** (top to bottom): recalibrate → text|background → copy|paste (+ save when live)
 
-The invisible spacer buttons on the picker screen and permission screen use matching roles to keep heights consistent across all screens.
+**Pixel-perfect alignment (v2.5.34+):** All screens render the home screen's exact invisible button DOM (aux + picker + aux) to set the button area height. Visible buttons are absolutely positioned on top. This guarantees the corner brackets and button area top border are at identical positions across all screens.
 
 ### Button Drag-Off Cancellation (v1.10.22+)
 
-The copy and paste buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
+The copy, paste, allow motion access, and skip buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
 
 **Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
 
