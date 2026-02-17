@@ -334,7 +334,7 @@ function AppContent() {
       if (activeEl instanceof HTMLElement && activeEl.isContentEditable) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-      if (layout.showDebugMenu && (e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ')) {
+      if (layout.showDebugMenu && (e.key === 'Backspace' || e.key === ' ')) {
         e.preventDefault();
         return;
       }
