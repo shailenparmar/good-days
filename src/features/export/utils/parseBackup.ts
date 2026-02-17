@@ -82,7 +82,6 @@ export function mergeJsonEntries(
         // Different entry - append as a unit with separator
         const metaParts: string[] = [];
         if (imported.title) metaParts.push(`title: ${imported.title}`);
-        if (imported.startedAt) metaParts.push(formatStartedAt(imported.startedAt));
         const metaBlock = metaParts.length > 0 ? '\n' + metaParts.join('\n') : '';
         const separator = `\n\n--- [from backup] ---${metaBlock}\n\n`;
 
@@ -229,8 +228,7 @@ export function mergeEntries(
         // no-op: nothing new to import
       } else {
         // Different content - append with separator
-        const startedAtLine = imported.startedAt ? '\n' + formatStartedAt(imported.startedAt) : '';
-        const separator = `\n\n--- [from backup] ---${startedAtLine}\n\n`;
+        const separator = `\n\n--- [from backup] ---\n\n`;
 
         // Convert imported plain text to HTML (preserve line breaks)
         const importedHtml = imported.content
@@ -277,12 +275,3 @@ function normalizeForComparison(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-// Format startedAt timestamp for merge separator (e.g., "started at: 10:28 pm")
-function formatStartedAt(timestamp: number): string {
-  const d = new Date(timestamp);
-  const hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  const h = hours % 12 || 12;
-  return `started at: ${h}:${minutes} ${ampm}`;
-}

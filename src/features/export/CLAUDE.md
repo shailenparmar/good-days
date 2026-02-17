@@ -88,7 +88,7 @@ Entries are treated as **units** (title + content). When importing, entries are 
 
 1. **Exact match** (same content AND same title): Skip
 2. **Already appended**: `[from backup]` marker found in existing text + title/content match → skip (prevents duplicates on re-import)
-3. **Any difference** (content, title, or both): Append the imported entry below existing with a `--- [from backup] ---` separator, plus labeled metadata (`title:`, `started at:`)
+3. **Any difference** (content, title, or both): Append the imported entry below existing with a `--- [from backup] ---` separator, plus title metadata if present
 
 ### Import `lastModified` Preservation (v1.10.0+)
 
@@ -108,29 +108,18 @@ Imported entries preserve their original `lastModified` timestamp from the backu
 
 Code location: `src/features/export/utils/parseBackup.ts`
 
-The conflict separator is `--- [from backup] ---` with labeled metadata. Format (v2.5.28+):
+The conflict separator is `--- [from backup] ---` with optional title metadata. Format (v2.5.49+):
 
 ```
 [existing content]
 
 --- [from backup] ---
 title: a very rainy day
-started at: 10:28 pm
 
 [imported content]
 ```
 
 Without a title:
-```
-[existing content]
-
---- [from backup] ---
-started at: 10:28 pm
-
-[imported content]
-```
-
-Neither title nor startedAt:
 ```
 [existing content]
 

@@ -149,9 +149,9 @@ describe('mergeJsonEntries', () => {
   });
 
   it('does not duplicate on re-import of previously appended content', () => {
-    // Simulate first import that appended
+    // Simulate first import that appended (content matches real merge separator)
     const existing: JournalEntry[] = [
-      { date: '2026-01-10', content: 'original\n\n---\ndifferent' },
+      { date: '2026-01-10', content: 'original\n\n--- [from backup] ---\n\ndifferent' },
     ];
     const imported: JournalEntry[] = [
       { date: '2026-01-10', content: 'different' },
