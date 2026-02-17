@@ -257,7 +257,7 @@ Active presets show a pulsing border animation (`preset-pulse` class). The anima
 
 All saves (desktop click, keyboard, and phone) focus the newly saved preset. Computed as `presets.length + customPresets.length` before `saveCustomPreset()` runs — the closure still holds the old array length, so this points to where the new preset will land after the append.
 
-Desktop (PresetGrid onClick and Space/Enter handler) and phone (WebSyncBridge) all use the same pattern.
+Desktop (PresetGrid onClick and Space/Enter handler), phone (WebSyncBridge), and color way paste (StatsDisplay) all use the same pattern.
 
 #### Auto-Switch to Live on Stream Start (v2.3.13+)
 
