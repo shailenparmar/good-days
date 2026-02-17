@@ -420,7 +420,7 @@ function AppContent() {
   const stacked = layout.showDebugMenu && layout.showAboutPanel;
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))' }}>
+    <div className="flex" style={{ backgroundColor: 'hsl(var(--bh), var(--bs), var(--bl))', height: 'calc(100vh - env(titlebar-area-height, 0px))', marginTop: 'env(titlebar-area-height, 0px)' }}>
       {/* Global styles */}
       <style>
         {`
@@ -442,7 +442,7 @@ function AppContent() {
       {/* Sidebar - hidden in zen mode, minizen (wide), or narrow (unless toggled) */}
       {!layout.zenMode && (layout.isNarrow ? layout.showSidebarInNarrow : !layout.minizen) && (
       <div
-        className="w-80 flex flex-col min-h-screen relative"
+        className="w-80 flex flex-col relative"
         style={{
           backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
           borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
