@@ -133,11 +133,8 @@ function AppContent() {
   useEffect(() => {
     const meta = document.getElementById('theme-color-meta');
     if (!meta) return;
-    const showSidebar = layout.isNarrow
-      ? layout.showSidebarInNarrow
-      : (!layout.zenMode && !layout.minizen);
     const { bgHue, bgSaturation, bgLightness } = theme;
-    const l = showSidebar ? Math.min(100, bgLightness + 2) : bgLightness;
+    const l = layout.zenMode ? bgLightness : Math.min(100, bgLightness + 2);
     const s = bgSaturation / 100, ll = l / 100;
     const a = s * Math.min(ll, 1 - ll);
     const f = (n: number) => {
@@ -146,7 +143,7 @@ function AppContent() {
       return Math.round(255 * c).toString(16).padStart(2, '0');
     };
     meta.setAttribute('content', `#${f(0)}${f(8)}${f(4)}`);
-  }, [layout.zenMode, layout.minizen, layout.isNarrow, layout.showSidebarInNarrow, theme.bgHue, theme.bgSaturation, theme.bgLightness]);
+  }, [layout.zenMode, theme.bgHue, theme.bgSaturation, theme.bgLightness]);
 
   // Option/Alt+S hotkey for scramble toggle
   useEffect(() => {
