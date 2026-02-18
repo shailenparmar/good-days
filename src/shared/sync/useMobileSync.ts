@@ -42,6 +42,7 @@ export function useMobileSync(): MobileSyncHandle {
   const mountedRef = useRef(true);
   const hiddenRef = useRef(false);
   const skippedPairingRef = useRef(false);
+  const codeSubmittedRef = useRef(false);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -63,7 +64,8 @@ export function useMobileSync(): MobileSyncHandle {
       ws.onopen = () => {
         console.log('[mobile-sync] connected to', url);
         backoffRef.current = 1000;
-        pairingStateRef.current = 'standalone'; // Reset so first enter-code isn't a false rejection
+        pairingStateRef.current = 'standalone';
+        codeSubmittedRef.current = false;
         if (reconnectTimer.current) {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
@@ -97,9 +99,10 @@ export function useMobileSync(): MobileSyncHandle {
 
 
           case 'enter-code':
-            if (pairingStateRef.current === 'enter-code') {
+            if (pairingStateRef.current === 'enter-code' && codeSubmittedRef.current) {
               setCodeRejectedCount(c => c + 1);
             }
+            codeSubmittedRef.current = false;
             pairingStateRef.current = 'enter-code';
             setPairingState('enter-code');
             break;
@@ -133,6 +136,7 @@ export function useMobileSync(): MobileSyncHandle {
   }, [connect]);
 
   const pairByCode = useCallback((code: string) => {
+    codeSubmittedRef.current = true;
     sendMsg({ type: 'pair-by-code', code });
   }, [sendMsg]);
 
