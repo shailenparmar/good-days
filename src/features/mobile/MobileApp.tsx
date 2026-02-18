@@ -971,12 +971,13 @@ export default function MobileApp() {
           ...safeAreaStyle,
         }}
       >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
+        onTouchStart={(e) => { if (e.target !== codeInputRef.current) codeInputRef.current?.blur(); }}
+      >
         {title}
 
         {/* Square with just L corners - matches home screen layout */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onTouchStart={() => codeInputRef.current?.blur()}
         >
           <div style={{ width: '252px', height: '252px', position: 'relative' }}>
             <CornerBrackets size={252} color={textColor} showLabels={false} />
