@@ -9,11 +9,25 @@ import { logAction } from '@shared/logger';
  */
 export function useMidnightTimer(
   editorRef: React.RefObject<HTMLTextAreaElement | null>,
-  journalRef: React.MutableRefObject<{ saveEntry: (content: string, timestamp: number) => void; setSelectedDate: (date: string) => void }>,
+  journalRef: React.MutableRefObject<{ saveEntry: (content: string, timestamp: number) => void; setSelectedDate: (date: string) => void; selectedDate: string }>,
 ) {
   const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const rollToToday = () => {
+      if (editorRef.current) {
+        const content = editorRef.current.value || '';
+        if (content.trim()) {
+          journalRef.current.saveEntry(content, Date.now());
+        }
+      }
+      flushPendingSaves();
+      journalRef.current.setSelectedDate(getTodayDate());
+      if (editorRef.current) {
+        editorRef.current.value = '';
+      }
+    };
+
     const scheduleNextMidnight = () => {
       const now = new Date();
       const tomorrow = new Date(now);
@@ -24,29 +38,31 @@ export function useMidnightTimer(
 
       midnightTimeoutRef.current = setTimeout(() => {
         logAction('app.midnight');
-        // Save current content using ref to get latest journal
-        if (editorRef.current) {
-          const content = editorRef.current.value || '';
-          if (content.trim()) {
-            journalRef.current.saveEntry(content, Date.now());
-          }
-        }
-        // Flush debounced saves immediately (don't wait 300ms)
-        flushPendingSaves();
-        // Switch to new day
-        journalRef.current.setSelectedDate(getTodayDate());
-        if (editorRef.current) {
-          editorRef.current.value = '';
-        }
+        rollToToday();
         scheduleNextMidnight();
       }, msUntilMidnight);
     };
 
+    // Catch missed midnights (sleep, tab suspend, etc.)
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const today = getTodayDate();
+      if (journalRef.current.selectedDate !== today) {
+        logAction('app.midnight.visibility');
+        rollToToday();
+        // Reschedule — the old timeout is stale after a missed midnight
+        if (midnightTimeoutRef.current) clearTimeout(midnightTimeoutRef.current);
+        scheduleNextMidnight();
+      }
+    };
+
     scheduleNextMidnight();
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       if (midnightTimeoutRef.current) {
         clearTimeout(midnightTimeoutRef.current);
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []); // Empty deps - uses refs for latest values
 }
