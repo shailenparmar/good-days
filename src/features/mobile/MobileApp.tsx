@@ -972,7 +972,7 @@ export default function MobileApp() {
         }}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
-        onTouchStart={(e) => { if (e.target !== codeInputRef.current) codeInputRef.current?.blur(); }}
+        onTouchStart={(e) => { if (e.target !== codeInputRef.current) { codeInputRef.current?.blur(); e.preventDefault(); } }}
       >
         {title}
 
