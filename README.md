@@ -20,9 +20,11 @@ the right end of a chromium address bar shelters an install button; beyond that 
 
 ## system
 
-entries survive refreshing, closing, and quitting. the only way to lose logs is manually deleting site data in browser settings.
+entries survive refreshing, closing, and quitting.
 
 chromium works best. safari automatically clears storage after 7 days of inactivity.
+
+the only other way to lose logs is manually deleting site data in browser settings.
 
 ---
 
