@@ -217,6 +217,8 @@ Extracted into `src/hooks/useMidnightTimer.ts`. Takes `editorRef` and `journalRe
 
 **Why refs:** The `journal` object changes on every entry update. Without refs, the effect would re-run constantly, creating multiple timer chains that all fire at midnight (race condition).
 
+**Visibility resume (v2.5.61+):** `setTimeout` doesn't fire while a tab is suspended (sleep, background, etc.). A `visibilitychange` listener checks if the date has changed when the tab becomes visible again. If `selectedDate !== getTodayDate()`, it runs the same save/flush/switch logic and reschedules the midnight timeout. Logged as `app.midnight.visibility`.
+
 ## Scramble Mode
 
 Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
