@@ -90,7 +90,7 @@ The component has a comment explaining why we DON'T auto-focus on mount:
 | "old password" step | `true` | `false` | → Split buttons |
 | "new password" step | `true` | `false` | → "old password" |
 | "confirm" step | `true` | `false` | → "old password" |
-| "set password" (set) | `true` | `false` | Clear input, keep focus (if focused/has content), else pass through to lock |
+| "set password" (set) | `true` | `false` | If has content → clear input, keep focus. If empty+focused → blur (defocus). If empty+unfocused → pass through to App.tsx |
 | "one more time" (set-confirm) | `true` | `false` | → "set password" |
 | "password saved" | `true` | `true` | Lock (handler skips, already at base) |
 
