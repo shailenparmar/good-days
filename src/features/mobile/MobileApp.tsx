@@ -970,9 +970,9 @@ export default function MobileApp() {
           zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
+        onTouchStart={(e) => { if (e.target !== codeInputRef.current) { codeInputRef.current?.blur(); e.preventDefault(); } }}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
-        onTouchStart={(e) => { if (e.target !== codeInputRef.current) { codeInputRef.current?.blur(); e.preventDefault(); } }}
       >
         {title}
 
