@@ -160,6 +160,8 @@ The candidates picker ("which one is yours?") was removed in v2.4.27. All ambigu
 
 **Bold sweep placeholder (v2.4.39+, updated v2.5.33):** When the code input is empty and not focused, an overlay shows "pairing code" with the signature bold sweep animation (83ms/char, same as editor "start typing" and lock screen "password"). Uses `whiteSpace: 'pre'` to preserve the space between "pairing" and "code" at span boundaries during the sweep. Disappears when focused (user taps input). Reappears when blurred — tapping the corner brackets area blurs the input (iOS doesn't auto-blur on non-interactive taps). Positioned absolutely over the input with `pointerEvents: 'none'`.
 
+**Cursor-to-end on refocus (v2.5.69+):** When tapping back into the code input after blurring (e.g., typed 2 digits, tapped away, tapped back), `onFocus` moves the cursor to the end via `setSelectionRange(len, len)` inside a `requestAnimationFrame` (iOS Safari needs one frame for the selection system to initialize after focus).
+
 **False red flash fix (v2.4.39+):** `pairingStateRef` in `useMobileSync.ts` is reset to `'standalone'` on every new WS connection (`onopen`). Previously, reconnecting while already in `enter-code` state caused the relay's initial `enter-code` message to be misinterpreted as a code rejection, triggering the triple red flash on open.
 
 ### Layout Centering & Square Sizing (v1.10.17+)
