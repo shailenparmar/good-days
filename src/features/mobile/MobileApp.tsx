@@ -11,7 +11,7 @@ import { getStatusColors } from '@shared/utils/confirmColor';
 export default function MobileApp() {
   // Color state
   const [colors, setColors] = useState<ColorState>({
-    hue: 158, sat: 53, light: 40, bgHue: 239, bgSat: 70, bgLight: 32,
+    hue: 63, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91,
   });
 
   // Editing state: seeking = dot free-moving, must dock with target square; adjusting = docked, tilt controls color
@@ -733,8 +733,8 @@ export default function MobileApp() {
   );
 
   // Preset 1 colors for base canvas (hardcoded)
-  const baseTextColor = 'hsl(158, 53%, 40%)';
-  const baseBgColor = 'hsl(239, 70%, 32%)';
+  const baseTextColor = 'hsl(63, 100%, 12%)';
+  const baseBgColor = 'hsl(52, 100%, 91%)';
 
   // All screens always rendered (visibility-toggled) for seamless transitions.
   return (
