@@ -343,7 +343,7 @@ Shown when 0 or 2+ desktops on same IP (v2.4.27+, previously only 0):
 **Code rejection UX (v2.4.20+, updated v2.4.27):**
 - Cursor hidden after 3 digits (`caretColor: transparent` when `codeInput.length >= 3`)
 - Caret visibility fix (v2.4.27+): caret is visible while typing (< 3 digits)
-- On server rejection: `codeRejectedCount` incremented in `useMobileSync.ts` (detects `enter-code` received while already in `enter-code` state)
+- On server rejection: `codeRejectedCount` incremented in `useMobileSync.ts` (detects `enter-code` received while already in `enter-code` state AND `codeSubmittedRef` is true). The `codeSubmittedRef` is set true in `pairByCode()` and reset on every `enter-code` receipt and on `onopen`. This prevents false flashes from relay re-evaluations (`notifyWatchingPhones`, grace expiry) that send `enter-code` without the user having submitted a code (v2.6.4+)
 - Input clearing is deferred until after the rejection flash completes (v2.4.27+, was instant). This lets the user see which code was rejected before the input resets.
 - Border does a triple red flash matching LockScreen pattern: `errorColor` at 0ms → none at 80ms → `errorColor` at 160ms → none at 240ms → `errorColor` at 320ms → none at 400ms
 - `errorColor` is dynamic (from `getStatusColors()`), not hardcoded — adapts to current theme colors
