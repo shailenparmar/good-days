@@ -167,10 +167,14 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
         setShowInput(false);
         setInput('');
       } else if (step === 'set' && !hasPassword) {
-        // First step of set password: only capture ESC if input has content or is focused
-        if (input || document.activeElement === inputRef.current) {
+        if (input) {
+          // Has content: clear it, keep focus
           e.preventDefault();
           setInput('');
+        } else if (document.activeElement === inputRef.current) {
+          // Empty and focused: blur to defocus, next ESC will cycle
+          e.preventDefault();
+          inputRef.current?.blur();
         }
         // Otherwise let ESC through to lock the app
       }
