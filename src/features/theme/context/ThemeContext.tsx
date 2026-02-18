@@ -6,7 +6,7 @@ export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 63, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91 },
   { hue: 229, sat: 61, light: 100, bgHue: 251, bgSat: 100, bgLight: 59 },
   { hue: 339, sat: 70, light: 6, bgHue: 29, bgSat: 86, bgLight: 53 },
-  { hue: 223, sat: 35, light: 20, bgHue: 244, bgSat: 82, bgLight: 99 },
+  { hue: 176, sat: 43, light: 18, bgHue: 112, bgSat: 75, bgLight: 71 },
   { hue: 0, sat: 83, light: 32, bgHue: 0, bgSat: 100, bgLight: 8 },
 ];
 
