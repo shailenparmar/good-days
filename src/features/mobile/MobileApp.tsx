@@ -53,6 +53,19 @@ export default function MobileApp() {
     if (showCodePlaceholder) { setCodeBoldCount(0); setCodeBoldPhase('bold'); }
   }, [showCodePlaceholder]);
 
+  // Blur code input when tapping anywhere outside it (iOS doesn't auto-blur)
+  useEffect(() => {
+    if (!codeInputFocused) return;
+    const handler = (e: TouchEvent) => {
+      if (e.target !== codeInputRef.current) {
+        codeInputRef.current?.blur();
+        setCodeInputFocused(false);
+      }
+    };
+    document.addEventListener('touchstart', handler);
+    return () => document.removeEventListener('touchstart', handler);
+  }, [codeInputFocused]);
+
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
 
@@ -970,7 +983,6 @@ export default function MobileApp() {
           zIndex: (sync.pairingState === 'enter-code' || mockScreen === 'code') ? 20 : -3,
           ...safeAreaStyle,
         }}
-        onTouchStart={(e) => { if (e.target !== codeInputRef.current) { codeInputRef.current?.blur(); setCodeInputFocused(false); e.preventDefault(); } }}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}
       >
