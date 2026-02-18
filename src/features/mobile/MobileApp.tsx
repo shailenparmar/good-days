@@ -53,18 +53,16 @@ export default function MobileApp() {
     if (showCodePlaceholder) { setCodeBoldCount(0); setCodeBoldPhase('bold'); }
   }, [showCodePlaceholder]);
 
-  // Blur code input when tapping anywhere outside it (iOS doesn't auto-blur)
+  // Track code input focus via document-level events (iOS doesn't reliably blur on tap-away)
   useEffect(() => {
-    if (!codeInputFocused) return;
-    const handler = (e: TouchEvent) => {
-      if (e.target !== codeInputRef.current) {
-        codeInputRef.current?.blur();
-        setCodeInputFocused(false);
-      }
+    const check = () => setCodeInputFocused(document.activeElement === codeInputRef.current);
+    document.addEventListener('focusin', check);
+    document.addEventListener('focusout', check);
+    return () => {
+      document.removeEventListener('focusin', check);
+      document.removeEventListener('focusout', check);
     };
-    document.addEventListener('touchstart', handler);
-    return () => document.removeEventListener('touchstart', handler);
-  }, [codeInputFocused]);
+  }, []);
 
   // Mock screen for visual testing (?mock=code)
   const [mockScreen] = useState(() => new URLSearchParams(window.location.search).get('mock'));
@@ -1042,8 +1040,6 @@ export default function MobileApp() {
                 onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
                 onTouchEnd={() => setCodeInputPressed(false)}
                 onTouchCancel={() => setCodeInputPressed(false)}
-                onFocus={() => setCodeInputFocused(true)}
-                onBlur={() => setCodeInputFocused(false)}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
