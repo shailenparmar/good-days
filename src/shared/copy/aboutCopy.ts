@@ -27,8 +27,9 @@ export const ABOUT_COPY = {
   system: {
     header: "system:",
     paragraphs: [
-      "entries survive refreshing, closing, and quitting. the only way to lose logs is manually deleting site data in browser settings.",
+      "entries survive refreshing, closing, and quitting.",
       "chromium works best. safari automatically clears storage after 7 days of inactivity.",
+      "the only other way to lose logs is manually deleting site data in browser settings.",
     ],
   },
 
