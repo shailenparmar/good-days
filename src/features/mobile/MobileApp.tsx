@@ -1036,7 +1036,7 @@ export default function MobileApp() {
                   letterSpacing: '4px',
                   textIndent: '4px',
                 }}
-                onFocus={(e) => { const el = e.currentTarget; requestAnimationFrame(() => { const len = el.value.length; el.setSelectionRange(len, len); }); }}
+                onClick={(e) => { const el = e.currentTarget; const len = el.value.length; el.setSelectionRange(len, len); }}
                 onTouchStart={() => setCodeInputPressed(true)}
                 onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
                 onTouchEnd={() => setCodeInputPressed(false)}
