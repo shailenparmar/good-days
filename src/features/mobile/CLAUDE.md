@@ -49,12 +49,14 @@ All buttons use `getButtonStyle(pressed, position, role)`. Three named sizes:
 
 | Element | Value |
 |---------|-------|
-| Button border | 4px solid, 12px radius |
-| Split edge | 2px (shared edge between left\|right buttons) |
+| Button border | 4px solid, 12px radius (all-longhand properties, see note) |
+| Split edge | 2px per side, 4px total (shared edge between left\|right buttons) |
 | Divider | 2px height, 85% opacity |
 | Button width container | `fontSize: 'min(17vw, 70px)'`, `width: '9ch'`, `alignSelf: 'center'` |
 
 The button width container makes all buttons the same width as the "good days" title. Every screen's button area uses this same container pattern.
+
+**Border implementation (v2.6.12+):** `getButtonStyle` uses all-longhand border properties (`borderStyle`, `borderColor`, `borderTopWidth`, `borderBottomWidth`, `borderLeftWidth`, `borderRightWidth`) instead of the `border` shorthand + longhand overrides. React's style reconciliation skips unchanged longhand properties on re-render, so a changed `border` shorthand silently resets the inner-edge overrides. All-longhand avoids this — never mix `border` shorthand with `borderRightWidth`/`borderLeftWidth` longhands in React inline styles.
 
 ### Spacing Hierarchy
 
