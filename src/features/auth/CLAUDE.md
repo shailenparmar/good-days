@@ -6,7 +6,7 @@ After 3 consecutive failed password attempts, the lock screen enforces an expone
 
 **Backoff schedule:** `min(2^(attempts-3), 32)` seconds — 1s, 2s, 4s, 8s, 16s, max 32s. Resets to 0 on successful unlock.
 
-**Countdown display:** The placeholder text switches from "password" to the remaining seconds (e.g., "4"). The bold sweep animation resets on each number change. Input is cleared when cooldown starts. Focus returns to the input when cooldown ends.
+**Countdown display:** The placeholder text switches from "password" to the remaining seconds (e.g., "4"). The bold sweep animation resets on each number change. Input is cleared when cooldown starts. When cooldown ends, the "password" placeholder shows immediately (no auto-focus) — user clicks in or starts typing to re-engage.
 
 **Click-outside blur (v2.6.7+):** Clicking outside the password input on the lock screen blurs it (removes focus styling). Uses `onMouseDown` on the container div to programmatically blur the input.
 
