@@ -858,7 +858,7 @@ export default function MobileApp() {
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '8px', transform: 'translateX(-50%)', backgroundColor: 'black', zIndex: 2 }} />
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'black', zIndex: 2 }} />
           </div>
         </div>
       </div>
