@@ -26,6 +26,8 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Storage**: Titles are encrypted as part of the `{ content, title }` payload in IndexedDB. `saveTitle()` in `useJournalEntries.ts` updates the entry, sets `lastModified`, and persists via `saveSingleEntry()`.
 
+**Eager ref update (v2.6.6+):** `saveTitle()` updates `entriesRef.current` eagerly (before `setEntries`), matching the pattern used by `saveEntry()`. Previously, the ref was updated inside the `setEntries` callback, creating a race where a debounced `saveEntry()` could read stale `entriesRef` without the title and overwrite it with `undefined` in IndexedDB.
+
 ## Editor Implementation
 
 ### Backup Branch
