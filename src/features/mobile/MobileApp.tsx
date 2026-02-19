@@ -662,6 +662,9 @@ export default function MobileApp() {
     const fillColor = pressed ? `hsla(${colors.hue}, ${colors.sat}%, ${colors.light}%, 0.2)` : 'transparent';
     // Picker buttons (text|bg) double height, aux buttons (recal, copy/save/paste) half
     const vPad = role === 'picker' ? 28 : role === 'aux' ? 7 : 14;
+    // All-longhand border properties to avoid React shorthand/longhand reconciliation bug.
+    // Using border shorthand + borderRightWidth override causes React to drop the override
+    // on re-render when only the shorthand value changes (color/opacity), widening dividers.
     const base: React.CSSProperties = {
       flex: (position === 'full') ? undefined : 1,
       width: position === 'full' ? '100%' : undefined,
@@ -674,15 +677,19 @@ export default function MobileApp() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      borderStyle: 'solid',
+      borderColor: borderColor,
+      borderTopWidth: '4px',
+      borderBottomWidth: '4px',
     };
     if (position === 'left') {
-      return { ...base, border: `4px solid ${borderColor}`, borderRightWidth: '2px', borderRadius: '12px 0 0 12px' };
+      return { ...base, borderLeftWidth: '4px', borderRightWidth: '2px', borderRadius: '12px 0 0 12px' };
     } else if (position === 'right') {
-      return { ...base, border: `4px solid ${borderColor}`, borderLeftWidth: '2px', borderRadius: '0 12px 12px 0' };
+      return { ...base, borderLeftWidth: '2px', borderRightWidth: '4px', borderRadius: '0 12px 12px 0' };
     } else if (position === 'center') {
-      return { ...base, border: `4px solid ${borderColor}`, borderLeftWidth: '2px', borderRightWidth: '2px', borderRadius: '0' };
+      return { ...base, borderLeftWidth: '2px', borderRightWidth: '2px', borderRadius: '0' };
     }
-    return { ...base, border: `4px solid ${borderColor}`, borderRadius: '12px' };
+    return { ...base, borderLeftWidth: '4px', borderRightWidth: '4px', borderRadius: '12px' };
   };
 
   const [recalPressed, setRecalPressed] = useState(false);
