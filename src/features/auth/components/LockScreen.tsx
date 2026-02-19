@@ -30,6 +30,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       if (remaining <= 0) {
         setCooldownEnd(null);
         setCooldownRemaining(0);
+        // Defer focus until after React re-renders (input is still disabled in DOM)
+        requestAnimationFrame(() => inputRef.current?.focus());
       } else {
         setCooldownRemaining(remaining);
       }
@@ -165,13 +167,13 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       }}
     >
       <span
-        className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight"
+        className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight select-none"
         style={{ color: textColor }}
       >
         good
       </span>
       <span
-        className="fixed bottom-4 right-4 text-2xl font-extrabold font-mono tracking-tight"
+        className="fixed bottom-4 right-4 text-2xl font-extrabold font-mono tracking-tight select-none"
         style={{ color: textColor }}
       >
         days
