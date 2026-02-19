@@ -209,7 +209,7 @@ Picker bottom section:
 └───────────────┻───────────────┘
 ```
 
-**Vertical divider:** 8px wide, absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra.
+**Vertical divider:** 4px wide (v2.6.13+, was 8px), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra. Matches the 4px button dividers on the home screen. Hue needles extend under the divider (higher zIndex) so they appear flush with the divider edge.
 
 **Square is always a square:** `width = height = squareSize`. On most phones (portrait), width constrains the size, so vertical gaps may exceed 24px. The 24px is the minimum gap when height-constrained.
 
