@@ -30,7 +30,6 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       if (remaining <= 0) {
         setCooldownEnd(null);
         setCooldownRemaining(0);
-        inputRef.current?.focus();
       } else {
         setCooldownRemaining(remaining);
       }
