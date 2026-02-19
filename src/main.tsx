@@ -4,7 +4,8 @@ import './index.css'
 import { MAINTENANCE, MESSAGE } from '@shared/maintenance'
 
 // Custom SW registration: bypass HTTP cache so Safari always checks for new versions
-if ('serviceWorker' in navigator) {
+// Skip in Electron — file:// origin can't register service workers
+if ('serviceWorker' in navigator && !window.electronAPI) {
   // Reload when a new SW takes control (after skipWaiting activates it)
   let refreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {

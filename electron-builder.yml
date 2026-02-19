@@ -1,0 +1,27 @@
+appId: day.gdays.app
+productName: good days
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/dist/**/*
+  - "!dist/sw.js"
+  - "!dist/workbox-*.js"
+  - "!dist/manifest.webmanifest"
+  - "!dist/CNAME"
+  - "!dist/icon-backup/**"
+mac:
+  icon: build/icon.icns
+  category: public.app-category.lifestyle
+  electronLanguages:
+    - en
+  target:
+    - target: mas
+      arch: universal
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
+mas:
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
