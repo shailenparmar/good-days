@@ -127,8 +127,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       setFailedAttempts(newAttempts);
 
       if (newAttempts >= 3) {
-        // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
-        const delay = Math.min(Math.pow(2, newAttempts - 2), 30) * 1000;
+        // Exponential backoff: 1s, 2s, 4s, 8s, max 32s
+        const delay = Math.min(Math.pow(2, newAttempts - 3), 32) * 1000;
         setCooldownEnd(Date.now() + delay);
         onPasswordChange('');
       }
@@ -159,6 +159,11 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     <div
       className="relative flex items-center justify-center h-screen"
       style={{ backgroundColor: getBgColor() }}
+      onMouseDown={(e) => {
+        if (e.target !== inputRef.current) {
+          inputRef.current?.blur();
+        }
+      }}
     >
       <span
         className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight"
