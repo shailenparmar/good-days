@@ -4,9 +4,11 @@
 
 After 3 consecutive failed password attempts, the lock screen enforces an exponential backoff cooldown before the next attempt. During cooldown, the input and submit button are disabled, and the placeholder shows a countdown number with the bold sweep animation.
 
-**Backoff schedule:** `min(2^(attempts-2), 30)` seconds — 2s, 4s, 8s, 16s, max 30s. Resets to 0 on successful unlock.
+**Backoff schedule:** `min(2^(attempts-3), 32)` seconds — 1s, 2s, 4s, 8s, 16s, max 32s. Resets to 0 on successful unlock.
 
 **Countdown display:** The placeholder text switches from "password" to the remaining seconds (e.g., "4"). The bold sweep animation resets on each number change. Input is cleared when cooldown starts. Focus returns to the input when cooldown ends.
+
+**Click-outside blur (v2.6.7+):** Clicking outside the password input on the lock screen blurs it (removes focus styling). Uses `onMouseDown` on the container div to programmatically blur the input.
 
 Code location: `src/features/auth/components/LockScreen.tsx`
 
