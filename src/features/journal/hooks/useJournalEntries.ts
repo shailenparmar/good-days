@@ -256,38 +256,42 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   }, [selectedDate]);
 
   // Save title for an entry
+  // IMPORTANT: Updates entriesRef eagerly (not inside setEntries callback) so that
+  // a debounced saveEntry() that reads entriesRef.current will see the title immediately.
+  // Previously the ref update was deferred inside setEntries, creating a race where
+  // saveEntry could overwrite the title with undefined.
   const saveTitle = useCallback((date: string, title: string) => {
-    setEntries(prevEntries => {
-      const existingIndex = prevEntries.findIndex(e => e.date === date);
-      const now = Date.now();
-      let newEntries: JournalEntry[];
-      let updatedEntry: JournalEntry;
+    const currentEntries = entriesRef.current;
+    const existingIndex = currentEntries.findIndex(e => e.date === date);
+    const now = Date.now();
+    let newEntries: JournalEntry[];
+    let updatedEntry: JournalEntry;
 
-      if (existingIndex >= 0) {
-        newEntries = [...prevEntries];
-        updatedEntry = {
-          ...newEntries[existingIndex],
-          title: title.trim() || undefined,
-          lastModified: now,
-        };
-        newEntries[existingIndex] = updatedEntry;
-      } else {
-        // Entry doesn't exist yet (e.g. brand new user, no entries at all)
-        updatedEntry = {
-          date,
-          content: '',
-          title: title.trim() || undefined,
-          startedAt: now,
-          lastModified: now,
-        };
-        newEntries = [...prevEntries, updatedEntry].sort((a, b) => b.date.localeCompare(a.date));
-      }
+    if (existingIndex >= 0) {
+      newEntries = [...currentEntries];
+      updatedEntry = {
+        ...newEntries[existingIndex],
+        title: title.trim() || undefined,
+        lastModified: now,
+      };
+      newEntries[existingIndex] = updatedEntry;
+    } else {
+      // Entry doesn't exist yet (e.g. brand new user, no entries at all)
+      updatedEntry = {
+        date,
+        content: '',
+        title: title.trim() || undefined,
+        startedAt: now,
+        lastModified: now,
+      };
+      newEntries = [...currentEntries, updatedEntry].sort((a, b) => b.date.localeCompare(a.date));
+    }
 
-      // Save only the changed entry (safe for multi-tab)
-      saveSingleEntry(updatedEntry);
-      entriesRef.current = newEntries;
-      return newEntries;
-    });
+    // Save only the changed entry (safe for multi-tab)
+    saveSingleEntry(updatedEntry);
+    // Update ref BEFORE React state so saveEntry() sees the title immediately
+    entriesRef.current = newEntries;
+    setEntries(newEntries);
   }, []);
 
   // Reload entries from storage (used after unlock)
