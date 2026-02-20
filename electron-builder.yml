@@ -1,7 +1,7 @@
 appId: day.gdays.app
 productName: good days
 directories:
-  output: release
+  output: /tmp/good-days-release
 files:
   - dist/**/*
   - electron/dist/**/*
@@ -10,6 +10,7 @@ files:
   - "!dist/manifest.webmanifest"
   - "!dist/CNAME"
   - "!dist/icon-backup/**"
+afterPack: ./build/afterPack.cjs
 mac:
   icon: build/icon.icns
   category: public.app-category.lifestyle
@@ -17,13 +18,18 @@ mac:
     - en
   target:
     - target: mas
-      arch: universal
+      arch: arm64
+  extendInfo:
+    ElectronTeamID: "4Y4K23UP57"
   entitlements: build/entitlements.mas.plist
   entitlementsInherit: build/entitlements.mas.inherit.plist
   entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
+  provisioningProfile: /Users/shailen/Desktop/everything else/Projects/good-days-app/build/embedded.provisionprofile
+  type: distribution
 mas:
+  identity: "Shailen Parmar (4Y4K23UP57)"
   entitlements: build/entitlements.mas.plist
   entitlementsInherit: build/entitlements.mas.inherit.plist
   entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
-  provisioningProfile: build/embedded.provisionprofile
+  provisioningProfile: /Users/shailen/Desktop/everything else/Projects/good-days-app/build/embedded.provisionprofile
   type: distribution
