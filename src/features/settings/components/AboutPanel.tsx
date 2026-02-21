@@ -153,25 +153,12 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
         </div>
       </div>
 
-      {/* System */}
-      <div className="p-4" style={sectionStyle}>
-        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
-          <p>{s(ABOUT_COPY.system.header)}</p>
-          {ABOUT_COPY.system.paragraphs.map((p, i) => (
-            <p key={i}>{s(p)}</p>
-          ))}
-        </div>
-      </div>
-
       {/* Personal note */}
       <div className="p-4">
         <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
-          <p>
-            {s(ABOUT_COPY.closing)}
-          </p>
-          <p className="mt-4">
-            {s(ABOUT_COPY.copyright)}
-          </p>
+          <p>{s(ABOUT_COPY.closing)}</p>
+          <p>{s(ABOUT_COPY.signature)}</p>
+          <p>{s(ABOUT_COPY.copyright)}</p>
         </div>
       </div>
     </div>

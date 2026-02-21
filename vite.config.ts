@@ -25,9 +25,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
       },
       manifest: {
-        name: 'good days',
-        short_name: 'good days',
-        description: 'A journaling app for good days',
+        name: 'good days pro',
+        short_name: 'good days pro',
+        description: 'A journaling app for good days pro',
         background_color: '#000000',
         theme_color: '#000000',
         display: 'standalone',

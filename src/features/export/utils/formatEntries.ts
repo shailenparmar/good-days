@@ -84,7 +84,7 @@ export function formatEntriesAsText(entries: JournalEntry[]): string {
   // Sort entries by date ascending (oldest first)
   const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date));
 
-  let textContent = `# good days\n\n`;
+  let textContent = `# good days pro\n\n`;
   textContent += '---\n';
 
   sortedEntries.forEach(entry => {

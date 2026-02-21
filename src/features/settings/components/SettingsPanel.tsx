@@ -114,7 +114,7 @@ export function SettingsPanel({
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    a.download = `good days debug log ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
+    a.download = `good days pro debug log ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -441,7 +441,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const filename = `good days backup ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
+      const filename = `good days pro backup ${month}-${day}-${year} ${hours}${minutes}${seconds}.txt`;
 
       // --- Electron path: use native save dialog via IPC ---
       if (window.electronAPI) {
