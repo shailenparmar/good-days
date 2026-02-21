@@ -31,3 +31,15 @@ the only other way to lose logs is manually deleting site data in browser settin
 i hope you like this place. here's to many colorways and many more good days.
 
 – shailen
+
+---
+
+## good days pro
+
+good days pro is the native mac app. no browser intermediary, every word saved directly to hardware. it's called pro for a reason.
+
+entries, passwords, and colorways never leave your hardware. a developer couldn't read your journal even if they wanted to. as a privacy guarantee, the entire product is open source.
+
+beam rc colorways with gdays.day in your phone's browser.
+
+good days pro for macos. designed by shailen on earth, 2026.
