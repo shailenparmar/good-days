@@ -8,6 +8,7 @@ interface EntryHeaderProps {
   selectedDate: string;
   entries: JournalEntry[];
   paddingBottom?: number;
+  paddingTop?: number;
   isScrambled?: boolean;
   superscramble?: boolean;
   scrambleSeed?: number;
@@ -20,7 +21,7 @@ interface EntryHeaderProps {
   editorRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange, onTitleInput, editorRef }: EntryHeaderProps) {
+export function EntryHeader({ selectedDate, entries, paddingBottom = 20, paddingTop, isScrambled, superscramble, scrambleSeed, stacked, onClick, onHeightChange, saveTitle, onEditingChange, onTitleInput, editorRef }: EntryHeaderProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
@@ -210,6 +211,7 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
       className="p-4 sticky top-0 z-10"
       style={{
         paddingBottom: `${paddingBottom}px`,
+        ...(paddingTop !== undefined && { paddingTop: `${paddingTop}px` }),
         backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
         borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
       }}

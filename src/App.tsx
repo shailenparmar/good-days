@@ -502,7 +502,7 @@ function AppContent() {
               }
               return (
                 <h1 className="text-2xl font-extrabold font-mono tracking-tight text-center select-none" style={{ color: getColor() }}>
-                  {s('good days')}
+                  {s('good days pro')}
                 </h1>
               );
             })()}
@@ -630,6 +630,7 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
+            paddingTop={window.electronAPI && (layout.minizen || (layout.isNarrow && !layout.showSidebarInNarrow)) ? 28 : undefined}
             isScrambled={layout.isScrambled}
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
