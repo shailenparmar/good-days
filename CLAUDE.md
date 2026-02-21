@@ -74,6 +74,8 @@ The about page copy and `README.md` are architecturally linked via `src/shared/c
 
 **Pro branch about copy:** The `pro` branch has its own `aboutCopy.ts` with desktop-appropriate copy — no browser references, no system section, condensed privacy, and "good days pro" branding throughout. All user-facing "good days" strings on `pro` say "good days pro" (title, exports, filenames, manifest).
 
+**Copyright notice (v2.6.18+):** `aboutCopy.ts` has a `copyright` field (`© 2026 shailen parmar`) rendered at the bottom of the about panel after the signature. Also shown on the mobile permission screen (12px monospace bold, 85% opacity, centered below buttons). Included in the README via `generate-readme.ts`.
+
 **Inline emphasis (v2.4.17+):** `aboutCopy.ts` supports `*word*` syntax for italic text. `AboutPanel.tsx` has a `renderWithEmphasis()` helper that splits on `*...*` and wraps matches in `<em>`. The scramble function `s()` is applied per-segment so superscramble still works.
 
 **Inline icons (v2.5.6+, updated v2.5.8):** `aboutCopy.ts` supports `[icon:name]` tokens. `renderWithEmphasis()` splits on these first, then handles emphasis within each text segment. Icon map: `settings` → `<Settings>` (gear), `about` → `<Heart>`. Icons render at `w-4 h-4 inline align-middle`. Current usage: `"toggle [icon:settings] and [icon:about] for a poweruser menu."` — icons only, no words. `generate-readme.ts` strips icon tokens with `.replace(/\[icon:\w+\]/g, '')`.
