@@ -172,7 +172,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
           <p>
             {s(ABOUT_COPY.closing)}
           </p>
-          <p className="mt-4">
+          <p className="mt-4 text-xs">
             {s(ABOUT_COPY.copyright)}
           </p>
         </div>
