@@ -173,9 +173,6 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
             {s(ABOUT_COPY.closing)}
           </p>
           <p className="mt-4">
-            {s(ABOUT_COPY.signature)}
-          </p>
-          <p>
             {s(ABOUT_COPY.copyright)}
           </p>
         </div>

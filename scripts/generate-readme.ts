@@ -33,8 +33,6 @@ ${systemParagraphs}
 
 ${ABOUT_COPY.closing}
 
-${ABOUT_COPY.signature}
-
 ${ABOUT_COPY.copyright}
 
 ---
