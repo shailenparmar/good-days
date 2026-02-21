@@ -791,6 +791,9 @@ export default function MobileApp() {
             <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
             <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
           </div>
+          <p style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '12px', textAlign: 'center', color: textColor, opacity: 0.85, marginTop: '12px' }}>
+            {'\u00A9 2026 shailen parmar'}
+          </p>
         </div>
       </div>
       </div>
