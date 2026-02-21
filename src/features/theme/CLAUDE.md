@@ -112,7 +112,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 | **1** | hsl(63, 100%, 12%) dark olive #3a3d00 | hsl(52, 100%, 91%) light yellow #fff9d1 | Default for new users |
 | **2** | hsl(229, 61%, 100%) white | hsl(251, 100%, 59%) purple | — |
 | **3** | hsl(0, 100%, 49%) red #fa0000 | hsl(0, 100%, 13%) very dark red #420000 | — |
-| **4** | hsl(36, 58%, 38%) brown/gold #996c29 | hsl(181, 52%, 10%) dark teal #0c2627 | — |
+| **4** | hsl(173, 89%, 6%) dark teal #021d1a | hsl(181, 100%, 91%) light cyan #d1feff | — |
 | **5** | hsl(116, 100%, 53%) green #1fff0f | hsl(213, 87%, 20%) dark blue #072f5f | — |
 
 ### Preset 1 = Flagship (IMPORTANT)
