@@ -771,7 +771,7 @@ export default function MobileApp() {
         </div>
 
         {/* Button area - same position as home screen buttons */}
-        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
+        <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center', position: 'relative' }}>
           <MobileButton
             onActivate={requestPermission}
             style={getButtonStyle(false, 'full')}
@@ -791,6 +791,10 @@ export default function MobileApp() {
             <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
             <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
           </div>
+          {/* Copyright - absolutely positioned in the 44px bottom padding, no layout impact */}
+          <p style={{ position: 'absolute', bottom: '12px', left: 0, right: 0, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', textAlign: 'center', color: textColor, opacity: 0.85, margin: 0 }}>
+            {'\u00A9 2026 shailen parmar'}
+          </p>
         </div>
       </div>
       </div>
