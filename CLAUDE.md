@@ -74,7 +74,7 @@ The about page copy and `README.md` are architecturally linked via `src/shared/c
 
 **Pro branch about copy:** The `pro` branch has its own `aboutCopy.ts` with desktop-appropriate copy — no browser references, no system section, condensed privacy, and "good days pro" branding throughout. All user-facing "good days" strings on `pro` say "good days pro" (title, exports, filenames, manifest).
 
-**Copyright notice (v2.6.18+, updated v2.6.23):** `aboutCopy.ts` has a `copyright` field (`© 2026 shailen parmar`) rendered at the bottom of the about panel (body font size, replaces the old `signature` field removed in v2.6.21). Desktop only — not shown on mobile (removed in v2.6.23 to preserve precision spacing). Included in the README via `generate-readme.ts`.
+**Copyright notice (v2.6.18+, updated v2.6.24):** `aboutCopy.ts` has a `copyright` field (`© 2026 shailen parmar`) rendered at the bottom of the about panel (body font size, replaces the old `signature` field removed in v2.6.21). Also shown on mobile permission screen (16px monospace bold, 85% opacity, absolutely positioned in the 44px bottom padding of the button container — zero layout impact on the pixel-perfect button/bracket alignment). Included in the README via `generate-readme.ts`.
 
 **Inline emphasis (v2.4.17+):** `aboutCopy.ts` supports `*word*` syntax for italic text. `AboutPanel.tsx` has a `renderWithEmphasis()` helper that splits on `*...*` and wraps matches in `<em>`. The scramble function `s()` is applied per-segment so superscramble still works.
 
