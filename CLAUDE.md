@@ -32,15 +32,15 @@
 | Branch | Purpose | Deploys? |
 |--------|---------|----------|
 | **main** | Web app (gdays.day) | Yes — GitHub Pages on every push |
-| **electron** | Desktop app (macOS App Store) | No — local builds only |
+| **pro** | Desktop app — good days pro (macOS App Store) | No — local builds only |
 
 **Rules:**
 - **All web app changes go to main.** Copy fixes, features, bug fixes — everything that affects gdays.day.
-- **All Electron/desktop work goes to electron.** Desktop-specific code stays off main until the app is ready.
-- **Electron rebases on main** periodically to pick up web app improvements. Run `git checkout electron && git rebase main` then `git push --force-with-lease origin electron`.
-- **Never merge electron into main.** The desktop app will get its own build pipeline when it's ready for the App Store.
+- **All desktop work goes to pro.** Desktop-specific code stays off main until the app is ready.
+- **Pro rebases on main** periodically to pick up web app improvements. Run `git checkout pro && git rebase main` then `git push --force-with-lease origin pro`.
+- **Never merge pro into main.** The desktop app will get its own build pipeline when it's ready for the App Store.
 
-**Why:** The Electron commit modifies shared files (`main.tsx`, `journalStorage.ts`, `package.json`) that could affect the live web app. Keeping it on a separate branch eliminates that risk.
+**Why:** The pro branch modifies shared files (`main.tsx`, `journalStorage.ts`, `package.json`) that could affect the live web app. Keeping it on a separate branch eliminates that risk.
 
 ## Deployment
 
@@ -69,6 +69,10 @@ Production hosted on **GitHub Pages** with custom domain (`gdays.day`) managed b
 ### About Page ↔ README Sync (v2.2.4+)
 
 The about page copy and `README.md` are architecturally linked via `src/shared/copy/aboutCopy.ts`. `AboutPanel.tsx` imports from it; `scripts/generate-readme.ts` generates `README.md` from it. To update the about copy, edit `aboutCopy.ts` then run `npm run generate-readme` to regenerate the README.
+
+**README covers both apps (v2.6.17+):** The README on `main` has the web app copy on top and a "good days pro" section beneath. The pro section is hardcoded in `generate-readme.ts` (not from `aboutCopy.ts`) since the pro branch has its own diverged copy.
+
+**Pro branch about copy:** The `pro` branch has its own `aboutCopy.ts` with desktop-appropriate copy — no browser references, no system section, condensed privacy, and "good days pro" branding throughout. All user-facing "good days" strings on `pro` say "good days pro" (title, exports, filenames, manifest).
 
 **Inline emphasis (v2.4.17+):** `aboutCopy.ts` supports `*word*` syntax for italic text. `AboutPanel.tsx` has a `renderWithEmphasis()` helper that splits on `*...*` and wraps matches in `<em>`. The scramble function `s()` is applied per-segment so superscramble still works.
 
