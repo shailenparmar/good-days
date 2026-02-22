@@ -31,6 +31,7 @@ export default function MobileApp() {
   const [codeInput, setCodeInput] = useState('');
   const [codeFlash, setCodeFlash] = useState<'none' | 'red'>('none');
   const codeInputRef = useRef<HTMLInputElement>(null);
+  const codeInputEngaged = useRef(false);
 
   // Bold sweep placeholder for code input ("pairing code")
   const [codeBoldCount, setCodeBoldCount] = useState(0);
@@ -1048,10 +1049,10 @@ export default function MobileApp() {
                   textIndent: '4px',
                 }}
                 onClick={(e) => { const el = e.currentTarget; const len = el.value.length; el.setSelectionRange(len, len); }}
-                onTouchStart={() => setCodeInputPressed(true)}
-                onTouchMove={(e) => setCodeInputPressed(isTouchInside(e))}
-                onTouchEnd={() => setCodeInputPressed(false)}
-                onTouchCancel={() => setCodeInputPressed(false)}
+                onTouchStart={() => { codeInputEngaged.current = true; setCodeInputPressed(true); }}
+                onTouchMove={(e) => { const inside = isTouchInside(e); codeInputEngaged.current = inside; setCodeInputPressed(inside); }}
+                onTouchEnd={(e) => { const touch = e.changedTouches[0]; if (touch) { const rect = e.currentTarget.getBoundingClientRect(); codeInputEngaged.current = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom; } if (codeInputEngaged.current) codeInputRef.current?.focus(); codeInputEngaged.current = false; setCodeInputPressed(false); }}
+                onTouchCancel={() => { codeInputEngaged.current = false; setCodeInputPressed(false); }}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
