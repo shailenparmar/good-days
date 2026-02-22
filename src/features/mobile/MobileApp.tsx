@@ -1051,7 +1051,7 @@ export default function MobileApp() {
                 onClick={(e) => { const el = e.currentTarget; const len = el.value.length; el.setSelectionRange(len, len); }}
                 onTouchStart={() => { codeInputEngaged.current = true; setCodeInputPressed(true); }}
                 onTouchMove={(e) => { const inside = isTouchInside(e); codeInputEngaged.current = inside; setCodeInputPressed(inside); }}
-                onTouchEnd={(e) => { const touch = e.changedTouches[0]; if (touch) { const rect = e.currentTarget.getBoundingClientRect(); codeInputEngaged.current = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom; } if (codeInputEngaged.current) codeInputRef.current?.focus(); codeInputEngaged.current = false; setCodeInputPressed(false); }}
+                onTouchEnd={() => { if (codeInputEngaged.current) codeInputRef.current?.focus(); codeInputEngaged.current = false; setCodeInputPressed(false); }}
                 onTouchCancel={() => { codeInputEngaged.current = false; setCodeInputPressed(false); }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -1103,8 +1103,6 @@ export default function MobileApp() {
               }}
               onTouchEnd={(e) => {
                 e.preventDefault();
-                const touch = e.changedTouches[0];
-                if (touch) { const rect = e.currentTarget.getBoundingClientRect(); skipEngaged.current = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom; }
                 if (skipEngaged.current) sync.skipPairing();
                 skipEngaged.current = false;
                 setSkipPressed(false);
