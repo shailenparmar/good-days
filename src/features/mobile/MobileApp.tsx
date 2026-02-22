@@ -1102,6 +1102,8 @@ export default function MobileApp() {
               }}
               onTouchEnd={(e) => {
                 e.preventDefault();
+                const touch = e.changedTouches[0];
+                if (touch) { const rect = e.currentTarget.getBoundingClientRect(); skipEngaged.current = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom; }
                 if (skipEngaged.current) sync.skipPairing();
                 skipEngaged.current = false;
                 setSkipPressed(false);
