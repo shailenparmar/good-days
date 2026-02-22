@@ -354,16 +354,16 @@ See **Mobile Style Guide** at the top of this file for the full button system (s
 
 **Pixel-perfect alignment (v2.5.34+):** All screens render the home screen's exact invisible button DOM (aux + picker + aux) to set the button area height. Visible buttons are absolutely positioned on top. This guarantees the corner brackets and button area top border are at identical positions across all screens.
 
-### Button Drag-Off Cancellation (v1.10.22+)
+### Button Drag-Off Cancellation & Re-Engage (v1.10.22+, re-engage v2.6.29+)
 
-The copy, paste, allow motion access, and skip buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
+The copy, paste, allow motion access, and skip buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. **Sliding back on re-engages** — the button lights up again and will fire on release. Same behavior as the recalibrate button.
 
-**Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
+**Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` sets engaged/pressed based on `isTouchInside()` — both directions (disengage on exit, re-engage on re-entry).
 
 | Event | Behavior |
 |-------|----------|
 | touchStart | Set engaged=true, show pressed state |
-| touchMove (inside) | No change |
+| touchMove (inside) | Set engaged=true, show pressed state (re-engage) |
 | touchMove (outside) | Set engaged=false, clear pressed state |
 | touchEnd | Fire action only if still engaged, clear state |
 | touchCancel (long press) | Clear state, do NOT fire action (intentional) |
