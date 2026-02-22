@@ -37,10 +37,18 @@
 **Rules:**
 - **All web app changes go to main.** Copy fixes, features, bug fixes — everything that affects gdays.day.
 - **All desktop work goes to pro.** Desktop-specific code stays off main until the app is ready.
-- **Pro rebases on main** periodically to pick up web app improvements. Run `git checkout pro && git rebase main` then `git push --force-with-lease origin pro`.
+- **Pro rebases on main** periodically to pick up web app improvements. Run `git checkout pro && git rebase main` then `git push --force-with-lease origin pro`. Switch back to main when done.
 - **Never merge pro into main.** The desktop app will get its own build pipeline when it's ready for the App Store.
 
 **Why:** The pro branch modifies shared files (`main.tsx`, `journalStorage.ts`, `package.json`) that could affect the live web app. Keeping it on a separate branch eliminates that risk.
+
+### Pro Rebase Conflict: `aboutCopy.ts` (v2.6.31+)
+
+The `aboutCopy.ts` file **always conflicts** during pro rebases because the two branches have intentionally divergent copy. When resolving:
+
+- **Keep pro's version** of the conflicting sections. Pro has no `system` section (desktop app doesn't need browser storage warnings), uses `closing: "good days pro for macos."` and `signature: "designed by shailen on earth, 2026."` instead of main's `closing` + `copyright` fields.
+- Main's `system` section, `copyright` field, and web-specific closing copy should be discarded during the resolve.
+- The top-of-file sections (`welcome`, `privacy`, `features`) may also diverge — pro uses condensed privacy (single paragraph) and "good days pro" branding. Always keep pro's version for these too.
 
 ## Deployment
 

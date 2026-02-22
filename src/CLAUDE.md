@@ -688,6 +688,22 @@ All buttons use `px-3 py-2` padding and `font-mono`.
 
 **ALWAYS use the `FunctionButton` component** for all clickable buttons. Never create inline buttons with custom hover/click handlers.
 
+### Split Buttons (inline exceptions)
+
+Three components use inline split buttons instead of `FunctionButton` — they need shared-edge borders (3px outer, 1px inner) that `FunctionButton` doesn't support:
+
+| Component | Buttons | File |
+|-----------|---------|------|
+| `TimeButton` | 12h / 24h toggle | `TimeDisplay.tsx` |
+| `PasswordButton` | change / remove password | `PasswordSettings.tsx` |
+| Color stats button | copy / paste | `StatsDisplay.tsx` |
+
+**mouseLeave must clear isClicked (v2.6.31+).** All split buttons track `isClicked` (mouseDown/mouseUp) for the active border color. If the user mousedowns then drags off the button, `mouseUp` fires on whatever element the cursor is over — not the original button. Without clearing `isClicked` on `mouseLeave`, the button stays visually stuck in the pressed state. Pattern:
+
+```tsx
+onMouseLeave={() => { setIsHovered(false); setIsClicked(false); }}
+```
+
 ### Usage
 
 ```tsx
