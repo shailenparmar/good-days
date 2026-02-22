@@ -51,7 +51,7 @@ function TimeButton({
         ...borderStyle,
       }}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => { setIsHovered(false); setIsClicked(false); }}
       onMouseDown={() => setIsClicked(true)}
       onMouseUp={() => setIsClicked(false)}
     >
