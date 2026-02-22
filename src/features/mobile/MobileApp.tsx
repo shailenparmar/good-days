@@ -1049,7 +1049,7 @@ export default function MobileApp() {
                 }}
                 onClick={(e) => { const el = e.currentTarget; const len = el.value.length; el.setSelectionRange(len, len); }}
                 onTouchStart={() => setCodeInputPressed(true)}
-                onTouchMove={(e) => { if (!isTouchInside(e)) setCodeInputPressed(false); }}
+                onTouchMove={(e) => setCodeInputPressed(isTouchInside(e))}
                 onTouchEnd={() => setCodeInputPressed(false)}
                 onTouchCancel={() => setCodeInputPressed(false)}
                 autoComplete="off"
