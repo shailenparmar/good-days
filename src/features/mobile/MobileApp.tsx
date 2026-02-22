@@ -1096,10 +1096,9 @@ export default function MobileApp() {
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
               onTouchMove={(e) => {
-                if (!isTouchInside(e)) {
-                  skipEngaged.current = false;
-                  setSkipPressed(false);
-                }
+                const inside = isTouchInside(e);
+                skipEngaged.current = inside;
+                setSkipPressed(inside);
               }}
               onTouchEnd={(e) => {
                 e.preventDefault();
