@@ -17,7 +17,7 @@ export function MobileButton({ onActivate, children, getStyle, extraProps }: Mob
     <div
       data-btn
       onTouchStart={(e) => { e.preventDefault(); engaged.current = true; setPressed(true); }}
-      onTouchMove={(e) => { const inside = isTouchInside(e); engaged.current = inside; setPressed(inside); }}
+      onTouchMove={(e) => { if (!isTouchInside(e)) { engaged.current = false; setPressed(false); } }}
       onTouchEnd={(e) => { e.preventDefault(); if (engaged.current) onActivate(); engaged.current = false; setPressed(false); }}
       onTouchCancel={() => { engaged.current = false; setPressed(false); }}
       style={getStyle(pressed)}
