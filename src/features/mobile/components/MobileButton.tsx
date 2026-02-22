@@ -11,15 +11,26 @@ interface MobileButtonProps {
 
 export function MobileButton({ onActivate, children, getStyle, extraProps }: MobileButtonProps) {
   const [pressed, setPressed] = useState(false);
-  const engaged = useRef(false);
+  const btnRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
+      ref={btnRef}
       data-btn
-      onTouchStart={(e) => { e.preventDefault(); engaged.current = true; setPressed(true); }}
-      onTouchMove={(e) => { const inside = isTouchInside(e); engaged.current = inside; setPressed(inside); }}
-      onTouchEnd={(e) => { e.preventDefault(); if (engaged.current) onActivate(); engaged.current = false; setPressed(false); }}
-      onTouchCancel={() => { engaged.current = false; setPressed(false); }}
+      onTouchStart={(e) => { e.preventDefault(); setPressed(true); }}
+      onTouchMove={(e) => { setPressed(isTouchInside(e)); }}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        if (touch && btnRef.current) {
+          const rect = btnRef.current.getBoundingClientRect();
+          if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+            onActivate();
+          }
+        }
+        setPressed(false);
+      }}
+      onTouchCancel={() => { setPressed(false); }}
       style={getStyle(pressed)}
       {...extraProps}
     >
