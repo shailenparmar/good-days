@@ -23,6 +23,7 @@ export const ABOUT_COPY = {
     ],
   },
 
-  closing: "good days pro for macos.",
-  signature: "designed by shailen on earth, 2026.",
+  closing: "good days pro for mac",
+  signature: "designed by shailen on earth",
+  copyright: "\u00A9 2026 shailen parmar",
 } as const;

@@ -1,7 +1,7 @@
 import { ipcMain, app } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { IPC } from './types';
+import { IPC } from './types.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

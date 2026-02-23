@@ -1,7 +1,11 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { registerStorageHandlers } from './storage';
-import { registerBackupHandlers } from './backup';
+import { fileURLToPath } from 'url';
+import { registerStorageHandlers } from './storage.js';
+import { registerBackupHandlers } from './backup.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
 

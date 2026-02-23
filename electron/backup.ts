@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { IPC } from './types';
+import { IPC } from './types.js';
 
 export function registerBackupHandlers(): void {
   ipcMain.handle(IPC.BACKUP_SAVE, async (_event, content: string, defaultFilename: string) => {

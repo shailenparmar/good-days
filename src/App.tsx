@@ -89,6 +89,7 @@ function MobileNotSupported() {
 
 function AppContent() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const titleBarPad = 30;
 
   // Feature hooks
   const theme = useTheme();
@@ -484,7 +485,7 @@ function AppContent() {
             borderBottom: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'
           }}
         >
-          <div className="p-4" ref={layout.titleRef}>
+          <div className="p-4" ref={layout.titleRef} style={{ paddingTop: `${titleBarPad}px` }}>
             {(() => {
               const showInfo = layout.showAboutPanel ? !layout.titleHovered : layout.titleHovered;
               const s = layout.isSuperscramble ? scrambleText : (t: string) => t;
@@ -630,7 +631,7 @@ function AppContent() {
             selectedDate={journal.selectedDate}
             entries={journal.entries}
             paddingBottom={20}
-            paddingTop={window.electronAPI && (layout.minizen || (layout.isNarrow && !layout.showSidebarInNarrow)) ? 28 : undefined}
+            paddingTop={titleBarPad}
             isScrambled={layout.isScrambled}
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
