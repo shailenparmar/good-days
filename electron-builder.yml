@@ -1,5 +1,5 @@
 appId: day.gdays.app
-productName: good days
+productName: good days pro
 directories:
   output: /tmp/good-days-release
 files:
@@ -25,12 +25,12 @@ mac:
   entitlements: build/entitlements.mas.plist
   entitlementsInherit: build/entitlements.mas.inherit.plist
   entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
-  provisioningProfile: /Users/shailen/Desktop/everything else/Projects/good-days-app/build/embedded.provisionprofile
+  provisioningProfile: build/embedded.provisionprofile
   type: distribution
 mas:
   identity: "Shailen Parmar (4Y4K23UP57)"
   entitlements: build/entitlements.mas.plist
   entitlementsInherit: build/entitlements.mas.inherit.plist
   entitlementsLoginHelper: build/entitlements.mas.loginhelper.plist
-  provisioningProfile: /Users/shailen/Desktop/everything else/Projects/good-days-app/build/embedded.provisionprofile
+  provisioningProfile: build/embedded.provisionprofile
   type: distribution
