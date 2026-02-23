@@ -114,14 +114,14 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
     >
       {/* Welcome */}
       <div className="p-4" style={sectionStyle}>
-        <p className="text-base leading-relaxed font-mono font-bold" style={{ color: getColor() }}>
+        <p className="text-sm font-mono font-extrabold" style={{ color: getColor() }}>
           {s(ABOUT_COPY.welcome)}
         </p>
       </div>
 
       {/* Privacy */}
       <div className="p-4" style={sectionStyle}>
-        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
           <p>{s(ABOUT_COPY.privacy.header)}</p>
           {ABOUT_COPY.privacy.paragraphs.map((p, i) => (
             <p key={i}>{s(p)}</p>
@@ -148,7 +148,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
 
       {/* Features */}
       <div className="p-4" style={sectionStyle}>
-        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
           <p>{s(ABOUT_COPY.features.header)}</p>
           {ABOUT_COPY.features.paragraphs.map((p, i) => (
             <p key={i}>{renderWithEmphasis(p)}</p>
@@ -158,7 +158,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
 
       {/* System */}
       <div className="p-4" style={sectionStyle}>
-        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
           <p>{s(ABOUT_COPY.system.header)}</p>
           {ABOUT_COPY.system.paragraphs.map((p, i) => (
             <p key={i}>{s(p)}</p>
@@ -168,7 +168,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
 
       {/* Personal note */}
       <div className="p-4">
-        <div className="text-base leading-relaxed font-mono font-bold space-y-4" style={{ color: getColor() }}>
+        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
           <p>
             {s(ABOUT_COPY.closing)}
           </p>
