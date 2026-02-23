@@ -75,7 +75,7 @@ export const ABOUT_COPY = {
   },
   features: { /* ... same structure, but "beam rc colorways" line, no "chromium address bar" line */ },
   // NO system section (main has browser storage warnings)
-  closing: "good days pro for macos",
+  closing: "good days pro for mac",
   signature: "designed by shailen on earth",
   copyright: "\u00A9 2026 shailen parmar",
   // main has: closing + copyright only (no signature)
