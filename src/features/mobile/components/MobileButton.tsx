@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useCallback } from 'react';
 import { isTouchInside } from '../utils';
 
 interface MobileButtonProps {
@@ -10,33 +10,46 @@ interface MobileButtonProps {
 }
 
 export function MobileButton({ onActivate, children, getStyle, extraProps }: MobileButtonProps) {
-  const [pressed, setPressed] = useState(false);
+  const btnRef = useRef<HTMLDivElement>(null);
   const engaged = useRef(false);
-  const [dbg, setDbg] = useState('');
+  const pressedStyle = useRef(getStyle(true));
+  const normalStyle = useRef(getStyle(false));
+
+  // Update cached styles on each render (parent color changes)
+  pressedStyle.current = getStyle(true);
+  normalStyle.current = getStyle(false);
+
+  const applyStyle = useCallback((pressed: boolean) => {
+    if (!btnRef.current) return;
+    const s = pressed ? pressedStyle.current : normalStyle.current;
+    Object.assign(btnRef.current.style, s);
+  }, []);
 
   return (
     <div
+      ref={btnRef}
       data-btn
-      onTouchStart={(e) => { e.preventDefault(); engaged.current = true; setPressed(true); setDbg('start'); }}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        engaged.current = true;
+        applyStyle(true);
+      }}
       onTouchMove={(e) => {
         const inside = isTouchInside(e);
         engaged.current = inside;
-        setPressed(inside);
-        setDbg(inside ? 'in' : 'out');
+        applyStyle(inside);
       }}
       onTouchEnd={(e) => {
         e.preventDefault();
-        const wasEngaged = engaged.current;
-        setDbg(wasEngaged ? 'FIRE' : 'MISS');
-        if (wasEngaged) onActivate();
+        if (engaged.current) onActivate();
         engaged.current = false;
-        setPressed(false);
+        applyStyle(false);
       }}
-      onTouchCancel={() => { engaged.current = false; setPressed(false); setDbg('cancel'); }}
-      style={getStyle(pressed)}
+      onTouchCancel={() => { engaged.current = false; applyStyle(false); }}
+      style={getStyle(false)}
       {...extraProps}
     >
-      {children} <span style={{ fontSize: '10px', opacity: 0.5 }}>{dbg}</span>
+      {children}
     </div>
   );
 }
