@@ -42,13 +42,69 @@
 
 **Why:** The pro branch modifies shared files (`main.tsx`, `journalStorage.ts`, `package.json`) that could affect the live web app. Keeping it on a separate branch eliminates that risk.
 
-### Pro Rebase Conflict: `aboutCopy.ts` (v2.6.31+)
+### Pro Rebase: Divergent Files (CRITICAL)
 
-The `aboutCopy.ts` file **always conflicts** during pro rebases because the two branches have intentionally divergent copy. When resolving:
+**Git rebase silently auto-merges non-conflicting sections.** This means main's web copy can overwrite pro's desktop copy even when git reports no conflict. After every rebase, you MUST manually verify all divergent files.
 
-- **Keep pro's version** of the conflicting sections. Pro has no `system` section (desktop app doesn't need browser storage warnings), uses `closing: "good days pro for macos."` and `signature: "designed by shailen on earth, 2026."` instead of main's `closing` + `copyright` fields.
-- Main's `system` section, `copyright` field, and web-specific closing copy should be discarded during the resolve.
-- The top-of-file sections (`welcome`, `privacy`, `features`) may also diverge — pro uses condensed privacy (single paragraph) and "good days pro" branding. Always keep pro's version for these too.
+#### Files that intentionally differ between main and pro
+
+| File | What differs on pro | Risk |
+|------|-------------------|------|
+| `src/shared/copy/aboutCopy.ts` | Entire file diverges: "good days pro" welcome, condensed privacy (1 paragraph), no `system` section, pro-specific `closing`/`signature`/`copyright` | HIGH — git auto-merges upper sections silently |
+| `src/features/settings/components/AboutPanel.tsx` | Renders `signature` + `copyright` (3 lines) instead of just `copyright` (1 line). No `system` section rendering. | HIGH — auto-merge pulls in main's rendering code |
+| `src/App.tsx` | Title says "good days pro", has `titleBarPad` for traffic light spacing | MEDIUM — title string can get overwritten |
+| `src/features/export/components/ExportButtons.tsx` | Filename: "good days pro backup" | LOW |
+| `src/features/export/utils/formatEntries.ts` | Header: "# good days pro" | LOW |
+| `src/features/settings/components/SettingsPanel.tsx` | Debug log filename: "good days pro debug log" | LOW |
+| `electron/` directory | Electron-only, not on main | SAFE — no conflicts |
+| `package.json` | `"main"` field, electron deps | MEDIUM |
+| `index.html` | "good days pro" in `<title>` | LOW |
+| `vite.config.ts` | Electron build flags | MEDIUM |
+
+#### Pro's `aboutCopy.ts` (canonical version)
+
+```typescript
+export const ABOUT_COPY = {
+  welcome: "welcome to good days pro.",
+  privacy: {
+    header: "privacy:",
+    paragraphs: [
+      "entries, passwords, and colorways never leave your hardware. a developer couldn't read your journal even if they wanted to.",
+    ],
+    // NO second paragraph (main has 2 paragraphs with browser-specific language)
+  },
+  features: { /* ... same structure, but "beam rc colorways" line, no "chromium address bar" line */ },
+  // NO system section (main has browser storage warnings)
+  closing: "good days pro for macos",
+  signature: "designed by shailen on earth",
+  copyright: "\u00A9 2026 shailen parmar",
+  // main has: closing + copyright only (no signature)
+} as const;
+```
+
+#### Pro's `AboutPanel.tsx` bottom section
+
+```tsx
+<p>{s(ABOUT_COPY.closing)}</p>
+<p>{s(ABOUT_COPY.signature)}</p>
+<p>{s(ABOUT_COPY.copyright)}</p>
+```
+
+Main only renders `closing` + `copyright` (2 lines). Pro renders all 3.
+
+#### Post-Rebase Checklist
+
+After every `git rebase main` on pro, verify ALL of these before pushing:
+
+1. **`aboutCopy.ts`** — Must say "good days pro", condensed privacy, no `system` section, has `signature` field
+2. **`AboutPanel.tsx`** — Bottom renders closing + signature + copyright (3 `<p>` tags)
+3. **`App.tsx`** — Title says `'good days pro'`, `titleBarPad` constant exists
+4. **`ExportButtons.tsx`** — Filename says "good days pro backup"
+5. **`formatEntries.ts`** — Header says "# good days pro"
+6. **`SettingsPanel.tsx`** — Debug log says "good days pro debug log"
+7. **`index.html`** — `<title>` says "good days pro"
+
+Quick grep to verify: `grep -r "good days pro" src/ index.html` — should hit all the above files. If any are missing, the rebase overwrote them.
 
 ## Deployment
 
