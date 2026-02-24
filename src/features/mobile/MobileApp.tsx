@@ -828,11 +828,13 @@ export default function MobileApp() {
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
           {/* Live color values - 2 columns centered above respective spectra */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', display: 'flex', pointerEvents: 'none', zIndex: 3 }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
-              {hslToHex(colors.hue % 360, colors.sat, colors.light)}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+              <div>{hslToHex(colors.hue % 360, colors.sat, colors.light)}</div>
+              <div>h{colors.hue % 360} s{colors.sat} l{colors.light}</div>
             </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
-              {hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+              <div>{hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)}</div>
+              <div>h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</div>
             </div>
           </div>
           {/* Invisible buttons set the correct height */}
