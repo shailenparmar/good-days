@@ -718,7 +718,7 @@ export default function MobileApp() {
     const active = isPicking && Array.from(trackedTouches.current.values()).includes(side);
     const isAlpha = activeSide.current === side;
     const h = active ? (isAlpha ? 16 : 8) : 4;
-    return <div style={{ position: 'absolute', left: side === 'right' ? 2 : 0, right: side === 'left' ? 2 : 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'rgba(0, 0, 0, 0.75)', pointerEvents: 'none', zIndex: 5 }} />;
+    return <div style={{ position: 'absolute', left: side === 'right' ? 2 : 0, right: side === 'left' ? 2 : 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'rgba(0, 0, 0, 0.6)', pointerEvents: 'none', zIndex: 5 }} />;
   };
 
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
@@ -860,15 +860,15 @@ export default function MobileApp() {
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.75)', zIndex: 2 }} />
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 2 }} />
           </div>
           {/* "text" / "background" labels - same position as home screen buttons */}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 }}>
             <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch' }}>
               <div style={{ visibility: 'hidden', ...getButtonStyle(false, 'full', 'aux') }}>&nbsp;</div>
               <div style={{ display: 'flex' }}>
-                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'rgba(0, 0, 0, 0.75)', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
-                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'rgba(0, 0, 0, 0.75)', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
+                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'rgba(0, 0, 0, 0.6)', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
+                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'rgba(0, 0, 0, 0.6)', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
               </div>
               <div style={{ display: 'flex', visibility: 'hidden' }}>
                 <div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div>
