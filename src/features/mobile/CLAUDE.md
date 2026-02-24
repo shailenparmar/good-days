@@ -136,7 +136,8 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │ txt: #78cc33   │  bg: #c8ff00  │  ← 2-column color stats (16px monospace bold)
 │ h96 s100 l50   │  h84 s100 l88│  ← each column centered above its spectrum
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
-│  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 8px divider)
+│     text       ┃  background  │  ← White labels (same position as home buttons)
+│  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 4px divider)
 │                ┃              │
 └────────────────┻──────────────┘
 ```
@@ -196,7 +197,9 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 **Hex codes and spectra layout (v1.10.28+, updated v2.3.27):**
 
-The picker displays color stats in a 2-column layout (v2.3.27+): each column is centered above its respective spectrum bar. Line 1: `txt:`/`bg:` prefix + hex. Line 2: HSL values. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top). No "text"/"background" labels on spectra (v1.10.28+).
+The picker displays color stats in a 2-column layout (v2.3.27+): each column is centered above its respective spectrum bar. Line 1: `txt:`/`bg:` prefix + hex. Line 2: HSL values. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
+
+**White "text"/"background" labels on spectra (v2.6.42+):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above bars at z1, divider at z2, stats at z3).
 
 ```
 Picker bottom section:
@@ -204,8 +207,9 @@ Picker bottom section:
 │ txt: #78cc33   │  bg: #c8ff00  │ ← 2 columns, each centered above its bar
 │ h96 s100 l50   │  h84 s100 l88 │ ← HSL values (16px monospace bold)
 │ ──────────────╋───────────────│ ← Hue indicators (center-based, clip at edges)
-│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 8px divider)
-│               ┃               │ ← No labels here (removed in v1.10.28)
+│     text      ┃  background   │ ← White labels (same position as home buttons)
+│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px divider)
+│               ┃               │
 └───────────────┻───────────────┘
 ```
 
