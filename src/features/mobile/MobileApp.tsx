@@ -718,7 +718,7 @@ export default function MobileApp() {
     const active = isPicking && Array.from(trackedTouches.current.values()).includes(side);
     const isAlpha = activeSide.current === side;
     const h = active ? (isAlpha ? 16 : 8) : 4;
-    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'rgba(255, 255, 255, 0.75)', pointerEvents: 'none', zIndex: 5 }} />;
+    return <div style={{ position: 'absolute', left: side === 'right' ? 2 : 0, right: side === 'left' ? 2 : 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'rgba(255, 255, 255, 0.75)', pointerEvents: 'none', zIndex: 5 }} />;
   };
 
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
@@ -828,13 +828,11 @@ export default function MobileApp() {
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
           {/* Live color values - 2 columns centered above respective spectra */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', display: 'flex', pointerEvents: 'none', zIndex: 3 }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
-              <div>txt: {hslToHex(colors.hue % 360, colors.sat, colors.light)}</div>
-              <div>h{colors.hue % 360} s{colors.sat} l{colors.light}</div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+              {hslToHex(colors.hue % 360, colors.sat, colors.light)}
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
-              <div>bg: {hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)}</div>
-              <div>h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: textColor }}>
+              {hslToHex(colors.bgHue % 360, colors.bgSat, colors.bgLight)}
             </div>
           </div>
           {/* Invisible buttons set the correct height */}
@@ -869,8 +867,8 @@ export default function MobileApp() {
             <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch' }}>
               <div style={{ visibility: 'hidden', ...getButtonStyle(false, 'full', 'aux') }}>&nbsp;</div>
               <div style={{ display: 'flex' }}>
-                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'white', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
-                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'white', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
+                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'rgba(255, 255, 255, 0.75)', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
+                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'rgba(255, 255, 255, 0.75)', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
               </div>
               <div style={{ display: 'flex', visibility: 'hidden' }}>
                 <div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div>
