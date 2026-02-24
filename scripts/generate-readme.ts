@@ -17,13 +17,13 @@ const readme = `# [good days](https://gdays.day)
 
 ${ABOUT_COPY.welcome}
 
-## ${ABOUT_COPY.privacy.header.replace(':', '')}
-
-${privacyParagraphs}
-
 ## ${ABOUT_COPY.features.header.replace(':', '')}
 
 ${featuresParagraphs}
+
+## ${ABOUT_COPY.privacy.header.replace(':', '')}
+
+${privacyParagraphs}
 
 ## ${ABOUT_COPY.system.header.replace(':', '')}
 
