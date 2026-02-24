@@ -718,7 +718,7 @@ export default function MobileApp() {
     const active = isPicking && Array.from(trackedTouches.current.values()).includes(side);
     const isAlpha = activeSide.current === side;
     const h = active ? (isAlpha ? 16 : 8) : 4;
-    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 5 }} />;
+    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'rgba(255, 255, 255, 0.5)', pointerEvents: 'none', zIndex: 5 }} />;
   };
 
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
@@ -862,7 +862,7 @@ export default function MobileApp() {
             </div>
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'black', zIndex: 2 }} />
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'white', zIndex: 2 }} />
           </div>
           {/* "text" / "background" labels - same position as home screen buttons */}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 }}>
