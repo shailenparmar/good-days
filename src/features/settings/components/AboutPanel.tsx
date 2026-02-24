@@ -119,6 +119,16 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
         </p>
       </div>
 
+      {/* Features */}
+      <div className="p-4" style={sectionStyle}>
+        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
+          <p>{s(ABOUT_COPY.features.header)}</p>
+          {ABOUT_COPY.features.paragraphs.map((p, i) => (
+            <p key={i}>{renderWithEmphasis(p)}</p>
+          ))}
+        </div>
+      </div>
+
       {/* Privacy */}
       <div className="p-4" style={sectionStyle}>
         <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
@@ -143,16 +153,6 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               {s("github")}
             </a>
           </p>
-        </div>
-      </div>
-
-      {/* Features */}
-      <div className="p-4" style={sectionStyle}>
-        <div className="text-sm font-mono font-extrabold space-y-4" style={{ color: getColor() }}>
-          <p>{s(ABOUT_COPY.features.header)}</p>
-          {ABOUT_COPY.features.paragraphs.map((p, i) => (
-            <p key={i}>{renderWithEmphasis(p)}</p>
-          ))}
         </div>
       </div>
 
