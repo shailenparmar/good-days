@@ -2,7 +2,7 @@
 
 ## UI Conventions
 
-- All scrollable areas should use `scrollbar-hide` class to hide scrollbars
+- All scrollable areas should use `scrollbar-hide` class to hide scrollbars. This class also sets `overscroll-behavior-y: contain` (v2.6.50+) which enables rubber-band bounce at scroll boundaries without chaining to the parent (`body` has `overflow: hidden`).
 - Theme colors are HSL-based and managed via ThemeContext
 - For borders, lines, and opacity values, see **Opacity Standards**, **Line Styles**, and **Poweruser Menu Spacing** sections below
 - **Cursor styles** - Default arrow cursor everywhere except selectable text. Enforced in `src/index.css`:
