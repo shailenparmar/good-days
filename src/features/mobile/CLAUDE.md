@@ -133,7 +133,8 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │        └────────┘              │     ○ = inactive color
 │            black               │
 │                                │
-│   #78cc33      │    #c8ff00    │  ← 2-column hex codes centered (16px monospace bold)
+│   #78cc33      │    #c8ff00    │  ← Row 1: hex codes centered (16px monospace bold)
+│ h175 s100 l21  │  h84 s100 l88 │  ← Row 2: HSL values centered
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
 │     text       ┃  background  │  ← White labels (same position as home buttons)
 │  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 4px divider)
@@ -196,14 +197,15 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 **Hex codes and spectra layout (v1.10.28+, updated v2.3.27):**
 
-The picker displays hex codes in a 2-column layout (v2.3.27+, simplified v2.6.46): each column shows the centered hex value above its respective spectrum bar. No prefixes or HSL values (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
+The picker displays color info in a 2-column layout (v2.3.27+, restored v2.6.49): each column shows two rows — hex code on top, HSL values (`h{0-359} s{0-100} l{0-100}`) below — centered above its respective spectrum bar. No `txt:`/`bg:` prefixes (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
 **"text"/"background" labels on spectra (v2.6.42+, updated v2.6.47):** An absolutely positioned overlay renders "text" (left) and "background" (right) in black at 60% opacity over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
 
 ```
 Picker bottom section:
 ┌────────────────────────────────┐
-│   #78cc33      │    #c8ff00    │ ← 2 columns, hex centered above its bar
+│   #78cc33      │    #c8ff00    │ ← Row 1: hex code centered
+│ h175 s100 l21  │  h84 s100 l88 │ ← Row 2: HSL values centered
 │ ──────────────╋───────────────│ ← Hue indicators (flush with divider, clip at edges)
 │     text      ┃  background   │ ← White labels at 75% opacity
 │  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px white divider)
