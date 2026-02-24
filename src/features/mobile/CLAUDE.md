@@ -213,9 +213,9 @@ Picker bottom section:
 └───────────────┻───────────────┘
 ```
 
-**Vertical divider:** 4px wide (v2.6.13+, was 8px), white (v2.6.44+, was black), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra. Matches the 4px button dividers on the home screen. Hue needles extend under the divider (higher zIndex) so they appear flush with the divider edge.
+**Vertical divider:** 4px wide (v2.6.13+, was 8px), white at 75% opacity (v2.6.45+, was solid black), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra. Matches the 4px button dividers on the home screen. Hue needles extend under the divider (higher zIndex) so they appear flush with the divider edge.
 
-**Hue needle color (v2.6.44+):** White at 50% opacity (`rgba(255, 255, 255, 0.5)`), was solid black. Matches the white theme of the picker overlay (white labels, white divider).
+**Hue needle color (v2.6.44+, updated v2.6.45):** White at 75% opacity (`rgba(255, 255, 255, 0.75)`), was solid black. Matches the white theme of the picker overlay (white labels, white divider).
 
 **Square is always a square:** `width = height = squareSize`. On most phones (portrait), width constrains the size, so vertical gaps may exceed 24px. The 24px is the minimum gap when height-constrained.
 
