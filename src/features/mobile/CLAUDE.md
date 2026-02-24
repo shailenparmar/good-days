@@ -199,7 +199,7 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 The picker displays color stats in a 2-column layout (v2.3.27+): each column is centered above its respective spectrum bar. Line 1: `txt:`/`bg:` prefix + hex. Line 2: HSL values. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
-**White "text"/"background" labels on spectra (v2.6.42+):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above bars at z1, divider at z2, stats at z3).
+**White "text"/"background" labels on spectra (v2.6.42+):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
 
 ```
 Picker bottom section:
