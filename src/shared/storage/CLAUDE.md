@@ -47,18 +47,27 @@ Tabs communicate via `BroadcastChannel('good-days-sync')` to prevent silent over
 
 **Important:** BroadcastChannel is fully local (same-origin, same-device, same-browser). No network traffic. Falls back gracefully if unsupported (older Safari) — tabs just won't sync but nothing breaks.
 
-**Stale save cancellation (v2.3.31+):** When a tab receives a broadcast for a date, it cancels any pending debounced save for that date via `cancelPendingSave(date)` before reloading the entry. This prevents a stale local save (queued before the broadcast arrived) from firing after the reload and overwriting the other tab's newer content. Without this, two tabs editing today would ping-pong: Tab A saves → Tab B receives and overwrites editor → but Tab B's stale debounced save fires → overwrites Tab A's content → Tab A receives and overwrites → infinite loop.
+**Stale save cancellation (v2.3.31+):** When a tab receives a broadcast for a date, it cancels any pending throttled save for that date via `cancelPendingSave(date)` before reloading the entry. This prevents a stale local save (queued before the broadcast arrived) from firing after the reload and overwriting the other tab's newer content. Without this, two tabs editing today would ping-pong: Tab A saves → Tab B receives and overwrites editor → but Tab B's stale save fires → overwrites Tab A's content → Tab A receives and overwrites → infinite loop.
 
-### Write Debouncing (v1.10.0+)
+### Write Throttling (v2.6.52+, was debounce v1.10.0–v2.6.51)
 
-Every keystroke updates `entriesRef` in memory immediately, but IndexedDB writes are debounced by **300ms**. This batches rapid typing into one write instead of one per character.
+Every keystroke updates `entriesRef` in memory immediately, but IndexedDB writes are **throttled** by **300ms**. During active typing, a write fires every 300ms with the latest content. Max data loss on crash = 300ms.
+
+**How it works:**
+1. `saveSingleEntry(entry)` is called on every keystroke
+2. If no timer running for that date → start a 300ms timer
+3. Subsequent calls update the entry but do NOT reset the timer
+4. Timer fires → write latest entry to IndexedDB → remove from pending map
+5. Next keystroke starts a new 300ms cycle
+
+**Key difference from old debounce:** The old debounce reset the timer on every call, so continuous typing would never trigger a write (save only happened 300ms after the LAST keystroke). The throttle does not reset — writes happen every 300ms during typing.
 
 **Key functions in `journalStorage.ts`:**
 
 | Function | Purpose |
 |----------|---------|
-| `saveSingleEntry(entry)` | Queues a debounced write (300ms) |
-| `cancelPendingSave(date)` | Cancels a pending debounced save for one date (no write) |
+| `saveSingleEntry(entry)` | Queues a throttled write (300ms) |
+| `cancelPendingSave(date)` | Cancels a pending throttled save for one date (no write) |
 | `flushPendingSaves()` | Forces all pending writes immediately |
 
 **`flushPendingSaves()` is called in three places:**
@@ -76,7 +85,7 @@ On init, the app calls `navigator.storage.persist()` to request the browser prot
 ### Midnight Transition Safety (v1.10.0+)
 
 At midnight, before clearing the editor and switching to the new day:
-1. `saveEntry()` is called (updates `entriesRef` immediately, queues debounced write)
+1. `saveEntry()` is called (updates `entriesRef` immediately, queues throttled write)
 2. `flushPendingSaves()` forces the IndexedDB write to start immediately
 3. Only then does the editor clear and date switch
 
@@ -116,13 +125,13 @@ The "ensure today" placeholder is **no longer persisted to IndexedDB**. It exist
 
 **loadedDateRef async load guard (v2.3.31+):** `JournalEditor` tracks which date's content has been loaded into the textarea via `loadedDateRef`. Previously, on page refresh, the effect ran with `entries = []` (IndexedDB still loading), found no entry, set `value = ''`, and marked the date as loaded. When entries actually loaded from IndexedDB, the effect saw `loadedDateRef === selectedDate` and returned early — the real content was never displayed. Clicking away and back would work because it reset `loadedDateRef`. **Fix:** `loadedDateRef` is only set when `entry` is actually found. If entries is empty (still loading), the ref stays `null`, so the effect re-runs when entries populate.
 
-**Zombie entry prevention:** `deleteSingleEntry()` in `journalStorage.ts` now cancels any pending debounced save for the deleted date before performing the delete. Previously, a 300ms debounced save could fire after the delete and re-write the entry.
+**Zombie entry prevention:** `deleteSingleEntry()` in `journalStorage.ts` now cancels any pending throttled save for the deleted date before performing the delete. Previously, a pending save could fire after the delete and re-write the entry.
 
 **reloadEntries htmlToText:** `reloadEntries()` (used after password unlock) now calls `htmlToText()` before setting `currentContent`, consistent with all other code paths.
 
 ### Error Boundary Emergency Save (v1.10.0+)
 
-If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending debounced writes to IndexedDB before showing the error screen.
+If React crashes during render, `ErrorBoundary.componentDidCatch` calls `flushPendingSaves()` to force any pending throttled writes to IndexedDB before showing the error screen.
 
 Code location: `src/shared/components/ErrorBoundary.tsx`
 
@@ -143,7 +152,7 @@ To debug a user's storage issue:
 
 ### beforeunload Flush (v2.1.35+)
 
-On tab close, `flushPendingSaves()` fires all pending debounced IndexedDB writes immediately. This is best-effort (async writes may not complete before the tab closes), but since writes are debounced at 300ms, at most a few keystrokes are at risk.
+On tab close, `flushPendingSaves()` fires all pending throttled IndexedDB writes immediately. This is best-effort (async writes may not complete before the tab closes), but since writes are throttled at 300ms, at most 300ms of keystrokes are at risk.
 
 **Removed in v2.1.35:** The previous `beforeunload` handler also wrote all entries as plaintext JSON to `localStorage` (`journalEntries` key) as a synchronous backup. This was removed because it stored all journal content in plaintext, completely bypassing password protection. The merge-on-init logic that recovered these backups was also removed.
 
