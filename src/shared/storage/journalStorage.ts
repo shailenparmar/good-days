@@ -253,8 +253,8 @@ function broadcastSave(date: string): void {
   }
 }
 
-// Debounce pending saves (300ms - batches rapid keystrokes, feels near-instant)
-const SAVE_DEBOUNCE_MS = 300;
+// Throttle pending saves (300ms - saves every 300ms during active typing, max 300ms data loss)
+const SAVE_THROTTLE_MS = 300;
 const pendingSaves = new Map<string, { entry: JournalEntry; timer: ReturnType<typeof setTimeout> }>();
 
 // Logging utility for debugging storage issues
@@ -682,8 +682,8 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
 }
 
 /**
- * Save a single journal entry to IndexedDB (debounced 300ms)
- * Batches rapid keystrokes into one write. Safe for multi-tab.
+ * Save a single journal entry to IndexedDB (throttled 300ms)
+ * Saves every 300ms during active typing. Safe for multi-tab.
  */
 export function saveSingleEntry(entry: JournalEntry): void {
   log('saveSingleEntry: queued', { date: entry.date, contentLength: entry.content.length });
@@ -701,21 +701,25 @@ export function saveSingleEntry(entry: JournalEntry): void {
     return;
   }
 
-  // Clear previous timer for this date
   const pending = pendingSaves.get(entry.date);
   if (pending) {
-    clearTimeout(pending.timer);
+    // Timer already running — just update to latest entry
+    pending.entry = entry;
+  } else {
+    // No pending save — start a new throttle cycle
+    const date = entry.date;
+    const state: { entry: JournalEntry; timer: ReturnType<typeof setTimeout> } = {
+      entry,
+      timer: setTimeout(() => {
+        pendingSaves.delete(date);
+        writeEntryToStorage(state.entry);
+      }, SAVE_THROTTLE_MS),
+    };
+    pendingSaves.set(date, state);
   }
-
-  const timer = setTimeout(() => {
-    pendingSaves.delete(entry.date);
-    writeEntryToStorage(entry);
-  }, SAVE_DEBOUNCE_MS);
-
-  pendingSaves.set(entry.date, { entry, timer });
 }
 
-/** Cancel a pending debounced save for a specific date without writing (called on external sync) */
+/** Cancel a pending throttled save for a specific date without writing (called on external sync) */
 export function cancelPendingSave(date: string): void {
   const pending = pendingSaves.get(date);
   if (pending) {
@@ -724,7 +728,7 @@ export function cancelPendingSave(date: string): void {
   }
 }
 
-/** Cancel all pending debounced saves without writing (called during reset) */
+/** Cancel all pending throttled saves without writing (called during reset) */
 export function cancelPendingSaves(): void {
   for (const [, { timer }] of pendingSaves) {
     clearTimeout(timer);
@@ -732,7 +736,7 @@ export function cancelPendingSaves(): void {
   pendingSaves.clear();
 }
 
-/** Flush all debounced saves immediately (called on beforeunload) */
+/** Flush all pending throttled saves immediately (called on beforeunload) */
 export function flushPendingSaves(): void {
   const count = pendingSaves.size;
   if (count > 0) logAction('storage.flush', { count });
@@ -792,7 +796,7 @@ function writeEntryToStorage(entry: JournalEntry): void {
 export function deleteSingleEntry(date: string): void {
   log('deleteSingleEntry: deleting', { date });
 
-  // Cancel any pending debounced save for this date to prevent zombie resurrection
+  // Cancel any pending throttled save for this date to prevent zombie resurrection
   const pending = pendingSaves.get(date);
   if (pending) {
     clearTimeout(pending.timer);
