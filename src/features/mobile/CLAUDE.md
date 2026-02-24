@@ -198,7 +198,7 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 The picker displays hex codes in a 2-column layout (v2.3.27+, simplified v2.6.46): each column shows the centered hex value above its respective spectrum bar. No prefixes or HSL values (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
-**White "text"/"background" labels on spectra (v2.6.42+, updated v2.6.46):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white at 75% opacity over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
+**"text"/"background" labels on spectra (v2.6.42+, updated v2.6.47):** An absolutely positioned overlay renders "text" (left) and "background" (right) in black at 75% opacity over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
 
 ```
 Picker bottom section:
@@ -211,11 +211,11 @@ Picker bottom section:
 └───────────────┻───────────────┘
 ```
 
-**Vertical divider:** 4px wide (v2.6.13+, was 8px), white at 75% opacity (v2.6.45+, was solid black), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra.
+**Vertical divider:** 4px wide (v2.6.13+, was 8px), black at 75% opacity (v2.6.47+), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra.
 
 **Needle-divider flush (v2.6.46+):** Hue needles inset 2px on the inner edge (`right: 2` for left bar, `left: 2` for right bar) so they meet the 4px divider flush instead of overlapping behind it. The divider is centered at 50% with `translateX(-50%)`, so it overhangs 2px into each bar.
 
-**Hue needle color (v2.6.44+, updated v2.6.45):** White at 75% opacity (`rgba(255, 255, 255, 0.75)`), was solid black. Matches the white theme of the picker overlay (white labels, white divider).
+**Hue needle color (v2.6.44+, updated v2.6.47):** Black at 75% opacity (`rgba(0, 0, 0, 0.75)`).
 
 **Square is always a square:** `width = height = squareSize`. On most phones (portrait), width constrains the size, so vertical gaps may exceed 24px. The 24px is the minimum gap when height-constrained.
 
