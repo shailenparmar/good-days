@@ -864,6 +864,20 @@ export default function MobileApp() {
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'black', zIndex: 2 }} />
           </div>
+          {/* "text" / "background" labels - same position as home screen buttons */}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 }}>
+            <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch' }}>
+              <div style={{ visibility: 'hidden', ...getButtonStyle(false, 'full', 'aux') }}>&nbsp;</div>
+              <div style={{ display: 'flex' }}>
+                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'white', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
+                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'white', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
+              </div>
+              <div style={{ display: 'flex', visibility: 'hidden' }}>
+                <div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div>
+                <div style={getButtonStyle(false, 'right', 'aux')}>&nbsp;</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       </div>
