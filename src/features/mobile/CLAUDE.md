@@ -133,8 +133,7 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │        └────────┘              │     ○ = inactive color
 │            black               │
 │                                │
-│ txt: #78cc33   │  bg: #c8ff00  │  ← 2-column color stats (16px monospace bold)
-│ h96 s100 l50   │  h84 s100 l88│  ← each column centered above its spectrum
+│   #78cc33      │    #c8ff00    │  ← 2-column hex codes centered (16px monospace bold)
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
 │     text       ┃  background  │  ← White labels (same position as home buttons)
 │  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 4px divider)
@@ -197,23 +196,24 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 **Hex codes and spectra layout (v1.10.28+, updated v2.3.27):**
 
-The picker displays color stats in a 2-column layout (v2.3.27+): each column is centered above its respective spectrum bar. Line 1: `txt:`/`bg:` prefix + hex. Line 2: HSL values. The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
+The picker displays hex codes in a 2-column layout (v2.3.27+, simplified v2.6.46): each column shows the centered hex value above its respective spectrum bar. No prefixes or HSL values (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
-**White "text"/"background" labels on spectra (v2.6.42+):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
+**White "text"/"background" labels on spectra (v2.6.42+, updated v2.6.46):** An absolutely positioned overlay renders "text" (left) and "background" (right) in white at 75% opacity over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
 
 ```
 Picker bottom section:
 ┌────────────────────────────────┐
-│ txt: #78cc33   │  bg: #c8ff00  │ ← 2 columns, each centered above its bar
-│ h96 s100 l50   │  h84 s100 l88 │ ← HSL values (16px monospace bold)
-│ ──────────────╋───────────────│ ← Hue indicators (center-based, clip at edges)
-│     text      ┃  background   │ ← White labels (same position as home buttons)
-│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px divider)
+│   #78cc33      │    #c8ff00    │ ← 2 columns, hex centered above its bar
+│ ──────────────╋───────────────│ ← Hue indicators (flush with divider, clip at edges)
+│     text      ┃  background   │ ← White labels at 75% opacity
+│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px white divider)
 │               ┃               │
 └───────────────┻───────────────┘
 ```
 
-**Vertical divider:** 4px wide (v2.6.13+, was 8px), white at 75% opacity (v2.6.45+, was solid black), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra. Matches the 4px button dividers on the home screen. Hue needles extend under the divider (higher zIndex) so they appear flush with the divider edge.
+**Vertical divider:** 4px wide (v2.6.13+, was 8px), white at 75% opacity (v2.6.45+, was solid black), absolutely positioned at center of bars overlay (`left: 50%, transform: translateX(-50%)`), flush top and bottom with spectra.
+
+**Needle-divider flush (v2.6.46+):** Hue needles inset 2px on the inner edge (`right: 2` for left bar, `left: 2` for right bar) so they meet the 4px divider flush instead of overlapping behind it. The divider is centered at 50% with `translateX(-50%)`, so it overhangs 2px into each bar.
 
 **Hue needle color (v2.6.44+, updated v2.6.45):** White at 75% opacity (`rgba(255, 255, 255, 0.75)`), was solid black. Matches the white theme of the picker overlay (white labels, white divider).
 
