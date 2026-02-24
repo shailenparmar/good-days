@@ -718,7 +718,7 @@ export default function MobileApp() {
     const active = isPicking && Array.from(trackedTouches.current.values()).includes(side);
     const isAlpha = activeSide.current === side;
     const h = active ? (isAlpha ? 16 : 8) : 4;
-    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 1 }} />;
+    return <div style={{ position: 'absolute', left: 0, right: 0, top: `calc(${((359 - hue) / 359) * 100}% - ${h / 2}px)`, height: `${h}px`, backgroundColor: 'black', pointerEvents: 'none', zIndex: 5 }} />;
   };
 
   // Safe area style — always at least 12px black at top/bottom so the frame is visible
