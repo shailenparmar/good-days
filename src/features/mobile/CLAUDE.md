@@ -125,7 +125,7 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 **Picker Screen** (while holding background or text):
 ```
 ┌────────────────────────────────┐
-│          good days             │  ← title, same position as home
+│     text / background          │  ← title shows active side (not "good days")
 │                                │
 │            white               │
 │   gray ┌────────┐ vivid       │  ← square centered, labels fully
@@ -136,7 +136,6 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │   #78cc33      │    #c8ff00    │  ← Row 1: hex codes centered (16px monospace bold)
 │ h175 s100 l21  │  h84 s100 l88 │  ← Row 2: HSL values centered
 │ ───────────────┃──────────────│  ← Horizontal hue indicators (8px when active, 4px idle)
-│     text       ┃  background  │  ← White labels (same position as home buttons)
 │  hue gradient  ┃ hue gradient │  ← Split hue bars (ROYGBIV bottom→top, 4px divider)
 │                ┃              │
 └────────────────┻──────────────┘
@@ -199,7 +198,7 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 The picker displays color info in a 2-column layout (v2.3.27+, restored v2.6.49): each column shows two rows — hex code on top, HSL values (`h{0-359} s{0-100} l{0-100}`) below — centered above its respective spectrum bar. No `txt:`/`bg:` prefixes (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
-**"text"/"background" labels on spectra (v2.6.42+, updated v2.6.47):** An absolutely positioned overlay renders "text" (left) and "background" (right) in black at 60% opacity over the hue bars. Uses the exact same layout structure as the home screen button area (same container width `9ch` at `min(17vw, 70px)`, same `gap: 12px`, same `getButtonStyle` picker-height buttons) so the labels sit at identical pixel positions. Borders and background are transparent; `pointerEvents: none` so hue bars remain interactive. `zIndex: 4` (above stats at z3, below needles at z5).
+**Picker title (v2.6.53+, replaces spectra labels from v2.6.42):** The picker screen title shows "text" or "background" (instead of "good days") based on `activeDot` state. Updates on initial touch, single-finger crossover, and multitouch alpha promotion. No version display on hold (no touch handlers). The "text"/"background" overlay labels on the hue bars were removed — the title serves as the indicator instead.
 
 ```
 Picker bottom section:
@@ -207,8 +206,7 @@ Picker bottom section:
 │   #78cc33      │    #c8ff00    │ ← Row 1: hex code centered
 │ h175 s100 l21  │  h84 s100 l88 │ ← Row 2: HSL values centered
 │ ──────────────╋───────────────│ ← Hue indicators (flush with divider, clip at edges)
-│     text      ┃  background   │ ← White labels at 75% opacity
-│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px white divider)
+│  hue gradient ┃ hue gradient  │ ← Spectra (ROYGBIV bottom→top, 4px divider)
 │               ┃               │
 └───────────────┻───────────────┘
 ```
@@ -472,9 +470,11 @@ The indicator's **centerline** is the true hue position. At the extremes (hue 0 
 
 ### Title Version Display
 
-Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all screens (permission, home, picker, code entry).
+Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all screens except the picker (permission, home, code entry).
 
-**Single shared title component (v2.4.29+):** The title is defined once as a `const title` JSX element and used via `{title}` on all screens. All screens share the same touch handlers (`setTitlePressedPersist`) and sessionStorage persistence.
+**Picker screen exception (v2.6.53+):** The picker screen has its own `pickerTitle` that shows "text" or "background" based on `activeDot`. No touch handlers — hold does nothing. The shared `title` component is used on all other screens.
+
+**Single shared title component (v2.4.29+, updated v2.6.53):** The `const title` JSX element is used on all screens except picker. The picker uses a separate `const pickerTitle` with no touch handlers.
 
 **Refresh persistence (v2.3.28+):** The pressed state is saved to `sessionStorage`. If you're holding the title to show the version and refresh the page, the version shows immediately on reload without needing to re-press. Cleared on touch end/cancel.
 
