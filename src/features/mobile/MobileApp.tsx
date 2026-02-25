@@ -742,7 +742,7 @@ export default function MobileApp() {
   // Picker title — shows "text" or "background" based on active side, no version on hold
   const pickerTitleText = activeDot === 'text' ? 'text' : 'background';
   const pickerTitle = (
-    <span style={{ ...titleStyle, fontSize: pickerTitleText === 'background' ? 'min(15vw, 70px)' : titleStyle.fontSize }}>{pickerTitleText}</span>
+    <span style={{ ...titleStyle, fontSize: pickerTitleText === 'background' ? 'min(11.4vw, 53px)' : titleStyle.fontSize }}>{pickerTitleText}</span>
   );
 
   // Preset 1 colors for base canvas (hardcoded)
