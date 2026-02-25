@@ -170,9 +170,15 @@ The candidates picker ("which one is yours?") was removed in v2.4.27. All ambigu
 
 The tilt square complex (square + L corners + sat/light labels) is dynamically sized and centered between the title and bottom section.
 
-**Key principle:** The L corners must be at the **exact same position** on all screens (home, picker, permission). No visual jump on transition.
+**Key principle (INVARIANT):** The L corners and tilt square must be at the **exact same pixel position** on all screens (home, picker, permission) and must **never shift during interaction** within a screen. This means:
+1. **Cross-screen**: Square position identical across home, picker, permission, code entry
+2. **Within-screen**: Square position must not change when content above or below it changes (e.g., title text toggling between "text" and "background" in the picker)
 
-**Alignment rule (v2.5.34+):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 3-row button structure (aux + picker + aux with 12px gaps = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + picker + aux) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
+**Any element above or below the square that can change size MUST use a fixed-height container.** The container height must equal the maximum possible content height. Variable-size content is aligned within the container (e.g., `alignItems: 'flex-end'`). This prevents the flex layout from redistributing space when content changes.
+
+**Title area rule (v2.6.56+):** The picker title toggles between "text" (`min(17vw, 70px)`) and "background" (`min(13.1vw, 61px)`) — different font sizes. The picker title wrapper is a fixed-height `<div>` at `calc(16px + min(17vw, 70px))` (same total height as the "good days" title on all other screens). The span is bottom-aligned inside it. This guarantees zero square movement on toggle.
+
+**Bottom alignment rule (v2.5.34+):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 3-row button structure (aux + picker + aux with 12px gaps = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + picker + aux) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
 
 **How it works:**
 1. All screens render the home screen's button structure invisibly (sets exact height)

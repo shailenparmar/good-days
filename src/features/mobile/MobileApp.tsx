@@ -740,9 +740,12 @@ export default function MobileApp() {
   );
 
   // Picker title — shows "text" or "background" based on active side, no version on hold
+  // Fixed-height wrapper ensures square doesn't shift when toggling between different font sizes
   const pickerTitleText = activeDot === 'text' ? 'text' : 'background';
   const pickerTitle = (
-    <span style={{ ...titleStyle, fontSize: pickerTitleText === 'background' ? 'min(11.4vw, 53px)' : titleStyle.fontSize }}>{pickerTitleText}</span>
+    <div style={{ height: 'calc(16px + min(17vw, 70px))', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <span style={{ ...titleStyle, padding: 0, fontSize: pickerTitleText === 'background' ? 'min(13.1vw, 61px)' : titleStyle.fontSize }}>{pickerTitleText}</span>
+    </div>
   );
 
   // Preset 1 colors for base canvas (hardcoded)
