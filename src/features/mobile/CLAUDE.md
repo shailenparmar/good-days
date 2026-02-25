@@ -125,7 +125,7 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 **Picker Screen** (while holding background or text):
 ```
 ┌────────────────────────────────┐
-│     text / background          │  ← title shows active side (not "good days")
+│          good days             │  ← title (same as all screens, no version on hold)
 │                                │
 │            white               │
 │   gray ┌────────┐ vivid       │  ← square centered, labels fully
@@ -172,11 +172,9 @@ The tilt square complex (square + L corners + sat/light labels) is dynamically s
 
 **Key principle (INVARIANT):** The L corners and tilt square must be at the **exact same pixel position** on all screens (home, picker, permission) and must **never shift during interaction** within a screen. This means:
 1. **Cross-screen**: Square position identical across home, picker, permission, code entry
-2. **Within-screen**: Square position must not change when content above or below it changes (e.g., title text toggling between "text" and "background" in the picker)
+2. **Within-screen**: Square position must not change when content above or below it changes
 
-**Any element above or below the square that can change size MUST use a fixed-height container.** The container height must equal the maximum possible content height. Variable-size content is aligned within the container (e.g., `alignItems: 'flex-end'`). This prevents the flex layout from redistributing space when content changes.
-
-**Title area rule (v2.6.56+):** The picker title toggles between "text" (`min(17vw, 70px)`) and "background" (`min(13.1vw, 61px)`) — different font sizes. The picker title wrapper is a fixed-height `<div>` at `calc(16px + min(17vw, 70px))` (same total height as the "good days" title on all other screens). The span is bottom-aligned inside it. This guarantees zero square movement on toggle.
+**Any element above or below the square that can change size MUST use a fixed-height container.** The container height must equal the maximum possible content height. Variable-size content is aligned within the container. This prevents the flex layout from redistributing space when content changes. Currently all screens use the same static "good days" title (same font size, same height), so the top anchor is naturally stable. If the title ever becomes dynamic (different text, different size), it MUST be wrapped in a fixed-height container matching the standard title height.
 
 **Bottom alignment rule (v2.5.34+):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 3-row button structure (aux + picker + aux with 12px gaps = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + picker + aux) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
 
@@ -204,7 +202,7 @@ CONTAINER_PADDING = SQUARE_PADDING (24) + LABEL_OVERHANG (10) = 34px
 
 The picker displays color info in a 2-column layout (v2.3.27+, restored v2.6.49): each column shows two rows — hex code on top, HSL values (`h{0-359} s{0-100} l{0-100}`) below — centered above its respective spectrum bar. No `txt:`/`bg:` prefixes (removed in v2.6.46). The spectra are squished vertically to make room (gradient compressed, all hues still represented, flipped so 0° is at bottom and 359° at top — ROYGBIV from bottom to top).
 
-**Picker title (v2.6.53+, replaces spectra labels from v2.6.42):** The picker screen title shows "text" or "background" (instead of "good days") based on `activeDot` state. Updates on initial touch, single-finger crossover, and multitouch alpha promotion. No version display on hold (no touch handlers). The "text"/"background" overlay labels on the hue bars were removed — the title serves as the indicator instead.
+**Spectra labels removed (v2.6.60+):** The "text"/"background" overlay labels on the hue bars (added v2.6.42) were removed. The picker title is static "good days" (same as all screens) with no version on hold.
 
 ```
 Picker bottom section:
@@ -478,9 +476,9 @@ The indicator's **centerline** is the true hue position. At the extremes (hue 0 
 
 Tap and hold the "good days" title on any screen to show the version number (e.g., "v1.10.7"). Title text replaces entirely with the version — no "good days" prefix. Releases back to "good days" on touch end. Works on all screens except the picker (permission, home, code entry).
 
-**Picker screen exception (v2.6.53+):** The picker screen has its own `pickerTitle` that shows "text" or "background" based on `activeDot`. No touch handlers — hold does nothing. The shared `title` component is used on all other screens.
+**Picker screen exception (v2.6.60+):** The picker screen uses a separate `pickerTitle` that shows static "good days" with no touch handlers — hold does nothing, no version display. The shared `title` component (with version hold) is used on all other screens.
 
-**Single shared title component (v2.4.29+, updated v2.6.53):** The `const title` JSX element is used on all screens except picker. The picker uses a separate `const pickerTitle` with no touch handlers.
+**Single shared title component (v2.4.29+, updated v2.6.60):** The `const title` JSX element is used on all screens except picker. The picker uses a separate `const pickerTitle` — same text and style, but no touch handlers.
 
 **Refresh persistence (v2.3.28+):** The pressed state is saved to `sessionStorage`. If you're holding the title to show the version and refresh the page, the version shows immediately on reload without needing to re-press. Cleared on touch end/cancel.
 
