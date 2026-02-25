@@ -739,6 +739,11 @@ export default function MobileApp() {
     >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
   );
 
+  // Picker title — shows "text" or "background" based on active side, no version on hold
+  const pickerTitle = (
+    <span style={titleStyle}>{activeDot === 'text' ? 'text' : 'background'}</span>
+  );
+
   // Preset 1 colors for base canvas (hardcoded)
   const baseTextColor = 'hsl(63, 100%, 12%)';
   const baseBgColor = 'hsl(52, 100%, 91%)';
@@ -817,7 +822,7 @@ export default function MobileApp() {
         } as React.CSSProperties}
       >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: bgColor }}>
-        {title}
+        {pickerTitle}
 
         {/* Square complex - centered between title and spectrum */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -863,20 +868,6 @@ export default function MobileApp() {
 
             {/* Black vertical divider - absolutely positioned to guarantee flush with spectra */}
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '4px', transform: 'translateX(-50%)', backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 2 }} />
-          </div>
-          {/* "text" / "background" labels - same position as home screen buttons */}
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 4 }}>
-            <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch' }}>
-              <div style={{ visibility: 'hidden', ...getButtonStyle(false, 'full', 'aux') }}>&nbsp;</div>
-              <div style={{ display: 'flex' }}>
-                <div style={{ ...getButtonStyle(false, 'left', 'picker'), color: 'rgba(0, 0, 0, 0.6)', borderColor: 'transparent', backgroundColor: 'transparent' }}>text</div>
-                <div style={{ ...getButtonStyle(false, 'right', 'picker'), color: 'rgba(0, 0, 0, 0.6)', borderColor: 'transparent', backgroundColor: 'transparent' }}>background</div>
-              </div>
-              <div style={{ display: 'flex', visibility: 'hidden' }}>
-                <div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div>
-                <div style={getButtonStyle(false, 'right', 'aux')}>&nbsp;</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
