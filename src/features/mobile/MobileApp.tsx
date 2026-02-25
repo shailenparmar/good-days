@@ -743,7 +743,7 @@ export default function MobileApp() {
   // Fixed-height wrapper ensures square doesn't shift when toggling between different font sizes
   const pickerTitleText = activeDot === 'text' ? 'text' : 'background';
   const pickerTitle = (
-    <div style={{ height: 'calc(16px + min(17vw, 70px))', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+    <div style={{ height: 'calc(16px + min(17vw, 70px))', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '16px' }}>
       <span style={{ ...titleStyle, padding: 0, fontSize: pickerTitleText === 'background' ? 'min(13.1vw, 61px)' : titleStyle.fontSize }}>{pickerTitleText}</span>
     </div>
   );
