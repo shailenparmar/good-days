@@ -229,6 +229,7 @@ All opacities in the app follow this hierarchy:
 - EntrySidebar border
 - LockScreen border
 - PasswordSettings border/divider
+- ColorPicker hue needles and SL dots (v2.6.54+)
 
 **20% opacity:**
 - Hover backgrounds on all interactive elements: `hsla(..., 0.2)`
