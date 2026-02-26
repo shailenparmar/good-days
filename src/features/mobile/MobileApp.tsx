@@ -939,7 +939,7 @@ export default function MobileApp() {
             {showCalibHint && (
               <div style={{
                 position: 'absolute',
-                bottom: '25%',
+                bottom: '8%',
                 left: '50%',
                 transform: 'translate(-50%, 50%)',
                 fontFamily: 'monospace',
