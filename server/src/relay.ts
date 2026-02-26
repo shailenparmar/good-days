@@ -65,13 +65,19 @@ function pairClients(id1: string, id2: string) {
   send(c2.ws, { type: 'paired', partnerId: id1 });
 }
 
+const HEARTBEAT_STALE_MS = 45_000; // Laptop stale if no heartbeat in 45s
+
+function isLaptopAlive(client: ClientRecord): boolean {
+  return Date.now() - client.lastHeartbeat < HEARTBEAT_STALE_MS;
+}
+
 function getUnpairedLaptopsInGroup(ip: string, excludeId?: string): string[] {
   const group = ipGroups.get(ip);
   if (!group) return [];
   return [...group].filter(id => {
     if (id === excludeId) return false;
     const c = clients.get(id);
-    return c && c.role === 'laptop' && !c.partnerId;
+    return c && c.role === 'laptop' && !c.partnerId && isLaptopAlive(c);
   });
 }
 
@@ -187,6 +193,7 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     streaming: false,
     deviceId,
     connectedAt: Date.now(),
+    lastHeartbeat: Date.now(),
   };
   clients.set(clientId, record);
 
@@ -494,6 +501,17 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
       ws.terminate();
       return;
     }
+
+    // Heartbeat staleness: if a laptop hasn't sent a heartbeat in 45s,
+    // its JS is frozen (lid closed + Power Nap). Disconnect so the phone
+    // won't pair with a sleeping laptop.
+    const client = clients.get(clientId);
+    if (client && client.role === 'laptop' && !isLaptopAlive(client)) {
+      console.log(`[relay] HEARTBEAT STALE id=${clientId.slice(0,8)} — disconnecting`);
+      ws.terminate();
+      return;
+    }
+
     alive = false;
     ws.ping();
   }, PING_INTERVAL);
@@ -543,6 +561,12 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
           const partner = clients.get(sc.partnerId);
           if (partner) send(partner.ws, { type: 'save-preset', colors: msg.colors });
         }
+        break;
+      }
+
+      case 'heartbeat': {
+        const hbClient = clients.get(clientId);
+        if (hbClient) hbClient.lastHeartbeat = Date.now();
         break;
       }
 

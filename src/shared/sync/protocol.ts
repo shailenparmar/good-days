@@ -17,7 +17,8 @@ export type ClientMessage =
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
   | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'going-hidden' };
+  | { type: 'going-hidden' }
+  | { type: 'heartbeat' };
 
 // Server → Client
 export type ServerMessage =

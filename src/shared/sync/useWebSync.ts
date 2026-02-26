@@ -69,6 +69,8 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
       ws.onopen = () => {
         console.log('[ws-sync] connected to', url);
         backoffRef.current = 1000;
@@ -88,6 +90,15 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           role: 'laptop',
           deviceId: getOrCreateDeviceId(),
         });
+
+        // App-level heartbeat every 15s. When the lid is closed, JS timers
+        // don't fire reliably — the relay detects staleness and disconnects,
+        // preventing the phone from pairing with a sleeping laptop.
+        heartbeatInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'heartbeat' }));
+          }
+        }, 15_000);
       };
 
       ws.onmessage = (e) => {
@@ -175,6 +186,7 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       };
 
       ws.onclose = (ev) => {
+        if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
         console.log('[ws-sync] closed, code=', ev.code, 'reason=', ev.reason);
         if (wsRef.current === ws) {
           wsRef.current = null;
