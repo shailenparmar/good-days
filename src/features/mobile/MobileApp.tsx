@@ -785,16 +785,12 @@ export default function MobileApp() {
             allow motion access
           </MobileButton>
 
-          {/* Placeholder rows to match home screen button stack height.
-             "allow motion access" is standard (14px) vs home's recalibrate aux (7px) = 14px taller.
-             Compensate by removing padding from the last invisible row. */}
+          {/* Placeholder row to match home screen button stack height.
+             "allow motion access" (standard, 56px) + gap (12px) + expanded picker (124px) = 192px.
+             Expanded picker vPad = (124 - 4 - 20 - 4) / 2 = 48px (compensates for visible button being taller than aux). */}
           <div style={{ display: 'flex' }}>
-            <div style={{ ...getButtonStyle(false, 'left', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right', 'picker'), visibility: 'hidden' }}>&nbsp;</div>
-          </div>
-          <div style={{ display: 'flex' }}>
-            <div style={{ ...getButtonStyle(false, 'left', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
-            <div style={{ ...getButtonStyle(false, 'right', 'aux'), visibility: 'hidden', padding: '0 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'picker'), padding: '48px 0', visibility: 'hidden' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'picker'), padding: '48px 0', visibility: 'hidden' }}>&nbsp;</div>
           </div>
           {/* Copyright - absolutely positioned in the 44px bottom padding, no layout impact */}
           <p style={{ position: 'absolute', bottom: '12px', left: 0, right: 0, fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', textAlign: 'center', color: textColor, opacity: 0.85, margin: 0 }}>
@@ -842,11 +838,10 @@ export default function MobileApp() {
               <div>h{colors.bgHue % 360} s{colors.bgSat} l{colors.bgLight}</div>
             </div>
           </div>
-          {/* Invisible buttons set the correct height */}
+          {/* Invisible buttons set the correct height — 2 rows: aux (42px) + gap (12px) + expanded picker (138px) = 192px */}
           <div style={{ visibility: 'hidden', padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
             <div style={getButtonStyle(false, 'full', 'aux')}>&nbsp;</div>
-            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left', 'picker')}>&nbsp;</div><div style={getButtonStyle(false, 'right', 'picker')}>&nbsp;</div></div>
-            <div style={{ display: 'flex' }}><div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div><div style={getButtonStyle(false, 'right', 'aux')}>&nbsp;</div></div>
+            <div style={{ display: 'flex' }}><div style={{ ...getButtonStyle(false, 'left', 'picker'), padding: '55px 0' }}>&nbsp;</div><div style={{ ...getButtonStyle(false, 'right', 'picker'), padding: '55px 0' }}>&nbsp;</div></div>
           </div>
           {/* Bars overlay - top offset makes room for hex+hsl codes, gradient squishes to fit */}
           <div style={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, display: 'flex' }}>
@@ -902,47 +897,6 @@ export default function MobileApp() {
         </div>
 
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-          <div
-            onTouchStart={(e) => {
-              e.preventDefault();
-              isCalibratingRef.current = true;
-              setRecalPressed(true);
-              if (navigator.vibrate) navigator.vibrate(10);
-            }}
-            onTouchMove={(e) => {
-              const inside = isTouchInside(e);
-              isCalibratingRef.current = inside;
-              setRecalPressed(inside);
-            }}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              isCalibratingRef.current = false;
-              setRecalPressed(false);
-            }}
-            onTouchCancel={() => {
-              isCalibratingRef.current = false;
-              setRecalPressed(false);
-            }}
-            style={getButtonStyle(recalPressed, 'full', 'aux')}
-          >
-            recalibrate
-          </div>
-
-          <div style={{ display: 'flex' }}>
-            <div
-              onTouchStart={startPicking('left')}
-              style={getButtonStyle(false, 'left', 'picker')}
-            >
-              text
-            </div>
-            <div
-              onTouchStart={startPicking('right')}
-              style={getButtonStyle(false, 'right', 'picker')}
-            >
-              background
-            </div>
-          </div>
-
           {pasteInvalid ? (
             <div style={{ ...getButtonStyle(false, 'full', 'aux'), color: errorColor, borderColor: errorColor }}>
               invalid format
@@ -956,19 +910,10 @@ export default function MobileApp() {
               >
                 copy
               </MobileButton>
-              {isLive && (
-                <MobileButton
-                  onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); }}
-                  style={getButtonStyle(false, 'center', 'aux')}
-                  getStyle={(pressed) => getButtonStyle(pressed, 'center', 'aux')}
-                >
-                  save
-                </MobileButton>
-              )}
               <MobileButton
                 onActivate={handlePaste}
-                style={getButtonStyle(false, 'right', 'aux')}
-                getStyle={(pressed) => ({ ...getButtonStyle(pressed, 'right', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)}
+                style={getButtonStyle(false, 'center', 'aux')}
+                getStyle={(pressed) => ({ ...getButtonStyle(pressed, 'center', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)}
                 extraProps={{
                   role: 'button',
                   tabIndex: -1,
@@ -979,8 +924,57 @@ export default function MobileApp() {
               >
                 <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
               </MobileButton>
+              <div
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  isCalibratingRef.current = true;
+                  setRecalPressed(true);
+                  if (navigator.vibrate) navigator.vibrate(10);
+                }}
+                onTouchMove={(e) => {
+                  const inside = isTouchInside(e);
+                  isCalibratingRef.current = inside;
+                  setRecalPressed(inside);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  isCalibratingRef.current = false;
+                  setRecalPressed(false);
+                }}
+                onTouchCancel={() => {
+                  isCalibratingRef.current = false;
+                  setRecalPressed(false);
+                }}
+                style={getButtonStyle(recalPressed, isLive ? 'center' : 'right', 'aux')}
+              >
+                zero
+              </div>
+              {isLive && (
+                <MobileButton
+                  onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); }}
+                  style={getButtonStyle(false, 'right', 'aux')}
+                  getStyle={(pressed) => getButtonStyle(pressed, 'right', 'aux')}
+                >
+                  save
+                </MobileButton>
+              )}
             </div>
           )}
+
+          <div style={{ display: 'flex' }}>
+            <div
+              onTouchStart={startPicking('left')}
+              style={{ ...getButtonStyle(false, 'left', 'picker'), padding: '55px 0' }}
+            >
+              text
+            </div>
+            <div
+              onTouchStart={startPicking('right')}
+              style={{ ...getButtonStyle(false, 'right', 'picker'), padding: '55px 0' }}
+            >
+              background
+            </div>
+          </div>
         </div>
       </div>
       </div>
@@ -1012,15 +1006,11 @@ export default function MobileApp() {
 
         {/* Button area — invisible home screen buttons set exact height, visible code entry buttons overlaid */}
         <div style={{ position: 'relative', padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-          {/* Invisible home screen button structure — guarantees pixel-perfect height match */}
+          {/* Invisible home screen button structure — 2 rows: aux (42px) + gap (12px) + expanded picker (138px) = 192px */}
           <div style={({ ...getButtonStyle(false, 'full', 'aux'), visibility: 'hidden' } as React.CSSProperties)}>&nbsp;</div>
           <div style={{ display: 'flex', visibility: 'hidden' }}>
-            <div style={getButtonStyle(false, 'left', 'picker')}>&nbsp;</div>
-            <div style={getButtonStyle(false, 'right', 'picker')}>&nbsp;</div>
-          </div>
-          <div style={{ display: 'flex', visibility: 'hidden' }}>
-            <div style={getButtonStyle(false, 'left', 'aux')}>&nbsp;</div>
-            <div style={getButtonStyle(false, 'right', 'aux')}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'left', 'picker'), padding: '55px 0' }}>&nbsp;</div>
+            <div style={{ ...getButtonStyle(false, 'right', 'picker'), padding: '55px 0' }}>&nbsp;</div>
           </div>
           {/* Visible code entry buttons — absolutely positioned over invisible structure */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column' }}>
