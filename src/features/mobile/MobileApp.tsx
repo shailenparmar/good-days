@@ -923,9 +923,6 @@ export default function MobileApp() {
               setHasCalibrated(true);
             }
           }}
-          onTouchMove={(e) => {
-            isCalibratingRef.current = isTouchInside(e);
-          }}
           onTouchEnd={(e) => {
             e.preventDefault();
             isCalibratingRef.current = false;
