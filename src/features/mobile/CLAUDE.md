@@ -408,6 +408,8 @@ Tapping or holding the square segment (middle flex area between title and button
 
 **Randomize moved to "rand" button (v2.6.76+):** The `handleRandomize` function (randomize all 6 color values + one-shot sync to laptop) is now triggered by the "rand" `MobileButton` in the utility row instead of the square segment.
 
+**Calibration hint (v2.6.77+):** Bold sweep animation "tap here to recalibrate" below the bottom L corners on the home screen only (not picker). 16px monospace bold, 85% opacity, `pointerEvents: none`. Dismissed permanently on first calibration tap (`hasCalibrated` in localStorage). Same 83ms/char bold sweep pattern as code entry placeholder.
+
 Code: calibration touch handlers on middle segment div + `handleRandomize` on "rand" button in `src/features/mobile/MobileApp.tsx`.
 
 ### Copy/Paste
