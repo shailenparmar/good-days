@@ -69,8 +69,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
-      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-
       ws.onopen = () => {
         console.log('[ws-sync] connected to', url);
         backoffRef.current = 1000;
@@ -90,33 +88,11 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
           role: 'laptop',
           deviceId: getOrCreateDeviceId(),
         });
-
-        // App-level heartbeat every 15s. When the lid is closed, JS timers
-        // don't fire reliably — the relay detects staleness and disconnects,
-        // preventing the phone from pairing with a sleeping laptop.
-        heartbeatInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'heartbeat' }));
-          }
-        }, 15_000);
       };
 
       ws.onmessage = (e) => {
         if (!mountedRef.current) return;
         lastWsActivityRef.current = Date.now();
-
-        // Lid-close detection: visibilitychange doesn't fire when macOS
-        // suspends on lid close, but Power Nap keeps the WS alive. The
-        // first incoming message during sleep checks document.hidden and
-        // tears down the connection so the phone exits pair mode.
-        if (document.hidden) {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'going-hidden' }));
-          }
-          ws.close();
-          wsRef.current = null;
-          return;
-        }
         let msg: ServerMessage;
         try {
           msg = JSON.parse(e.data);
@@ -186,7 +162,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       };
 
       ws.onclose = (ev) => {
-        if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
         console.log('[ws-sync] closed, code=', ev.code, 'reason=', ev.reason);
         if (wsRef.current === ws) {
           wsRef.current = null;

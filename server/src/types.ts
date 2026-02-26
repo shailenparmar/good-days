@@ -19,8 +19,7 @@ export type ClientMessage =
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
   | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'going-hidden' }
-  | { type: 'heartbeat' };
+  | { type: 'going-hidden' };
 
 // Server → Client messages
 export type ServerMessage =
@@ -43,8 +42,6 @@ export interface ClientRecord {
   streaming: boolean;
   deviceId?: string;
   connectedAt: number;
-  lastHeartbeat: number;
-  heartbeatReceived: boolean;
   pairingCode?: string;
   // Stream state snapshots (stored on phone records for handoff replay)
   lastColors?: ColorPayload;

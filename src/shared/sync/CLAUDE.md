@@ -47,14 +47,6 @@ When a laptop sleeps, the WebSocket connection dies on the server (killed by kee
 
 Code: `handleVisibility` listener in `useWebSync.ts`.
 
-**Lid-close detection (v2.6.85+, expanded v2.6.86):** On macOS, closing the laptop lid suspends the process before `visibilitychange` can fire. With Power Nap enabled (especially plugged in), the OS keeps the TCP socket alive and wakes JS briefly to process incoming WebSocket messages — so the relay's `ws.ping()` gets answered and the connection stays open indefinitely. The phone remains paired to a closed laptop.
-
-**Two-layer fix:**
-1. **Client-side (v2.6.85):** `ws.onmessage` checks `document.hidden` before processing any message. If hidden, sends `going-hidden`, closes WS, returns without processing. Catches messages that arrive while the laptop is sleeping.
-2. **Relay-side heartbeat (v2.6.86):** Laptop sends `{ type: 'heartbeat' }` every 15s via `setInterval`. Relay tracks `lastHeartbeat` per client. Stale laptops (>45s, `HEARTBEAT_STALE_MS`) are: (a) excluded from `getUnpairedLaptopsInGroup` so phones won't auto-pair with them, and (b) disconnected in the ping cycle. When the lid is closed, JS timers don't fire → heartbeats stop → relay disconnects the laptop within ~45s → phone can't pair with it.
-
-**Why heartbeat is needed:** The client-side `document.hidden` check only triggers when a message arrives. But auto-pairing happens on the relay (phone connects → relay finds laptop on same IP → pairs them without the laptop needing to respond). The phone shows paired UI before the laptop ever processes a message. The heartbeat lets the relay know the laptop is alive *before* attempting to pair.
-
 ### PWA Freeze-Resilient Reconnect (v2.2.7+)
 
 Chrome aggressively freezes backgrounded PWA JavaScript. The relay kills the WebSocket (keep-alive timeout), but the frozen client never processes the close frame — `onclose` never fires and `readyState` still shows `OPEN`. When the user clicks back into the PWA, the 45-second staleness check may not trigger (if backgrounded < 45s), and the `readyState` check says "still open." Result: zombie WebSocket, no pairing, user must refresh.
