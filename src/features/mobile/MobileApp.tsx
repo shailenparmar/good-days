@@ -53,6 +53,26 @@ export default function MobileApp() {
     if (showCodePlaceholder) { setCodeBoldCount(0); setCodeBoldPhase('bold'); }
   }, [showCodePlaceholder]);
 
+  // Bold sweep hint for calibration — dismissed permanently after first tap
+  const [hasCalibrated, setHasCalibrated] = useState(() => localStorage.getItem('hasCalibrated') === '1');
+  const showCalibHint = !hasCalibrated;
+  const calibHintText = 'tap here to recalibrate';
+  const [calibHintBoldCount, setCalibHintBoldCount] = useState(0);
+  const [calibHintBoldPhase, setCalibHintBoldPhase] = useState<'bold' | 'unbold'>('bold');
+  useEffect(() => {
+    if (!showCalibHint) return;
+    if (calibHintBoldCount >= calibHintText.length) {
+      setCalibHintBoldPhase(p => p === 'bold' ? 'unbold' : 'bold');
+      setCalibHintBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setCalibHintBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [showCalibHint, calibHintBoldCount, calibHintBoldPhase]);
+  useEffect(() => {
+    if (showCalibHint) { setCalibHintBoldCount(0); setCalibHintBoldPhase('bold'); }
+  }, [showCalibHint]);
+
   // Track code input focus via document-level events (iOS doesn't reliably blur on tap-away)
   useEffect(() => {
     const check = () => setCodeInputFocused(document.activeElement === codeInputRef.current);
@@ -893,6 +913,10 @@ export default function MobileApp() {
             e.preventDefault();
             isCalibratingRef.current = true;
             if (navigator.vibrate) navigator.vibrate(10);
+            if (!hasCalibrated) {
+              localStorage.setItem('hasCalibrated', '1');
+              setHasCalibrated(true);
+            }
           }}
           onTouchMove={(e) => {
             isCalibratingRef.current = isTouchInside(e);
@@ -905,7 +929,37 @@ export default function MobileApp() {
             isCalibratingRef.current = false;
           }}
         >
-          <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
+          <div style={{ position: 'relative' }}>
+            <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
+            {showCalibHint && (
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: '50%',
+                transform: 'translate(-50%, 100%)',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+                fontSize: '16px',
+                color: textColor,
+                opacity: 0.85,
+                whiteSpace: 'pre',
+                pointerEvents: 'none',
+                paddingTop: '4px',
+              }}>
+                {calibHintBoldPhase === 'bold' ? (
+                  <>
+                    <span style={{ fontWeight: 900 }}>{calibHintText.slice(0, calibHintBoldCount)}</span>
+                    <span style={{ fontWeight: 400 }}>{calibHintText.slice(calibHintBoldCount)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: 400 }}>{calibHintText.slice(0, calibHintBoldCount)}</span>
+                    <span style={{ fontWeight: 900 }}>{calibHintText.slice(calibHintBoldCount)}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
