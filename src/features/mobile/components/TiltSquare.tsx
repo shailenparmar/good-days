@@ -85,9 +85,10 @@ interface TiltSquareProps {
   tiltX: number;
   tiltY: number;
   textColor: string;
+  homeDotColor?: string;
 }
 
-export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX, tiltY, textColor }: TiltSquareProps) {
+export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX, tiltY, textColor, homeDotColor }: TiltSquareProps) {
   const dotTravel = (size / 2) - 20;
 
   // Positions derived from color values (sat→X, light→Y inverted)
@@ -113,7 +114,7 @@ export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX
       {isHome && (
         <>
           {/* Single filled dot - tilt feedback */}
-          <DotMarker posX={tiltX} posY={tiltY} color={textColor} travel={dotTravel} />
+          <DotMarker posX={tiltX} posY={tiltY} color={homeDotColor ?? textColor} travel={dotTravel} />
         </>
       )}
 

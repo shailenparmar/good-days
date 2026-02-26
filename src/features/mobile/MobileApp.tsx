@@ -674,7 +674,9 @@ export default function MobileApp() {
     return () => { [t1, t2, t3, t4, t5].forEach(clearTimeout); };
   }, [sync.codeRejectedCount]);
 
-  const { error: errorColor } = useMemo(
+  const [isCalibrating, setIsCalibrating] = useState(false);
+
+  const { confirm: confirmColor, error: errorColor } = useMemo(
     () => getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight),
     [colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight]
   );
@@ -917,6 +919,7 @@ export default function MobileApp() {
           onTouchStart={(e) => {
             e.preventDefault();
             isCalibratingRef.current = true;
+            setIsCalibrating(true);
             if (navigator.vibrate) navigator.vibrate(10);
             if (!hasCalibrated) {
               localStorage.setItem('hasCalibrated', '1');
@@ -926,13 +929,15 @@ export default function MobileApp() {
           onTouchEnd={(e) => {
             e.preventDefault();
             isCalibratingRef.current = false;
+            setIsCalibrating(false);
           }}
           onTouchCancel={() => {
             isCalibratingRef.current = false;
+            setIsCalibrating(false);
           }}
         >
           <div style={{ position: 'relative' }}>
-            <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
+            <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} homeDotColor={isCalibrating ? confirmColor : undefined} />
             {showCalibHint && (
               <div style={{
                 position: 'absolute',
