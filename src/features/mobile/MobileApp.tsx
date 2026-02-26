@@ -53,9 +53,10 @@ export default function MobileApp() {
     if (showCodePlaceholder) { setCodeBoldCount(0); setCodeBoldPhase('bold'); }
   }, [showCodePlaceholder]);
 
-  // Bold sweep hint for calibration — dismissed permanently after first tap
+  // Bold sweep hint for calibration — shows after first picker return, dismissed permanently on tap
   const [hasCalibrated, setHasCalibrated] = useState(() => localStorage.getItem('hasCalibrated') === '1');
-  const showCalibHint = !hasCalibrated;
+  const [hasUsedPicker, setHasUsedPicker] = useState(false);
+  const showCalibHint = hasUsedPicker && !hasCalibrated;
   const calibHintText = 'tap here to recalibrate';
   const [calibHintBoldCount, setCalibHintBoldCount] = useState(0);
   const [calibHintBoldPhase, setCalibHintBoldPhase] = useState<'bold' | 'unbold'>('bold');
@@ -72,6 +73,10 @@ export default function MobileApp() {
   useEffect(() => {
     if (showCalibHint) { setCalibHintBoldCount(0); setCalibHintBoldPhase('bold'); }
   }, [showCalibHint]);
+  // Mark picker as used when entering adjusting mode (hint won't show until they return to home)
+  useEffect(() => {
+    if (editing === 'adjusting' && !hasUsedPicker) setHasUsedPicker(true);
+  }, [editing, hasUsedPicker]);
 
   // Track code input focus via document-level events (iOS doesn't reliably blur on tap-away)
   useEffect(() => {
@@ -934,9 +939,9 @@ export default function MobileApp() {
             {showCalibHint && (
               <div style={{
                 position: 'absolute',
-                bottom: 0,
+                bottom: '25%',
                 left: '50%',
-                transform: 'translate(-50%, 100%)',
+                transform: 'translate(-50%, 50%)',
                 fontFamily: 'monospace',
                 fontWeight: 800,
                 fontSize: '16px',
@@ -944,7 +949,6 @@ export default function MobileApp() {
                 opacity: 0.85,
                 whiteSpace: 'pre',
                 pointerEvents: 'none',
-                paddingTop: '4px',
               }}>
                 {calibHintBoldPhase === 'bold' ? (
                   <>
