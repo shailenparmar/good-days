@@ -376,27 +376,6 @@ The `save-preset` message now includes the phone's `colors: ColorPayload`. Previ
 
 **Files changed:** `protocol.ts` (message type), `useMobileSync.ts` (`sendSave` accepts colors), `MobileApp.tsx` (passes `colors`), `useWebSync.ts` (`saveColors` state), `WebSyncBridge.tsx` (passes colors through), `types.ts` + `ThemeContext.tsx` (`saveCustomPreset` optional param), `server/src/relay.ts` (forward colors), `server/src/types.ts` (add colors to save-preset).
 
-### Adaptive Streaming Framerate (v2.6.63+)
-
-Phone streaming framerate adapts based on whether the desktop settings panel is open. When open, the ColorPicker indicators add enough overhead to cause frame drops above 24fps. When closed, it's pure CSS var updates — 60fps is smooth.
-
-**Message:** `settings-state` (`{ type: 'settings-state', open: boolean }`) — laptop → relay → phone. Added to `protocol.ts`, `server/src/types.ts`, forwarded in `relay.ts`.
-
-**Desktop sends when:**
-1. Settings panel opens/closes — `useLayoutState.ts` dispatches `settingschange` custom event on `window`, `WebSyncBridge` listens and calls `sendSettingsState(open)`
-2. Phone pairs (null→value `livePreset` transition) — `WebSyncBridge` sends current `settingsOpenRef` value so phone knows initial state
-
-**Phone receives:** `useMobileSync.ts` handles `settings-state`, stores in `desktopSettingsOpenRef` (a `useRef`). Reset to `true` (safe default) on `unpaired`. `MobileApp.tsx` reads the ref in `sendColorThrottled`:
-
-| `desktopSettingsOpenRef` | Throttle | FPS |
-|---|---|---|
-| `true` (default) | 42ms | ~24 |
-| `false` | 16ms | ~60 |
-
-**Safe default:** Ref initializes to `true` (24fps). Phone only bumps to 60fps when desktop explicitly sends `{ open: false }`. This means: no relay → 24fps (no regression), message lost → 24fps, deploy gap → 24fps.
-
-**Deploy order:** Relay first (`fly deploy`), then client. Reversed order is safe but phone stays at 24fps until both are live.
-
 ### Stream Debug Overlay (added v2.4.121, removed v2.4.122)
 
 Temporary debug overlay used to evaluate the 48fps → 30fps mobile streaming change. Confirmed: ~30 msg/s, ~30ms latency, ~5ms jitter, 0-2 coalesced. 30fps lands cleanly with every message getting its own frame. Removed after verification.
