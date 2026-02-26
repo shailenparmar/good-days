@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useMobileSync } from '@shared/sync/useMobileSync';
 import { setItem } from '@shared/storage';
 import { VERSION } from '@shared/version';
@@ -60,6 +60,13 @@ export default function MobileApp() {
   const calibHintText = 'hold here to recalibrate';
   const [calibHintBoldCount, setCalibHintBoldCount] = useState(0);
   const [calibHintBoldPhase, setCalibHintBoldPhase] = useState<'bold' | 'unbold'>('bold');
+  const calibHintRef = useRef<HTMLDivElement>(null);
+  const [calibHintBottom, setCalibHintBottom] = useState(0);
+  useLayoutEffect(() => {
+    if (showCalibHint && calibHintRef.current) {
+      setCalibHintBottom((252 - calibHintRef.current.offsetWidth) / 2);
+    }
+  }, [showCalibHint]);
   useEffect(() => {
     if (!showCalibHint) return;
     if (calibHintBoldCount >= calibHintText.length) {
@@ -937,11 +944,11 @@ export default function MobileApp() {
           <div style={{ position: 'relative' }}>
             <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
             {showCalibHint && (
-              <div style={{
+              <div ref={calibHintRef} style={{
                 position: 'absolute',
-                bottom: '8%',
+                bottom: `${calibHintBottom}px`,
                 left: '50%',
-                transform: 'translate(-50%, 50%)',
+                transform: 'translateX(-50%)',
                 fontFamily: 'monospace',
                 fontWeight: 800,
                 fontSize: '16px',
