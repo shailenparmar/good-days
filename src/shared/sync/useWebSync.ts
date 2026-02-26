@@ -93,6 +93,19 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
       ws.onmessage = (e) => {
         if (!mountedRef.current) return;
         lastWsActivityRef.current = Date.now();
+
+        // Lid-close detection: visibilitychange doesn't fire when macOS
+        // suspends on lid close, but Power Nap keeps the WS alive. The
+        // first incoming message during sleep checks document.hidden and
+        // tears down the connection so the phone exits pair mode.
+        if (document.hidden) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'going-hidden' }));
+          }
+          ws.close();
+          wsRef.current = null;
+          return;
+        }
         let msg: ServerMessage;
         try {
           msg = JSON.parse(e.data);
