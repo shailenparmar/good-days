@@ -64,7 +64,11 @@ export default function MobileApp() {
   const [calibHintBottom, setCalibHintBottom] = useState(0);
   useLayoutEffect(() => {
     if (showCalibHint && calibHintRef.current) {
-      setCalibHintBottom((252 - calibHintRef.current.offsetWidth) / 2);
+      const sideGap = (252 - calibHintRef.current.offsetWidth) / 2;
+      // Offset by half the excess line-height so the visual text bottom
+      // (not the div box bottom) has the same gap as the sides
+      const lineHeightExcess = calibHintRef.current.offsetHeight - 16; // fontSize = 16
+      setCalibHintBottom(sideGap + lineHeightExcess / 2);
     }
   }, [showCalibHint]);
   useEffect(() => {
