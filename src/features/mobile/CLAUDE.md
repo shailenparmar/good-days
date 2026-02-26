@@ -8,9 +8,9 @@ All buttons use `getButtonStyle(pressed, position, role)`. Three named sizes:
 
 | Name | Role value | Vertical padding | Feel | Usage |
 |------|-----------|-----------------|------|-------|
-| **action** | `'picker'` | 28px | Tall, dominant | text \| background (press-and-hold primary interaction) |
+| **action** | `'picker'` | 28px (55px on home) | Tall, dominant | text \| background (press-and-hold primary interaction). Home screen uses inline `padding: '55px 0'` override for expanded height. |
 | **standard** | (default) | 14px | Medium | Code entry input, skip button |
-| **compact** | `'aux'` | 7px | Short, utility | calibrate tilt, recalibrate, copy, save, paste |
+| **compact** | `'aux'` | 7px | Short, utility | copy, paste, zero, save |
 
 ### Button Positions
 
@@ -113,13 +113,13 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │        │   ●    │              │  ← Single filled dot
 │        └────────┘              │     (tilt feedback)
 │                                │
-├────────────────────────────────┤
-│      recalibrate          │  ← Full-width button (edge-to-edge)
-├───────────────┬────────────────┤
-│     text      │   background   │  ← Split button (enters adjusting)
-├───────────────┼────────────────┤
-│     copy      │     paste      │  ← Split button
-└───────────────┴────────────────┘
+├───────┬────────┬───────┬───────┤
+│ copy  │ paste  │ zero  │ save  │  ← Utility row (save only when paired)
+├───────┴────────┴───────┴───────┤
+│              │                 │
+│    text      │   background    │  ← Expanded picker (55px vPad)
+│              │                 │
+└──────────────┴─────────────────┘
 ```
 
 **Picker Screen** (while holding background or text):
@@ -176,7 +176,7 @@ The tilt square complex (square + L corners + sat/light labels) is dynamically s
 
 **Any element above or below the square that can change size MUST use a fixed-height container.** The container height must equal the maximum possible content height. Variable-size content is aligned within the container. This prevents the flex layout from redistributing space when content changes. Currently all screens use the same static "good days" title (same font size, same height), so the top anchor is naturally stable. If the title ever becomes dynamic (different text, different size), it MUST be wrapped in a fixed-height container matching the standard title height.
 
-**Bottom alignment rule (v2.5.34+):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 3-row button structure (aux + picker + aux with 12px gaps = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + picker + aux) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
+**Bottom alignment rule (v2.5.34+, updated v2.6.74):** The button area height must be identical across all screens so the corner brackets sit at the same position. The home screen's 2-row button structure (aux + expanded picker with 12px gap = 192px) is the reference. All other screens render the exact same invisible button DOM (aux + expanded picker) to set the height, then absolutely position their visible buttons on top. This guarantees pixel-perfect alignment regardless of visible button sizes or gaps.
 
 **How it works:**
 1. All screens render the home screen's button structure invisibly (sets exact height)
@@ -273,7 +273,7 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 
 ### Live Continuous Calibration (v2.5.29+)
 
-The recalibrate button uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off pauses calibration (last zero-point sticks), but dragging back in resumes it — calibration toggles with finger position as long as the touch is held.
+The zero button (formerly "recalibrate", renamed v2.6.74) uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off pauses calibration (last zero-point sticks), but dragging back in resumes it — calibration toggles with finger position as long as the touch is held.
 
 **Implementation:** Uses `isCalibratingRef` (a `useRef(false)`) checked in the `deviceorientation` handler. While true, `baseline.current.beta/gamma` are overwritten with the current raw orientation every frame. Raw touch handlers on the button (not `MobileButton`) control the flag.
 
@@ -358,17 +358,17 @@ See **Mobile Style Guide** at the top of this file for the full button system (s
 
 - **action** (`'picker'`, 28px): text \| background, pairing code input, skip
 - **standard** (default, 14px): allow motion access
-- **compact** (`'aux'`, 7px): recalibrate, copy, save, paste
+- **compact** (`'aux'`, 7px): copy, paste, zero, save
 
-**Button order** (top to bottom): recalibrate → text|background → copy|paste (+ save when live)
+**Button order** (top to bottom): utility row (copy|paste|zero [|save when paired]) → expanded text|background
 
-**Pixel-perfect alignment (v2.5.34+):** All screens render the home screen's exact invisible button DOM (aux + picker + aux) to set the button area height. Visible buttons are absolutely positioned on top. This guarantees the corner brackets and button area top border are at identical positions across all screens.
+**Pixel-perfect alignment (v2.5.34+, updated v2.6.74):** All screens render the home screen's exact invisible button DOM (aux + expanded picker) to set the button area height. Visible buttons are absolutely positioned on top. This guarantees the corner brackets and button area top border are at identical positions across all screens.
 
 ### Button Drag-Off Cancellation (v1.10.22+)
 
 The copy, paste, allow motion access, and skip buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
 
-**No re-engage:** Sliding back onto a button after dragging off does NOT re-engage it. iOS Safari doesn't treat `touchend`-after-`touchmove` as a valid user activation for clipboard/permission APIs (copy, paste, allow motion access all need this). The recalibrate button CAN re-engage because it uses continuous calibration (not a user-gesture-gated API).
+**No re-engage:** Sliding back onto a button after dragging off does NOT re-engage it. iOS Safari doesn't treat `touchend`-after-`touchmove` as a valid user activation for clipboard/permission APIs (copy, paste, allow motion access all need this). The zero button CAN re-engage because it uses continuous calibration (not a user-gesture-gated API).
 
 **Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
 
@@ -382,7 +382,7 @@ The copy, paste, allow motion access, and skip buttons support **drag-off cancel
 
 **Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
 
-**Recalibrate button uses live calibration (v2.5.29+)** — see [Live Continuous Calibration](#live-continuous-calibration-v2529) below. Not a MobileButton; uses raw touch handlers.
+**Zero button uses live calibration (v2.5.29+, renamed from "recalibrate" v2.6.74)** — see [Live Continuous Calibration](#live-continuous-calibration-v2529) below. Not a MobileButton; uses raw touch handlers.
 
 **Applied to pairing screen skip button:** Uses `skipEngaged` ref and `isTouchInside` for the same engage/disengage pattern. (Candidate buttons were removed in v2.4.27 along with the candidates picker.) **Safari keyboard fix (v2.4.56+):** Skip button blurs the code input on `touchStart` (before `preventDefault`) to dismiss the keyboard cleanly. Also fires `skipPairing()` on `touchCancel` — Safari may cancel touches instead of ending them during keyboard/focus transitions, which previously caused the skip action to silently not fire.
 
