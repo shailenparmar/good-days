@@ -47,6 +47,8 @@ When a laptop sleeps, the WebSocket connection dies on the server (killed by kee
 
 Code: `handleVisibility` listener in `useWebSync.ts`.
 
+**Lid-close detection (v2.6.85+):** On macOS, closing the laptop lid suspends the process before `visibilitychange` can fire. With Power Nap enabled (especially plugged in), the OS keeps the TCP socket alive and wakes JS briefly to process incoming WebSocket messages — so the relay's `ws.ping()` gets answered and the connection stays open indefinitely. The phone remains paired to a closed laptop. Fix: the `ws.onmessage` handler checks `document.hidden` before processing any message. If hidden, it sends `going-hidden`, closes the WS, and returns without processing the message. The phone's own messages (save-preset, color-update, etc.) become the trigger for disconnection. The relay receives `going-hidden` and immediately unpairs the phone.
+
 ### PWA Freeze-Resilient Reconnect (v2.2.7+)
 
 Chrome aggressively freezes backgrounded PWA JavaScript. The relay kills the WebSocket (keep-alive timeout), but the frozen client never processes the close frame — `onclose` never fires and `readyState` still shows `OPEN`. When the user clicks back into the PWA, the 45-second staleness check may not trigger (if backgrounded < 45s), and the `readyState` check says "still open." Result: zombie WebSocket, no pairing, user must refresh.
