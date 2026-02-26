@@ -84,8 +84,10 @@ export function JournalEditor({
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
   const scrollSaveTimeout = useRef<number | null>(null);
 
-  // Track scroll for scramble overlay sync
+  // Track scroll for scramble/cursor overlay sync — direct DOM refs for zero-lag
   const [scrollTop, setScrollTop] = useState(0);
+  const scrambleOverlayRef = useRef<HTMLDivElement>(null);
+  const cursorOverlayRef = useRef<HTMLDivElement>(null);
 
   // Custom block cursor for Safari (no caret-shape: block support).
   // Uses a text overlay approach: renders all text transparently with a colored
@@ -162,8 +164,11 @@ export function JournalEditor({
   const handleScroll = useCallback(() => {
     if (!editorRef.current) return;
 
-    // Immediately sync overlay scroll (no debounce for smooth visual)
-    setScrollTop(editorRef.current.scrollTop);
+    // Sync overlays directly on DOM — same frame as native scroll, no React lag
+    const st = editorRef.current.scrollTop;
+    if (scrambleOverlayRef.current) scrambleOverlayRef.current.style.transform = `translateY(-${st}px)`;
+    if (cursorOverlayRef.current) cursorOverlayRef.current.style.transform = `translateY(-${st}px)`;
+    setScrollTop(st);
 
     // Debounce scroll position save (100ms)
     if (scrollSaveTimeout.current !== null) {
@@ -269,9 +274,14 @@ export function JournalEditor({
     }
 
     setValue(newValue);
-    // Sync scrollTop in the same batch as setValue — prevents a 1-frame flash
+    // Sync overlays directly + React state — prevents a 1-frame flash
     // where the scramble overlay has new text but old scroll position
-    if (editorRef.current) setScrollTop(editorRef.current.scrollTop);
+    if (editorRef.current) {
+      const st = editorRef.current.scrollTop;
+      if (scrambleOverlayRef.current) scrambleOverlayRef.current.style.transform = `translateY(-${st}px)`;
+      if (cursorOverlayRef.current) cursorOverlayRef.current.style.transform = `translateY(-${st}px)`;
+      setScrollTop(st);
+    }
     onInput(newValue);
   }, [editorRef, isScrambled, isSuperscramble, onInput, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, trackCurrentColorway, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, incrementColorPickerDragCount]);
 
@@ -376,7 +386,7 @@ export function JournalEditor({
         readOnly={!isToday}
         wrap="soft"
         className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
-        style={{ color: isScrambled ? 'transparent' : getColor() }}
+        style={{ color: isScrambled ? 'transparent' : getColor(), overscrollBehaviorY: isScrambled ? 'none' : undefined }}
         spellCheck={false}
         aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}
       />
@@ -385,6 +395,7 @@ export function JournalEditor({
       {isScrambled && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
+            ref={scrambleOverlayRef}
             className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
             style={{ color: getColor(), transform: `translateY(-${scrollTop}px)` }}
           >
@@ -399,6 +410,7 @@ export function JournalEditor({
       {needsCustomCursor && isFocused && cursorState.collapsed && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
+            ref={cursorOverlayRef}
             className="p-8 text-base leading-relaxed font-mono font-bold whitespace-pre-wrap break-words"
             style={{ transform: `translateY(-${scrollTop}px)` }}
           >
