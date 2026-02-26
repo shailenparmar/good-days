@@ -68,6 +68,8 @@ function pairClients(id1: string, id2: string) {
 const HEARTBEAT_STALE_MS = 45_000; // Laptop stale if no heartbeat in 45s
 
 function isLaptopAlive(client: ClientRecord): boolean {
+  // Old clients (pre-v2.6.86) don't send heartbeats — assume alive
+  if (!client.heartbeatReceived) return true;
   return Date.now() - client.lastHeartbeat < HEARTBEAT_STALE_MS;
 }
 
@@ -194,6 +196,7 @@ function handleRegister(clientId: string, ws: WebSocket, role: 'phone' | 'laptop
     deviceId,
     connectedAt: Date.now(),
     lastHeartbeat: Date.now(),
+    heartbeatReceived: false,
   };
   clients.set(clientId, record);
 
@@ -566,7 +569,10 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
 
       case 'heartbeat': {
         const hbClient = clients.get(clientId);
-        if (hbClient) hbClient.lastHeartbeat = Date.now();
+        if (hbClient) {
+          hbClient.lastHeartbeat = Date.now();
+          hbClient.heartbeatReceived = true;
+        }
         break;
       }
 

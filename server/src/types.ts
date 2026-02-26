@@ -44,6 +44,7 @@ export interface ClientRecord {
   deviceId?: string;
   connectedAt: number;
   lastHeartbeat: number;
+  heartbeatReceived: boolean;
   pairingCode?: string;
   // Stream state snapshots (stored on phone records for handoff replay)
   lastColors?: ColorPayload;
