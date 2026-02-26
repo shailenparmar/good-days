@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
+import { useAuth } from '@features/auth';
 import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { setStreamingControls } from './streamingControlsRef';
@@ -7,6 +8,10 @@ import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
   const theme = useTheme();
+  const { isLocked, hasPassword } = useAuth();
+  const locked = isLocked && hasPassword;
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
   const themeRef = useRef(theme);
   themeRef.current = theme;
   const prevLiveRef = useRef<ColorPayload | null>(null);
@@ -32,11 +37,13 @@ export function WebSyncBridge() {
   // within one frame coalesce into a single render.
   const handleColorUpdate = useCallback((colors: ColorPayload) => {
     pendingColorsRef.current = colors;
+    if (lockedRef.current) return; // Don't touch CSS vars while locked
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = 0;
         const c = pendingColorsRef.current;
         if (!c) return;
+        if (lockedRef.current) return; // Re-check inside rAF
         const t = themeRef.current;
 
         // Skip all updates during local desktop drag — just buffer in pendingColorsRef.
@@ -77,7 +84,15 @@ export function WebSyncBridge() {
   const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
 
   // Bridge sync state into ThemeContext (skipped for color-update — handled by callback)
+  // When locked, clear all live visual state so the lock screen is unaffected.
+  // WS stays connected — bridge just stops forwarding to theme.
   useEffect(() => {
+    if (locked) {
+      theme.setLivePreset(null);
+      theme.setIsLiveActive(false);
+      theme.setIsLiveStreaming(false);
+      return;
+    }
     if (skipBridgeRef.current) {
       skipBridgeRef.current = false;
       // Only skip non-null transitions (color updates during streaming).
@@ -95,12 +110,14 @@ export function WebSyncBridge() {
       bgSat: syncState.livePreset.bgSat,
       bgLight: syncState.livePreset.bgLight,
     } : null);
-  }, [syncState.livePreset]);
+  }, [syncState.livePreset, locked]);
 
   // Auto-select [live] on new pairing (null → value transition)
   useEffect(() => {
     const wasNull = prevLiveRef.current === null;
     prevLiveRef.current = syncState.livePreset;
+
+    if (locked) return;
 
     if (wasNull && syncState.livePreset) {
       markEasterEggFound('liveControl');
@@ -118,7 +135,7 @@ export function WebSyncBridge() {
         bgLight: syncState.livePreset.bgLight,
       });
     }
-  }, [syncState.livePreset]);
+  }, [syncState.livePreset, locked]);
 
   // Bridge streaming state into ThemeContext.
   // Auto-switch selection to [live] when streaming starts, so the live
@@ -128,6 +145,9 @@ export function WebSyncBridge() {
   useEffect(() => {
     const wasStreaming = prevStreamingRef.current;
     prevStreamingRef.current = syncState.isStreaming;
+
+    if (locked) return;
+
     theme.setIsLiveStreaming(syncState.isStreaming);
 
     // Auto-select live on stream start (false → true) when paired
@@ -165,15 +185,16 @@ export function WebSyncBridge() {
       theme.setActivePresetIndex(saveIndex);
       theme.incrementColorPickerDragCount();
     }
-  }, [syncState.isStreaming]);
+  }, [syncState.isStreaming, locked]);
 
   // Write streamingControls to module-level store (not ThemeContext).
   // Only ColorPicker subscribes via useStreamingControls(). Using a
   // dedicated store avoids a full cascade of 15+ consumer re-renders
   // on every stream-state message (beta join/leave, side switch).
   useEffect(() => {
+    if (locked) return;
     setStreamingControls(syncState.streamingControls);
-  }, [syncState.streamingControls]);
+  }, [syncState.streamingControls, locked]);
 
   // Clear isLiveActive when livePreset goes null (disconnect).
   // Sync final colors from CSS-only streaming to React state so
@@ -201,13 +222,17 @@ export function WebSyncBridge() {
   // Handle save-preset from phone — highlight the newly saved preset.
   const prevSaveRef = useRef(0);
   useEffect(() => {
+    if (locked) {
+      prevSaveRef.current = syncState.saveRequested;
+      return;
+    }
     if (syncState.saveRequested > prevSaveRef.current) {
       prevSaveRef.current = syncState.saveRequested;
       const newPresetIndex = theme.presets.length + theme.customPresets.length;
       theme.saveCustomPreset(syncState.saveColors ?? undefined);
       theme.setActivePresetIndex(newPresetIndex);
     }
-  }, [syncState.saveRequested]);
+  }, [syncState.saveRequested, locked]);
 
   // Bridge pairing code to ThemeContext
   useEffect(() => {
