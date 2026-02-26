@@ -17,7 +17,6 @@ export type ClientMessage =
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
   | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'settings-state'; open: boolean }
   | { type: 'going-hidden' };
 
 // Server → Client
@@ -31,8 +30,7 @@ export type ServerMessage =
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
-  | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'settings-state'; open: boolean };
+  | { type: 'save-preset'; colors: ColorPayload };
 
 export function getWsUrl(): string {
   if (typeof window === 'undefined') return '';

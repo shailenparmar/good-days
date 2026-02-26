@@ -546,15 +546,6 @@ export function handleConnection(ws: WebSocket, publicIp: string) {
         break;
       }
 
-      case 'settings-state': {
-        const ss = clients.get(clientId);
-        if (ss?.partnerId) {
-          const partner = clients.get(ss.partnerId);
-          if (partner) send(partner.ws, { type: 'settings-state', open: msg.open });
-        }
-        break;
-      }
-
       case 'going-hidden':
         // Phone is being backgrounded/locked — disconnect immediately
         // so the laptop exits live mode without waiting for ping timeout.

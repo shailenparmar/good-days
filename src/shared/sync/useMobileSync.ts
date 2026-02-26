@@ -28,7 +28,6 @@ export interface MobileSyncHandle {
   codeRejectedCount: number;
   wsRef: React.RefObject<WebSocket | null>;
   isStreamingRef: React.RefObject<boolean>;
-  desktopSettingsOpenRef: React.RefObject<boolean>;
 }
 
 export function useMobileSync(): MobileSyncHandle {
@@ -38,7 +37,6 @@ export function useMobileSync(): MobileSyncHandle {
 
   const wsRef = useRef<WebSocket | null>(null);
   const isStreamingRef = useRef(false);
-  const desktopSettingsOpenRef = useRef(true);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
@@ -97,13 +95,8 @@ export function useMobileSync(): MobileSyncHandle {
             pairingStateRef.current = 'standalone';
             setPairingState('standalone');
             isStreamingRef.current = false;
-            desktopSettingsOpenRef.current = true;
             break;
 
-
-          case 'settings-state':
-            desktopSettingsOpenRef.current = msg.open;
-            break;
 
           case 'enter-code':
             if (pairingStateRef.current === 'enter-code' && codeSubmittedRef.current) {
@@ -236,6 +229,5 @@ export function useMobileSync(): MobileSyncHandle {
     codeRejectedCount,
     wsRef,
     isStreamingRef,
-    desktopSettingsOpenRef,
   };
 }

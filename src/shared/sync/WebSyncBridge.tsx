@@ -74,20 +74,7 @@ export function WebSyncBridge() {
     return () => { if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current); };
   }, []);
 
-  const { sendSettingsState, ...syncState } = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
-
-  // Track desktop settings state and forward to phone for adaptive framerate.
-  // Phone streams at 60fps when settings is closed, 24fps when open.
-  const settingsOpenRef = useRef(false);
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const open = (e as CustomEvent).detail.open as boolean;
-      settingsOpenRef.current = open;
-      sendSettingsState(open);
-    };
-    window.addEventListener('settingschange', handler);
-    return () => window.removeEventListener('settingschange', handler);
-  }, [sendSettingsState]);
+  const syncState = useWebSync(currentColorway, { onColorUpdate: handleColorUpdate });
 
   // Bridge sync state into ThemeContext (skipped for color-update — handled by callback)
   useEffect(() => {
@@ -117,7 +104,6 @@ export function WebSyncBridge() {
 
     if (wasNull && syncState.livePreset) {
       markEasterEggFound('liveControl');
-      sendSettingsState(settingsOpenRef.current);
       const liveIndex = theme.presets.length + theme.customPresets.length;
       theme.setIsLiveActive(true);
       theme.setSelectedPreset(null);

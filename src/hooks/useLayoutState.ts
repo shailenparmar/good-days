@@ -279,11 +279,6 @@ export function useLayoutState() {
     if (!zenMode && !minizen) setItem('showSettings', String(showDebugMenu));
   }, [showDebugMenu, zenMode, minizen]);
 
-  // Notify WebSyncBridge of settings state for adaptive streaming framerate
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('settingschange', { detail: { open: showDebugMenu } }));
-  }, [showDebugMenu]);
-
   useEffect(() => {
     if (!zenMode && !minizen) setItem('showAbout', String(showAboutPanel));
   }, [showAboutPanel, zenMode, minizen]);

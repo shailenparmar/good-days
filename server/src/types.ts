@@ -19,7 +19,6 @@ export type ClientMessage =
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
   | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'settings-state'; open: boolean }
   | { type: 'going-hidden' };
 
 // Server → Client messages
@@ -33,8 +32,7 @@ export type ServerMessage =
   | { type: 'stream-start'; side: 'text' | 'background' }
   | { type: 'stream-stop' }
   | { type: 'stream-state'; alpha: { side: 'text' | 'background' }; beta: { side: 'text' | 'background' } | null }
-  | { type: 'save-preset'; colors: ColorPayload }
-  | { type: 'settings-state'; open: boolean };
+  | { type: 'save-preset'; colors: ColorPayload };
 
 export interface ClientRecord {
   ws: WebSocket;

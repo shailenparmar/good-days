@@ -207,10 +207,6 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     backoffRef.current = Math.min(backoffRef.current * 2, 10000);
   }, [connect]);
 
-  const sendSettingsState = useCallback((open: boolean) => {
-    sendMsg({ type: 'settings-state', open });
-  }, [sendMsg]);
-
   // Connection lifecycle — connect immediately on mount (no leader election)
   useEffect(() => {
     mountedRef.current = true;
@@ -301,5 +297,5 @@ export function useWebSync(currentColorway: ColorPayload | undefined, options?: 
     };
   }, [connect]);
 
-  return { ...state, sendSettingsState };
+  return state;
 }
