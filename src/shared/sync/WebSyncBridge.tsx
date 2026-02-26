@@ -126,9 +126,11 @@ export function WebSyncBridge() {
   }, [syncState.livePreset, locked]);
 
   // Auto-select [live] on new pairing (null → value transition)
+  const wasLockedRef = useRef(false);
   useEffect(() => {
     if (locked) {
       prevLiveRef.current = null; // Reset so unlock triggers auto-select
+      wasLockedRef.current = true;
       return;
     }
 
@@ -142,14 +144,19 @@ export function WebSyncBridge() {
       theme.setSelectedPreset(null);
       theme.setSelectedCustomPreset(null);
       theme.setActivePresetIndex(liveIndex);
-      theme.applyPreset({
-        hue: syncState.livePreset.hue,
-        sat: syncState.livePreset.sat,
-        light: syncState.livePreset.light,
-        bgHue: syncState.livePreset.bgHue,
-        bgSat: syncState.livePreset.bgSat,
-        bgLight: syncState.livePreset.bgLight,
-      });
+      // Only apply preset colors on genuine new pairing, not unlock-resume.
+      // On unlock, React state already has the correct colors (synced on lock).
+      if (!wasLockedRef.current) {
+        theme.applyPreset({
+          hue: syncState.livePreset.hue,
+          sat: syncState.livePreset.sat,
+          light: syncState.livePreset.light,
+          bgHue: syncState.livePreset.bgHue,
+          bgSat: syncState.livePreset.bgSat,
+          bgLight: syncState.livePreset.bgLight,
+        });
+      }
+      wasLockedRef.current = false;
     }
   }, [syncState.livePreset, locked]);
 
