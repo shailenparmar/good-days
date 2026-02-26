@@ -640,7 +640,7 @@ Direction ref is reset by global keydown/mousedown/resize listeners (any non-ESC
 
 | Name | Size | Class | Elements |
 |------|------|-------|----------|
-| **title** | 24px | `text-2xl font-extrabold` | "good days" title, lock screen corners |
+| **title** | 24px | `text-2xl font-extrabold` | "good days" title, lock screen top-left |
 | **heading** | 18px | `text-lg font-extrabold` | Date header ("jan 30, 2025") |
 | **body** | 16px | `text-base font-bold` | Editor text, placeholder, about panel |
 | **label** | 14px | inline `fontSize: '14px'` | Sidebar buttons, entry dates, footer, "started at" |
