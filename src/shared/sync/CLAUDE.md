@@ -6,6 +6,8 @@ The WebSyncBridge feature (phone-to-desktop sync) is **shipped and active** (v1.
 
 **Important:** `WebSyncBridge` renders at the `App` level, NOT inside `AppContent` (v2.4.5+). This ensures the WebSocket connects to the relay immediately on page load, even when the lock screen is showing. `sessionStorage` is per-tab, so new tabs start locked — if WebSyncBridge were gated behind the lock screen, the new tab's WS would never connect, and the phone pairing would stay on the old tab.
 
+**Lock-aware bridge (v2.6.68+):** While the app is locked (`isLocked && hasPassword`), the bridge becomes a no-op — the WS stays connected (phone and desktop remain paired at the connection level), but nothing visual gets through. Specifically: `handleColorUpdate` skips CSS var writes (via `lockedRef`), the bridge effect clears `livePreset`/`isLiveActive`/`isLiveStreaming` from theme (no black toolbar, no [pair] button), and streaming/save-preset effects early return. When the user unlocks, all effects re-fire (via `locked` in deps) and resume normal behavior. The disconnect cleanup effect and pairing code bridge are NOT gated — cleanup still works if the phone disconnects while locked, and the pairing code stays available for the info box.
+
 ### Relay Server
 
 | Environment | URL | Server |
