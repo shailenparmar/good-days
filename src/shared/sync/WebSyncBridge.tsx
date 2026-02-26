@@ -90,6 +90,16 @@ export function WebSyncBridge() {
       theme.setLivePreset(null);
       theme.setIsLiveActive(false);
       theme.setIsLiveStreaming(false);
+      // Restore CSS vars to React state. During CSS-only streaming, CSS vars
+      // diverge from React state (phone overwrites them directly). Without this,
+      // the lock screen bg (CSS vars) and Safari toolbar (React state) mismatch.
+      const el = document.documentElement;
+      el.style.setProperty('--h', String(theme.hue));
+      el.style.setProperty('--s', theme.saturation + '%');
+      el.style.setProperty('--l', theme.lightness + '%');
+      el.style.setProperty('--bh', String(theme.bgHue));
+      el.style.setProperty('--bs', theme.bgSaturation + '%');
+      el.style.setProperty('--bl', theme.bgLightness + '%');
       return;
     }
     if (skipBridgeRef.current) {
