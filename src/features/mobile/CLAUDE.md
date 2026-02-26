@@ -110,11 +110,11 @@ Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pair
 │          good days             │  ← title, one line
 │                                │
 │        ┌────────┐              │
-│        │   ●    │              │  ← Single filled dot
-│        └────────┘              │     (tilt feedback)
+│        │   ●    │              │  ← Tap/hold = calibrate tilt
+│        └────────┘              │     (single filled dot, tilt feedback)
 │                                │
 ├───────┬────────┬───────┬───────┤
-│ copy  │ paste  │ zero  │ save  │  ← Utility row (save only when paired)
+│ copy  │ paste  │ rand  │ save  │  ← Utility row (save only when paired)
 ├───────┴────────┴───────┴───────┤
 │              │                 │
 │    text      │   background    │  ← Expanded picker (55px vPad)
@@ -273,23 +273,22 @@ The sat/light square shows two marker types (v2.0.2+, doubled from v1.10.61):
 
 ### Live Continuous Calibration (v2.5.29+)
 
-The zero button (formerly "recalibrate", renamed v2.6.74) uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off pauses calibration (last zero-point sticks), but dragging back in resumes it — calibration toggles with finger position as long as the touch is held.
+The square segment (v2.6.76+, formerly the zero/recalibrate button) uses **hold-to-calibrate**: pressing and holding continuously re-zeros the tilt baseline every orientation frame (~60fps). The user can settle the phone into position while holding. Releasing locks the last zero-point. Dragging off pauses calibration (last zero-point sticks), but dragging back in resumes it — calibration toggles with finger position as long as the touch is held.
 
-**Implementation:** Uses `isCalibratingRef` (a `useRef(false)`) checked in the `deviceorientation` handler. While true, `baseline.current.beta/gamma` are overwritten with the current raw orientation every frame. Raw touch handlers on the button (not `MobileButton`) control the flag.
+**Implementation:** Uses `isCalibratingRef` (a `useRef(false)`) checked in the `deviceorientation` handler. While true, `baseline.current.beta/gamma` are overwritten with the current raw orientation every frame. Raw touch handlers on the square segment div control the flag.
 
 | Event | Behavior |
 |-------|----------|
-| touchStart | `isCalibratingRef = true`, haptic 10ms, pressed visual |
-| touchMove (inside) | `isCalibratingRef = true`, pressed visual — resumes if finger returns |
-| touchMove (outside) | `isCalibratingRef = false`, clear pressed — pauses calibration, last zero sticks |
-| touchEnd | `isCalibratingRef = false`, clear pressed visual |
-| touchCancel | `isCalibratingRef = false`, clear pressed visual |
+| touchStart | `isCalibratingRef = true`, haptic 10ms |
+| touchMove (inside) | `isCalibratingRef = true` — resumes if finger returns |
+| touchMove (outside) | `isCalibratingRef = false` — pauses calibration, last zero sticks |
+| touchEnd | `isCalibratingRef = false` |
+| touchCancel | `isCalibratingRef = false` |
 
-**Why not MobileButton?** `MobileButton` fires an action on release if engaged. This feature needs "fire continuously from press, stop on disengage/release." Simpler to use raw handlers than add a niche prop to the shared component.
+**No pressed visual:** The square segment has no visual pressed state (unlike the old button). Only `isCalibratingRef` is toggled.
 
 **Key refs:**
 - `isCalibratingRef`: `useRef(false)` — checked every orientation event
-- `recalPressed`: state for visual pressed style
 
 ### Direct Adjusting (v1.10.61+)
 
@@ -358,9 +357,9 @@ See **Mobile Style Guide** at the top of this file for the full button system (s
 
 - **action** (`'picker'`, 28px): text \| background, pairing code input, skip
 - **standard** (default, 14px): allow motion access
-- **compact** (`'aux'`, 7px): copy, paste, zero, save
+- **compact** (`'aux'`, 7px): copy, paste, rand, save
 
-**Button order** (top to bottom): utility row (copy|paste|zero [|save when paired]) → expanded text|background
+**Button order** (top to bottom): utility row (copy|paste|rand [|save when paired]) → expanded text|background
 
 **Pixel-perfect alignment (v2.5.34+, updated v2.6.74):** All screens render the home screen's exact invisible button DOM (aux + expanded picker) to set the button area height. Visible buttons are absolutely positioned on top. This guarantees the corner brackets and button area top border are at identical positions across all screens.
 
@@ -368,7 +367,7 @@ See **Mobile Style Guide** at the top of this file for the full button system (s
 
 The copy, paste, allow motion access, and skip buttons support **drag-off cancellation**: press a button, drag your finger off, and the action does NOT fire. This makes buttons "less committal" — the user can change their mind mid-press.
 
-**No re-engage:** Sliding back onto a button after dragging off does NOT re-engage it. iOS Safari doesn't treat `touchend`-after-`touchmove` as a valid user activation for clipboard/permission APIs (copy, paste, allow motion access all need this). The zero button CAN re-engage because it uses continuous calibration (not a user-gesture-gated API).
+**No re-engage:** Sliding back onto a button after dragging off does NOT re-engage it. iOS Safari doesn't treat `touchend`-after-`touchmove` as a valid user activation for clipboard/permission APIs (copy, paste, allow motion access all need this).
 
 **Implementation:** A `buttonEngaged` ref tracks per-button engagement state. `onTouchMove` checks if the finger is still inside the button's bounding rect via `isTouchInside()`. If outside, the engaged flag and pressed visual state are cleared.
 
@@ -382,7 +381,7 @@ The copy, paste, allow motion access, and skip buttons support **drag-off cancel
 
 **Not applied to text|background buttons** — those use a press-and-drag-into-picker interaction pattern where drag-off doesn't apply.
 
-**Zero button uses live calibration (v2.5.29+, renamed from "recalibrate" v2.6.74)** — see [Live Continuous Calibration](#live-continuous-calibration-v2529) below. Not a MobileButton; uses raw touch handlers.
+**Square segment uses live calibration (v2.6.76+, moved from zero/recalibrate button)** — see [Live Continuous Calibration](#live-continuous-calibration-v2529). Raw touch handlers on the middle flex segment div.
 
 **Applied to pairing screen skip button:** Uses `skipEngaged` ref and `isTouchInside` for the same engage/disengage pattern. (Candidate buttons were removed in v2.4.27 along with the candidates picker.) **Safari keyboard fix (v2.4.56+):** Skip button blurs the code input on `touchStart` (before `preventDefault`) to dismiss the keyboard cleanly. Also fires `skipPairing()` on `touchCancel` — Safari may cancel touches instead of ending them during keyboard/focus transitions, which previously caused the skip action to silently not fire.
 
@@ -399,17 +398,17 @@ iOS 13+ requires explicit permission for DeviceOrientationEvent:
 
 **Auto-detect permission (v2.5.12+, replaces v2.5.3 localStorage skip):** The permission screen always shows initially on iOS (`typeof DOE.requestPermission === 'function'`). A `useEffect` adds a `deviceorientation` listener — if events are already flowing (beta/gamma not null), it sets `motionPermissionGranted` in localStorage and auto-skips the permission screen. This is more reliable than the previous localStorage-only check, which could be stale (permission revoked since last visit). Tradeoff: returning iOS users may see a brief flash of the permission screen before auto-skip fires.
 
-### Tap-to-Randomize (v2.2.8+, narrowed v2.3.26)
+### Square Segment Calibration (v2.6.76+, replaces tap-to-randomize)
 
-Tapping the feedback segment (middle area between "good days" title and buttons) on the mobile home screen randomizes all 6 color values (text hue/sat/light + bg hue/sat/light) with haptic feedback (10ms vibrate). If paired with a laptop, sends a one-shot `color-update` via the `startStream → sendColorUpdate → stopStream` pattern (same as paste sync).
+Tapping or holding the square segment (middle flex area between title and buttons) calibrates tilt. Same `isCalibratingRef` pattern as the old zero/recalibrate button — tap = single re-zero, hold = continuous calibration (orientation handler re-zeros every frame while held). Drag off pauses calibration, drag back in resumes.
 
-**Touch target (v2.3.26):** Only the middle flex segment (the `flex: 1` area containing the square, between title and button row). The title, buttons, button gaps, and 44px bottom padding do NOT trigger randomize. The `onTouchEnd` handler is directly on the middle segment div.
+**Touch target:** Only the middle flex segment (the `flex: 1` area containing the square, between title and button row). The title, buttons, button gaps, and 44px bottom padding do NOT trigger calibration.
 
-**Previous behavior (v2.2.9–v2.3.25):** The entire inner flex container was the touch target, with `data-btn` exclusions on individual buttons/title. Gaps between buttons and bottom padding still triggered randomize.
+**Title interaction:** Tapping the title shows the version (touchStart/touchEnd) — separate from calibration.
 
-**Title interaction:** Tapping the title shows the version (touchStart/touchEnd) — separate from randomize.
+**Randomize moved to "rand" button (v2.6.76+):** The `handleRandomize` function (randomize all 6 color values + one-shot sync to laptop) is now triggered by the "rand" `MobileButton` in the utility row instead of the square segment.
 
-Code: `handleRandomize` function + `onTouchEnd` on middle segment div in `src/features/mobile/MobileApp.tsx`.
+Code: calibration touch handlers on middle segment div + `handleRandomize` on "rand" button in `src/features/mobile/MobileApp.tsx`.
 
 ### Copy/Paste
 
