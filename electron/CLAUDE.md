@@ -111,6 +111,20 @@ See the **Pro Rebase: Divergent Files** section in the root `CLAUDE.md` for the 
 - `App.tsx` — `titleBarPad` constant, "good days pro" title
 - Export filenames and headers say "good days pro"
 
+## App Store Previews
+
+Preview videos live in `app store previews/` at the project root.
+
+**Required dimensions:** 1920 × 1080px (Apple rejects other sizes)
+
+**Source videos** are screen recordings at 1920×1200 (native MacBook resolution). Scale to 1080 height with ffmpeg:
+
+```bash
+ffmpeg -i preview-1.mp4 -vf "scale=1920:1080" -c:v libx264 -crf 18 -preset medium -c:a copy scaled-preview-1.mp4
+```
+
+Scale (not crop) to preserve all content. The 1200→1080 stretch is only ~10% and barely noticeable. Upload the `scaled-*.mp4` files to App Store Connect.
+
 ## Key Design Decisions
 
 - **Intercept at the lowest level:** All Electron branches are in the private storage functions. Higher-level code routes through automatically.

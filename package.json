@@ -1,12 +1,12 @@
 {
   "name": "good-days",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "electron/dist/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "npm run build:electron && concurrently \"vite --port 5173 --strictPort\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "npm run build:electron && concurrently \"vite --port 5200 --strictPort\" \"wait-on http://localhost:5200 && electron .\"",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:web": "tsc -b && vite build",
     "build:mas": "tsc -b && ELECTRON_BUILD=true vite build && npm run build:electron && electron-builder --mac mas",
@@ -39,7 +39,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
-    "electron": "^34.5.8",
+    "electron": "^38.8.4",
     "electron-builder": "^25.1.8",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

@@ -14,6 +14,7 @@ import { scrambleText, setScrambleSeed as updateGlobalScrambleSeed } from '@shar
 import { getTodayDate } from '@shared/utils/date';
 import { FunctionButton, ErrorBoundary } from '@shared/components';
 import { VERSION } from '@shared/version';
+import { PRO_VERSION } from '@shared/proVersion';
 import { logAction } from '@shared/logger';
 import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
 import { setAppLocked } from '@shared/sync/lockStateRef';
@@ -493,7 +494,7 @@ function AppContent() {
                 return (
                   <div className="text-center select-none" style={{ color: getColor() }}>
                     <h1 className="text-2xl font-extrabold font-mono tracking-tight">
-                      {s(`v${VERSION}`)}
+                      {s(`v${PRO_VERSION}`)}
                     </h1>
                     <p className="text-2xl font-extrabold font-mono tracking-tight">
                       {s(`pairing code ${pairingCode || '---'}`)}
