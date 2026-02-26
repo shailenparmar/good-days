@@ -16,6 +16,7 @@ import { FunctionButton, ErrorBoundary } from '@shared/components';
 import { VERSION } from '@shared/version';
 import { logAction } from '@shared/logger';
 import { WebSyncBridge } from '@shared/sync/WebSyncBridge';
+import { setAppLocked } from '@shared/sync/lockStateRef';
 
 // App-level hooks
 import { useLayoutState } from './hooks/useLayoutState';
@@ -94,6 +95,11 @@ function AppContent() {
   const auth = useAuth();
   const journal = useJournalEntries(auth.encryptionKeyReady);
   const layout = useLayoutState();
+
+  // Sync lock state to module-level store so WebSyncBridge can subscribe
+  useEffect(() => {
+    setAppLocked(auth.isLocked && auth.hasPassword);
+  }, [auth.isLocked, auth.hasPassword]);
 
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(layout.isSuperscramble);

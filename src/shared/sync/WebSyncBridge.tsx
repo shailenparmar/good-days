@@ -1,15 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
-import { useAuth } from '@features/auth';
 import { useWebSync } from './useWebSync';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import { setStreamingControls } from './streamingControlsRef';
+import { useAppLocked } from './lockStateRef';
 import type { ColorPayload } from './protocol';
 
 export function WebSyncBridge() {
   const theme = useTheme();
-  const { isLocked, hasPassword } = useAuth();
-  const locked = isLocked && hasPassword;
+  const locked = useAppLocked();
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
   const themeRef = useRef(theme);
