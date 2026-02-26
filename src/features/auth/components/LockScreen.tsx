@@ -193,7 +193,6 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
             caretColor: textColor,
             outline: 'none',
           }}
-          autoFocus
           aria-label="Password"
         />
         {showPlaceholder && (
