@@ -889,9 +889,28 @@ export default function MobileApp() {
       >
         {title}
 
-        {/* Square complex - centered between title and buttons (tap to randomize) */}
+        {/* Square complex - centered between title and buttons (tap/hold to calibrate tilt) */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onTouchEnd={() => handleRandomize()}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            isCalibratingRef.current = true;
+            setRecalPressed(true);
+            if (navigator.vibrate) navigator.vibrate(10);
+          }}
+          onTouchMove={(e) => {
+            const inside = isTouchInside(e);
+            isCalibratingRef.current = inside;
+            setRecalPressed(inside);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            isCalibratingRef.current = false;
+            setRecalPressed(false);
+          }}
+          onTouchCancel={() => {
+            isCalibratingRef.current = false;
+            setRecalPressed(false);
+          }}
         >
           <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
         </div>
@@ -924,31 +943,13 @@ export default function MobileApp() {
               >
                 <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
               </MobileButton>
-              <div
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  isCalibratingRef.current = true;
-                  setRecalPressed(true);
-                  if (navigator.vibrate) navigator.vibrate(10);
-                }}
-                onTouchMove={(e) => {
-                  const inside = isTouchInside(e);
-                  isCalibratingRef.current = inside;
-                  setRecalPressed(inside);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  isCalibratingRef.current = false;
-                  setRecalPressed(false);
-                }}
-                onTouchCancel={() => {
-                  isCalibratingRef.current = false;
-                  setRecalPressed(false);
-                }}
-                style={getButtonStyle(recalPressed, isLive ? 'center' : 'right', 'aux')}
+              <MobileButton
+                onActivate={handleRandomize}
+                style={getButtonStyle(false, isLive ? 'center' : 'right', 'aux')}
+                getStyle={(pressed) => getButtonStyle(pressed, isLive ? 'center' : 'right', 'aux')}
               >
-                zero
-              </div>
+                rand
+              </MobileButton>
               {isLive && (
                 <MobileButton
                   onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); }}
