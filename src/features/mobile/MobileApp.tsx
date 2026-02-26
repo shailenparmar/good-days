@@ -57,7 +57,7 @@ export default function MobileApp() {
   const [hasCalibrated, setHasCalibrated] = useState(() => localStorage.getItem('hasCalibrated') === '1');
   const [hasUsedPicker, setHasUsedPicker] = useState(false);
   const showCalibHint = hasUsedPicker && !hasCalibrated;
-  const calibHintText = 'tap here to recalibrate';
+  const calibHintText = 'hold here to recalibrate';
   const [calibHintBoldCount, setCalibHintBoldCount] = useState(0);
   const [calibHintBoldPhase, setCalibHintBoldPhase] = useState<'bold' | 'unbold'>('bold');
   useEffect(() => {
