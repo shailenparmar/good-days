@@ -123,10 +123,13 @@ export function WebSyncBridge() {
 
   // Auto-select [live] on new pairing (null → value transition)
   useEffect(() => {
+    if (locked) {
+      prevLiveRef.current = null; // Reset so unlock triggers auto-select
+      return;
+    }
+
     const wasNull = prevLiveRef.current === null;
     prevLiveRef.current = syncState.livePreset;
-
-    if (locked) return;
 
     if (wasNull && syncState.livePreset) {
       markEasterEggFound('liveControl');
@@ -152,10 +155,13 @@ export function WebSyncBridge() {
   // On stream stop, push undo snapshot so each finger-lift is undoable.
   const prevStreamingRef = useRef(false);
   useEffect(() => {
+    if (locked) {
+      prevStreamingRef.current = false; // Reset so unlock detects active stream
+      return;
+    }
+
     const wasStreaming = prevStreamingRef.current;
     prevStreamingRef.current = syncState.isStreaming;
-
-    if (locked) return;
 
     theme.setIsLiveStreaming(syncState.isStreaming);
 
