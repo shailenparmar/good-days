@@ -130,11 +130,12 @@ export default function MobileApp() {
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
 
-  // Throttled WS color update (42ms = ~24fps)
+  // Adaptive throttle: 42ms (~24fps) when desktop settings open, 16ms (~60fps) when closed
   const sendColorThrottled = useCallback((next: ColorState) => {
     if (!sync.isStreamingRef.current || sync.wsRef.current?.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
-    if (now - lastWsSendRef.current >= 42) {
+    const throttleMs = sync.desktopSettingsOpenRef.current ? 42 : 16;
+    if (now - lastWsSendRef.current >= throttleMs) {
       lastWsSendRef.current = now;
       sync.sendColorUpdate(next);
     }
