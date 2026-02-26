@@ -692,8 +692,6 @@ export default function MobileApp() {
     return { ...base, borderLeftWidth: '4px', borderRightWidth: '4px', borderRadius: '12px' };
   };
 
-  const [recalPressed, setRecalPressed] = useState(false);
-
   // Title hold to show version — persists across refresh so you don't have to re-press
   const [titlePressed, setTitlePressed] = useState(() => sessionStorage.getItem('titlePressed') === '1');
   const setTitlePressedPersist = (v: boolean) => {
@@ -894,22 +892,17 @@ export default function MobileApp() {
           onTouchStart={(e) => {
             e.preventDefault();
             isCalibratingRef.current = true;
-            setRecalPressed(true);
             if (navigator.vibrate) navigator.vibrate(10);
           }}
           onTouchMove={(e) => {
-            const inside = isTouchInside(e);
-            isCalibratingRef.current = inside;
-            setRecalPressed(inside);
+            isCalibratingRef.current = isTouchInside(e);
           }}
           onTouchEnd={(e) => {
             e.preventDefault();
             isCalibratingRef.current = false;
-            setRecalPressed(false);
           }}
           onTouchCancel={() => {
             isCalibratingRef.current = false;
-            setRecalPressed(false);
           }}
         >
           <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} />
