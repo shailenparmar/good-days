@@ -136,7 +136,7 @@ export function SettingsPanel({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="w-80 flex flex-col h-screen overflow-y-auto scrollbar-hide"
+      className="w-80 flex flex-col h-screen overflow-y-auto overflow-x-hidden scrollbar-hide"
       style={{
         backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))',
         borderRight: '6px solid hsla(var(--h), var(--s), var(--l), 0.85)'

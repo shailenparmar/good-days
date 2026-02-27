@@ -33,6 +33,6 @@ export const ABOUT_COPY = {
     ],
   },
 
-  closing: "i hope you like this place. here's to many colorways and many more good days.",
+  closing: "i hope you like this place. here's to many colorways, and many more good days.",
   copyright: "\u00A9 2026 shailen parmar",
 } as const;

@@ -28,7 +28,7 @@ the only other way to lose logs is manually deleting site data in browser settin
 
 ---
 
-i hope you like this place. here's to many colorways and many more good days.
+i hope you like this place. here's to many colorways, and many more good days.
 
 © 2026 shailen parmar
 

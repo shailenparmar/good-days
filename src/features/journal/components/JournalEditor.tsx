@@ -385,7 +385,7 @@ export function JournalEditor({
         onBlur={() => setIsFocused(false)}
         readOnly={!isToday}
         wrap="soft"
-        className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
+        className="absolute inset-0 p-8 w-full h-full resize-none overflow-y-auto overflow-x-hidden scrollbar-hide focus:outline-none text-base leading-relaxed font-mono font-bold bg-transparent border-none journal-textarea whitespace-pre-wrap break-words"
         style={{ color: isScrambled ? 'transparent' : getColor(), overscrollBehavior: isScrambled ? 'none' : undefined }}
         spellCheck={false}
         aria-label={isToday ? 'Journal entry content' : 'Journal entry (read-only)'}

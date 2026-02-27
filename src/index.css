@@ -15,6 +15,7 @@ html, body {
 /* No cursor changes - keep default arrow everywhere except text areas */
 *, *::before, *::after {
   cursor: inherit;
+  -webkit-user-drag: none;
 }
 
 html {

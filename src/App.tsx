@@ -523,7 +523,7 @@ function AppContent() {
 
         {/* Entries list */}
         <div
-          className="flex-1 overflow-y-auto scrollbar-hide"
+          className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
           style={{ backgroundColor: 'hsl(var(--bh), var(--bs), min(100%, calc(var(--bl) + 2%)))', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
