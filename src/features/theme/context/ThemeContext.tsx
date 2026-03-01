@@ -5,9 +5,9 @@ import type { ColorPreset, ThemeState, ThemeActions, PresetState, PresetActions,
 export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 63, sat: 100, light: 12, bgHue: 52, bgSat: 100, bgLight: 91 },
   { hue: 229, sat: 61, light: 100, bgHue: 271, bgSat: 100, bgLight: 52 },
-  { hue: 43, sat: 83, light: 56, bgHue: 0, bgSat: 100, bgLight: 23 },
-  { hue: 252, sat: 100, light: 15, bgHue: 180, bgSat: 15, bgLight: 90 },
-  { hue: 116, sat: 80, light: 75, bgHue: 213, bgSat: 77, bgLight: 22 },
+  { hue: 289, sat: 60, light: 18, bgHue: 42, bgSat: 59, bgLight: 34 },
+  { hue: 213, sat: 48, light: 21, bgHue: 180, bgSat: 67, bgLight: 57 },
+  { hue: 32, sat: 74, light: 91, bgHue: 120, bgSat: 77, bgLight: 21 },
 ];
 
 interface ThemeContextValue extends ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions {}
