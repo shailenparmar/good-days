@@ -113,7 +113,7 @@ Default presets are defined in `src/features/theme/context/ThemeContext.tsx`:
 |--------|------------|------------------|-------------|
 | **1** | hsl(63, 100%, 12%) dark olive #3a3d00 | hsl(52, 100%, 91%) light yellow #fff9d1 | Default for new users |
 | **2** | hsl(242, 83%, 43%) indigo #1913c9 | hsl(271, 100%, 71%) purple #b86bff | — |
-| **3** | hsl(32, 34%, 74%) muted tan #d3bea6 | hsl(120, 77%, 21%) deep green #0c5f0c | — |
+| **3** | hsl(116, 100%, 53%) icon green #1fff0f | hsl(0, 0%, 0%) black #000000 | — |
 | **4** | hsl(344, 83%, 56%) hot pink #ec3263 | hsl(0, 100%, 23%) dark red #750000 | — |
 | **5** | hsl(34, 65%, 43%) burnt orange #b57726 | hsl(168, 100%, 8%) dark teal #002921 | — |
 
