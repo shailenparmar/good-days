@@ -7,7 +7,7 @@ export const DEFAULT_PRESETS: ColorPreset[] = [
   { hue: 242, sat: 83, light: 43, bgHue: 326, bgSat: 100, bgLight: 71 },
   { hue: 32, sat: 34, light: 74, bgHue: 120, bgSat: 77, bgLight: 21 },
   { hue: 347, sat: 81, light: 10, bgHue: 0, bgSat: 80, bgLight: 42 },
-  { hue: 289, sat: 60, light: 18, bgHue: 42, bgSat: 59, bgLight: 34 },
+  { hue: 289, sat: 60, light: 18, bgHue: 42, bgSat: 76, bgLight: 48 },
 ];
 
 interface ThemeContextValue extends ThemeState, ThemeActions, PresetState, PresetActions, ColorwayTracking, LiveSyncState, LiveSyncActions {}
