@@ -6,6 +6,19 @@ import { getTodayDate } from '@shared/utils/date';
 import { markEasterEggFound } from '@shared/utils/easterEggs';
 import type { JournalEntry } from '../types';
 
+// Convert HSL values to hex color (#RRGGBB)
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 // Convert hex color (#RRGGBB) to HSL values
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const r = parseInt(hex.slice(0, 2), 16) / 255;
@@ -221,6 +234,24 @@ export function JournalEditor({
       }
 
       markEasterEggFound('timeCommand');
+      commandFired = true;
+    }
+
+    // \color — replace with current theme colors (txt + bg hex and HSL)
+    const colorInfoRegex = /\\color(?![a-z])/i;
+    let colorInfoMatch = newValue.match(colorInfoRegex);
+    if (colorInfoMatch) {
+      const txtHex = hslToHex(hue, saturation, lightness);
+      const bgHex = hslToHex(bgHue, bgSaturation, bgLightness);
+      const colorText = `txt: ${txtHex} h${hue} s${saturation} l${lightness}\nbg: ${bgHex} h${bgHue} s${bgSaturation} l${bgLightness}`;
+
+      while (colorInfoMatch) {
+        const i = colorInfoMatch.index!;
+        newValue = newValue.substring(0, i) + colorText + newValue.substring(i + 6);
+        cursorPosition = i + colorText.length;
+        colorInfoMatch = newValue.match(colorInfoRegex);
+      }
+
       commandFired = true;
     }
 
