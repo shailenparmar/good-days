@@ -100,6 +100,7 @@ Backslash commands are processed in `handleChange`. All commands loop to handle 
 | Command | Effect | Vanishes? |
 |---------|--------|-----------|
 | `\time` | Replaces with `[timestamp]` | No (replaced) |
+| `\color` | Replaces with current theme colors (hex + HSL) | No (replaced) |
 | `\t#RRGGBB` | Sets text color | Yes |
 | `\txt#RRGGBB` | Sets text color | Yes |
 | `\text#RRGGBB` | Sets text color | Yes |
@@ -117,6 +118,10 @@ Backslash commands are processed in `handleChange`. All commands loop to handle 
 The HSL format matches the app's copy/paste output (`txt: #hex hN sN lN`). When HSL values are present they're used directly (avoids hex round-trip precision loss). `trackCurrentColorway()` is called once after all color commands are processed.
 
 **`hexToHsl` utility:** Local to `JournalEditor.tsx` (next to `scrambleChar`). Converts `#RRGGBB` → `{ h, s, l }`. Inverse of the `hslToHex` in `StatsDisplay.tsx`.
+
+**`hslToHex` utility (v2.6.99+):** Also local to `JournalEditor.tsx`. Converts `(h, s, l)` → `#RRGGBB`. Used by `\color` command. Same implementation as `StatsDisplay.tsx`.
+
+**`\color` command (v2.6.99+):** Replaces `\color` with the current theme colors in the format `txt: #hex hN sN lN\nbg: #hex hN sN lN`. Output is round-trippable — can be pasted back to restore colors via `\txt:` / `\bg:` commands.
 
 ### Scramble Mode
 
