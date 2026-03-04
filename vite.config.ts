@@ -54,7 +54,7 @@ export default defineConfig({
       },
     })] : []),
   ],
-  base: '/', // Custom domain (gdays.day) serves from root
+  base: isElectronBuild ? './' : '/', // Electron needs relative paths for file:// protocol
   resolve: {
     alias: {
       '@features': path.resolve(__dirname, './src/features'),
