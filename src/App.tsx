@@ -114,7 +114,6 @@ function AppContent() {
   const [editorKey, setEditorKey] = useState(0);
   const [scrambleSeed, setScrambleSeed] = useState(0);
   const [titleEditing, setTitleEditing] = useState(false);
-  const [footerHeight, setFooterHeight] = useState(0);
 
   const { getColor, trackCurrentColorway, randomizeTheme, pairingCode } = theme;
 
@@ -684,18 +683,6 @@ function AppContent() {
             superscramble={layout.isSuperscramble}
             scrambleSeed={scrambleSeed}
             onClick={() => layout.enterZen()}
-            onHeightChange={setFooterHeight}
-          />
-        )}
-
-        {/* Zen exit hitbox — invisible strip at bottom, exact same height as footer */}
-        {layout.zenMode && footerHeight > 0 && (
-          <div
-            onClick={() => layout.exitZen()}
-            style={{
-              height: footerHeight,
-              flexShrink: 0,
-            }}
           />
         )}
       </div>

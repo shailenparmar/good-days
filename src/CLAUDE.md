@@ -417,8 +417,6 @@ Both modes share the same 3-layout pattern:
 │                                    │
 │              Editor                │ ← ESC → restore previous state
 │                                    │
-│────────────────────────────────────│
-│  [zen exit hitbox]                 │ ← click → exitZen() (same as ESC)
 └────────────────────────────────────┘
 ```
 
@@ -432,14 +430,12 @@ Both modes follow the same 3-layout bounce pattern: Base ↔ Middle ↔ Zen.
 | Base | footer click | Zen | Saves state to `preFocusState` |
 | Middle | header click | Base | Wide: show sidebar. Narrow: toggle sidebar |
 | Middle | footer click | Zen | Saves state to `preFocusState` |
-| Zen (from Base) | ESC or hitbox click | Base | Restores full layout |
-| Zen (from Middle) | ESC or hitbox click | Middle | Restores middle layout |
+| Zen (from Base) | ESC | Base | Restores full layout |
+| Zen (from Middle) | ESC | Middle | Restores middle layout |
 
 **Narrow-specific sidebar auto-close:** When sidebar is visible in narrow mode, these actions hide it and return to Default: **click editor**, **start typing**, **click overlay**. This auto-close is NOT a "commit" (doesn't clear `preNarrowState`).
 
 **Zen remembers where you came from** via `zenFromMinizen`: if zen was entered from minizen, `exitZen()` returns to minizen (keeps `preFocusState`); if from full, restores everything.
-
-**Zen exit hitbox (v2.7.14+):** An invisible div at the bottom of zen mode, matching the footer's exact rendered height (measured via `onHeightChange` ref callback in `EntryFooter`). Clicking it calls `exitZen()` — identical to pressing ESC. The height is captured from the footer's `getBoundingClientRect().height` before zen mode hides it, stored in `footerHeight` state in `AppContent`. No state machine changes needed — `exitZen()` handles all entry paths (from full, from minizen, from ESC bounce).
 
 ### Resize Transitions
 
@@ -507,8 +503,7 @@ const showFooter = !zenMode;
 |---------|-----------|-------------|
 | Header | Toggle minizen | Toggle sidebar |
 | Footer | Enter zen (save state) | Enter zen (save state) |
-| Zen exit hitbox | exitZen() (same as ESC) | exitZen() (same as ESC) |
-| Editor (in zen) | No click exit | No click exit |
+| Editor (in zen) | No click exit (ESC only) | No click exit (ESC only) |
 | Sidebar area | Close panels | Close panels |
 | Sidebar overlay | N/A | Close sidebar + panels |
 
