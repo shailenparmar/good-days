@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { useTheme } from '@features/theme';
 import { scrambleText } from '@shared/utils/scramble';
 
@@ -6,13 +7,21 @@ interface EntryFooterProps {
   superscramble?: boolean;
   scrambleSeed?: number;
   onClick?: () => void;
+  onHeightChange?: (height: number) => void;
 }
 
-export function EntryFooter({ currentContent, superscramble, scrambleSeed, onClick }: EntryFooterProps) {
+export function EntryFooter({ currentContent, superscramble, scrambleSeed, onClick, onHeightChange }: EntryFooterProps) {
   // Suppress unused variable warning - scrambleSeed is used to trigger re-renders
   void scrambleSeed;
 
   const { getColor } = useTheme();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current && onHeightChange) {
+      onHeightChange(ref.current.getBoundingClientRect().height);
+    }
+  });
 
   const wordCount = currentContent.split(/\s+/).filter(Boolean).length;
   const charCount = currentContent.length;
@@ -22,6 +31,7 @@ export function EntryFooter({ currentContent, superscramble, scrambleSeed, onCli
 
   return (
     <div
+      ref={ref}
       className="p-4 font-mono font-extrabold sticky bottom-0 z-10 text-right select-none"
       style={{
         fontSize: '14px',
