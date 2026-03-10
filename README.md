@@ -1,6 +1,6 @@
-# [good days](https://gdays.day)
+# good days
 
-welcome to good days.
+welcome to [good days](https://gdays.day)
 
 ## features
 
