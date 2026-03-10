@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { registerStorageHandlers } from './storage.js';
@@ -33,6 +33,32 @@ app.whenReady().then(() => {
   registerStorageHandlers();
   registerBackupHandlers();
   createWindow();
+
+  const menu = Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { role: 'editMenu' },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        {
+          label: 'good days pro',
+          click: () => {
+            const wins = BrowserWindow.getAllWindows();
+            if (wins.length > 0) {
+              wins[0].show();
+              wins[0].focus();
+            } else {
+              createWindow();
+            }
+          },
+        },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

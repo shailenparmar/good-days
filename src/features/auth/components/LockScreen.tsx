@@ -171,10 +171,10 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       }}
     >
       <span
-        className="fixed top-4 left-4 text-2xl font-extrabold font-mono tracking-tight select-none"
-        style={{ color: textColor }}
+        className="fixed left-4 text-2xl font-extrabold font-mono tracking-tight select-none"
+        style={{ color: textColor, top: '30px' }}
       >
-        good days
+        good days pro
       </span>
       <form onSubmit={handleSubmit} className="relative w-72" role="form" aria-label="Unlock journal">
         <input
