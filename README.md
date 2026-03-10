@@ -1,7 +1,5 @@
 # good days
 
----
-
 welcome to good days. 
 
 ## features
