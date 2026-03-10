@@ -1,6 +1,8 @@
 # good days
 
-welcome to [good days](https://gdays.day).
+welcome to good days. 
+
+---
 
 ## features
 
@@ -31,8 +33,6 @@ the only other way to lose logs is manually deleting site data in browser settin
 ## good days pro
 
 good days pro is the native mac app. it's the maxxed out good days experience for true powerusers: entries are saved fully locally with a huge flawless fullscreen mode. it's available on the apple app store for a modest price.
-
----
 
 i hope you like this place. here's to many colorways and many more good days.
 
