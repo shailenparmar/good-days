@@ -30,7 +30,7 @@ the only other way to lose logs is manually deleting site data in browser settin
 
 ## good days pro
 
-good days pro is the native mac app. it's the maxxed out good days experience for true powerusers. it boasts a flawless fullscreen mode and no browser intermediary. download it from the apple app store for a modest price. 
+good days pro is the native mac app. it's the maxxed out good days experience for true powerusers. it boasts a flawless fullscreen mode and no browser intermediary for total peace of mind. download it from the apple app store for a modest price. 
 
 here's to many colorways and many more good days.
 
