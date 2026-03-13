@@ -92,6 +92,8 @@ On mobile devices, the app shows a color picker using touch + accelerometer cont
 
 Home and picker share zIndex 10 (mutually exclusive). Home only shows when `pairingState` is `'paired'` or `'standalone'` — during `'connecting'` the base canvas is the only visible layer, giving a clean resting state before WS resolves.
 
+**Connection timeout fallback (v2.7.18+):** If `pairingState` stays `'connecting'` for 5 seconds (WS fails to connect or server doesn't respond), `useMobileSync` falls back to `'enter-code'` so the user sees the pairing code screen with skip instead of a blank canvas. The WS keeps retrying in the background — if it connects, the server's response (`paired`, `enter-code`, `unpaired`) overrides the fallback normally. The timeout is cleared on successful `onopen`, reset on visibility visible, and cleaned up on visibility hidden and unmount.
+
 **Permission Screen** (iOS only, first visit):
 ```
 ┌────────────────────────────────┐
