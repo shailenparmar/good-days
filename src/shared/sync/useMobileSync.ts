@@ -38,6 +38,7 @@ export function useMobileSync(): MobileSyncHandle {
   const wsRef = useRef<WebSocket | null>(null);
   const isStreamingRef = useRef(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
   const hiddenRef = useRef(false);
@@ -57,6 +58,15 @@ export function useMobileSync(): MobileSyncHandle {
     const url = getWsUrl();
     if (!url) return;
 
+    // If still connecting after 5s, fall back to enter-code so the user isn't stuck
+    if (connectingTimeoutRef.current) clearTimeout(connectingTimeoutRef.current);
+    connectingTimeoutRef.current = setTimeout(() => {
+      if (pairingStateRef.current === 'connecting' && mountedRef.current) {
+        pairingStateRef.current = 'enter-code';
+        setPairingState('enter-code');
+      }
+    }, 5000);
+
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -66,6 +76,10 @@ export function useMobileSync(): MobileSyncHandle {
         backoffRef.current = 1000;
         pairingStateRef.current = 'standalone';
         codeSubmittedRef.current = false;
+        if (connectingTimeoutRef.current) {
+          clearTimeout(connectingTimeoutRef.current);
+          connectingTimeoutRef.current = null;
+        }
         if (reconnectTimer.current) {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
@@ -195,10 +209,16 @@ export function useMobileSync(): MobileSyncHandle {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
         }
+        if (connectingTimeoutRef.current) {
+          clearTimeout(connectingTimeoutRef.current);
+          connectingTimeoutRef.current = null;
+        }
         backoffRef.current = 1000;
       } else if (document.visibilityState === 'visible') {
         hiddenRef.current = false;
         skippedPairingRef.current = false;
+        pairingStateRef.current = 'connecting';
+        setPairingState('connecting');
         backoffRef.current = 1000;
         connect();
       }
@@ -213,6 +233,10 @@ export function useMobileSync(): MobileSyncHandle {
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
+      }
+      if (connectingTimeoutRef.current) {
+        clearTimeout(connectingTimeoutRef.current);
+        connectingTimeoutRef.current = null;
       }
     };
   }, [connect]);
