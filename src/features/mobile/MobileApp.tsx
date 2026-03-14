@@ -54,7 +54,7 @@ export default function MobileApp() {
   }, [showCodePlaceholder]);
 
   // Bold sweep hint for calibration — shows after first picker return, dismissed permanently on tap
-  const [hasCalibrated, setHasCalibrated] = useState(() => localStorage.getItem('hasCalibrated') === '1');
+  const [hasCalibrated, setHasCalibrated] = useState(false);
   const [hasUsedPicker, setHasUsedPicker] = useState(false);
   const showCalibHint = hasUsedPicker && !hasCalibrated;
   const calibHintText = 'hold here to recalibrate';
@@ -922,7 +922,6 @@ export default function MobileApp() {
             setIsCalibrating(true);
             if (navigator.vibrate) navigator.vibrate(10);
             if (!hasCalibrated) {
-              localStorage.setItem('hasCalibrated', '1');
               setHasCalibrated(true);
             }
           }}
