@@ -28,6 +28,8 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Eager ref update (v2.6.6+):** `saveTitle()` updates `entriesRef.current` eagerly (before `setEntries`), matching the pattern used by `saveEntry()`. Previously, the ref was updated inside the `setEntries` callback, creating a race where a debounced `saveEntry()` could read stale `entriesRef` without the title and overwrite it with `undefined` in IndexedDB.
 
+**Blank entry guard (v2.7.20+):** `saveTitle()` returns early without persisting if both content and title are empty. This prevents the in-memory "ensure today" placeholder (which has no `startedAt`) from being written to IndexedDB when the user clicks the date header and blurs without typing a title. Also sets `startedAt` to `now` when missing on any title save — so a title-only entry (no body content) correctly records when the user titled it. A title alone is a valid entry; clearing the title on a day with no content removes the entry.
+
 ## Editor Implementation
 
 ### Backup Branch
