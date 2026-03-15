@@ -268,19 +268,29 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     let updatedEntry: JournalEntry;
 
     if (existingIndex >= 0) {
+      const existing = currentEntries[existingIndex];
+      const trimmedTitle = title.trim() || undefined;
+
+      // Don't persist a blank entry (no content, no title) — it's just the in-memory placeholder
+      if (!existing.content && !trimmedTitle) return;
+
       newEntries = [...currentEntries];
       updatedEntry = {
-        ...newEntries[existingIndex],
-        title: title.trim() || undefined,
+        ...existing,
+        title: trimmedTitle,
+        startedAt: existing.startedAt || now,
         lastModified: now,
       };
       newEntries[existingIndex] = updatedEntry;
     } else {
-      // Entry doesn't exist yet (e.g. brand new user, no entries at all)
+      // Entry doesn't exist yet — don't create one for an empty title
+      const trimmedTitle = title.trim() || undefined;
+      if (!trimmedTitle) return;
+
       updatedEntry = {
         date,
         content: '',
-        title: title.trim() || undefined,
+        title: trimmedTitle,
         startedAt: now,
         lastModified: now,
       };
