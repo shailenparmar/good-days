@@ -162,8 +162,9 @@ export function useAuth() {
     refreshHasPassword();
   }, [refreshHasPassword]);
 
-  const handlePasswordSubmit = useCallback(async (e: React.FormEvent): Promise<boolean> => {
+  const handlePasswordSubmit = useCallback(async (e: React.FormEvent, password: string): Promise<boolean> => {
     e.preventDefault();
+    const trimmed = password.trim();
     const storedHash = getItem(PASSWORD_KEY);
     const storedSalt = getItem(PASSWORD_SALT_KEY);
 
@@ -179,11 +180,10 @@ export function useAuth() {
       return true; // Treat as successful unlock since there's no password
     }
 
-    const inputHash = await hashPassword(passwordInput.trim(), storedSalt);
+    const inputHash = await hashPassword(trimmed, storedSalt);
 
     if (timingSafeEqual(inputHash, storedHash)) {
       // Password correct — unlock immediately, derive key in background
-      const password = passwordInput.trim();
       setIsLocked(false);
       sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
       setPasswordInput('');
@@ -193,7 +193,7 @@ export function useAuth() {
 
       // Derive encryption key asynchronously — entries load when encryptionKeyReady flips
       (async () => {
-        const encKey = await derivePasswordKey(password);
+        const encKey = await derivePasswordKey(trimmed);
         setEncryptionKey(encKey, 'password');
         const jwk = await exportKeyToJWK(encKey);
         sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
@@ -206,7 +206,7 @@ export function useAuth() {
       logAction('auth.unlock.fail');
       return false;
     }
-  }, [passwordInput]);
+  }, []);
 
   const setPassword = useCallback(async (newPassword: string): Promise<boolean> => {
     const trimmed = newPassword.trim();

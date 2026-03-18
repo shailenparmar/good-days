@@ -4,7 +4,7 @@ import { useTheme } from '@features/theme';
 interface LockScreenProps {
   passwordInput: string;
   onPasswordChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => Promise<boolean>;
+  onSubmit: (e: React.FormEvent, password: string) => Promise<boolean>;
 }
 
 export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockScreenProps) {
@@ -115,10 +115,12 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     if (isSubmitting) return;
     if (isCoolingDown) return;
 
+    // Read password from the DOM directly — React state may be stale if user typed fast
+    const password = inputRef.current?.value || '';
     setIsSubmitting(true);
     // Yield a frame so React can paint the disabled state before PBKDF2 blocks the thread
     await new Promise(r => requestAnimationFrame(r));
-    const success = await onSubmit(e);
+    const success = await onSubmit(e, password);
     setIsSubmitting(false);
 
     if (success) {
