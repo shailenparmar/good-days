@@ -983,12 +983,7 @@ export default function MobileApp() {
         </div>
 
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
-          {pasteInvalid ? (
-            <div style={{ ...getButtonStyle(false, 'full', 'aux'), color: errorColor, borderColor: errorColor }}>
-              invalid format
-            </div>
-          ) : (
-            <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex' }}>
               {copyConfirmed ? (
                 <div style={{ ...getButtonStyle(false, 'left', 'aux'), color: confirmColor, borderColor: confirmColor }}>
                   copied
@@ -1002,7 +997,11 @@ export default function MobileApp() {
                   copy
                 </MobileButton>
               )}
-              {pasteConfirmed ? (
+              {pasteInvalid ? (
+                <div style={{ ...getButtonStyle(false, 'center', 'aux'), color: errorColor, borderColor: errorColor }}>
+                  fail
+                </div>
+              ) : pasteConfirmed ? (
                 <div style={{ ...getButtonStyle(false, 'center', 'aux'), color: confirmColor, borderColor: confirmColor }}>
                   pasted
                 </div>
@@ -1045,7 +1044,6 @@ export default function MobileApp() {
                 )
               )}
             </div>
-          )}
 
           <div style={{ display: 'flex' }}>
             <div
