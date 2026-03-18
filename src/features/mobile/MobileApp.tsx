@@ -622,6 +622,7 @@ export default function MobileApp() {
           sync.sendColorUpdate(newColors);
           sync.stopStream();
         }
+        setPasteConfirmed(true);
       } else {
         setPasteInvalid(true);
       }
@@ -678,16 +679,17 @@ export default function MobileApp() {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [saveConfirmed, setSaveConfirmed] = useState(false);
   const [copyConfirmed, setCopyConfirmed] = useState(false);
+  const [pasteConfirmed, setPasteConfirmed] = useState(false);
 
-  // Dismiss "saved"/"copied" confirmation on any touch
+  // Dismiss "saved"/"copied"/"pasted" confirmation on any touch
   useEffect(() => {
-    if (!saveConfirmed && !copyConfirmed) return;
-    const dismiss = () => { setSaveConfirmed(false); setCopyConfirmed(false); };
+    if (!saveConfirmed && !copyConfirmed && !pasteConfirmed) return;
+    const dismiss = () => { setSaveConfirmed(false); setCopyConfirmed(false); setPasteConfirmed(false); };
     window.addEventListener('touchstart', dismiss, true);
     return () => {
       window.removeEventListener('touchstart', dismiss, true);
     };
-  }, [saveConfirmed, copyConfirmed]);
+  }, [saveConfirmed, copyConfirmed, pasteConfirmed]);
 
   const { confirm: confirmColor, error: errorColor } = useMemo(
     () => getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight),
@@ -1000,20 +1002,26 @@ export default function MobileApp() {
                   copy
                 </MobileButton>
               )}
-              <MobileButton
-                onActivate={handlePaste}
-                style={getButtonStyle(false, 'center', 'aux')}
-                getStyle={(pressed) => ({ ...getButtonStyle(pressed, 'center', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)}
-                extraProps={{
-                  role: 'button',
-                  tabIndex: -1,
-                  writingSuggestions: 'false',
-                  contentEditable: false,
-                  spellCheck: false,
-                }}
-              >
-                <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
-              </MobileButton>
+              {pasteConfirmed ? (
+                <div style={{ ...getButtonStyle(false, 'center', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                  pasted
+                </div>
+              ) : (
+                <MobileButton
+                  onActivate={handlePaste}
+                  style={getButtonStyle(false, 'center', 'aux')}
+                  getStyle={(pressed) => ({ ...getButtonStyle(pressed, 'center', 'aux'), WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)}
+                  extraProps={{
+                    role: 'button',
+                    tabIndex: -1,
+                    writingSuggestions: 'false',
+                    contentEditable: false,
+                    spellCheck: false,
+                  }}
+                >
+                  <span style={{ pointerEvents: 'none' }}>{'p'}{'a'}{'s'}{'t'}{'e'}</span>
+                </MobileButton>
+              )}
               <MobileButton
                 onActivate={handleRandomize}
                 style={getButtonStyle(false, isLive ? 'center' : 'right', 'aux')}
