@@ -26,7 +26,9 @@ Password unlock is split into two phases for instant feedback:
 
 **Re-lock case:** When ESC-locking and re-unlocking, the encryption key is still in memory (`encryptionKeyReady` never went false). `App.tsx` checks `auth.encryptionKeyReady` — if already true, calls `reloadEntries()` directly. The background derivation still runs but is harmless (overwrites with the same key).
 
-Code locations: `useAuth.ts` (`handlePasswordSubmit`), `LockScreen.tsx` (`handleSubmit`), `App.tsx` (`handlePasswordSubmit`)
+**Progressive entry loading (v2.7.23+):** `initJournalStorage` accepts an optional `onProgress` callback. When provided, entries decrypt one at a time (sequential `for` loop instead of `Promise.all`), calling `onProgress` with the cumulative sorted array after each entry. `useJournalEntries` passes a callback that updates `setEntries` progressively — sidebar entries spawn visibly as they decrypt. The final `.then()` sets `isLoading = false` and updates `currentContent`. Without the callback (non-unlock loads like `reloadEntries`), the fast `Promise.all` path is used.
+
+Code locations: `useAuth.ts` (`handlePasswordSubmit`), `LockScreen.tsx` (`handleSubmit`), `App.tsx` (`handlePasswordSubmit`), `journalStorage.ts` (`initJournalStorage`, `getEntriesFromIndexedDB`)
 
 ### Password Dead Man's Switch (v2.1.32+)
 
