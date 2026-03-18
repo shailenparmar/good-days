@@ -592,6 +592,7 @@ export default function MobileApp() {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     // Fall back to clipboard API if execCommand failed
     if (!ok) navigator.clipboard.writeText(text).catch(() => {});
+    setCopyConfirmed(true);
   };
 
   // Paste
@@ -675,6 +676,18 @@ export default function MobileApp() {
   }, [sync.codeRejectedCount]);
 
   const [isCalibrating, setIsCalibrating] = useState(false);
+  const [saveConfirmed, setSaveConfirmed] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
+
+  // Dismiss "saved"/"copied" confirmation on any touch
+  useEffect(() => {
+    if (!saveConfirmed && !copyConfirmed) return;
+    const dismiss = () => { setSaveConfirmed(false); setCopyConfirmed(false); };
+    window.addEventListener('touchstart', dismiss, true);
+    return () => {
+      window.removeEventListener('touchstart', dismiss, true);
+    };
+  }, [saveConfirmed, copyConfirmed]);
 
   const { confirm: confirmColor, error: errorColor } = useMemo(
     () => getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight),
@@ -974,13 +987,19 @@ export default function MobileApp() {
             </div>
           ) : (
             <div style={{ display: 'flex' }}>
-              <MobileButton
-                onActivate={handleCopy}
-                style={getButtonStyle(false, 'left', 'aux')}
-                getStyle={(pressed) => getButtonStyle(pressed, 'left', 'aux')}
-              >
-                copy
-              </MobileButton>
+              {copyConfirmed ? (
+                <div style={{ ...getButtonStyle(false, 'left', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                  copied
+                </div>
+              ) : (
+                <MobileButton
+                  onActivate={handleCopy}
+                  style={getButtonStyle(false, 'left', 'aux')}
+                  getStyle={(pressed) => getButtonStyle(pressed, 'left', 'aux')}
+                >
+                  copy
+                </MobileButton>
+              )}
               <MobileButton
                 onActivate={handlePaste}
                 style={getButtonStyle(false, 'center', 'aux')}
@@ -1003,13 +1022,19 @@ export default function MobileApp() {
                 rand
               </MobileButton>
               {isLive && (
-                <MobileButton
-                  onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); }}
-                  style={getButtonStyle(false, 'right', 'aux')}
-                  getStyle={(pressed) => getButtonStyle(pressed, 'right', 'aux')}
-                >
-                  save
-                </MobileButton>
+                saveConfirmed ? (
+                  <div style={{ ...getButtonStyle(false, 'right', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                    saved
+                  </div>
+                ) : (
+                  <MobileButton
+                    onActivate={() => { sync.sendSave(colors); if (navigator.vibrate) navigator.vibrate(10); setSaveConfirmed(true); }}
+                    style={getButtonStyle(false, 'right', 'aux')}
+                    getStyle={(pressed) => getButtonStyle(pressed, 'right', 'aux')}
+                  >
+                    save
+                  </MobileButton>
+                )
               )}
             </div>
           )}
