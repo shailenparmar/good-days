@@ -14,6 +14,20 @@ After 3 consecutive failed password attempts, the lock screen enforces an expone
 
 Code location: `src/features/auth/components/LockScreen.tsx`
 
+### Deferred Key Derivation (v2.7.21+)
+
+Password unlock is split into two phases for instant feedback:
+
+**Phase 1 — Hash check (blocks, ~200ms):** `hashPassword` (one PBKDF2 100k iterations) + `timingSafeEqual` comparison. Returns `true`/`false` immediately. Wrong password flashes red. Right password dismisses lock screen (`setIsLocked(false)`) before any key derivation.
+
+**Phase 2 — Key derivation (background, non-blocking):** On correct password, a fire-and-forget async IIFE runs `derivePasswordKey` (second PBKDF2) + `exportKeyToJWK` + sets `encryptionKeyReady = true`. The `useJournalEntries` effect watches `encryptionKeyReady` and loads/decrypts entries when it flips. Entries "spawn" into the journal as they load.
+
+**Frame yield:** `LockScreen.handleSubmit` yields a `requestAnimationFrame` after `setIsSubmitting(true)` so React can paint the disabled state before the blocking PBKDF2 call.
+
+**Re-lock case:** When ESC-locking and re-unlocking, the encryption key is still in memory (`encryptionKeyReady` never went false). `App.tsx` checks `auth.encryptionKeyReady` — if already true, calls `reloadEntries()` directly. The background derivation still runs but is harmless (overwrites with the same key).
+
+Code locations: `useAuth.ts` (`handlePasswordSubmit`), `LockScreen.tsx` (`handleSubmit`), `App.tsx` (`handlePasswordSubmit`)
+
 ### Password Dead Man's Switch (v2.1.32+)
 
 If a user has password protection enabled and then clears cookies/site data (which wipes localStorage but not IndexedDB), the journal entries self-destruct on next load. This prevents someone from bypassing the password by clearing browser data.
