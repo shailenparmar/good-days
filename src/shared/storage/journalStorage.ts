@@ -325,7 +325,7 @@ function parseLocalStorageEntries(): JournalEntry[] {
 }
 
 // Get all entries from IndexedDB (decrypts after read)
-async function getEntriesFromIndexedDB(db: IDBDatabase): Promise<JournalEntry[]> {
+async function getEntriesFromIndexedDB(db: IDBDatabase, onProgress?: (entries: JournalEntry[]) => void): Promise<JournalEntry[]> {
   const rawRecords = await new Promise<unknown[]>((resolve, reject) => {
     const transaction = db.transaction(ENTRIES_STORE, 'readonly');
     const store = transaction.objectStore(ENTRIES_STORE);
@@ -334,8 +334,21 @@ async function getEntriesFromIndexedDB(db: IDBDatabase): Promise<JournalEntry[]>
     request.onsuccess = () => resolve(request.result);
   });
 
-  // Decrypt all entries in parallel
   if (currentKey) {
+    if (onProgress) {
+      // Decrypt one at a time, yielding each entry progressively
+      const entries: JournalEntry[] = [];
+      for (const record of rawRecords) {
+        const entry = await decryptEntry(record);
+        if (entry) {
+          entries.push(entry);
+          entries.sort((a, b) => b.date.localeCompare(a.date));
+          onProgress([...entries]);
+        }
+      }
+      return entries;
+    }
+    // No progress callback — decrypt all in parallel (fast path)
     const decrypted = await Promise.all(rawRecords.map(r => decryptEntry(r)));
     const entries = decrypted.filter((e): e is JournalEntry => e !== null);
     entries.sort((a, b) => b.date.localeCompare(a.date));
@@ -460,7 +473,7 @@ export function getDecryptionFailures(): string[] {
   return Array.from(decryptionFailures);
 }
 
-export async function initJournalStorage(): Promise<JournalEntry[]> {
+export async function initJournalStorage(onProgress?: (entries: JournalEntry[]) => void): Promise<JournalEntry[]> {
   log('initJournalStorage: starting');
   logAction('storage.init');
 
@@ -562,7 +575,7 @@ export async function initJournalStorage(): Promise<JournalEntry[]> {
     }
 
     // Load from IndexedDB (decrypts transparently)
-    const indexedDBEntries = await getEntriesFromIndexedDB(db);
+    const indexedDBEntries = await getEntriesFromIndexedDB(db, onProgress);
     log('initJournalStorage: loaded from IndexedDB', { entryCount: indexedDBEntries.length, dates: indexedDBEntries.map(e => e.date) });
 
     // Surface decryption failures prominently

@@ -43,7 +43,12 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
 
     let mounted = true;
 
-    initJournalStorage().then(loadedEntries => {
+    initJournalStorage((progressEntries) => {
+      if (!mounted) return;
+      // Progressive update — entries spawn as they decrypt
+      setEntries(progressEntries);
+      entriesRef.current = progressEntries;
+    }).then(loadedEntries => {
       if (!mounted) return;
 
       setEntries(loadedEntries);
