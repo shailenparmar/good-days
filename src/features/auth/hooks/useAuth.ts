@@ -182,22 +182,24 @@ export function useAuth() {
     const inputHash = await hashPassword(passwordInput.trim(), storedSalt);
 
     if (timingSafeEqual(inputHash, storedHash)) {
-      // Derive encryption key from the entered password
-      const encKey = await derivePasswordKey(passwordInput.trim());
-      setEncryptionKey(encKey, 'password');
-
-      // Store JWK in sessionStorage for refresh persistence
-      const jwk = await exportKeyToJWK(encKey);
-      sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
-
-      setEncryptionKeyReady(true);
+      // Password correct — unlock immediately, derive key in background
+      const password = passwordInput.trim();
       setIsLocked(false);
       sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
       setPasswordInput('');
-      // Increment login count
       const currentLogins = Number(getItem(LOGIN_COUNT_KEY) || '0');
       setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
       logAction('auth.unlock');
+
+      // Derive encryption key asynchronously — entries load when encryptionKeyReady flips
+      (async () => {
+        const encKey = await derivePasswordKey(password);
+        setEncryptionKey(encKey, 'password');
+        const jwk = await exportKeyToJWK(encKey);
+        sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+        setEncryptionKeyReady(true);
+      })();
+
       return true;
     } else {
       setPasswordInput('');

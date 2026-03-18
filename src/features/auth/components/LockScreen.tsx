@@ -116,6 +116,8 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     if (isCoolingDown) return;
 
     setIsSubmitting(true);
+    // Yield a frame so React can paint the disabled state before PBKDF2 blocks the thread
+    await new Promise(r => requestAnimationFrame(r));
     const success = await onSubmit(e);
     setIsSubmitting(false);
 

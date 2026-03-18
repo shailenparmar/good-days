@@ -391,9 +391,12 @@ function AppContent() {
   // Handle password unlock
   const handlePasswordSubmit = async (e: React.FormEvent): Promise<boolean> => {
     const success = await auth.handlePasswordSubmit(e);
-    if (success) {
+    if (success && auth.encryptionKeyReady) {
+      // Re-lock case: key already in memory, effect won't re-fire, reload manually
       journal.reloadEntries();
     }
+    // Fresh unlock case: key derivation happens in background,
+    // useJournalEntries effect fires when encryptionKeyReady flips true
     return success;
   };
 
