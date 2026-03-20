@@ -353,6 +353,9 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
   // Handle "remove password" button click
   const handleRemovePasswordClick = () => {
     removePassword();
+    // Clear any leftover input text so "set password" placeholder shows clean
+    setInput('');
+    setNewPasswordTemp('');
     // hasPassword will become false, useEffect will set showInput to true and step to 'set'
   };
 
@@ -410,10 +413,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
 
       case 'set-confirm':
         if (input.trim() === newPasswordTemp) {
-          await setPassword(newPasswordTemp);
           setInput('');
           setNewPasswordTemp('');
-          setIsSaving(true);
+          setIsSaving(true); // Set BEFORE setPassword so the useEffect guard prevents reset
+          await setPassword(newPasswordTemp);
         } else {
           flashRed();
           setStep('set');
