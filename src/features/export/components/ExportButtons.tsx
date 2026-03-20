@@ -39,8 +39,54 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   const [v3PasswordNeeded, setV3PasswordNeeded] = useState(false);
   const [v3PendingBackup, setV3PendingBackup] = useState<ParsedBackupV3 | null>(null);
   const [v3PasswordInput, setV3PasswordInput] = useState('');
-  const [v3PasswordError, setV3PasswordError] = useState(false);
+  const [v3FlashState, setV3FlashState] = useState<'none' | 'red'>('none');
   const v3PasswordRef = useRef<HTMLInputElement>(null);
+
+  // Bold sweep animation for "backup password" placeholder
+  const v3PlaceholderText = 'backup password';
+  const [v3BoldCount, setV3BoldCount] = useState(0);
+  const [v3AnimPhase, setV3AnimPhase] = useState<'bold' | 'unbold'>('bold');
+  const v3ShowPlaceholder = v3PasswordNeeded && v3PasswordInput === '';
+
+  useEffect(() => {
+    if (!v3ShowPlaceholder) return;
+    if (v3AnimPhase === 'bold') {
+      if (v3BoldCount >= v3PlaceholderText.length) {
+        setV3AnimPhase('unbold');
+        setV3BoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => setV3BoldCount(c => c + 1), 83);
+      return () => clearTimeout(timer);
+    }
+    if (v3AnimPhase === 'unbold') {
+      if (v3BoldCount >= v3PlaceholderText.length) {
+        setV3AnimPhase('bold');
+        setV3BoldCount(0);
+        return;
+      }
+      const timer = setTimeout(() => setV3BoldCount(c => c + 1), 83);
+      return () => clearTimeout(timer);
+    }
+  }, [v3ShowPlaceholder, v3BoldCount, v3AnimPhase]);
+
+  // Reset animation when placeholder becomes visible
+  useEffect(() => {
+    if (v3ShowPlaceholder) {
+      setV3BoldCount(0);
+      setV3AnimPhase('bold');
+    }
+  }, [v3ShowPlaceholder]);
+
+  // Triple flash for wrong password (3x 80ms flash, 80ms gaps)
+  const flashV3Red = useCallback(() => {
+    setV3FlashState('red');
+    setTimeout(() => setV3FlashState('none'), 80);
+    setTimeout(() => setV3FlashState('red'), 160);
+    setTimeout(() => setV3FlashState('none'), 240);
+    setTimeout(() => setV3FlashState('red'), 320);
+    setTimeout(() => setV3FlashState('none'), 400);
+  }, []);
 
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
@@ -133,14 +179,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       setV3PasswordNeeded(false);
       setV3PendingBackup(null);
       setV3PasswordInput('');
-      setV3PasswordError(false);
+      setV3FlashState('none');
     } catch {
-      // Wrong password — unwrapDEK fails
-      setV3PasswordError(true);
+      // Wrong password — unwrapDEK fails, triple flash
+      flashV3Red();
       setV3PasswordInput('');
       v3PasswordRef.current?.focus();
     }
-  }, [v3PendingBackup, v3PasswordInput, entries, presets, customPresets, onImport, setPresets, setCustomPresets, decryptV3Entries]);
+  }, [v3PendingBackup, v3PasswordInput, entries, presets, customPresets, onImport, setPresets, setCustomPresets, decryptV3Entries, flashV3Red]);
 
   // Shared logic: process a single backup file's content string
   // Custom presets are threaded through (like entries) to avoid stale closure in multi-file import
@@ -167,7 +213,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         // Password-protected: save for password prompt, return null to signal async flow
         setV3PendingBackup(v3Direct);
         setV3PasswordNeeded(true);
-        setV3PasswordError(false);
+        setV3FlashState('none');
         setV3PasswordInput('');
         setTimeout(() => v3PasswordRef.current?.focus(), 100);
         return null; // Will be processed after password entry
@@ -253,6 +299,12 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   };
 
   const handleImport = async () => {
+    // If feedback is showing, first click clears it. Next click opens file picker.
+    if (importFeedback) {
+      setImportFeedback(null);
+      return;
+    }
+
     // --- Electron path: use native open dialog via IPC ---
     if (window.electronAPI) {
       logAction('import.start', { fileCount: 1 });
@@ -269,7 +321,8 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           }
           setImportFeedback({ type: 'success', count: result.importedCount, presetsImportedCount: result.presetsImportedCount });
           logAction('import.done', { totalImported: result.importedCount, fileCount: 1, presetsImported: result.presetsImportedCount });
-        } else {
+        } else if (!v3PasswordNeeded) {
+          // Only show error if not waiting for v3 password prompt
           setImportFeedback({ type: 'error' });
           logAction('import.fail', { fileCount: 1 });
         }
@@ -305,6 +358,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     let totalImported = 0;
     let anyFileSucceeded = false;
     let totalPresetsImported = 0;
+    let v3PasswordPending = false;
 
     // Process all files sequentially — presets threaded through like entries
     for (const file of Array.from(files)) {
@@ -318,17 +372,26 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
           totalImported += result.importedCount;
           totalPresetsImported += result.presetsImportedCount;
           anyFileSucceeded = true;
+        } else {
+          // Check if v3 password prompt was triggered (null return + state was set)
+          // Use a local flag since React state won't have updated yet
+          try {
+            const parsed = JSON.parse(fileContent);
+            if (parsed?.version === 3 && parsed?.dek?.protection === 'password') {
+              v3PasswordPending = true;
+            }
+          } catch { /* not JSON, ignore */ }
         }
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
       }
     }
 
-    // Show error only if ALL files failed — no valid file was processed at all
-    if (!anyFileSucceeded) {
+    // Show error only if ALL files failed AND we're not waiting for v3 password
+    if (!anyFileSucceeded && !v3PasswordPending) {
       setImportFeedback({ type: 'error' });
       logAction('import.fail', { fileCount: files.length });
-    } else {
+    } else if (anyFileSucceeded) {
       onImport(currentEntries);
       if (totalPresetsImported > 0) {
         setPresets(currentPresets);
@@ -442,28 +505,47 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       </FunctionButton>
       {v3PasswordNeeded && (
         <form onSubmit={handleV3PasswordSubmit} className="mt-2">
-          <input
-            ref={v3PasswordRef}
-            type="password"
-            value={v3PasswordInput}
-            onChange={(e) => { setV3PasswordInput(e.target.value); setV3PasswordError(false); }}
-            placeholder={s(v3PasswordError ? 'wrong password' : 'backup password')}
-            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
-            style={{
-              backgroundColor: `hsl(var(--bh), var(--bs), var(--bl))`,
-              border: `3px solid ${v3PasswordError ? errorColor : `hsla(var(--h), var(--s), var(--l), 0.6)`}`,
-              color: `hsl(var(--h), var(--s), var(--l))`,
-              outline: 'none',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setV3PasswordNeeded(false);
-                setV3PendingBackup(null);
-                setV3PasswordInput('');
-                setV3PasswordError(false);
-              }
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              ref={v3PasswordRef}
+              type="password"
+              value={v3PasswordInput}
+              onChange={(e) => { setV3PasswordInput(e.target.value); }}
+              className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+              style={{
+                backgroundColor: `hsl(var(--bh), var(--bs), var(--bl))`,
+                border: `3px solid ${v3FlashState === 'red' ? '#ef4444' : `hsla(var(--h), var(--s), var(--l), 0.6)`}`,
+                color: `hsl(var(--h), var(--s), var(--l))`,
+                outline: 'none',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setV3PasswordNeeded(false);
+                  setV3PendingBackup(null);
+                  setV3PasswordInput('');
+                  setV3FlashState('none');
+                }
+              }}
+            />
+            {v3ShowPlaceholder && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
+                style={{ color: `hsl(var(--h), var(--s), var(--l))`, opacity: 0.85, left: '14px' }}
+              >
+                {v3AnimPhase === 'bold' ? (
+                  <>
+                    <span className="font-bold">{s(v3PlaceholderText.slice(0, v3BoldCount))}</span>
+                    <span>{s(v3PlaceholderText.slice(v3BoldCount))}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{s(v3PlaceholderText.slice(0, v3BoldCount))}</span>
+                    <span className="font-bold">{s(v3PlaceholderText.slice(v3BoldCount))}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </form>
       )}
     </div>
