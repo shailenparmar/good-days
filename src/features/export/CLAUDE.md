@@ -41,6 +41,45 @@ U2FsdGVkX1+vupppZksvRf8Z7J9K3xH5mN2qW...
 - Version field for future format changes
 - v2 includes color presets (both default and custom) so they round-trip through backup/restore
 
+**v3 format (DEK/KEK, v3.0.0+):**
+
+When DEK/KEK is active, backups use v3 format — a raw JSON file (not outer-encrypted) containing encrypted entry payloads and a wrapped DEK:
+
+```json
+{
+  "version": 3,
+  "exportedAt": 1706969445000,
+  "dek": {
+    "wrapped": "base64...",
+    "protection": "password"
+  },
+  "encryptedEntries": [
+    {
+      "date": "2025-01-27",
+      "_enc": "dek",
+      "_payload": "base64...",
+      "startedAt": 1706345400000,
+      "lastModified": 1706345400000
+    }
+  ],
+  "presets": [...],
+  "customPresets": [...]
+}
+```
+
+**v3 advantages over v2:**
+- **Password-protected backups**: DEK is wrapped with user's password-derived KEK. Only someone with the password can read entries.
+- **Fast export**: No decrypt/re-encrypt — entries dumped as-is from IndexedDB.
+- **Uses `encryptedEntries` (not `entries`)**: Old app versions that somehow parse v3 JSON won't accidentally create empty entries from the encrypted payloads.
+
+**v3 import flow:**
+1. Try to parse file as JSON first
+2. If v3 with `dek.protection === 'app'`: unwrap DEK with app KEK, decrypt entries, merge
+3. If v3 with `dek.protection === 'password'`: show inline password input, user enters backup password, derive KEK, unwrap DEK, decrypt entries, merge
+4. If not v3: fall back to old flow (find base64, decrypt with backup key)
+
+**v3 import password UI:** An inline `<input type="password">` appears below the import button. Placeholder says "backup password" (or "wrong password" after failed attempt). ESC cancels. Wrong password flashes border in error color. Styled like the lock screen input (12px mono bold, 3px border, theme colors).
+
 **Legacy markdown format** (still supported for import):
 ```
 # good days
@@ -69,14 +108,21 @@ New backups have no header (just encrypted content). Old backups with headers st
 
 ### Encryption Details (Backups)
 
+**v3 backups (DEK/KEK, v3.0.0+):**
+- **Entry encryption**: AES-256-GCM with random DEK (entries stay encrypted as-is from IndexedDB)
+- **DEK wrapping**: AES-256-GCM with KEK (password-derived or app-secret key)
+- **No outer encryption**: v3 files are raw JSON — entry content is protected by the DEK
+- **Password-protected**: If user has a password, DEK is wrapped with password-derived KEK. Without the password, entries are unreadable.
+- **No password**: DEK is wrapped with `APP_SECRET` KEK — same baseline obfuscation as v1/v2.
+
+**v1/v2 backups (legacy, still supported for import):**
 - **Algorithm**: AES-GCM (256-bit key)
 - **Key derivation**: PBKDF2 with fixed app secret (non-extractable key)
 - **IV**: Random 12 bytes per encryption (stored with ciphertext)
 - **Salt**: `good-days-salt`
 - **Code location**: `src/shared/crypto.ts` (`encryptText`/`decryptText`)
 - **Base64 encoding**: `uint8ToBase64()` helper converts encrypted bytes in 8KB chunks. `String.fromCharCode(...array)` exceeds the JS engine's max argument limit (~65K on Chrome) for large journals — chunking eliminates this ceiling.
-
-Note: This is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
+- Note: v1/v2 is obfuscation (prevents casual reading), not security. Anyone with source code access could decrypt backups.
 
 ### At-Rest Encryption
 

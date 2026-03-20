@@ -156,53 +156,58 @@ On tab close, `flushPendingSaves()` fires all pending throttled IndexedDB writes
 
 **Removed in v2.1.35:** The previous `beforeunload` handler also wrote all entries as plaintext JSON to `localStorage` (`journalEntries` key) as a synchronous backup. This was removed because it stored all journal content in plaintext, completely bypassing password protection. The merge-on-init logic that recovered these backups was also removed.
 
-### At-Rest Encryption (v2.2.0+)
+### At-Rest Encryption (v2.2.0+, DEK/KEK v3.0.0+)
 
-Journal entries in IndexedDB are encrypted with AES-256-GCM. The encryption level matches the user's security posture:
+Journal entries in IndexedDB are encrypted with AES-256-GCM. Since v3.0.0, the app uses a **DEK/KEK** (Data Encryption Key / Key Encryption Key) architecture:
 
-| Password Set? | Key Source | Security Level |
-|---|---|---|
-| No | App-secret derived key | Obfuscation — stops casual DevTools snooping |
-| Yes | Password-derived key (PBKDF2) | Real security — entries unreadable without password |
+- **DEK** — random 256-bit AES-GCM key. Encrypts all journal entries. Never changes.
+- **KEK** — derived from user's password (PBKDF2) or `APP_SECRET` if no password. Wraps the DEK.
+- The wrapped DEK is stored in IndexedDB metadata (`wrappedDEK` key).
+
+| Password Set? | KEK Source | DEK Wrapped With | Security Level |
+|---|---|---|---|
+| No | App-secret derived key | App KEK | Obfuscation — stops casual DevTools snooping |
+| Yes | Password-derived key (PBKDF2) | Password KEK | Real security — entries unreadable without password |
 
 **On-disk shape in IndexedDB:**
 ```typescript
 {
-  date: string,              // plaintext (keyPath, can't encrypt)
-  _enc: 'app' | 'password',  // which key encrypted this entry
-  _payload: string,           // base64 AES-GCM ciphertext of JSON { content, title }
-  startedAt?: number,         // plaintext (not sensitive)
-  lastModified?: number,      // plaintext (not sensitive)
+  date: string,                        // plaintext (keyPath, can't encrypt)
+  _enc: 'app' | 'password' | 'dek',   // which key encrypted this entry
+  _payload: string,                     // base64 AES-GCM ciphertext of JSON { content, title }
+  startedAt?: number,                   // plaintext (not sensitive)
+  lastModified?: number,                // plaintext (not sensitive)
 }
 ```
 
-Only `content` and `title` are encrypted (sensitive text). Timestamps stay plaintext. Legacy entries (no `_enc` marker) are treated as plaintext and pass through.
+After DEK migration, all entries have `_enc: 'dek'`. Legacy entries with `_enc: 'app'` or `'password'` are supported (pre-migration). Entries with no `_enc` marker are treated as plaintext and pass through.
 
-**Encryption key lifecycle:**
+**DEK/KEK lifecycle:**
 
 | Has Password? | Session Active? | Flow |
 |---|---|---|
-| No | — | Derive app-secret key → load entries immediately |
-| Yes | Yes (JWK in sessionStorage) | Import JWK → load entries immediately |
-| Yes | No (fresh tab) | Show lock screen → user enters password → derive key, store JWK → load entries |
+| No | — | Derive app KEK → unwrap DEK → load entries immediately |
+| Yes | Yes (DEK JWK in sessionStorage) | Import DEK JWK → load entries immediately |
+| Yes | No (fresh tab) | Show lock screen → user enters password → derive KEK → unwrap DEK → store DEK JWK → load entries |
 | Yes | Cookie wipe | Dead man's switch fires → entries nuked |
 
-**Init order:** `useAuth` calls `initEncryptionKey()` on mount, which sets the encryption key in `journalStorage.ts`. `useJournalEntries` accepts `encryptionKeyReady` and defers `initJournalStorage()` until the key is available. When password-encrypted entries need the lock screen first, entries load after unlock via `reloadEntries()`.
+**Init order:** `useAuth` calls `initEncryptionKey()` on mount, which checks for a wrapped DEK in metadata. If found, unwraps it with the appropriate KEK. `useJournalEntries` accepts `encryptionKeyReady` and defers `initJournalStorage()` until the DEK is available.
 
-**Key derivation:**
-- App-secret key: PBKDF2 from `APP_SECRET` with salt `good-days-encrypt-salt` (extractable)
-- Password key: PBKDF2 from user password with same salt (extractable)
-- Both are separate from the backup key (different salt: `good-days-salt`, non-extractable)
-- Keys cached in module-level variables to avoid repeated 100k iterations
+**Password transition flows (v3.0.0+, O(1) — no entry re-encryption):**
+- **Set password:** Derive new KEK → `rewrapDEK(newKEK, 'password')` → store password hash
+- **Change password:** Derive new KEK → `rewrapDEK(newKEK, 'password')` → update hash
+- **Remove password:** `rewrapDEK(appKEK, 'app')` → remove hash
 
-**JWK session persistence:** Password-derived keys are exported as JWK and stored in `sessionStorage` (`gooddays_encryption_jwk`). Survives refresh, clears on tab close. On ESC lock, JWK is cleared from sessionStorage.
+If re-wrapping fails, the old wrapped DEK and old password hash remain valid. No data loss.
 
-**Password transition flows (ordering is critical — re-encrypt BEFORE updating hash):**
-- **Set password:** Derive password key → `reEncryptAllEntries(newKey, 'password')` → store password hash → store JWK
-- **Change password:** Derive new password key → `reEncryptAllEntries(newKey, 'password')` → update hash → update JWK
-- **Remove password:** Derive app key → `reEncryptAllEntries(appKey, 'app')` → remove hash → clear JWK
+**JWK session persistence (v3.0.0+):** The DEK (not the KEK) is exported as JWK and stored in `sessionStorage` (`gooddays_encryption_jwk`). Survives refresh, clears on tab close. On ESC lock, JWK is cleared.
 
-If re-encryption fails, entries remain encrypted with the old key and the old hash is still valid. No data loss.
+**DEK migration (v3.0.0, one-time):**
+- On first load after update, `initEncryptionKey()` detects no `wrappedDEK` in metadata → sets `needsDEKMigration: true`
+- After entries load, `App.tsx` triggers `runDEKMigration()`
+- Migration: generate random DEK → re-encrypt all entries (old key → DEK) → wrap DEK with current KEK → store in metadata
+- Atomic: if migration fails, `currentKey` rolls back and entries stay encrypted with the old key
+- For password users, the KEK is reconstructed from the sessionStorage JWK
 
 **Plaintext migration:** On `initJournalStorage()`, if `encryptionMode` metadata is `'none'` (or missing) and a key is available, all entries are written back encrypted and the mode is updated. One-time, automatic.
 
@@ -214,35 +219,43 @@ If re-encryption fails, entries remain encrypted with the old key and the old ha
 
 | File | Purpose |
 |------|---------|
-| `src/shared/crypto.ts` | All crypto primitives (key derivation, encrypt/decrypt, JWK) |
-| `src/shared/storage/journalStorage.ts` | Encrypt on write, decrypt on read, re-encryption, migration |
-| `src/features/auth/hooks/useAuth.ts` | Key lifecycle, `initEncryptionKey()`, password transitions |
+| `src/shared/crypto.ts` | All crypto primitives (key derivation, encrypt/decrypt, JWK, DEK wrap/unwrap) |
+| `src/shared/storage/journalStorage.ts` | Encrypt on write, decrypt on read, DEK storage, rewrapDEK, migrateToDEK |
+| `src/features/auth/hooks/useAuth.ts` | Key lifecycle, `initEncryptionKey()`, password transitions, DEK migration |
 | `src/shared/storage/index.ts` | localStorage XOR encryption |
 
-**New exports from `journalStorage.ts`:**
+**Exports from `journalStorage.ts`:**
 
 | Function | Purpose |
 |----------|---------|
-| `setEncryptionKey(key, mode)` | Set the active encryption key |
-| `reEncryptAllEntries(newKey, newMode)` | Re-encrypt all entries with a new key |
+| `setEncryptionKey(key, mode)` | Set the active encryption key (DEK after migration) |
+| `reEncryptAllEntries(newKey, newMode)` | Re-encrypt all entries with a new key (used during DEK migration) |
 | `getEncryptionMode()` | Read encryption mode from metadata |
+| `getWrappedDEK()` | Read wrapped DEK from metadata |
+| `rewrapDEK(newKEK, protection)` | Re-wrap DEK with a new KEK (O(1), for password changes) |
+| `migrateToDEK(kek, protection)` | One-time migration: generate DEK, re-encrypt all entries, store wrapped DEK |
+| `getRawEncryptedEntries()` | Get encrypted records as-is from IndexedDB (for v3 backup export) |
 
-**New exports from `crypto.ts`:**
+**Exports from `crypto.ts`:**
 
 | Function | Purpose |
 |----------|---------|
-| `getAppEncryptKey()` | Derive extractable app-secret key for at-rest encryption |
+| `getAppEncryptKey()` | Derive extractable app-secret key (used as KEK when no password) |
 | `encryptWithKey(plaintext, key)` | Encrypt with any CryptoKey |
 | `decryptWithKey(ciphertext, key)` | Decrypt with any CryptoKey |
-| `derivePasswordKey(password)` | Derive extractable key from user password |
+| `derivePasswordKey(password)` | Derive extractable key from user password (used as KEK) |
 | `exportKeyToJWK(key)` / `importKeyFromJWK(jwk)` | JWK export/import for sessionStorage |
+| `generateDEK()` | Generate random 256-bit AES-GCM key |
+| `wrapDEK(dek, kek)` / `unwrapDEK(wrapped, kek)` | Wrap/unwrap DEK with KEK |
 
-**New exports from `useAuth.ts`:**
+**Exports from `useAuth.ts`:**
 
 | Function/Field | Purpose |
 |----------|---------|
-| `encryptionKeyReady` | Boolean — true when key is available for storage ops |
-| `changePassword(newPassword)` | Re-encrypt + update hash (for password change flow) |
+| `encryptionKeyReady` | Boolean — true when DEK is available for storage ops |
+| `needsDEKMigration` | Boolean — true when legacy entries need one-time DEK migration |
+| `changePassword(newPassword)` | Re-wrap DEK + update hash (O(1), no entry re-encryption) |
+| `runDEKMigration()` | Run one-time DEK migration (called from App.tsx after entries load) |
 | `initEncryptionKey()` | Standalone init function (called on mount) |
 
 ### Migration v1.7.0

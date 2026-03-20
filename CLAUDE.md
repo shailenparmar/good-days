@@ -125,7 +125,7 @@ Production hosted on **GitHub Pages** with custom domain (`gdays.day`) managed b
 - `src/features/mobile/` - Mobile color picker app (code-split, loaded dynamically on mobile devices)
 - `src/hooks/` - App-level custom hooks (`useLayoutState`, `useMidnightTimer`)
 - `src/shared/` - Shared utilities and components
-- `src/shared/crypto.ts` - AES-GCM encryption utilities (used by auth, export, and storage)
+- `src/shared/crypto.ts` - AES-GCM encryption utilities, DEK/KEK wrap/unwrap (used by auth, export, and storage)
 - `src/shared/utils/html.ts` - Centralized HTML-to-text stripping
 - `src/shared/copy/aboutCopy.ts` - Single source of truth for about page copy (used by AboutPanel + README)
 - `src/index.css` - Global styles including scrollbar-hide utility
