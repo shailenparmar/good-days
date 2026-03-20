@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
 import { setPasswordProtectedFlag } from '@shared/storage/journalStorage';
-import { setEncryptionKey, getEncryptionMode, reEncryptAllEntries } from '@shared/storage/journalStorage';
-import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK } from '@shared/crypto';
+import { setEncryptionKey, reEncryptAllEntries, getWrappedDEK, rewrapDEK, migrateToDEK } from '@shared/storage/journalStorage';
+import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK, unwrapDEK } from '@shared/crypto';
 import { logAction } from '@shared/logger';
 
 const PASSWORD_KEY = 'passwordHash';
@@ -83,35 +83,58 @@ function migratePasswordIfNeeded(): void {
 
 /**
  * Initialize encryption key on app start.
- * Returns { ready, needsPassword } to guide init flow.
+ * Returns { ready, needsPassword, needsDEKMigration } to guide init flow.
+ *
+ * DEK/KEK flow:
+ * - If wrapped DEK exists in metadata → unwrap with KEK (password or app key)
+ * - If no wrapped DEK → legacy mode, migration will happen on first load
  */
-export async function initEncryptionKey(): Promise<{ ready: boolean; needsPassword: boolean }> {
+export async function initEncryptionKey(): Promise<{ ready: boolean; needsPassword: boolean; needsDEKMigration: boolean }> {
   const hasPass = getItem(PASSWORD_KEY) !== null;
-  const encMode = await getEncryptionMode();
 
-  if (!hasPass) {
-    // No password → use app-secret key
-    const appKey = await getAppEncryptKey();
-    setEncryptionKey(appKey, 'app');
-    return { ready: true, needsPassword: false };
-  }
-
-  // Has password — check if session has a stored JWK
+  // Check sessionStorage for cached DEK JWK (survives refresh)
   const storedJwk = sessionStorage.getItem(ENCRYPTION_JWK_KEY);
   if (storedJwk) {
     try {
       const jwk = JSON.parse(storedJwk);
       const key = await importKeyFromJWK(jwk);
-      setEncryptionKey(key, encMode === 'password' ? 'password' : 'app');
-      return { ready: true, needsPassword: false };
+      setEncryptionKey(key, 'dek');
+      return { ready: true, needsPassword: false, needsDEKMigration: false };
     } catch {
-      // JWK invalid — fall through to needsPassword
       sessionStorage.removeItem(ENCRYPTION_JWK_KEY);
     }
   }
 
-  // No session key — need password to derive key
-  return { ready: false, needsPassword: true };
+  // Check for wrapped DEK in IndexedDB metadata
+  const wrappedDEKData = await getWrappedDEK();
+
+  if (wrappedDEKData) {
+    // DEK/KEK architecture is active
+    if (!hasPass || wrappedDEKData.protection === 'app') {
+      // No password (or DEK wrapped with app key) → unwrap with app KEK
+      const appKEK = await getAppEncryptKey();
+      const dek = await unwrapDEK(wrappedDEKData.wrapped, appKEK);
+      setEncryptionKey(dek, 'dek');
+      // Cache DEK in sessionStorage
+      const jwk = await exportKeyToJWK(dek);
+      sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+      return { ready: true, needsPassword: false, needsDEKMigration: false };
+    }
+
+    // Has password and DEK is password-protected → need password to unwrap
+    return { ready: false, needsPassword: true, needsDEKMigration: false };
+  }
+
+  // No wrapped DEK → legacy mode (pre-DEK migration)
+  // Set up old-style key so entries can be read, then signal migration needed
+  if (!hasPass) {
+    const appKey = await getAppEncryptKey();
+    setEncryptionKey(appKey, 'app');
+    return { ready: true, needsPassword: false, needsDEKMigration: true };
+  }
+
+  // Has password, no DEK, no session key → need password
+  return { ready: false, needsPassword: true, needsDEKMigration: true };
 }
 
 export function useAuth() {
@@ -126,6 +149,9 @@ export function useAuth() {
 
   // Whether the encryption key is available for storage ops
   const [encryptionKeyReady, setEncryptionKeyReady] = useState(false);
+
+  // Whether legacy entries need one-time DEK migration (set by initEncryptionKey)
+  const [needsDEKMigration, setNeedsDEKMigration] = useState(false);
 
   // Lock state logic:
   // - Locked = has password AND not unlocked this session
@@ -142,8 +168,9 @@ export function useAuth() {
 
   // Initialize encryption key on mount
   useEffect(() => {
-    initEncryptionKey().then(({ ready }) => {
+    initEncryptionKey().then(({ ready, needsDEKMigration: migrate }) => {
       setEncryptionKeyReady(ready);
+      setNeedsDEKMigration(migrate);
     });
   }, []);
 
@@ -191,12 +218,24 @@ export function useAuth() {
       setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
       logAction('auth.unlock');
 
-      // Derive encryption key asynchronously — entries load when encryptionKeyReady flips
+      // Derive KEK and unwrap DEK asynchronously — entries load when encryptionKeyReady flips
       (async () => {
-        const encKey = await derivePasswordKey(trimmed);
-        setEncryptionKey(encKey, 'password');
-        const jwk = await exportKeyToJWK(encKey);
-        sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+        const passwordKEK = await derivePasswordKey(trimmed);
+        const wrappedDEKData = await getWrappedDEK();
+
+        if (wrappedDEKData) {
+          // DEK/KEK mode: unwrap DEK with password KEK
+          const dek = await unwrapDEK(wrappedDEKData.wrapped, passwordKEK);
+          setEncryptionKey(dek, 'dek');
+          const jwk = await exportKeyToJWK(dek);
+          sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+        } else {
+          // Legacy mode (pre-migration): use password key directly, migration will run later
+          setEncryptionKey(passwordKEK, 'password');
+          const jwk = await exportKeyToJWK(passwordKEK);
+          sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+          setNeedsDEKMigration(true);
+        }
         setEncryptionKeyReady(true);
       })();
 
@@ -212,13 +251,20 @@ export function useAuth() {
     const trimmed = newPassword.trim();
     if (trimmed.length === 0) return false;
 
-    // Derive new encryption key BEFORE setting password hash
-    const encKey = await derivePasswordKey(trimmed);
+    // Derive new KEK from password
+    const newKEK = await derivePasswordKey(trimmed);
 
-    // Re-encrypt all entries with the new password key
-    await reEncryptAllEntries(encKey, 'password');
+    // Check if DEK exists — if so, just rewrap (O(1)). If not (shouldn't happen), fall back.
+    const wrappedDEKData = await getWrappedDEK();
+    if (wrappedDEKData) {
+      // DEK/KEK mode: re-wrap DEK with password KEK (no entry re-encryption!)
+      await rewrapDEK(newKEK, 'password');
+    } else {
+      // Legacy fallback: re-encrypt all entries (shouldn't happen after migration)
+      await reEncryptAllEntries(newKEK, 'password');
+    }
 
-    // Now set the password hash (AFTER re-encryption succeeds)
+    // Now set the password hash (AFTER re-wrap/re-encryption succeeds)
     const salt = generateSalt();
     const hash = await hashPassword(trimmed, salt);
     setItem(PASSWORD_SALT_KEY, salt);
@@ -226,9 +272,14 @@ export function useAuth() {
     setHasPassword(true);
     await setPasswordProtectedFlag(true);
 
-    // Store JWK in sessionStorage
-    const jwk = await exportKeyToJWK(encKey);
-    sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
+    // Store DEK JWK in sessionStorage (DEK is still the same, just re-export it)
+    const jwk = sessionStorage.getItem(ENCRYPTION_JWK_KEY);
+    if (!jwk) {
+      // Export current key (the DEK) to session
+      const encKey = wrappedDEKData ? await unwrapDEK(wrappedDEKData.wrapped, newKEK) : newKEK;
+      const newJwk = await exportKeyToJWK(encKey);
+      sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(newJwk));
+    }
 
     // Invalidate stale session unlock flag so new password requires entry
     sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
@@ -237,11 +288,19 @@ export function useAuth() {
   }, []);
 
   const removePassword = useCallback(async () => {
-    // Derive app-secret key and re-encrypt with it BEFORE removing password hash
-    const appKey = await getAppEncryptKey();
-    await reEncryptAllEntries(appKey, 'app');
+    // Re-wrap DEK with app KEK (no entry re-encryption!)
+    const appKEK = await getAppEncryptKey();
+    const wrappedDEKData = await getWrappedDEK();
 
-    // Now remove the password hash (AFTER re-encryption succeeds)
+    if (wrappedDEKData) {
+      // DEK/KEK mode: just re-wrap DEK with app key
+      await rewrapDEK(appKEK, 'app');
+    } else {
+      // Legacy fallback
+      await reEncryptAllEntries(appKEK, 'app');
+    }
+
+    // Now remove the password hash (AFTER re-wrap succeeds)
     removeItem(PASSWORD_KEY);
     removeItem(PASSWORD_SALT_KEY);
     setHasPassword(false);
@@ -274,37 +333,82 @@ export function useAuth() {
     sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
   }, []);
 
-  // Change password: re-encrypt with new password key
+  // Change password: re-wrap DEK with new password key (no entry re-encryption!)
   const changePassword = useCallback(async (newPassword: string): Promise<boolean> => {
     const trimmed = newPassword.trim();
     if (trimmed.length === 0) return false;
 
-    // Derive new encryption key
-    const newEncKey = await derivePasswordKey(trimmed);
+    // Derive new KEK from new password
+    const newKEK = await derivePasswordKey(trimmed);
 
-    // Re-encrypt all entries with the new key (old key is still cached in journalStorage)
-    await reEncryptAllEntries(newEncKey, 'password');
+    const wrappedDEKData = await getWrappedDEK();
+    if (wrappedDEKData) {
+      // DEK/KEK mode: re-wrap DEK with new password KEK (O(1))
+      await rewrapDEK(newKEK, 'password');
+    } else {
+      // Legacy fallback
+      await reEncryptAllEntries(newKEK, 'password');
+    }
 
-    // Now update the password hash (AFTER re-encryption succeeds)
+    // Now update the password hash (AFTER re-wrap succeeds)
     const salt = generateSalt();
     const hash = await hashPassword(trimmed, salt);
     setItem(PASSWORD_SALT_KEY, salt);
     setItem(PASSWORD_KEY, hash);
     await setPasswordProtectedFlag(true);
 
-    // Update sessionStorage JWK
-    const jwk = await exportKeyToJWK(newEncKey);
-    sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
-
+    // DEK JWK in sessionStorage stays the same (same DEK, different wrapping)
     logAction('auth.password.changed');
     return true;
   }, []);
+
+  /**
+   * Run one-time DEK migration. Call after entries have been loaded (needs currentKey set).
+   * Generates DEK, re-encrypts all entries, wraps DEK with current KEK.
+   */
+  const runDEKMigration = useCallback(async () => {
+    if (!needsDEKMigration) return;
+
+    const hasPass = getItem(PASSWORD_KEY) !== null;
+
+    // For password users, the password-derived key is currently in use as the entry key.
+    // We need it as the KEK to wrap the new DEK. Since we can't re-derive it
+    // without the password, we use the sessionStorage JWK to reconstruct it.
+    if (hasPass) {
+      // The password-derived key is currently in use as the entry encryption key.
+      // We need it as the KEK to wrap the new DEK. Since we can't re-derive it
+      // without the password, we use the sessionStorage JWK to reconstruct it.
+      const storedJwk = sessionStorage.getItem(ENCRYPTION_JWK_KEY);
+      if (storedJwk) {
+        const jwk = JSON.parse(storedJwk);
+        const passwordKey = await importKeyFromJWK(jwk);
+        const dek = await migrateToDEK(passwordKey, 'password');
+        // Update session with DEK JWK (replacing password key JWK)
+        const dekJwk = await exportKeyToJWK(dek);
+        sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(dekJwk));
+      } else {
+        // No JWK available — can't migrate without the KEK. Skip for now.
+        logAction('auth.dekMigration.skipped', { reason: 'no session key' });
+        return;
+      }
+    } else {
+      const appKEK = await getAppEncryptKey();
+      const dek = await migrateToDEK(appKEK, 'app');
+      // Update session with DEK JWK
+      const dekJwk = await exportKeyToJWK(dek);
+      sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(dekJwk));
+    }
+
+    setNeedsDEKMigration(false);
+    logAction('auth.dekMigration.complete');
+  }, [needsDEKMigration]);
 
   return {
     isLocked,
     passwordInput,
     hasPassword,
     encryptionKeyReady,
+    needsDEKMigration,
     setPasswordInput,
     handlePasswordSubmit,
     setPassword,
@@ -314,5 +418,6 @@ export function useAuth() {
     lock,
     unlock,
     refreshHasPassword,
+    runDEKMigration,
   };
 }

@@ -4,7 +4,7 @@
 
 import type { JournalEntry } from '@features/journal/types';
 import { logAction } from '@shared/logger';
-import { encryptWithKey, decryptWithKey } from '@shared/crypto';
+import { encryptWithKey, decryptWithKey, generateDEK, wrapDEK } from '@shared/crypto';
 
 const DB_NAME = 'good-days';
 const DB_VERSION = 1;
@@ -24,20 +24,22 @@ function isElectron(): boolean {
 
 // --- Encryption state ---
 
+type EncryptionKeyMode = 'app' | 'password' | 'dek';
+
 let currentKey: CryptoKey | null = null;
-let keyMode: 'app' | 'password' = 'app';
+let keyMode: EncryptionKeyMode = 'app';
 
 // Set the active encryption key (called by auth layer)
-export function setEncryptionKey(key: CryptoKey, mode: 'app' | 'password'): void {
+export function setEncryptionKey(key: CryptoKey, mode: EncryptionKeyMode): void {
   currentKey = key;
   keyMode = mode;
 }
 
 // Get the encryption mode from IndexedDB metadata (or localStorage in Electron)
-export async function getEncryptionMode(): Promise<'app' | 'password' | 'none'> {
+export async function getEncryptionMode(): Promise<EncryptionKeyMode | 'none'> {
   if (isElectron()) {
     const mode = localStorage.getItem('electronEncryptionMode');
-    return (mode as 'app' | 'password') || 'none';
+    return (mode as EncryptionKeyMode) || 'none';
   }
   try {
     const db = await openDatabase();
@@ -49,14 +51,14 @@ export async function getEncryptionMode(): Promise<'app' | 'password' | 'none'> 
       request.onsuccess = () => resolve(request.result?.value ?? null);
     });
     db.close();
-    return (result as 'app' | 'password') || 'none';
+    return (result as EncryptionKeyMode) || 'none';
   } catch {
     return 'none';
   }
 }
 
 // Set the encryption mode in IndexedDB metadata (or localStorage in Electron)
-async function setEncryptionMode(db: IDBDatabase | null, mode: 'app' | 'password'): Promise<void> {
+async function setEncryptionMode(db: IDBDatabase | null, mode: EncryptionKeyMode): Promise<void> {
   if (isElectron() || db === null) {
     localStorage.setItem('electronEncryptionMode', mode);
     return;
@@ -70,12 +72,137 @@ async function setEncryptionMode(db: IDBDatabase | null, mode: 'app' | 'password
   });
 }
 
+// --- DEK/KEK wrapped key storage ---
+
+export interface WrappedDEKData {
+  wrapped: string;       // base64 of IV + encrypted raw DEK
+  protection: 'app' | 'password'; // what KEK was used to wrap
+}
+
+// Read the wrapped DEK from IndexedDB metadata
+export async function getWrappedDEK(): Promise<WrappedDEKData | null> {
+  if (isElectron()) {
+    const data = localStorage.getItem('electronWrappedDEK');
+    return data ? JSON.parse(data) : null;
+  }
+  try {
+    const db = await openDatabase();
+    const result = await new Promise<WrappedDEKData | null>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readonly');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.get('wrappedDEK');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const data = request.result?.value;
+        resolve(data ? data as WrappedDEKData : null);
+      };
+    });
+    db.close();
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+// Store the wrapped DEK in IndexedDB metadata
+async function setWrappedDEKInDB(db: IDBDatabase | null, wrapped: string, protection: 'app' | 'password'): Promise<void> {
+  const data: WrappedDEKData = { wrapped, protection };
+  if (isElectron() || db === null) {
+    localStorage.setItem('electronWrappedDEK', JSON.stringify(data));
+    return;
+  }
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(METADATA_STORE, 'readwrite');
+    const store = transaction.objectStore(METADATA_STORE);
+    const request = store.put({ key: 'wrappedDEK', value: data });
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+/**
+ * Re-wrap the in-memory DEK with a new KEK.
+ * Used for password set/change/remove — O(1), no entry re-encryption.
+ */
+export async function rewrapDEK(newKEK: CryptoKey, newProtection: 'app' | 'password'): Promise<void> {
+  if (!currentKey) throw new Error('No DEK in memory');
+  const wrapped = await wrapDEK(currentKey, newKEK);
+
+  if (isElectron()) {
+    await setWrappedDEKInDB(null, wrapped, newProtection);
+  } else {
+    const db = await openDatabase();
+    await setWrappedDEKInDB(db, wrapped, newProtection);
+    db.close();
+  }
+
+  log('rewrapDEK: done', { protection: newProtection });
+  logAction('storage.rewrapDEK', { protection: newProtection });
+}
+
+/**
+ * One-time migration from direct key encryption to DEK/KEK architecture.
+ * Generates a random DEK, re-encrypts all entries with it, wraps DEK with the provided KEK.
+ * Atomic: if anything fails, entries stay encrypted with the old key.
+ * Returns the DEK for the caller to cache.
+ */
+export async function migrateToDEK(kek: CryptoKey, kekProtection: 'app' | 'password'): Promise<CryptoKey> {
+  log('migrateToDEK: starting', { protection: kekProtection });
+  logAction('storage.migrateToDEK.start', { protection: kekProtection });
+
+  // Generate random DEK
+  const dek = await generateDEK();
+
+  // Re-encrypt all entries: old key → DEK
+  // reEncryptAllEntries handles atomicity (rollback on failure)
+  await reEncryptAllEntries(dek, 'dek');
+  // After this, currentKey = dek, keyMode = 'dek'
+
+  // Wrap DEK with KEK and store
+  const wrapped = await wrapDEK(dek, kek);
+
+  if (isElectron()) {
+    await setWrappedDEKInDB(null, wrapped, kekProtection);
+  } else {
+    const db = await openDatabase();
+    await setWrappedDEKInDB(db, wrapped, kekProtection);
+    db.close();
+  }
+
+  log('migrateToDEK: complete');
+  logAction('storage.migrateToDEK.done');
+  return dek;
+}
+
+/**
+ * Get raw encrypted entry records from IndexedDB (for v3 backup export).
+ * Returns entries as-is (still encrypted with DEK), without decrypting.
+ */
+export async function getRawEncryptedEntries(): Promise<EncryptedRecord[]> {
+  if (isElectron()) {
+    const api = window.electronAPI!;
+    const rawPairs = await api.storage.loadAllEntries();
+    return rawPairs.map(({ data }) => JSON.parse(data) as EncryptedRecord);
+  }
+
+  const db = await openDatabase();
+  const records = await new Promise<EncryptedRecord[]>((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE, 'readonly');
+    const store = transaction.objectStore(ENTRIES_STORE);
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+  db.close();
+  return records;
+}
+
 // --- Encrypt/decrypt entry helpers ---
 
 // Encrypted record shape in IndexedDB
-interface EncryptedRecord {
+export interface EncryptedRecord {
   date: string;
-  _enc: 'app' | 'password';
+  _enc: EncryptionKeyMode;
   _payload: string; // base64 AES-GCM ciphertext of JSON { content, title }
   startedAt?: number;
   lastModified?: number;
@@ -125,8 +252,8 @@ async function decryptEntry(record: unknown): Promise<JournalEntry | null> {
   }
 }
 
-// Re-encrypt all entries with a new key (called during password transitions)
-export async function reEncryptAllEntries(newKey: CryptoKey, newMode: 'app' | 'password'): Promise<void> {
+// Re-encrypt all entries with a new key (called during password transitions and DEK migration)
+export async function reEncryptAllEntries(newKey: CryptoKey, newMode: EncryptionKeyMode): Promise<void> {
   if (fallbackMode) return; // Skip encryption in fallback mode
 
   // --- Electron path: load via IPC, re-encrypt, save via IPC ---

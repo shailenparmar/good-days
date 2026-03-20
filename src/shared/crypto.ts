@@ -156,6 +156,51 @@ export async function importKeyFromJWK(jwk: JsonWebKey): Promise<CryptoKey> {
   );
 }
 
+// --- DEK/KEK (Data Encryption Key / Key Encryption Key) ---
+
+// Generate a random 256-bit DEK for encrypting journal entries
+export async function generateDEK(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable (needed for wrapping/export)
+    ['encrypt', 'decrypt']
+  );
+}
+
+// Wrap (encrypt) the DEK with a KEK — stores IV + ciphertext as base64
+export async function wrapDEK(dek: CryptoKey, kek: CryptoKey): Promise<string> {
+  const rawDEK = await crypto.subtle.exportKey('raw', dek);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    kek,
+    rawDEK
+  );
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return uint8ToBase64(combined);
+}
+
+// Unwrap (decrypt) the DEK with a KEK — returns usable CryptoKey
+export async function unwrapDEK(wrappedDEK: string, kek: CryptoKey): Promise<CryptoKey> {
+  const combined = Uint8Array.from(atob(wrappedDEK), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const data = combined.slice(12);
+  const rawDEK = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    kek,
+    data
+  );
+  return crypto.subtle.importKey(
+    'raw',
+    rawDEK,
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable
+    ['encrypt', 'decrypt']
+  );
+}
+
 // --- Backup encryption (unchanged API, now cached) ---
 
 export async function encryptText(plaintext: string): Promise<string> {

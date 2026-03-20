@@ -104,6 +104,13 @@ function AppContent() {
   // Stats hook - paused in superscramble to prevent jitter
   const stats = useStatistics(layout.isSuperscramble);
 
+  // One-time DEK migration: runs after entries are loaded for the first time
+  useEffect(() => {
+    if (auth.needsDEKMigration && !journal.isLoading && auth.encryptionKeyReady) {
+      auth.runDEKMigration();
+    }
+  }, [auth.needsDEKMigration, journal.isLoading, auth.encryptionKeyReady, auth.runDEKMigration]);
+
   // Refs for journal functions (avoids stale closures in midnight timer)
   const journalRef = useRef(journal);
   useEffect(() => { journalRef.current = journal; }, [journal]);

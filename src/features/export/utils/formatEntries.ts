@@ -1,5 +1,6 @@
 import type { JournalEntry } from '@features/journal';
 import type { ColorPreset } from '@features/theme';
+import type { EncryptedRecord, WrappedDEKData } from '@shared/storage/journalStorage';
 
 // JSON backup format (v1)
 export interface BackupV1 {
@@ -17,7 +18,17 @@ export interface BackupV2 {
   customPresets?: ColorPreset[];
 }
 
-// For encrypted backup (JSON format)
+// JSON backup format (v3) - DEK/KEK encrypted entries
+export interface BackupV3 {
+  version: 3;
+  exportedAt: number;
+  dek: WrappedDEKData;                  // DEK wrapped with user's KEK
+  encryptedEntries: EncryptedRecord[];   // entries still encrypted with DEK
+  presets?: ColorPreset[];
+  customPresets?: ColorPreset[];
+}
+
+// For encrypted backup (JSON format) — legacy v2
 export function formatEntriesAsJson(
   entries: JournalEntry[],
   presets?: ColorPreset[],
@@ -27,6 +38,24 @@ export function formatEntriesAsJson(
     version: 2,
     exportedAt: Date.now(),
     entries: [...entries].sort((a, b) => a.date.localeCompare(b.date)), // oldest first
+    presets,
+    customPresets,
+  };
+  return JSON.stringify(backup);
+}
+
+// For v3 backup — entries stay encrypted, DEK is wrapped with user's KEK
+export function formatV3Backup(
+  encryptedEntries: EncryptedRecord[],
+  wrappedDEK: WrappedDEKData,
+  presets?: ColorPreset[],
+  customPresets?: ColorPreset[],
+): string {
+  const backup: BackupV3 = {
+    version: 3,
+    exportedAt: Date.now(),
+    dek: wrappedDEK,
+    encryptedEntries: [...encryptedEntries].sort((a, b) => a.date.localeCompare(b.date)),
     presets,
     customPresets,
   };

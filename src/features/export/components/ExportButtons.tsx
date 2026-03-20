@@ -1,9 +1,10 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
-import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } from '../utils/formatEntries';
-import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries } from '../utils/parseBackup';
-import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup } from '@shared/crypto';
+import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard, formatV3Backup } from '../utils/formatEntries';
+import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries, isV3Backup, type ParsedBackupV3 } from '../utils/parseBackup';
+import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup, derivePasswordKey, getAppEncryptKey, unwrapDEK, decryptWithKey } from '@shared/crypto';
+import { getRawEncryptedEntries, getWrappedDEK } from '@shared/storage/journalStorage';
 import { FunctionButton } from '@shared/components';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
@@ -33,6 +34,14 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
 
   // Import feedback state: success (count) or failure
   const [importFeedback, setImportFeedback] = useState<{ type: 'success'; count: number; presetsImportedCount?: number } | { type: 'error' } | null>(null);
+
+  // v3 import password prompt state
+  const [v3PasswordNeeded, setV3PasswordNeeded] = useState(false);
+  const [v3PendingBackup, setV3PendingBackup] = useState<ParsedBackupV3 | null>(null);
+  const [v3PasswordInput, setV3PasswordInput] = useState('');
+  const [v3PasswordError, setV3PasswordError] = useState(false);
+  const v3PasswordRef = useRef<HTMLInputElement>(null);
+
   const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
   // Dynamic status colors using WCAG contrast ratios
   const { confirm: confirmColor, error: errorColor } = useMemo(
@@ -54,6 +63,85 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     };
   }, [importFeedback]);
 
+  // Decrypt v3 backup entries using a DEK
+  const decryptV3Entries = useCallback(async (
+    backup: ParsedBackupV3,
+    dek: CryptoKey,
+  ): Promise<JournalEntry[]> => {
+    const decrypted: JournalEntry[] = [];
+    for (const record of backup.encryptedEntries) {
+      if (!record._payload) continue;
+      try {
+        const json = await decryptWithKey(record._payload, dek);
+        const { content, title } = JSON.parse(json);
+        decrypted.push({
+          date: record.date,
+          content: content ?? '',
+          title,
+          startedAt: record.startedAt,
+          lastModified: record.lastModified,
+        });
+      } catch {
+        console.error(`Failed to decrypt v3 entry: ${record.date}`);
+      }
+    }
+    return decrypted;
+  }, []);
+
+  // Handle v3 password-protected import: user submits password
+  const handleV3PasswordSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!v3PendingBackup) return;
+
+    try {
+      const kek = await derivePasswordKey(v3PasswordInput.trim());
+      const dek = await unwrapDEK(v3PendingBackup.dek.wrapped, kek);
+      const decryptedEntries = await decryptV3Entries(v3PendingBackup, dek);
+
+      // Merge
+      const result = mergeJsonEntries(entries, decryptedEntries, Date.now());
+      let currentPresets = presets;
+      let currentCustomPresets = customPresets;
+      let presetsImportedCount = 0;
+
+      if (v3PendingBackup.presets) {
+        for (const imported of v3PendingBackup.presets) {
+          if (!currentPresets.some(e => presetsEqual(e, imported))) {
+            currentPresets = [...currentPresets, imported];
+            presetsImportedCount++;
+          }
+        }
+      }
+      if (v3PendingBackup.customPresets) {
+        for (const imported of v3PendingBackup.customPresets) {
+          if (!currentCustomPresets.some(e => presetsEqual(e, imported))) {
+            currentCustomPresets = [...currentCustomPresets, imported];
+            presetsImportedCount++;
+          }
+        }
+      }
+
+      onImport(result.entries);
+      if (presetsImportedCount > 0) {
+        setPresets(currentPresets);
+        setCustomPresets(currentCustomPresets);
+      }
+      setImportFeedback({ type: 'success', count: result.importedCount, presetsImportedCount });
+      logAction('import.done.v3', { totalImported: result.importedCount, presetsImported: presetsImportedCount });
+
+      // Clear password state
+      setV3PasswordNeeded(false);
+      setV3PendingBackup(null);
+      setV3PasswordInput('');
+      setV3PasswordError(false);
+    } catch {
+      // Wrong password — unwrapDEK fails
+      setV3PasswordError(true);
+      setV3PasswordInput('');
+      v3PasswordRef.current?.focus();
+    }
+  }, [v3PendingBackup, v3PasswordInput, entries, presets, customPresets, onImport, setPresets, setCustomPresets, decryptV3Entries]);
+
   // Shared logic: process a single backup file's content string
   // Custom presets are threaded through (like entries) to avoid stale closure in multi-file import
   const processBackupContent = async (
@@ -71,6 +159,48 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
   } | null> => {
     if (!fileContent) return null;
 
+    // Try v3 format first (not outer-encrypted, raw JSON with encrypted entries)
+    const v3Direct = parseBackupJson(fileContent);
+    if (v3Direct && isV3Backup(v3Direct)) {
+      // v3 backup — needs DEK to decrypt entries
+      if (v3Direct.dek.protection === 'password') {
+        // Password-protected: save for password prompt, return null to signal async flow
+        setV3PendingBackup(v3Direct);
+        setV3PasswordNeeded(true);
+        setV3PasswordError(false);
+        setV3PasswordInput('');
+        setTimeout(() => v3PasswordRef.current?.focus(), 100);
+        return null; // Will be processed after password entry
+      }
+      // App-key protected: unwrap with APP_SECRET KEK
+      const appKEK = await getAppEncryptKey();
+      const dek = await unwrapDEK(v3Direct.dek.wrapped, appKEK);
+      const decryptedEntries = await decryptV3Entries(v3Direct, dek);
+      const result = mergeJsonEntries(currentEntries, decryptedEntries, Date.now());
+
+      let newPresets = currentPresets;
+      let newCustomPresets = currentCustomPresets;
+      let presetsImportedCount = 0;
+      if (v3Direct.presets) {
+        for (const imported of v3Direct.presets) {
+          if (!newPresets.some(e => presetsEqual(e, imported))) {
+            newPresets = [...newPresets, imported];
+            presetsImportedCount++;
+          }
+        }
+      }
+      if (v3Direct.customPresets) {
+        for (const imported of v3Direct.customPresets) {
+          if (!newCustomPresets.some(e => presetsEqual(e, imported))) {
+            newCustomPresets = [...newCustomPresets, imported];
+            presetsImportedCount++;
+          }
+        }
+      }
+      return { entries: result.entries, importedCount: result.importedCount, presets: newPresets, customPresets: newCustomPresets, presetsImportedCount };
+    }
+
+    // Legacy path: outer-encrypted with APP_SECRET backup key
     // Extract encrypted content (skips any header lines)
     const encryptedContent = parseEncryptedBackup(fileContent);
     if (!encryptedContent) {
@@ -84,7 +214,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     // Try JSON format first (v1+), fall back to legacy markdown
     const backup = parseBackupJson(decrypted);
 
-    if (backup) {
+    if (backup && !isV3Backup(backup)) {
       const result = mergeJsonEntries(currentEntries, backup.entries, Date.now());
 
       // Merge default presets: keep existing, add back any missing from backup
@@ -216,10 +346,20 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     if (entries.length === 0) return;
 
     try {
-      // Use JSON format for backup (v2: includes color presets)
-      const jsonContent = formatEntriesAsJson(entries, presets, customPresets);
-      const encrypted = await encryptText(jsonContent);
-      const fileContent = formatEncryptedBackup(encrypted);
+      // Check if DEK/KEK is active — use v3 format (entries stay encrypted, no decrypt needed)
+      const wrappedDEK = await getWrappedDEK();
+      let fileContent: string;
+
+      if (wrappedDEK) {
+        // v3: bundle encrypted entries + wrapped DEK (no decrypt/re-encrypt!)
+        const rawEntries = await getRawEncryptedEntries();
+        fileContent = formatV3Backup(rawEntries, wrappedDEK, presets, customPresets);
+      } else {
+        // Legacy v2: decrypt all entries, format as JSON, encrypt with backup key
+        const jsonContent = formatEntriesAsJson(entries, presets, customPresets);
+        const encrypted = await encryptText(jsonContent);
+        fileContent = formatEncryptedBackup(encrypted);
+      }
 
       const now = new Date();
       // Filename: good days backup MM-DD-YYYY HHmmss.txt (zero-padded, always military time, no colons - macOS converts them to underscores)
@@ -272,7 +412,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       <input
         ref={fileInputRef}
         type="file"
-        accept=".txt"
+        accept=".txt,.json"
         multiple
         onChange={handleFileChange}
         className="hidden"
@@ -300,6 +440,32 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
             : s(stacked ? 'import AES-256-GCM backup' : 'import backup')}
         </span>
       </FunctionButton>
+      {v3PasswordNeeded && (
+        <form onSubmit={handleV3PasswordSubmit} className="mt-2">
+          <input
+            ref={v3PasswordRef}
+            type="password"
+            value={v3PasswordInput}
+            onChange={(e) => { setV3PasswordInput(e.target.value); setV3PasswordError(false); }}
+            placeholder={s(v3PasswordError ? 'wrong password' : 'backup password')}
+            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+            style={{
+              backgroundColor: `hsl(var(--bh), var(--bs), var(--bl))`,
+              border: `3px solid ${v3PasswordError ? errorColor : `hsla(var(--h), var(--s), var(--l), 0.6)`}`,
+              color: `hsl(var(--h), var(--s), var(--l))`,
+              outline: 'none',
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setV3PasswordNeeded(false);
+                setV3PendingBackup(null);
+                setV3PasswordInput('');
+                setV3PasswordError(false);
+              }
+            }}
+          />
+        </form>
+      )}
     </div>
   );
 }

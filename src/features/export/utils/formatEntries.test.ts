@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard } from './formatEntries';
-import { parseBackupJson } from './parseBackup';
+import { parseBackupJson, isV3Backup } from './parseBackup';
 import type { JournalEntry } from '@features/journal';
 
 const sampleEntries: JournalEntry[] = [
@@ -49,12 +49,15 @@ describe('formatEntriesAsJson + parseBackupJson round-trip', () => {
     const json = formatEntriesAsJson(sampleEntries);
     const parsed = parseBackupJson(json);
     expect(parsed).not.toBeNull();
-    expect(parsed!.entries).toHaveLength(3);
-    // Verify sorted oldest-first in JSON
-    expect(parsed!.entries[0].date).toBe('2026-01-10');
-    // Verify fields preserved
-    expect(parsed!.entries[1].title).toBe('morning');
-    expect(parsed!.entries[1].startedAt).toBe(1737000000000);
+    expect(isV3Backup(parsed!)).toBe(false);
+    if (!isV3Backup(parsed!)) {
+      expect(parsed!.entries).toHaveLength(3);
+      // Verify sorted oldest-first in JSON
+      expect(parsed!.entries[0].date).toBe('2026-01-10');
+      // Verify fields preserved
+      expect(parsed!.entries[1].title).toBe('morning');
+      expect(parsed!.entries[1].startedAt).toBe(1737000000000);
+    }
   });
 
   it('round-trips presets', () => {

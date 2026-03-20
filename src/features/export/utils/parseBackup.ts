@@ -1,6 +1,7 @@
 import type { JournalEntry } from '@features/journal';
 import type { ColorPreset } from '@features/theme';
-import type { BackupV1, BackupV2 } from './formatEntries';
+import type { BackupV1, BackupV2, BackupV3 } from './formatEntries';
+import type { EncryptedRecord, WrappedDEKData } from '@shared/storage/journalStorage';
 import { htmlToText } from '@shared/utils/html';
 
 interface ParsedEntry {
@@ -15,12 +16,36 @@ export interface ParsedBackup {
   customPresets: ColorPreset[] | null;
 }
 
+// v3 backup needs DEK to decrypt entries — parsed but not yet decrypted
+export interface ParsedBackupV3 {
+  version: 3;
+  dek: WrappedDEKData;
+  encryptedEntries: EncryptedRecord[];
+  presets: ColorPreset[] | null;
+  customPresets: ColorPreset[] | null;
+}
+
 // Try to parse as JSON backup (v1+), returns null if not JSON format
-export function parseBackupJson(text: string): ParsedBackup | null {
+// For v3, returns a ParsedBackupV3 (entries not yet decrypted)
+export function parseBackupJson(text: string): ParsedBackup | ParsedBackupV3 | null {
   try {
     const parsed = JSON.parse(text);
-    // Check if it's our backup format
-    if (parsed && typeof parsed.version === 'number' && Array.isArray(parsed.entries)) {
+    if (!parsed || typeof parsed.version !== 'number') return null;
+
+    // v3: DEK/KEK encrypted entries
+    if (parsed.version === 3 && parsed.dek && Array.isArray(parsed.encryptedEntries)) {
+      const backup = parsed as BackupV3;
+      return {
+        version: 3,
+        dek: backup.dek,
+        encryptedEntries: backup.encryptedEntries,
+        presets: backup.presets ?? null,
+        customPresets: backup.customPresets ?? null,
+      };
+    }
+
+    // v1/v2: plaintext entries (after outer decryption)
+    if (Array.isArray(parsed.entries)) {
       if (parsed.version >= 2) {
         const backup = parsed as BackupV2;
         return {
@@ -37,6 +62,11 @@ export function parseBackupJson(text: string): ParsedBackup | null {
   } catch {
     return null;
   }
+}
+
+// Type guard: check if parsed backup is v3 (needs DEK decryption)
+export function isV3Backup(backup: ParsedBackup | ParsedBackupV3): backup is ParsedBackupV3 {
+  return 'version' in backup && backup.version === 3;
 }
 
 // Merge JSON-imported entries (already have HTML content) with existing entries

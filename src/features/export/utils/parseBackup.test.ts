@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBackupJson, mergeJsonEntries, parseBackupText, mergeEntries } from './parseBackup';
+import { parseBackupJson, mergeJsonEntries, parseBackupText, mergeEntries, isV3Backup } from './parseBackup';
 import type { JournalEntry } from '@features/journal';
 
 describe('parseBackupJson', () => {
@@ -13,9 +13,12 @@ describe('parseBackupJson', () => {
     });
     const result = parseBackupJson(json);
     expect(result).not.toBeNull();
-    expect(result!.entries).toHaveLength(1);
-    expect(result!.presets).toHaveLength(1);
-    expect(result!.customPresets).toHaveLength(0);
+    expect(isV3Backup(result!)).toBe(false);
+    if (!isV3Backup(result!)) {
+      expect(result!.entries).toHaveLength(1);
+      expect(result!.presets).toHaveLength(1);
+      expect(result!.customPresets).toHaveLength(0);
+    }
   });
 
   it('parses a valid v1 backup (no presets)', () => {
@@ -26,9 +29,12 @@ describe('parseBackupJson', () => {
     });
     const result = parseBackupJson(json);
     expect(result).not.toBeNull();
-    expect(result!.entries).toHaveLength(1);
-    expect(result!.presets).toBeNull();
-    expect(result!.customPresets).toBeNull();
+    expect(isV3Backup(result!)).toBe(false);
+    if (!isV3Backup(result!)) {
+      expect(result!.entries).toHaveLength(1);
+      expect(result!.presets).toBeNull();
+      expect(result!.customPresets).toBeNull();
+    }
   });
 
   it('returns null for plain text', () => {
