@@ -4,7 +4,8 @@ import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard, formatV3Backup } from '../utils/formatEntries';
 import { parseBackupJson, parseBackupText, mergeJsonEntries, mergeEntries, isV3Backup, type ParsedBackupV3 } from '../utils/parseBackup';
 import { encryptText, decryptText, formatEncryptedBackup, parseEncryptedBackup, derivePasswordKey, getAppEncryptKey, unwrapDEK, decryptWithKey } from '@shared/crypto';
-import { getRawEncryptedEntries, getWrappedDEK } from '@shared/storage/journalStorage';
+import { getRawEncryptedEntries, getWrappedDEK, getCurrentEncryptionKey } from '@shared/storage/journalStorage';
+import type { BackupV3Payload } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
 import { scrambleText } from '@shared/utils/scramble';
 import { getStatusColors } from '@shared/utils/confirmColor';
@@ -109,13 +110,18 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     };
   }, [importFeedback]);
 
-  // Decrypt v3 backup entries using a DEK
-  const decryptV3Entries = useCallback(async (
+  // Decrypt v3 backup: first decrypt the outer payload, then decrypt individual entries
+  const decryptV3Backup = useCallback(async (
     backup: ParsedBackupV3,
     dek: CryptoKey,
-  ): Promise<JournalEntry[]> => {
+  ): Promise<{ entries: JournalEntry[]; presets: ColorPreset[] | null; customPresets: ColorPreset[] | null }> => {
+    // Decrypt the outer payload (dates, presets, encrypted entry records)
+    const payloadJson = await decryptWithKey(backup.payload, dek);
+    const payload: BackupV3Payload = JSON.parse(payloadJson);
+
+    // Decrypt individual entry payloads
     const decrypted: JournalEntry[] = [];
-    for (const record of backup.encryptedEntries) {
+    for (const record of payload.encryptedEntries) {
       if (!record._payload) continue;
       try {
         const json = await decryptWithKey(record._payload, dek);
@@ -131,7 +137,11 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         console.error(`Failed to decrypt v3 entry: ${record.date}`);
       }
     }
-    return decrypted;
+    return {
+      entries: decrypted,
+      presets: payload.presets ?? null,
+      customPresets: payload.customPresets ?? null,
+    };
   }, []);
 
   // Handle v3 password-protected import: user submits password
@@ -142,24 +152,24 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     try {
       const kek = await derivePasswordKey(v3PasswordInput.trim());
       const dek = await unwrapDEK(v3PendingBackup.dek.wrapped, kek);
-      const decryptedEntries = await decryptV3Entries(v3PendingBackup, dek);
+      const v3Data = await decryptV3Backup(v3PendingBackup, dek);
 
-      // Merge
-      const result = mergeJsonEntries(entries, decryptedEntries, Date.now());
+      // Merge entries
+      const result = mergeJsonEntries(entries, v3Data.entries, Date.now());
       let currentPresets = presets;
       let currentCustomPresets = customPresets;
       let presetsImportedCount = 0;
 
-      if (v3PendingBackup.presets) {
-        for (const imported of v3PendingBackup.presets) {
+      if (v3Data.presets) {
+        for (const imported of v3Data.presets) {
           if (!currentPresets.some(e => presetsEqual(e, imported))) {
             currentPresets = [...currentPresets, imported];
             presetsImportedCount++;
           }
         }
       }
-      if (v3PendingBackup.customPresets) {
-        for (const imported of v3PendingBackup.customPresets) {
+      if (v3Data.customPresets) {
+        for (const imported of v3Data.customPresets) {
           if (!currentCustomPresets.some(e => presetsEqual(e, imported))) {
             currentCustomPresets = [...currentCustomPresets, imported];
             presetsImportedCount++;
@@ -186,7 +196,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       setV3PasswordInput('');
       v3PasswordRef.current?.focus();
     }
-  }, [v3PendingBackup, v3PasswordInput, entries, presets, customPresets, onImport, setPresets, setCustomPresets, decryptV3Entries, flashV3Red]);
+  }, [v3PendingBackup, v3PasswordInput, entries, presets, customPresets, onImport, setPresets, setCustomPresets, decryptV3Backup, flashV3Red]);
 
   // Shared logic: process a single backup file's content string
   // Custom presets are threaded through (like entries) to avoid stale closure in multi-file import
@@ -218,25 +228,25 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         setTimeout(() => v3PasswordRef.current?.focus(), 100);
         return null; // Will be processed after password entry
       }
-      // App-key protected: unwrap with APP_SECRET KEK
+      // App-key protected: unwrap with APP_SECRET KEK, decrypt payload
       const appKEK = await getAppEncryptKey();
       const dek = await unwrapDEK(v3Direct.dek.wrapped, appKEK);
-      const decryptedEntries = await decryptV3Entries(v3Direct, dek);
-      const result = mergeJsonEntries(currentEntries, decryptedEntries, Date.now());
+      const v3Data = await decryptV3Backup(v3Direct, dek);
+      const result = mergeJsonEntries(currentEntries, v3Data.entries, Date.now());
 
       let newPresets = currentPresets;
       let newCustomPresets = currentCustomPresets;
       let presetsImportedCount = 0;
-      if (v3Direct.presets) {
-        for (const imported of v3Direct.presets) {
+      if (v3Data.presets) {
+        for (const imported of v3Data.presets) {
           if (!newPresets.some(e => presetsEqual(e, imported))) {
             newPresets = [...newPresets, imported];
             presetsImportedCount++;
           }
         }
       }
-      if (v3Direct.customPresets) {
-        for (const imported of v3Direct.customPresets) {
+      if (v3Data.customPresets) {
+        for (const imported of v3Data.customPresets) {
           if (!newCustomPresets.some(e => presetsEqual(e, imported))) {
             newCustomPresets = [...newCustomPresets, imported];
             presetsImportedCount++;
@@ -414,9 +424,11 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
       let fileContent: string;
 
       if (wrappedDEK) {
-        // v3: bundle encrypted entries + wrapped DEK (no decrypt/re-encrypt!)
+        // v3: bundle encrypted entries + wrapped DEK, encrypt entire payload with DEK
         const rawEntries = await getRawEncryptedEntries();
-        fileContent = formatV3Backup(rawEntries, wrappedDEK, presets, customPresets);
+        const dek = getCurrentEncryptionKey();
+        if (!dek) throw new Error('No DEK available for backup');
+        fileContent = await formatV3Backup(rawEntries, wrappedDEK, dek, presets, customPresets);
       } else {
         // Legacy v2: decrypt all entries, format as JSON, encrypt with backup key
         const jsonContent = formatEntriesAsJson(entries, presets, customPresets);

@@ -1,7 +1,7 @@
 import type { JournalEntry } from '@features/journal';
 import type { ColorPreset } from '@features/theme';
 import type { BackupV1, BackupV2, BackupV3 } from './formatEntries';
-import type { EncryptedRecord, WrappedDEKData } from '@shared/storage/journalStorage';
+import type { WrappedDEKData } from '@shared/storage/journalStorage';
 import { htmlToText } from '@shared/utils/html';
 
 interface ParsedEntry {
@@ -16,13 +16,11 @@ export interface ParsedBackup {
   customPresets: ColorPreset[] | null;
 }
 
-// v3 backup needs DEK to decrypt entries — parsed but not yet decrypted
+// v3 backup envelope — payload is encrypted, needs DEK to decrypt
 export interface ParsedBackupV3 {
   version: 3;
   dek: WrappedDEKData;
-  encryptedEntries: EncryptedRecord[];
-  presets: ColorPreset[] | null;
-  customPresets: ColorPreset[] | null;
+  payload: string;  // encrypted BackupV3Payload (base64 AES-GCM ciphertext)
 }
 
 // Try to parse as JSON backup (v1+), returns null if not JSON format
@@ -32,15 +30,13 @@ export function parseBackupJson(text: string): ParsedBackup | ParsedBackupV3 | n
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed.version !== 'number') return null;
 
-    // v3: DEK/KEK encrypted entries
-    if (parsed.version === 3 && parsed.dek && Array.isArray(parsed.encryptedEntries)) {
+    // v3: DEK/KEK encrypted payload
+    if (parsed.version === 3 && parsed.dek && typeof parsed.payload === 'string') {
       const backup = parsed as BackupV3;
       return {
         version: 3,
         dek: backup.dek,
-        encryptedEntries: backup.encryptedEntries,
-        presets: backup.presets ?? null,
-        customPresets: backup.customPresets ?? null,
+        payload: backup.payload,
       };
     }
 

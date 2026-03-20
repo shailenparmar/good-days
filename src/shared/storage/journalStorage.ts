@@ -35,6 +35,11 @@ export function setEncryptionKey(key: CryptoKey, mode: EncryptionKeyMode): void 
   keyMode = mode;
 }
 
+// Get the current encryption key (DEK after migration, used for v3 backup payload encryption)
+export function getCurrentEncryptionKey(): CryptoKey | null {
+  return currentKey;
+}
+
 // Get the encryption mode from IndexedDB metadata (or localStorage in Electron)
 export async function getEncryptionMode(): Promise<EncryptionKeyMode | 'none'> {
   if (isElectron()) {

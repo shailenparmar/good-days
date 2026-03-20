@@ -65,10 +65,13 @@ describe('formatEntriesAsJson + parseBackupJson round-trip', () => {
     const customPresets = [{ hue: 200, sat: 60, light: 40, bgHue: 20, bgSat: 80, bgLight: 95 }];
     const json = formatEntriesAsJson(sampleEntries, presets, customPresets);
     const parsed = parseBackupJson(json);
-    expect(parsed!.presets).toHaveLength(1);
-    expect(parsed!.presets![0].hue).toBe(120);
-    expect(parsed!.customPresets).toHaveLength(1);
-    expect(parsed!.customPresets![0].hue).toBe(200);
+    expect(isV3Backup(parsed!)).toBe(false);
+    if (!isV3Backup(parsed!)) {
+      expect(parsed!.presets).toHaveLength(1);
+      expect(parsed!.presets![0].hue).toBe(120);
+      expect(parsed!.customPresets).toHaveLength(1);
+      expect(parsed!.customPresets![0].hue).toBe(200);
+    }
   });
 });
 

@@ -18,14 +18,19 @@ export interface BackupV2 {
   customPresets?: ColorPreset[];
 }
 
-// JSON backup format (v3) - DEK/KEK encrypted entries
-export interface BackupV3 {
-  version: 3;
+// Inner payload of v3 backup (encrypted with DEK)
+export interface BackupV3Payload {
   exportedAt: number;
-  dek: WrappedDEKData;                  // DEK wrapped with user's KEK
   encryptedEntries: EncryptedRecord[];   // entries still encrypted with DEK
   presets?: ColorPreset[];
   customPresets?: ColorPreset[];
+}
+
+// JSON backup format (v3) - outer envelope (only version + wrapped DEK visible)
+export interface BackupV3 {
+  version: 3;
+  dek: WrappedDEKData;                  // DEK wrapped with user's KEK
+  payload: string;                       // base64 AES-GCM ciphertext of BackupV3Payload
 }
 
 // For encrypted backup (JSON format) — legacy v2
@@ -44,20 +49,30 @@ export function formatEntriesAsJson(
   return JSON.stringify(backup);
 }
 
-// For v3 backup — entries stay encrypted, DEK is wrapped with user's KEK
-export function formatV3Backup(
+// For v3 backup — entire payload encrypted with DEK (dates, presets, everything)
+export async function formatV3Backup(
   encryptedEntries: EncryptedRecord[],
   wrappedDEK: WrappedDEKData,
+  dek: CryptoKey,
   presets?: ColorPreset[],
   customPresets?: ColorPreset[],
-): string {
-  const backup: BackupV3 = {
-    version: 3,
+): Promise<string> {
+  const { encryptWithKey } = await import('@shared/crypto');
+
+  const innerPayload: BackupV3Payload = {
     exportedAt: Date.now(),
-    dek: wrappedDEK,
     encryptedEntries: [...encryptedEntries].sort((a, b) => a.date.localeCompare(b.date)),
     presets,
     customPresets,
+  };
+
+  // Encrypt the entire payload with the DEK
+  const encryptedPayload = await encryptWithKey(JSON.stringify(innerPayload), dek);
+
+  const backup: BackupV3 = {
+    version: 3,
+    dek: wrappedDEK,
+    payload: encryptedPayload,
   };
   return JSON.stringify(backup);
 }
