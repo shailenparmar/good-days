@@ -352,11 +352,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
 
   // Handle "remove password" button click
   const handleRemovePasswordClick = async () => {
-    try {
-      await removePassword();
-    } catch (err) {
-      console.error('Failed to remove password:', err);
-    }
+    await removePassword();
     // Clear any leftover input text so "set password" placeholder shows clean
     setInput('');
     setNewPasswordTemp('');
@@ -394,19 +390,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
 
       case 'confirm':
         if (input.trim() === newPasswordTemp) {
-          try {
-            await changePassword(newPasswordTemp);
-            setInput('');
-            setNewPasswordTemp('');
-            setIsSaving(true);
-          } catch (err) {
-            console.error('Failed to change password:', err);
-            flashRed();
-            setStep('old');
-            setInput('');
-            setNewPasswordTemp('');
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }
+          await changePassword(newPasswordTemp);
+          setInput('');
+          setNewPasswordTemp('');
+          setIsSaving(true);
         } else {
           flashRed();
           setStep('old');
@@ -426,18 +413,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
 
       case 'set-confirm':
         if (input.trim() === newPasswordTemp) {
-          try {
-            setInput('');
-            setNewPasswordTemp('');
-            setIsSaving(true); // Set BEFORE setPassword so the useEffect guard prevents reset
-            await setPassword(newPasswordTemp);
-          } catch (err) {
-            console.error('Failed to set password:', err);
-            setIsSaving(false);
-            flashRed();
-            setStep('set');
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }
+          setInput('');
+          setNewPasswordTemp('');
+          setIsSaving(true); // Set BEFORE setPassword so the useEffect guard prevents reset
+          await setPassword(newPasswordTemp);
         } else {
           flashRed();
           setStep('set');
