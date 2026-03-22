@@ -5,7 +5,7 @@ import { scrambleText } from '@shared/utils/scramble';
 import { getEasterEggCount, markEasterEggFound, isEasterEggFound } from '@shared/utils/easterEggs';
 import { getStorageEstimate } from '@shared/storage/journalStorage';
 import { getItem } from '@shared/storage';
-import { getStatusColors } from '@shared/utils/confirmColor';
+import { STATUS_RED } from '@shared/utils/confirmColor';
 import type { JournalEntry } from '../types';
 
 function hslToHex(h: number, s: number, l: number): string {
@@ -101,10 +101,7 @@ function ColorButton({
 
 export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, presets, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset, setActivePresetIndex } = useTheme();
-  const { error: errorColor } = useMemo(
-    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
-    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
-  );
+  const errorColor = STATUS_RED;
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const [rainbowHue, setRainbowHue] = useState(0);

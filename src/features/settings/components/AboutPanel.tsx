@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@features/theme';
 
 import { Link2, Settings, Heart } from 'lucide-react';
 import { scrambleText } from '@shared/utils/scramble';
-import { getStatusColors } from '@shared/utils/confirmColor';
+import { STATUS_GREEN } from '@shared/utils/confirmColor';
 import { getItem, setItem } from '@shared/storage';
 import { ABOUT_COPY } from '@shared/copy/aboutCopy';
 
@@ -56,12 +56,9 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
       )}</span>;
     });
   };
-  const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  const { getColor } = useTheme();
   const [linkHovered, setLinkHovered] = useState(false);
-  const { confirm: confirmColor } = useMemo(
-    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
-    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
-  );
+  const confirmColor = STATUS_GREEN;
 
   // Calculate About width to keep right edge aligned
   // With border-box, the 6px border is inside the width value

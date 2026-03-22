@@ -152,7 +152,12 @@ function solveLightness(hue: number, bgLum: number): number {
   return result;
 }
 
-// ============ Main Export ============
+// ============ Hardcoded Status Colors (v3.0.7+) ============
+
+export const STATUS_GREEN = '#1fff0f';
+export const STATUS_RED = '#ff0f0f';
+
+// ============ Legacy Dynamic Status Colors (kept for reference) ============
 
 export function getStatusColors(
   textH: number,

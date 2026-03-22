@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
 import { scrambleText } from '@shared/utils/scramble';
-import { getStatusColors } from '@shared/utils/confirmColor';
+import { STATUS_GREEN, STATUS_RED } from '@shared/utils/confirmColor';
 
 type PasswordStep = 'old' | 'new' | 'confirm' | 'set' | 'set-confirm';
 type FlashState = 'none' | 'green' | 'red';
@@ -92,7 +92,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
   // Helper to scramble text in superscramble
   const s = (text: string) => superscramble ? scrambleText(text) : text;
 
-  const { getColor, hue, saturation, lightness, bgHue, bgSaturation, bgLightness } = useTheme();
+  const { getColor } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Core state
@@ -321,11 +321,8 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
   const dividerColor = 'hsla(var(--h), var(--s), var(--l), 0.6)';
   const activeColor = 'hsl(var(--h), var(--s), max(0%, calc(var(--l) * 0.65)))';
   const hoverBg = 'hsla(var(--h), var(--s), 50%, 0.2)';
-  // Dynamic status colors using WCAG contrast ratios
-  const { confirm: confirmColor, error: errorColor } = useMemo(
-    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
-    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
-  );
+  const confirmColor = STATUS_GREEN;
+  const errorColor = STATUS_RED;
 
   const getBorderColor = () => {
     if (flashState === 'green' || isSaving) return confirmColor;

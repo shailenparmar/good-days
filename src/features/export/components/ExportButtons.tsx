@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Upload, Download, Copy } from 'lucide-react';
 import type { JournalEntry } from '@features/journal';
 import { formatEntriesAsJson, formatEntriesAsText, formatEntriesForClipboard, formatV3Backup } from '../utils/formatEntries';
@@ -8,7 +8,7 @@ import { getRawEncryptedEntries, getWrappedDEK, getCurrentEncryptionKey } from '
 import type { BackupV3Payload } from '../utils/formatEntries';
 import { FunctionButton } from '@shared/components';
 import { scrambleText } from '@shared/utils/scramble';
-import { getStatusColors } from '@shared/utils/confirmColor';
+import { STATUS_GREEN, STATUS_RED } from '@shared/utils/confirmColor';
 import { logAction } from '@shared/logger';
 import { useTheme, type ColorPreset } from '@features/theme';
 
@@ -89,12 +89,9 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
     setTimeout(() => setV3FlashState('none'), 400);
   }, []);
 
-  const { hue, saturation, lightness, bgHue, bgSaturation, bgLightness, presets, customPresets, setPresets, setCustomPresets } = useTheme();
-  // Dynamic status colors using WCAG contrast ratios
-  const { confirm: confirmColor, error: errorColor } = useMemo(
-    () => getStatusColors(hue, saturation, lightness, bgHue, bgSaturation, bgLightness),
-    [hue, saturation, lightness, bgHue, bgSaturation, bgLightness]
-  );
+  const { presets, customPresets, setPresets, setCustomPresets } = useTheme();
+  const confirmColor = STATUS_GREEN;
+  const errorColor = STATUS_RED;
 
   // Dismiss import feedback on keystroke (clicks are intentional actions)
   useEffect(() => {

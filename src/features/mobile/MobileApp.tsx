@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMobileSync } from '@shared/sync/useMobileSync';
 import { setItem } from '@shared/storage';
 import { VERSION } from '@shared/version';
@@ -6,7 +6,7 @@ import { TiltSquare, CornerBrackets } from './components/TiltSquare';
 import { MobileButton } from './components/MobileButton';
 import { hslToHex, parseColorInput, pureHueGradient, isTouchInside } from './utils';
 import type { ColorState } from './utils';
-import { getStatusColors } from '@shared/utils/confirmColor';
+import { STATUS_GREEN, STATUS_RED } from '@shared/utils/confirmColor';
 
 export default function MobileApp() {
   // Color state
@@ -691,10 +691,8 @@ export default function MobileApp() {
     };
   }, [saveConfirmed, copyConfirmed, pasteConfirmed]);
 
-  const { confirm: confirmColor, error: errorColor } = useMemo(
-    () => getStatusColors(colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight),
-    [colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight]
-  );
+  const confirmColor = STATUS_GREEN;
+  const errorColor = STATUS_RED;
 
   // Button style helper - follows style guide with fill on press
   const isLive = sync.pairingState === 'paired';
