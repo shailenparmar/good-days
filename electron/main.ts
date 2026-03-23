@@ -37,26 +37,6 @@ app.whenReady().then(() => {
   const menu = Menu.buildFromTemplate([
     { role: 'appMenu' },
     { role: 'editMenu' },
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        { type: 'separator' },
-        {
-          label: 'good days pro',
-          click: () => {
-            const wins = BrowserWindow.getAllWindows();
-            if (wins.length > 0) {
-              wins[0].show();
-              wins[0].focus();
-            } else {
-              createWindow();
-            }
-          },
-        },
-      ],
-    },
   ]);
   Menu.setApplicationMenu(menu);
 
