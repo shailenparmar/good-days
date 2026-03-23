@@ -23,9 +23,14 @@ The pro branch has **two independent version numbers**:
 | **Web version** | `src/shared/version.ts` | Shared with main branch. Shown in info box hover. | `X.Y.Z` (tracks main, currently 2.6.x) |
 
 **Rules:**
-- **Increment `package.json` version before every App Store submission.** This is the version Apple sees. Must be higher than the last submitted version or Transporter will reject it.
+- **Increment BOTH `package.json` AND `src/shared/proVersion.ts` before every App Store submission.** They MUST match. `package.json` is what Apple/Transporter sees. `proVersion.ts` is what the user sees in the app info box on title hover.
 - **Do NOT manually change `version.ts`** on pro — it comes from main via rebase.
-- The info box shows `version.ts` (the web version). The App Store shows `package.json` version.
+- The info box shows `PRO_VERSION` from `proVersion.ts` (e.g., "v1.0.8") + pairing code. NOT the web version.
+
+**Version bump checklist (MANDATORY before every `build:mas`):**
+1. Increment `package.json` `"version"` field
+2. Update `src/shared/proVersion.ts` `PRO_VERSION` to match
+3. Both must be the same string (e.g., `"1.0.8"`)
 
 ## Build & Submit Workflow
 

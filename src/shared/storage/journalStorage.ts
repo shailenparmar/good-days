@@ -831,7 +831,6 @@ export function saveAllJournalEntries(entries: JournalEntry[]): void {
  * Saves every 300ms during active typing. Safe for multi-tab.
  */
 export function saveSingleEntry(entry: JournalEntry): void {
-  log('saveSingleEntry: queued', { date: entry.date, contentLength: entry.content.length });
   if (fallbackMode) {
     const entries = parseLocalStorageEntries();
     const index = entries.findIndex(e => e.date === entry.date);

@@ -13,11 +13,18 @@ function entryPath(date: string): string {
   return path.join(getEntriesDir(), `${date}.json`);
 }
 
+// Cache: only mkdir once per session, not on every save
+let dirEnsured = false;
+async function ensureDir(): Promise<void> {
+  if (dirEnsured) return;
+  await fs.mkdir(getEntriesDir(), { recursive: true });
+  dirEnsured = true;
+}
+
 export function registerStorageHandlers(): void {
   ipcMain.handle(IPC.STORAGE_SAVE, async (_event, date: string, data: string) => {
     if (!DATE_RE.test(date)) throw new Error(`Invalid date format: ${date}`);
-    const dir = getEntriesDir();
-    await fs.mkdir(dir, { recursive: true });
+    await ensureDir();
     const target = entryPath(date);
     const tmp = `${target}.tmp`;
     await fs.writeFile(tmp, data, 'utf-8');
