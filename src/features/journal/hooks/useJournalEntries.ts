@@ -42,6 +42,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     hasLoadedRef.current = true;
 
     let mounted = true;
+    const startedAt = performance.now();
 
     initJournalStorage((progressEntries) => {
       if (!mounted) return;
@@ -54,7 +55,10 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       setEntries(loadedEntries);
       entriesRef.current = loadedEntries;
       setIsLoading(false);
-      logAction('journal.loaded', { entryCount: loadedEntries.length });
+      logAction('journal.loaded', {
+        entryCount: loadedEntries.length,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
 
       // Update current content for selected date
       const entry = loadedEntries.find(e => e.date === selectedDate);

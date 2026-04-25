@@ -468,16 +468,29 @@ async function getEntriesFromIndexedDB(db: IDBDatabase, onProgress?: (entries: J
 
   if (currentKey) {
     if (onProgress) {
-      // Decrypt one at a time, yielding each entry progressively
+      // Decrypt one at a time, yielding entries progressively in batches.
+      // Batching (every 25 entries or 50ms) keeps the spawn-in feel while
+      // dropping sidebar rerenders from O(N) to O(N/25). Sort once at the end
+      // instead of on every iteration.
+      const BATCH_SIZE = 25;
+      const BATCH_MS = 50;
       const entries: JournalEntry[] = [];
+      let lastEmit = performance.now();
+      let sinceEmit = 0;
       for (const record of rawRecords) {
         const entry = await decryptEntry(record);
-        if (entry) {
-          entries.push(entry);
-          entries.sort((a, b) => b.date.localeCompare(a.date));
-          onProgress([...entries]);
+        if (!entry) continue;
+        entries.push(entry);
+        sinceEmit++;
+        const now = performance.now();
+        if (sinceEmit >= BATCH_SIZE || now - lastEmit >= BATCH_MS) {
+          const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+          onProgress(sorted);
+          sinceEmit = 0;
+          lastEmit = now;
         }
       }
+      entries.sort((a, b) => b.date.localeCompare(a.date));
       return entries;
     }
     // No progress callback — decrypt all in parallel (fast path)
