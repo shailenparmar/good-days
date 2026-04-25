@@ -26,9 +26,11 @@ Password unlock is split into two phases for instant feedback:
 
 **Re-lock case:** When ESC-locking and re-unlocking, the encryption key is still in memory (`encryptionKeyReady` never went false). `App.tsx` checks `auth.encryptionKeyReady` — if already true, calls `reloadEntries()` directly. The background derivation still runs but is harmless (overwrites with the same key).
 
-**Progressive entry loading (v2.7.23+):** `initJournalStorage` accepts an optional `onProgress` callback. When provided, entries decrypt one at a time (sequential `for` loop instead of `Promise.all`), calling `onProgress` with the cumulative sorted array after each entry. `useJournalEntries` passes a callback that updates `setEntries` progressively — sidebar entries spawn visibly as they decrypt. The final `.then()` sets `isLoading = false` and updates `currentContent`. Without the callback (non-unlock loads like `reloadEntries`), the fast `Promise.all` path is used.
+**Progressive entry loading (v2.7.23+):** `initJournalStorage` accepts an optional `onProgress` callback. When provided, entries decrypt one at a time (sequential `for` loop instead of `Promise.all`), calling `onProgress` with the cumulative sorted array. `useJournalEntries` passes a callback that updates `setEntries` progressively — sidebar entries spawn visibly as they decrypt. The final `.then()` sets `isLoading = false` and updates `currentContent`. Without the callback (non-unlock loads like `reloadEntries`), the fast `Promise.all` path is used.
 
-Code locations: `useAuth.ts` (`handlePasswordSubmit`), `LockScreen.tsx` (`handleSubmit`), `App.tsx` (`handlePasswordSubmit`), `journalStorage.ts` (`initJournalStorage`, `getEntriesFromIndexedDB`)
+**Batched emits + single sort (v3.0.9+):** Previously the loop sorted the full array and called `onProgress` *every* entry, causing O(N²) sidebar/stats rerenders during unlock (a user with 1k entries would trigger ~500k cumulative button renders). Now `getEntriesFromIndexedDB` only emits every 25 entries or 50ms (whichever first), and sorts once at the end of the loop. The spawn-in feel is preserved while sidebar rerenders drop from N to ~N/25. Constants: `BATCH_SIZE = 25`, `BATCH_MS = 50`. `journal.loaded` action log includes `durationMs` (set in `useJournalEntries.ts` via `performance.now()` deltas) so unlock time can be measured per device via the debug log export.
+
+Code locations: `useAuth.ts` (`handlePasswordSubmit`), `LockScreen.tsx` (`handleSubmit`), `App.tsx` (`handlePasswordSubmit`), `journalStorage.ts` (`initJournalStorage`, `getEntriesFromIndexedDB`), `useJournalEntries.ts` (load effect + `journal.loaded` log)
 
 ### Password Dead Man's Switch (v2.1.32+)
 
