@@ -45,8 +45,13 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   // Placeholder animation
   const [boldCount, setBoldCount] = useState(0);
   const [animPhase, setAnimPhase] = useState<'bold' | 'unbold'>('bold');
-  const placeholderText = isCoolingDown ? String(cooldownRemaining) : 'password';
-  const showPlaceholder = isCoolingDown || (passwordInput.length === 0 && !isFocused);
+  const placeholderText = isSubmitting
+    ? 'checking'
+    : isCoolingDown
+      ? String(cooldownRemaining)
+      : 'password';
+  const showPlaceholder =
+    isSubmitting || isCoolingDown || (passwordInput.length === 0 && !isFocused);
 
   useEffect(() => {
     if (!showPlaceholder) return;
@@ -87,6 +92,14 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     }
   }, [cooldownRemaining, isCoolingDown]);
 
+  // Reset animation when entering checking state — kicks the sweep on submit
+  useEffect(() => {
+    if (isSubmitting) {
+      setBoldCount(0);
+      setAnimPhase('bold');
+    }
+  }, [isSubmitting]);
+
   // Auto-focus input when user starts typing anywhere on the lock screen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -102,12 +115,14 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
   }, []);
 
   const flashRed = () => {
+    // 4 pulses over 600ms — first pulse held longer so it survives a busy render
+    // thread on slow devices. Previously 3×80ms pulses could coalesce invisibly.
     setFlashState('red');
-    setTimeout(() => setFlashState('none'), 80);
-    setTimeout(() => setFlashState('red'), 160);
-    setTimeout(() => setFlashState('none'), 240);
-    setTimeout(() => setFlashState('red'), 320);
-    setTimeout(() => setFlashState('none'), 400);
+    setTimeout(() => setFlashState('none'), 150);
+    setTimeout(() => setFlashState('red'), 250);
+    setTimeout(() => setFlashState('none'), 350);
+    setTimeout(() => setFlashState('red'), 450);
+    setTimeout(() => setFlashState('none'), 600);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,13 +136,18 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     // Yield a frame so React can paint the disabled state before PBKDF2 blocks the thread
     await new Promise(r => requestAnimationFrame(r));
     const success = await onSubmit(e, password);
-    setIsSubmitting(false);
 
     if (success) {
+      // Lock screen is about to unmount — leave isSubmitting=true so any final
+      // paint stays in the "checking" state instead of flashing back to "password".
       setFailedAttempts(0);
       setCooldownEnd(null);
       setCooldownRemaining(0);
-    } else {
+      return;
+    }
+
+    setIsSubmitting(false);
+    {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
@@ -150,6 +170,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
 
   const getBorderColor = () => {
     if (flashState === 'red') return '#ef4444';
+    if (isSubmitting) return textColor;
     if (isPressed) return activeColor;
     if (isFocused || isHovered || passwordInput) return textColor;
     return borderDefault;
