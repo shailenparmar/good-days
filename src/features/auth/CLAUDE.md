@@ -12,6 +12,13 @@ After 3 consecutive failed password attempts, the lock screen enforces an expone
 
 **Click-outside blur (v2.6.7+):** Clicking outside the password input on the lock screen blurs it (removes focus styling). Uses `onMouseDown` on the container div to programmatically blur the input.
 
+**Visible submit feedback (v3.0.10+):** Pressing Enter on the lock screen now produces immediate visible feedback. Previously `isSubmitting` was set but nothing in the UI consumed it (input went `disabled` with no styling change), so on a busy device the user saw nothing happen during the ~200ms PBKDF2 hash check.
+
+- **Placeholder swap:** When `isSubmitting`, `placeholderText` becomes `"checking"` (overrides both `"password"` and the cooldown countdown). `showPlaceholder` is forced `true` while submitting so the sweep is always visible regardless of focus/value state. A dedicated `useEffect` resets `boldCount = 0`, `animPhase = 'bold'` on `isSubmitting` transitions so the sweep restarts cleanly each submit.
+- **Border swap:** `getBorderColor()` returns the focused-state `textColor` while `isSubmitting`, ahead of `isPressed`/`isFocused`/`passwordInput` checks but behind the red flash. Visible thicker border at the moment of submit.
+- **flashRed timing:** Bumped from 3 pulses over 400ms (80ms on/off) to 4 pulses over 600ms with the first pulse held 150ms. Short pulses on a stressed render thread were getting coalesced invisibly; the longer first pulse guarantees at least one painted red frame.
+- **Success path leaves `isSubmitting=true`:** On `success === true`, `handleSubmit` returns early without `setIsSubmitting(false)`. The lock screen is about to unmount, so leaving the flag set keeps the "checking" placeholder visible through the final paint instead of flashing back to "password" or focused state for one frame. Only the failure path resets the flag.
+
 Code location: `src/features/auth/components/LockScreen.tsx`
 
 ### Deferred Key Derivation (v2.7.21+)
