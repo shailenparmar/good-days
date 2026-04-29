@@ -38,7 +38,8 @@ Tabs communicate via `BroadcastChannel('good-days-sync')` to prevent silent over
 |----------|---------|
 | `broadcastSave(date)` | Internal — broadcasts after successful write |
 | `onEntrySaved(callback)` | Subscribe to saves from other tabs, returns unsubscribe fn |
-| `loadSingleEntry(date)` | Read one entry from IndexedDB (used for reload) |
+| `loadSingleEntry(date)` | Read one entry from IndexedDB and decrypt (used by reload + lazy decrypt) |
+| `loadEntryIndex()` | (v3.1.0+) Read all records, return `{ entries, encryptedDates }` with **no AES-GCM**. Encrypted records get a stub with `content: ''` and `title: undefined`; legacy plaintext entries are returned in full. Used by `useJournalEntries` for the unlock fast path. See auth CLAUDE.md "Two-phase load architecture". |
 
 **In `useJournalEntries.ts`:**
 - On mount, subscribes via `onEntrySaved`
