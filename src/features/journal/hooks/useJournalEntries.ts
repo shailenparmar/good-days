@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getItem, setItem } from '@shared/storage';
-import { initJournalStorage, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry, hasDecryptionFailure, cancelPendingSave } from '@shared/storage/journalStorage';
+import { loadEntryIndex, saveSingleEntry, deleteSingleEntry, flushPendingSaves, onEntrySaved, loadSingleEntry, hasDecryptionFailure, cancelPendingSave } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import { htmlToText } from '@shared/utils/html';
 import { logAction } from '@shared/logger';
@@ -30,12 +30,20 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   const entriesRef = useRef<JournalEntry[]>(entries);
   const pendingSaveRef = useRef<{ content: string; date: string } | null>(null);
 
+  // Dates whose content has been fully decrypted (or are plaintext legacy).
+  // Index-only entries are NOT in this set — saveEntry refuses to overwrite
+  // them, and the selectedDate effect lazy-decrypts on demand.
+  const loadedDatesRef = useRef<Set<string>>(new Set());
+
   // Keep entriesRef in sync
   useEffect(() => {
     entriesRef.current = entries;
   }, [entries]);
 
-  // Load entries from IndexedDB once encryption key is ready
+  // Load entries from IndexedDB once encryption key is ready.
+  // Two-phase load: (A) index-only — sidebar usable in <100ms regardless of
+  // entry count; (B) decrypt today + selectedDate so the editor is writable.
+  // Other entries lazy-decrypt when the user navigates to them.
   const hasLoadedRef = useRef(false);
   useEffect(() => {
     if (!encryptionKeyReady || hasLoadedRef.current) return;
@@ -44,26 +52,51 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     let mounted = true;
     const startedAt = performance.now();
 
-    initJournalStorage((progressEntries) => {
+    (async () => {
+      // Phase A — index only, no AES-GCM
+      const { entries: indexEntries, encryptedDates } = await loadEntryIndex();
       if (!mounted) return;
-      // Progressive update — entries spawn as they decrypt
-      setEntries(progressEntries);
-      entriesRef.current = progressEntries;
-    }).then(loadedEntries => {
+      for (const e of indexEntries) {
+        if (!encryptedDates.has(e.date)) loadedDatesRef.current.add(e.date);
+      }
+      entriesRef.current = indexEntries;
+      setEntries(indexEntries);
+      setIsLoading(false);
+      const indexMs = Math.round(performance.now() - startedAt);
+      logAction('journal.index.loaded', { entryCount: indexEntries.length, encryptedCount: encryptedDates.size, durationMs: indexMs });
+
+      // Phase B — decrypt the dates the user can immediately interact with
+      const today = getTodayDate();
+      const datesToDecrypt = Array.from(new Set([today, selectedDate])).filter(d => encryptedDates.has(d));
+      if (datesToDecrypt.length === 0) {
+        const entry = indexEntries.find(e => e.date === selectedDate);
+        setCurrentContent(htmlToText(entry?.content || ''));
+        logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+        return;
+      }
+
+      const fullEntries = await Promise.all(datesToDecrypt.map(d => loadSingleEntry(d)));
       if (!mounted) return;
 
-      setEntries(loadedEntries);
-      entriesRef.current = loadedEntries;
-      setIsLoading(false);
-      logAction('journal.loaded', {
-        entryCount: loadedEntries.length,
-        durationMs: Math.round(performance.now() - startedAt),
+      setEntries(prev => {
+        const updated = [...prev];
+        for (const entry of fullEntries) {
+          if (!entry) continue;
+          loadedDatesRef.current.add(entry.date);
+          const idx = updated.findIndex(e => e.date === entry.date);
+          if (idx >= 0) updated[idx] = entry;
+          else updated.push(entry);
+        }
+        updated.sort((a, b) => b.date.localeCompare(a.date));
+        entriesRef.current = updated;
+        return updated;
       });
 
-      // Update current content for selected date
-      const entry = loadedEntries.find(e => e.date === selectedDate);
-      setCurrentContent(htmlToText(entry?.content || ''));
-    });
+      const selectedFull = fullEntries.find(e => e?.date === selectedDate);
+      const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
+      setCurrentContent(htmlToText(selectedFull?.content ?? selectedFromIndex?.content ?? ''));
+      logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+    })();
 
     return () => {
       mounted = false;
@@ -97,6 +130,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       console.log(`[gdays] multi-tab: other tab saved ${date}, reloading`);
       logAction('journal.multitab.reload', { date });
 
+      loadedDatesRef.current.add(date);
       setEntries(prev => {
         const index = prev.findIndex(e => e.date === date);
         const updated = [...prev];
@@ -141,6 +175,10 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       };
       const newEntries = [...entries, newTodayEntry].sort((a, b) => b.date.localeCompare(a.date));
 
+      // The placeholder is brand new — it has no ciphertext to clobber, so
+      // mark it as loaded immediately or saveEntry's guard would drop the
+      // user's first keystroke on a fresh day.
+      loadedDatesRef.current.add(today);
       entriesRef.current = newEntries;
       setEntries(newEntries);
       // Don't persist the empty placeholder to IndexedDB — it's only needed in memory
@@ -158,27 +196,66 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     setItem('selectedDate', date);
   }, []);
 
-  // Handle date changes - update currentContent and lastTypedTime
+  // Handle date changes - update currentContent and lastTypedTime.
+  // For index-only entries, lazy-decrypt before showing content so the user
+  // doesn't see an empty editor that would then overwrite encrypted data on
+  // first keystroke.
   useEffect(() => {
-    if (isLoading) return; // Wait for initial load
+    if (isLoading) return;
 
     const isDateSwitch = previousDate.current !== null && previousDate.current !== selectedDate;
-
     const entry = entries.find(e => e.date === selectedDate);
 
-    // Update currentContent with text content (for word/char count)
-    setCurrentContent(htmlToText(entry?.content || ''));
+    if (entry && !loadedDatesRef.current.has(selectedDate)) {
+      let cancelled = false;
+      (async () => {
+        const t0 = performance.now();
+        const fullEntry = await loadSingleEntry(selectedDate);
+        if (cancelled) return;
+        if (fullEntry) {
+          loadedDatesRef.current.add(fullEntry.date);
+          setEntries(prev => {
+            const idx = prev.findIndex(e => e.date === fullEntry.date);
+            if (idx < 0) return prev;
+            const updated = [...prev];
+            updated[idx] = fullEntry;
+            entriesRef.current = updated;
+            return updated;
+          });
+          setCurrentContent(htmlToText(fullEntry.content || ''));
+          if (fullEntry.lastModified && isDateSwitch) {
+            lastTypedTime.current = fullEntry.lastModified;
+            setItem('lastTypedTime', String(fullEntry.lastModified));
+          }
+          logAction('journal.entry.lazyLoaded', { date: selectedDate, durationMs: Math.round(performance.now() - t0) });
+        } else {
+          // Decrypt failed — don't overwrite, surface as empty
+          setCurrentContent('');
+        }
+      })();
+      previousDate.current = selectedDate;
+      return () => { cancelled = true; };
+    }
 
+    setCurrentContent(htmlToText(entry?.content || ''));
     if (entry && entry.lastModified && isDateSwitch) {
       lastTypedTime.current = entry.lastModified;
       setItem('lastTypedTime', String(entry.lastModified));
     }
-
     previousDate.current = selectedDate;
   }, [selectedDate, entries, isLoading]);
 
   // Save content
   const saveEntry = useCallback((content: string, timestamp?: number) => {
+    // Refuse to overwrite an entry whose ciphertext we haven't decrypted yet.
+    // The selectedDate effect lazy-decrypts on navigation, so this only fires
+    // during a narrow window — but it's the difference between "user types
+    // before decrypt finishes and silently nukes their old entry" and "save
+    // is dropped for a few hundred ms until lazy load completes".
+    if (!loadedDatesRef.current.has(selectedDate)) {
+      logAction('journal.save.skipped', { reason: 'entryNotLoaded', date: selectedDate });
+      return;
+    }
     const now = Date.now();
 
     // Get text content from HTML
@@ -273,6 +350,14 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const currentEntries = entriesRef.current;
     const existingIndex = currentEntries.findIndex(e => e.date === date);
     const now = Date.now();
+    // If an entry already exists in the index but its ciphertext hasn't been
+    // decrypted, refuse — saveTitle spreads ...existing which has content=''
+    // and would wipe the original. (Brand-new entries have no ciphertext yet,
+    // so the check only applies when existingIndex >= 0.)
+    if (existingIndex >= 0 && !loadedDatesRef.current.has(date)) {
+      logAction('journal.saveTitle.skipped', { reason: 'entryNotLoaded', date });
+      return;
+    }
     let newEntries: JournalEntry[];
     let updatedEntry: JournalEntry;
 
@@ -308,19 +393,47 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
 
     // Save only the changed entry (safe for multi-tab)
     saveSingleEntry(updatedEntry);
+    loadedDatesRef.current.add(date);
     // Update ref BEFORE React state so saveEntry() sees the title immediately
     entriesRef.current = newEntries;
     setEntries(newEntries);
   }, []);
 
-  // Reload entries from storage (used after unlock)
+  // Reload entries from storage (used after re-lock + unlock).
+  // Mirrors the two-phase load: index first, then decrypt today + selectedDate.
   const reloadEntries = useCallback(async () => {
-    const loadedEntries = await initJournalStorage();
-    setEntries(loadedEntries);
-    entriesRef.current = loadedEntries;
+    loadedDatesRef.current.clear();
 
-    const entry = loadedEntries.find((e: JournalEntry) => e.date === selectedDate);
-    const content = entry?.content || '';
+    const { entries: indexEntries, encryptedDates } = await loadEntryIndex();
+    for (const e of indexEntries) {
+      if (!encryptedDates.has(e.date)) loadedDatesRef.current.add(e.date);
+    }
+    entriesRef.current = indexEntries;
+    setEntries(indexEntries);
+
+    const today = getTodayDate();
+    const datesToDecrypt = Array.from(new Set([today, selectedDate])).filter(d => encryptedDates.has(d));
+    const fullEntries = await Promise.all(datesToDecrypt.map(d => loadSingleEntry(d)));
+
+    if (fullEntries.length > 0) {
+      setEntries(prev => {
+        const updated = [...prev];
+        for (const entry of fullEntries) {
+          if (!entry) continue;
+          loadedDatesRef.current.add(entry.date);
+          const idx = updated.findIndex(e => e.date === entry.date);
+          if (idx >= 0) updated[idx] = entry;
+          else updated.push(entry);
+        }
+        updated.sort((a, b) => b.date.localeCompare(a.date));
+        entriesRef.current = updated;
+        return updated;
+      });
+    }
+
+    const selectedFull = fullEntries.find(e => e?.date === selectedDate);
+    const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
+    const content = selectedFull?.content ?? selectedFromIndex?.content ?? '';
     setCurrentContent(htmlToText(content));
     return content;
   }, [selectedDate]);

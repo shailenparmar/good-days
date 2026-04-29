@@ -1056,6 +1056,103 @@ export function onEntrySaved(callback: EntrySavedCallback): () => void {
 }
 
 /**
+ * Index-only load: returns one stub entry per record using only the plaintext
+ * fields on the encrypted record (date, startedAt, lastModified). No AES-GCM
+ * decrypt happens for encrypted entries — their `content` is '' and `title` is
+ * undefined until lazy-decrypted via loadSingleEntry. `encryptedDates` lists
+ * which dates still need decrypt; plaintext (legacy) entries are returned in
+ * full and are NOT in that set.
+ *
+ * Used by useJournalEntries on unlock to populate the sidebar in <100ms even
+ * for 1000+ entries, deferring per-entry crypto until the user actually opens
+ * an entry. If migrations are needed (localStorage → IDB, dead-mans-switch
+ * trigger), falls back to the full initJournalStorage path.
+ */
+export interface EntryIndex {
+  entries: JournalEntry[];
+  encryptedDates: Set<string>;
+}
+
+export async function loadEntryIndex(): Promise<EntryIndex> {
+  // Electron path: small populations, less critical — defer to full init
+  if (isElectron()) {
+    const entries = await initJournalStorage();
+    return { entries, encryptedDates: new Set() };
+  }
+
+  if (fallbackMode) {
+    return { entries: parseLocalStorageEntries(), encryptedDates: new Set() };
+  }
+
+  try {
+    const db = await openDatabase();
+
+    // Migration check: if localStorage has unmigrated entries, fall back to full init
+    const localStorageEntries = parseLocalStorageEntries();
+    const alreadyMigrated = await hasMigrated(db);
+    if (localStorageEntries.length > 0 && !alreadyMigrated) {
+      db.close();
+      const entries = await initJournalStorage();
+      return { entries, encryptedDates: new Set() };
+    }
+
+    // Dead man's switch: passwordProtected flag set but no hash → wipe (full init handles it)
+    const passwordProtected = await new Promise<boolean>((resolve, reject) => {
+      const transaction = db.transaction(METADATA_STORE, 'readonly');
+      const store = transaction.objectStore(METADATA_STORE);
+      const request = store.get('passwordProtected');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result?.value === true);
+    });
+    if (passwordProtected && localStorage.getItem('passwordHash') === null) {
+      db.close();
+      const entries = await initJournalStorage();
+      return { entries, encryptedDates: new Set() };
+    }
+
+    const rawRecords = await new Promise<unknown[]>((resolve, reject) => {
+      const transaction = db.transaction(ENTRIES_STORE, 'readonly');
+      const store = transaction.objectStore(ENTRIES_STORE);
+      const request = store.getAll();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    db.close();
+
+    const entries: JournalEntry[] = [];
+    const encryptedDates = new Set<string>();
+    for (const record of rawRecords) {
+      if (typeof record !== 'object' || record === null) continue;
+      const r = record as Record<string, unknown>;
+      if (typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) continue;
+
+      if (r._enc) {
+        // Encrypted record — index only, content/title deferred
+        entries.push({
+          date: r.date,
+          content: '',
+          title: undefined,
+          startedAt: typeof r.startedAt === 'number' ? r.startedAt : undefined,
+          lastModified: typeof r.lastModified === 'number' ? r.lastModified : undefined,
+        });
+        encryptedDates.add(r.date);
+      } else if (isValidEntry(record)) {
+        // Legacy plaintext entry — already fully loaded
+        entries.push(record as JournalEntry);
+      }
+    }
+
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+    log('loadEntryIndex: done', { entryCount: entries.length, encryptedCount: encryptedDates.size });
+    logAction('storage.indexLoaded', { entryCount: entries.length, encryptedCount: encryptedDates.size });
+    return { entries, encryptedDates };
+  } catch (error) {
+    log('loadEntryIndex: failed, falling back', error);
+    return { entries: parseLocalStorageEntries(), encryptedDates: new Set() };
+  }
+}
+
+/**
  * Load a single entry from IndexedDB by date (decrypts after read).
  * Returns null if not found or if in fallback mode.
  */
