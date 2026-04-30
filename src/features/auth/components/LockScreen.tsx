@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@features/theme';
+import { logAction } from '@shared/logger';
 
 interface LockScreenProps {
   passwordInput: string;
@@ -127,8 +128,17 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
-    if (isCoolingDown) return;
+    // Synchronous proof that submit fired — visible in action log even if
+    // the UI never paints. Pair with auth.unlock to measure perceived latency.
+    logAction('auth.submit', { ts: Date.now() });
+    if (isSubmitting) {
+      logAction('auth.submit.ignored', { reason: 'alreadySubmitting' });
+      return;
+    }
+    if (isCoolingDown) {
+      logAction('auth.submit.ignored', { reason: 'cooldown' });
+      return;
+    }
 
     // Read password from the DOM directly — React state may be stale if user typed fast
     const password = inputRef.current?.value || '';
@@ -198,45 +208,76 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
         good days
       </span>
       <form onSubmit={handleSubmit} className="relative w-72" role="form" aria-label="Unlock journal">
-        <input
-          ref={inputRef}
-          type="password"
-          value={passwordInput}
-          onChange={(e) => onPasswordChange(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
-          onMouseDown={() => setIsPressed(true)}
-          onMouseUp={() => setIsPressed(false)}
-          disabled={isSubmitting || isCoolingDown}
-          className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
-          style={{
-            backgroundColor: getBackgroundColor(),
-            border: `3px solid ${getBorderColor()}`,
-            color: getBorderColor(),
-            caretColor: textColor,
-            outline: 'none',
-          }}
-          aria-label="Password"
-        />
-        {showPlaceholder && (
+        {isSubmitting ? (
+          // Fullscreen-style checking state — replaces the input entirely so
+          // there is zero ambiguity that submit fired. Same width/height as
+          // the input below so layout doesn't jump.
           <div
-            className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
-            style={{ color: getColor(), opacity: 0.85, left: '14px' }}
+            className="w-full px-3 py-2 text-xs font-mono font-bold rounded flex items-center justify-center"
+            style={{
+              backgroundColor: 'hsla(var(--h), var(--s), var(--l), 0.12)',
+              border: `3px solid ${textColor}`,
+              color: textColor,
+              minHeight: '36px',
+            }}
+            aria-live="polite"
+            aria-label="Checking password"
           >
             {animPhase === 'bold' ? (
-              <>
+              <span>
                 <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
                 <span>{placeholderText.slice(boldCount)}</span>
-              </>
+              </span>
             ) : (
-              <>
+              <span>
                 <span>{placeholderText.slice(0, boldCount)}</span>
                 <span className="font-bold">{placeholderText.slice(boldCount)}</span>
-              </>
+              </span>
             )}
           </div>
+        ) : (
+          <>
+            <input
+              ref={inputRef}
+              type="password"
+              value={passwordInput}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
+              onMouseDown={() => setIsPressed(true)}
+              onMouseUp={() => setIsPressed(false)}
+              disabled={isCoolingDown}
+              className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+              style={{
+                backgroundColor: getBackgroundColor(),
+                border: `3px solid ${getBorderColor()}`,
+                color: getBorderColor(),
+                caretColor: textColor,
+                outline: 'none',
+              }}
+              aria-label="Password"
+            />
+            {showPlaceholder && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none"
+                style={{ color: getColor(), opacity: 0.85, left: '14px' }}
+              >
+                {animPhase === 'bold' ? (
+                  <>
+                    <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
+                    <span>{placeholderText.slice(boldCount)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{placeholderText.slice(0, boldCount)}</span>
+                    <span className="font-bold">{placeholderText.slice(boldCount)}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
       </form>
     </div>
