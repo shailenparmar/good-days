@@ -102,19 +102,37 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     }
   }, [isSubmitting]);
 
-  // Auto-focus input when user starts typing anywhere on the lock screen
+  // Window-level keydown:
+  // - Printable char while input not focused → focus input (legacy behavior)
+  // - Enter → fire submit explicitly. Don't depend on form's onSubmit, which
+  //   silently fails when the input has lost focus mid-type (the "click out
+  //   then back in" repro). Enter at window level ALWAYS triggers submit when
+  //   not submitting/cooling, regardless of focus.
+  const handleSubmitRef = useRef<((e: React.FormEvent) => void) | null>(null);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement === inputRef.current) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key.length !== 1) return;
 
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmitRef.current?.({ preventDefault: () => {} } as React.FormEvent);
+        return;
+      }
+
+      if (document.activeElement === inputRef.current) return;
+      if (e.key.length !== 1) return;
       inputRef.current?.focus();
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Keep the ref pointed at the latest handleSubmit so the window-level
+  // Enter listener always calls the version with current state closures.
+  useEffect(() => {
+    handleSubmitRef.current = (e) => { void handleSubmit(e); };
+  });
 
   const flashRed = () => {
     // 4 pulses over 600ms — first pulse held longer so it survives a busy render
@@ -131,7 +149,10 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     e.preventDefault();
     // Synchronous proof that submit fired — visible in action log even if
     // the UI never paints. Pair with auth.unlock to measure perceived latency.
-    logAction('auth.submit', { ts: Date.now() });
+    logAction('auth.submit', {
+      ts: Date.now(),
+      via: document.activeElement === inputRef.current ? 'input-focused' : 'window',
+    });
     if (isSubmitting) {
       logAction('auth.submit.ignored', { reason: 'alreadySubmitting' });
       return;
@@ -219,11 +240,11 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
       </span>
       <form onSubmit={handleSubmit} className="relative w-72" role="form" aria-label="Unlock journal">
         {isSubmitting ? (
-          // Fullscreen-style checking state — replaces the input entirely so
-          // there is zero ambiguity that submit fired. Same width/height as
-          // the input below so layout doesn't jump.
+          // Submit-in-progress state. Same dimensions as the input so layout
+          // doesn't jump. Bordered with textColor + tinted bg as visual proof
+          // that submit registered. No copy.
           <div
-            className="w-full px-3 py-2 text-xs font-mono font-bold rounded flex items-center justify-center"
+            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
             style={{
               backgroundColor: 'hsla(var(--h), var(--s), var(--l), 0.12)',
               border: `3px solid ${textColor}`,
@@ -232,19 +253,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
             }}
             aria-live="polite"
             aria-label="Checking password"
-          >
-            {animPhase === 'bold' ? (
-              <span>
-                <span className="font-bold">{placeholderText.slice(0, boldCount)}</span>
-                <span>{placeholderText.slice(boldCount)}</span>
-              </span>
-            ) : (
-              <span>
-                <span>{placeholderText.slice(0, boldCount)}</span>
-                <span className="font-bold">{placeholderText.slice(boldCount)}</span>
-              </span>
-            )}
-          </div>
+          />
         ) : (
           <>
             <input
