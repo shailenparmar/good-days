@@ -2,8 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { getItem, setItem, removeItem } from '@shared/storage';
 import { setPasswordProtectedFlag } from '@shared/storage/journalStorage';
 import { setEncryptionKey, reEncryptAllEntries, getWrappedDEK, rewrapDEK, migrateToDEK } from '@shared/storage/journalStorage';
-import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK, unwrapDEK } from '@shared/crypto';
+import { getAppEncryptKey, derivePasswordKey, exportKeyToJWK, importKeyFromJWK, unwrapDEK, ENCRYPT_SALT } from '@shared/crypto';
 import { logAction } from '@shared/logger';
+import { useAuthWorker } from './useAuthWorker';
 
 const PASSWORD_KEY = 'passwordHash';
 const PASSWORD_SALT_KEY = 'passwordSalt';
@@ -144,6 +145,10 @@ export function useAuth() {
     return null;
   });
 
+  // Web Worker for off-main-thread PBKDF2 + key derivation. Pre-warms on mount
+  // so the user's first unlock doesn't pay JIT/key-import cost.
+  const { verifyAndDerive } = useAuthWorker();
+
   // Check if user has a password set (persisted in IndexedDB/localStorage)
   const [hasPassword, setHasPassword] = useState(() => getItem(PASSWORD_KEY) !== null);
 
@@ -203,44 +208,44 @@ export function useAuth() {
       return true; // Treat as successful unlock since there's no password
     }
 
-    const inputHash = await hashPassword(trimmed, storedSalt);
+    // Pre-fetch wrappedDEK in parallel with the worker call below so the
+    // worker has all inputs immediately. Cheap IDB read; no main-thread crypto.
+    const wrappedDEKData = await getWrappedDEK();
 
-    if (timingSafeEqual(inputHash, storedHash)) {
-      // Password correct — unlock immediately, derive key in background
-      setIsLocked(false);
-      sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
+    // Off-thread pipeline: hash check + KEK derive + DEK unwrap in one shot.
+    // Main thread stays painting throughout — UI feedback (placeholder swap,
+    // bold sweep, red flash on fail) all keep animating.
+    const startedAt = performance.now();
+    const result = await verifyAndDerive({
+      password: trimmed,
+      salt: storedSalt,
+      expectedHash: storedHash,
+      wrappedDEK: wrappedDEKData?.wrapped ?? null,
+      encryptSalt: ENCRYPT_SALT,
+    });
+    const workerMs = Math.round(performance.now() - startedAt);
+
+    if (!result.ok) {
       setPasswordInput('');
-      const currentLogins = Number(getItem(LOGIN_COUNT_KEY) || '0');
-      setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
-      logAction('auth.unlock');
-
-      // Derive KEK and unwrap DEK asynchronously — entries load when encryptionKeyReady flips
-      (async () => {
-        const passwordKEK = await derivePasswordKey(trimmed);
-        const wrappedDEKData = await getWrappedDEK();
-
-        if (wrappedDEKData) {
-          // DEK/KEK mode: unwrap DEK with password KEK
-          const dek = await unwrapDEK(wrappedDEKData.wrapped, passwordKEK);
-          setEncryptionKey(dek, 'dek');
-          const jwk = await exportKeyToJWK(dek);
-          sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
-        } else {
-          // Legacy mode (pre-DEK): use password key directly, DEK created on next password change
-          setEncryptionKey(passwordKEK, 'password');
-          const jwk = await exportKeyToJWK(passwordKEK);
-          sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(jwk));
-        }
-        setEncryptionKeyReady(true);
-      })();
-
-      return true;
-    } else {
-      setPasswordInput('');
-      logAction('auth.unlock.fail');
+      logAction('auth.unlock.fail', { workerMs });
       return false;
     }
-  }, []);
+
+    // Success — atomic unlock. Both the lock state and the encryption key
+    // become true in one tick. No "unlocked but key not ready" gap.
+    const importedKey = await importKeyFromJWK(result.keyJWK);
+    setEncryptionKey(importedKey, result.mode);
+    sessionStorage.setItem(ENCRYPTION_JWK_KEY, JSON.stringify(result.keyJWK));
+
+    setIsLocked(false);
+    sessionStorage.setItem(SESSION_UNLOCKED_KEY, 'true');
+    setPasswordInput('');
+    const currentLogins = Number(getItem(LOGIN_COUNT_KEY) || '0');
+    setItem(LOGIN_COUNT_KEY, String(currentLogins + 1));
+    setEncryptionKeyReady(true);
+    logAction('auth.unlock', { workerMs });
+    return true;
+  }, [verifyAndDerive]);
 
   const setPassword = useCallback(async (newPassword: string): Promise<boolean> => {
     const trimmed = newPassword.trim();

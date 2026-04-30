@@ -15,7 +15,7 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 // Separate salt for at-rest encryption (distinct from backup salt)
-const ENCRYPT_SALT = 'good-days-encrypt-salt';
+export const ENCRYPT_SALT = 'good-days-encrypt-salt';
 
 // --- Key caching ---
 

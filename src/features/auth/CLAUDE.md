@@ -1,5 +1,45 @@
 # Claude Code Instructions — Auth
 
+### Off-Thread Unlock Pipeline (v3.1.2+, Phase 1 of foolproof unlock redesign)
+
+The full unlock cryptographic pipeline now runs in a Web Worker — `src/features/auth/auth.worker.ts`. Main thread stays painting (placeholder bold sweep, red-flash, "checking" state) while PBKDF2 + key derivation + DEK unwrap execute off-thread.
+
+**Why:** Previously, `handlePasswordSubmit` ran PBKDF2 (hash check, ~200ms) on the main thread synchronously, then kicked off a "background" IIFE that ran a second PBKDF2 (KEK derive) — but `crypto.subtle.deriveKey` actually executes on the main thread in browsers despite returning a Promise. On a stressed/throttled tab, the two PBKDF2 passes plus IDB-bound work could freeze the UI for 15+ seconds with zero painted frames between Enter and unlock. Users would press Enter, see nothing, press Enter again, and assume the second press unlocked it (it didn't — `isSubmitting` guard makes the 2nd press a no-op).
+
+**Architecture:**
+
+| File | Role |
+|------|------|
+| `auth.worker.ts` | Dedicated worker. Single message handler: `verifyAndDerive` runs PBKDF2 hash check + (on match) password KEK derivation + (if wrappedDEK exists) DEK unwrap. Returns `{ ok, mode, keyJWK }` in one atomic message. Also handles `warmup` for cache priming. |
+| `useAuthWorker.ts` | React hook wrapping the worker. Holds one persistent worker per LockScreen lifecycle. Pre-warms on mount via `warmup` message. |
+| `useAuth.ts` | `handlePasswordSubmit` now calls `verifyAndDerive`, awaits the result, imports the JWK back into a `CryptoKey` on the main thread (cheap), then atomically sets `isLocked=false` + `encryptionKeyReady=true`. |
+
+**Atomic unlock:** The "unlock" and "encryption key ready" transitions now happen in the same React tick — no more `encryptionKeyReady` race window where the lock screen is dismissed but the DEK isn't ready yet. (The flag itself still exists for `useJournalEntries` to depend on; Phase 3 of the redesign removes it entirely.)
+
+**Pre-warming:** `useAuthWorker` posts a `warmup` message on mount that does a throwaway `crypto.subtle.importKey`. Pays JIT/WebCrypto-init cost before the user finishes typing.
+
+**Logged metrics:** `auth.unlock` and `auth.unlock.fail` now include `workerMs` (round-trip wall-clock time for the worker call). Use this to validate the freeze is gone in the action log.
+
+**Worker message protocol:**
+```ts
+// in
+{ id, type: 'verifyAndDerive', password, salt, expectedHash, wrappedDEK, encryptSalt }
+{ id, type: 'warmup' }
+
+// out
+{ id, ok: true, mode: 'dek' | 'password', keyJWK }
+{ id, ok: false }
+{ id, error: string }
+{ id, warmed: true }
+```
+
+**ENCRYPT_SALT export:** `src/shared/crypto.ts` now exports `ENCRYPT_SALT` (was module-private) so the worker can derive the password KEK with the same salt as the main thread.
+
+**What this does NOT change yet (deferred to later phases):**
+- LockScreen UI is unchanged. The "checking" placeholder overlay pattern from v3.0.10 is still used. Phase 2 will rewrite LockScreen as a state machine with a fullscreen "checking" state.
+- `encryptionKeyReady` flag still exists — Phase 3 deletes it and passes the DEK directly as a prop.
+- Idempotent submit (per-press pulse for visible feedback while one is in flight) — Phase 4.
+
 ### Lock Screen Rate Limiting (v2.4.131+)
 
 After 3 consecutive failed password attempts, the lock screen enforces an exponential backoff cooldown before the next attempt. During cooldown, the input and submit button are disabled, and the placeholder shows a countdown number with the bold sweep animation.
