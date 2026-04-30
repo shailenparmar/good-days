@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useTheme } from '@features/theme';
 import { logAction } from '@shared/logger';
 
@@ -142,9 +143,18 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
 
     // Read password from the DOM directly — React state may be stale if user typed fast
     const password = inputRef.current?.value || '';
-    setIsSubmitting(true);
-    // Yield a frame so React can paint the disabled state before PBKDF2 blocks the thread
-    await new Promise(r => requestAnimationFrame(r));
+
+    // CRITICAL: flushSync forces React to commit isSubmitting=true synchronously,
+    // not batch it with the unlock result. Without this, on a fast worker pipeline
+    // React would merge isSubmitting=true and isLocked=false into one render and
+    // the "checking" UI never paints — user sees nothing then sudden unlock.
+    flushSync(() => setIsSubmitting(true));
+
+    // Double rAF: first frame commits, second frame guarantees paint before
+    // we hand control to the worker. Single rAF can fire before paint.
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    logAction('auth.submit.painted');
     const success = await onSubmit(e, password);
 
     if (success) {
