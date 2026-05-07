@@ -30,6 +30,22 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Blank entry guard (v2.7.20+):** `saveTitle()` returns early without persisting if both content and title are empty. This prevents the in-memory "ensure today" placeholder (which has no `startedAt`) from being written to IndexedDB when the user clicks the date header and blurs without typing a title. Also sets `startedAt` to `now` when missing on any title save — so a title-only entry (no body content) correctly records when the user titled it. A title alone is a valid entry; clearing the title on a day with no content removes the entry.
 
+## Entry Decrypt Lifecycle (v3.1.6+)
+
+`useJournalEntries.ts` decrypts entries in three layers:
+
+1. **Phase A — index** (`loadEntryIndex`): Sidebar metadata for all dates. No AES-GCM. Fast.
+2. **Phase B — eager decrypt**: Today + `selectedDate` only, so the editor is immediately writable.
+3. **Phase C — background prefetch**: Remaining encrypted dates decrypt one at a time via `requestIdleCallback` (1000ms timeout, `setTimeout(0)` fallback). Skips any date already in `loadedDatesRef` (lazy-decrypt or multi-tab beat us). State updates one entry at a time so the UI fills in progressively.
+
+**Cancellation:** `prefetchTokenRef` (a counter, not a boolean — multiple prefetches can be queued cleanly). Bumped on unmount of the load effect, and at the start of every `prefetchRemainingEntries` call so a new prefetch supersedes any in-flight one. Each step checks `token !== prefetchTokenRef.current` before doing work.
+
+**`reloadEntries` (re-lock + unlock):** Mirrors the same three phases — index, eager decrypt of today + selectedDate, then prefetch the rest. Existing prefetch is cancelled (token bump) when the new one starts.
+
+**Lazy navigation (`selectedDate` effect, line ~203):** Still active. If the user clicks a date faster than the prefetch reaches it, the lazy path decrypts on demand and adds it to `loadedDatesRef` — the prefetch loop will skip it when it gets there.
+
+**Logged events:** `journal.prefetch.start` (count), `journal.prefetch.complete` (decrypted, total, durationMs), `journal.entry.lazyLoaded` (date, durationMs — fires only when navigation beats the prefetch).
+
 ## Editor Implementation
 
 ### Backup Branch
