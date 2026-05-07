@@ -35,6 +35,66 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // them, and the selectedDate effect lazy-decrypts on demand.
   const loadedDatesRef = useRef<Set<string>>(new Set());
 
+  // Token bumped to cancel any in-flight background prefetch (on unmount or
+  // when a new prefetch is started, e.g. after re-lock + unlock).
+  const prefetchTokenRef = useRef(0);
+
+  const prefetchRemainingEntries = useCallback((dates: string[]) => {
+    prefetchTokenRef.current += 1;
+    const token = prefetchTokenRef.current;
+    if (dates.length === 0) return;
+
+    const startedAt = performance.now();
+    let decryptedCount = 0;
+
+    const idle = (cb: () => void) => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+      if (typeof w.requestIdleCallback === 'function') {
+        w.requestIdleCallback(cb, { timeout: 1000 });
+      } else {
+        setTimeout(cb, 0);
+      }
+    };
+
+    const step = (i: number) => {
+      if (token !== prefetchTokenRef.current) return;
+      if (i >= dates.length) {
+        logAction('journal.prefetch.complete', {
+          decrypted: decryptedCount,
+          total: dates.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+        return;
+      }
+      const date = dates[i];
+      if (loadedDatesRef.current.has(date)) {
+        step(i + 1);
+        return;
+      }
+      idle(async () => {
+        if (token !== prefetchTokenRef.current) return;
+        const entry = await loadSingleEntry(date);
+        if (token !== prefetchTokenRef.current) return;
+        if (entry) {
+          loadedDatesRef.current.add(entry.date);
+          setEntries(prev => {
+            const idx = prev.findIndex(e => e.date === entry.date);
+            if (idx < 0) return prev;
+            const updated = [...prev];
+            updated[idx] = entry;
+            entriesRef.current = updated;
+            return updated;
+          });
+          decryptedCount += 1;
+        }
+        step(i + 1);
+      });
+    };
+
+    logAction('journal.prefetch.start', { count: dates.length });
+    step(0);
+  }, []);
+
   // Keep entriesRef in sync
   useEffect(() => {
     entriesRef.current = entries;
@@ -72,6 +132,8 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         const entry = indexEntries.find(e => e.date === selectedDate);
         setCurrentContent(htmlToText(entry?.content || ''));
         logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+        const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
+        prefetchRemainingEntries(remaining);
         return;
       }
 
@@ -96,10 +158,14 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
       setCurrentContent(htmlToText(selectedFull?.content ?? selectedFromIndex?.content ?? ''));
       logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+
+      const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
+      prefetchRemainingEntries(remaining);
     })();
 
     return () => {
       mounted = false;
+      prefetchTokenRef.current += 1; // cancel any in-flight prefetch
     };
   }, [encryptionKeyReady]); // Run when encryption key becomes ready
 
@@ -435,8 +501,12 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
     const content = selectedFull?.content ?? selectedFromIndex?.content ?? '';
     setCurrentContent(htmlToText(content));
+
+    const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
+    prefetchRemainingEntries(remaining);
+
     return content;
-  }, [selectedDate]);
+  }, [selectedDate, prefetchRemainingEntries]);
 
   return {
     entries,
