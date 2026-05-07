@@ -56,6 +56,8 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       }
     };
 
+    const BATCH_SIZE = 8;
+
     const step = (i: number) => {
       if (token !== prefetchTokenRef.current) return;
       if (i >= dates.length) {
@@ -66,32 +68,34 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         });
         return;
       }
-      const date = dates[i];
-      if (loadedDatesRef.current.has(date)) {
-        step(i + 1);
+      const batch = dates.slice(i, i + BATCH_SIZE).filter(d => !loadedDatesRef.current.has(d));
+      if (batch.length === 0) {
+        step(i + BATCH_SIZE);
         return;
       }
       idle(async () => {
         if (token !== prefetchTokenRef.current) return;
-        const entry = await loadSingleEntry(date);
+        const results = await Promise.all(batch.map(d => loadSingleEntry(d)));
         if (token !== prefetchTokenRef.current) return;
-        if (entry) {
-          loadedDatesRef.current.add(entry.date);
+        const fresh = results.filter((e): e is JournalEntry => !!e);
+        if (fresh.length > 0) {
+          for (const entry of fresh) loadedDatesRef.current.add(entry.date);
           setEntries(prev => {
-            const idx = prev.findIndex(e => e.date === entry.date);
-            if (idx < 0) return prev;
             const updated = [...prev];
-            updated[idx] = entry;
+            for (const entry of fresh) {
+              const idx = updated.findIndex(e => e.date === entry.date);
+              if (idx >= 0) updated[idx] = entry;
+            }
             entriesRef.current = updated;
             return updated;
           });
-          decryptedCount += 1;
+          decryptedCount += fresh.length;
         }
-        step(i + 1);
+        step(i + BATCH_SIZE);
       });
     };
 
-    logAction('journal.prefetch.start', { count: dates.length });
+    logAction('journal.prefetch.start', { count: dates.length, batchSize: BATCH_SIZE });
     step(0);
   }, []);
 
