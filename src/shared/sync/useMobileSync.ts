@@ -58,14 +58,14 @@ export function useMobileSync(): MobileSyncHandle {
     const url = getWsUrl();
     if (!url) return;
 
-    // If still connecting after 5s, fall back to enter-code so the user isn't stuck
+    // If still connecting after 2s, fall back to enter-code so the user isn't stuck
     if (connectingTimeoutRef.current) clearTimeout(connectingTimeoutRef.current);
     connectingTimeoutRef.current = setTimeout(() => {
       if (pairingStateRef.current === 'connecting' && mountedRef.current) {
         pairingStateRef.current = 'enter-code';
         setPairingState('enter-code');
       }
-    }, 5000);
+    }, 2000);
 
     try {
       const ws = new WebSocket(url);
