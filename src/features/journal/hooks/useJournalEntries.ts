@@ -35,70 +35,6 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // them, and the selectedDate effect lazy-decrypts on demand.
   const loadedDatesRef = useRef<Set<string>>(new Set());
 
-  // Token bumped to cancel any in-flight background prefetch (on unmount or
-  // when a new prefetch is started, e.g. after re-lock + unlock).
-  const prefetchTokenRef = useRef(0);
-
-  const prefetchRemainingEntries = useCallback((dates: string[]) => {
-    prefetchTokenRef.current += 1;
-    const token = prefetchTokenRef.current;
-    if (dates.length === 0) return;
-
-    const startedAt = performance.now();
-    let decryptedCount = 0;
-
-    const idle = (cb: () => void) => {
-      const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
-      if (typeof w.requestIdleCallback === 'function') {
-        w.requestIdleCallback(cb, { timeout: 1000 });
-      } else {
-        setTimeout(cb, 0);
-      }
-    };
-
-    const BATCH_SIZE = 8;
-
-    const step = (i: number) => {
-      if (token !== prefetchTokenRef.current) return;
-      if (i >= dates.length) {
-        logAction('journal.prefetch.complete', {
-          decrypted: decryptedCount,
-          total: dates.length,
-          durationMs: Math.round(performance.now() - startedAt),
-        });
-        return;
-      }
-      const batch = dates.slice(i, i + BATCH_SIZE).filter(d => !loadedDatesRef.current.has(d));
-      if (batch.length === 0) {
-        step(i + BATCH_SIZE);
-        return;
-      }
-      idle(async () => {
-        if (token !== prefetchTokenRef.current) return;
-        const results = await Promise.all(batch.map(d => loadSingleEntry(d)));
-        if (token !== prefetchTokenRef.current) return;
-        const fresh = results.filter((e): e is JournalEntry => !!e);
-        if (fresh.length > 0) {
-          for (const entry of fresh) loadedDatesRef.current.add(entry.date);
-          setEntries(prev => {
-            const updated = [...prev];
-            for (const entry of fresh) {
-              const idx = updated.findIndex(e => e.date === entry.date);
-              if (idx >= 0) updated[idx] = entry;
-            }
-            entriesRef.current = updated;
-            return updated;
-          });
-          decryptedCount += fresh.length;
-        }
-        step(i + BATCH_SIZE);
-      });
-    };
-
-    logAction('journal.prefetch.start', { count: dates.length, batchSize: BATCH_SIZE });
-    step(0);
-  }, []);
-
   // Keep entriesRef in sync
   useEffect(() => {
     entriesRef.current = entries;
@@ -136,8 +72,6 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         const entry = indexEntries.find(e => e.date === selectedDate);
         setCurrentContent(htmlToText(entry?.content || ''));
         logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
-        const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
-        prefetchRemainingEntries(remaining);
         return;
       }
 
@@ -162,14 +96,10 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
       setCurrentContent(htmlToText(selectedFull?.content ?? selectedFromIndex?.content ?? ''));
       logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
-
-      const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
-      prefetchRemainingEntries(remaining);
     })();
 
     return () => {
       mounted = false;
-      prefetchTokenRef.current += 1; // cancel any in-flight prefetch
     };
   }, [encryptionKeyReady]); // Run when encryption key becomes ready
 
@@ -307,18 +237,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       return () => { cancelled = true; };
     }
 
-    // Only reset currentContent on date switch (or first run after load).
-    // The effect re-runs every time `entries` changes — including during the
-    // background prefetch, which fires setEntries 8x for every batch. If we
-    // unconditionally reset currentContent here, prefetch batches landing
-    // mid-keystroke would clobber the in-flight typed text with whatever's
-    // currently saved in IndexedDB (stale because the debounced save hasn't
-    // fired yet). Multi-tab updates have their own path via onEntrySaved +
-    // externalContentVersion, so they're unaffected.
-    const isFirstRun = previousDate.current === null;
-    if (isDateSwitch || isFirstRun) {
-      setCurrentContent(htmlToText(entry?.content || ''));
-    }
+    setCurrentContent(htmlToText(entry?.content || ''));
     if (entry && entry.lastModified && isDateSwitch) {
       lastTypedTime.current = entry.lastModified;
       setItem('lastTypedTime', String(entry.lastModified));
@@ -516,12 +435,8 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
     const content = selectedFull?.content ?? selectedFromIndex?.content ?? '';
     setCurrentContent(htmlToText(content));
-
-    const remaining = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
-    prefetchRemainingEntries(remaining);
-
     return content;
-  }, [selectedDate, prefetchRemainingEntries]);
+  }, [selectedDate]);
 
   return {
     entries,
