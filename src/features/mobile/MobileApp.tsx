@@ -798,6 +798,11 @@ export default function MobileApp() {
           onTouchEnd={() => setTitlePressedPersist(false)}
           onTouchCancel={() => setTitlePressedPersist(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
+        {sync.pairingState === 'connecting' && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: baseTextColor }}>
+            loading
+          </div>
+        )}
       </div>
       </div>
 
