@@ -307,7 +307,18 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       return () => { cancelled = true; };
     }
 
-    setCurrentContent(htmlToText(entry?.content || ''));
+    // Only reset currentContent on date switch (or first run after load).
+    // The effect re-runs every time `entries` changes — including during the
+    // background prefetch, which fires setEntries 8x for every batch. If we
+    // unconditionally reset currentContent here, prefetch batches landing
+    // mid-keystroke would clobber the in-flight typed text with whatever's
+    // currently saved in IndexedDB (stale because the debounced save hasn't
+    // fired yet). Multi-tab updates have their own path via onEntrySaved +
+    // externalContentVersion, so they're unaffected.
+    const isFirstRun = previousDate.current === null;
+    if (isDateSwitch || isFirstRun) {
+      setCurrentContent(htmlToText(entry?.content || ''));
+    }
     if (entry && entry.lastModified && isDateSwitch) {
       lastTypedTime.current = entry.lastModified;
       setItem('lastTypedTime', String(entry.lastModified));
