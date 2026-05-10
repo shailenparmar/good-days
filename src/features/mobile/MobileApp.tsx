@@ -78,6 +78,13 @@ export default function MobileApp() {
     if (editing === 'adjusting' && !hasUsedPicker) setHasUsedPicker(true);
   }, [editing, hasUsedPicker]);
 
+  // Bold sweep state for "loading" copy on the base canvas while WS is connecting.
+  // The `showLoading` flag is computed later (after `sync` is declared) and
+  // passed into these effects via dependency array.
+  const loadingText = 'loading';
+  const [loadingBoldCount, setLoadingBoldCount] = useState(0);
+  const [loadingBoldPhase, setLoadingBoldPhase] = useState<'bold' | 'unbold'>('bold');
+
   // Track code input focus via document-level events (iOS doesn't reliably blur on tap-away)
   useEffect(() => {
     const check = () => setCodeInputFocused(document.activeElement === codeInputRef.current);
@@ -154,6 +161,22 @@ export default function MobileApp() {
   // WebSocket live sync
   const sync = useMobileSync();
   const lastWsSendRef = useRef(0);
+
+  // Loading bold sweep — drives the animation while sync is still connecting.
+  const showLoading = sync.pairingState === 'connecting';
+  useEffect(() => {
+    if (!showLoading) return;
+    if (loadingBoldCount >= loadingText.length) {
+      setLoadingBoldPhase(p => p === 'bold' ? 'unbold' : 'bold');
+      setLoadingBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [showLoading, loadingBoldCount, loadingBoldPhase]);
+  useEffect(() => {
+    if (showLoading) { setLoadingBoldCount(0); setLoadingBoldPhase('bold'); }
+  }, [showLoading]);
 
   // Throttled WS color update (42ms = ~24fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
@@ -798,9 +821,19 @@ export default function MobileApp() {
           onTouchEnd={() => setTitlePressedPersist(false)}
           onTouchCancel={() => setTitlePressedPersist(false)}
         >{titlePressed ? `v${mobileVersion}` : 'good days'}</span>
-        {sync.pairingState === 'connecting' && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: baseTextColor }}>
-            loading
+        {showLoading && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: baseTextColor, whiteSpace: 'pre' }}>
+            {loadingBoldPhase === 'bold' ? (
+              <>
+                <span style={{ fontWeight: 900 }}>{loadingText.slice(0, loadingBoldCount)}</span>
+                <span style={{ fontWeight: 400 }}>{loadingText.slice(loadingBoldCount)}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontWeight: 400 }}>{loadingText.slice(0, loadingBoldCount)}</span>
+                <span style={{ fontWeight: 900 }}>{loadingText.slice(loadingBoldCount)}</span>
+              </>
+            )}
           </div>
         )}
       </div>
