@@ -44,6 +44,8 @@ export function useMobileSync(): MobileSyncHandle {
   const hiddenRef = useRef(false);
   const skippedPairingRef = useRef(false);
   const codeSubmittedRef = useRef(false);
+  // Code typed while WS is still CONNECTING — sent in onopen.
+  const queuedCodeRef = useRef<string | null>(null);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -58,14 +60,18 @@ export function useMobileSync(): MobileSyncHandle {
     const url = getWsUrl();
     if (!url) return;
 
-    // If still connecting after 2s, fall back to enter-code so the user isn't stuck
+    // If still connecting after 6s, fall back to enter-code so the user isn't stuck.
+    // 6s gives cellular networks enough margin for TLS + WebSocket upgrade
+    // (often 2-4s on LTE/5G). Previously 2s in v3.1.9, which fired before the
+    // socket finished handshaking and caused pairByCode submissions to be
+    // silently dropped on cellular.
     if (connectingTimeoutRef.current) clearTimeout(connectingTimeoutRef.current);
     connectingTimeoutRef.current = setTimeout(() => {
       if (pairingStateRef.current === 'connecting' && mountedRef.current) {
         pairingStateRef.current = 'enter-code';
         setPairingState('enter-code');
       }
-    }, 2000);
+    }, 6000);
 
     try {
       const ws = new WebSocket(url);
@@ -90,6 +96,15 @@ export function useMobileSync(): MobileSyncHandle {
           role: 'phone',
           deviceId: getOrCreateDeviceId(),
         });
+
+        // Flush any code the user typed while the socket was still CONNECTING.
+        // On cellular this matters — the user often beats the handshake.
+        if (queuedCodeRef.current) {
+          const code = queuedCodeRef.current;
+          queuedCodeRef.current = null;
+          codeSubmittedRef.current = true;
+          sendMsg({ type: 'pair-by-code', code });
+        }
       };
 
       ws.onmessage = (e) => {
@@ -150,7 +165,16 @@ export function useMobileSync(): MobileSyncHandle {
   }, [connect]);
 
   const pairByCode = useCallback((code: string) => {
-    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+    const ws = wsRef.current;
+    // WS still mid-handshake — hold the code and send it on open. This is the
+    // common case on cellular where the user types the code before the TLS +
+    // WebSocket upgrade has finished.
+    if (ws?.readyState === WebSocket.CONNECTING) {
+      queuedCodeRef.current = code;
+      return;
+    }
+    // No socket at all (closed / errored) — flash red so the user knows.
+    if (ws?.readyState !== WebSocket.OPEN) {
       setCodeRejectedCount((c) => c + 1);
       return;
     }
@@ -185,6 +209,7 @@ export function useMobileSync(): MobileSyncHandle {
     setPairingState('standalone');
     wsRef.current?.close();
     wsRef.current = null;
+    queuedCodeRef.current = null;
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current);
       reconnectTimer.current = null;
@@ -217,6 +242,7 @@ export function useMobileSync(): MobileSyncHandle {
           clearTimeout(connectingTimeoutRef.current);
           connectingTimeoutRef.current = null;
         }
+        queuedCodeRef.current = null;
         backoffRef.current = 1000;
       } else if (document.visibilityState === 'visible') {
         hiddenRef.current = false;
