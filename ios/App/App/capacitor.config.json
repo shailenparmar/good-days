@@ -1,0 +1,23 @@
+{
+	"appId": "day.gdays.mobile",
+	"appName": "good days",
+	"webDir": "dist",
+	"plugins": {
+		"Keyboard": {
+			"resize": "body",
+			"scrollPadding": false
+		},
+		"StatusBar": {
+			"style": "dark"
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"PreferencesPlugin",
+		"SharePlugin",
+		"StatusBarPlugin"
+	]
+}

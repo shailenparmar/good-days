@@ -271,7 +271,8 @@ export function EntryHeader({ selectedDate, entries, paddingBottom = 20, isScram
         ) : (
           <h2
             className="text-lg font-extrabold font-mono overflow-hidden text-ellipsis whitespace-nowrap flex-1 mr-2"
-            style={{ color: getColor() }}
+            draggable={false}
+            style={{ color: getColor(), WebkitUserDrag: 'none' } as React.CSSProperties}
           >
             <span onClick={saveTitle ? handleDateClick : undefined}>
               {entry?.title ? (isScrambled || superscramble ? scrambleText(entry.title) : entry.title) : s(dateText)}

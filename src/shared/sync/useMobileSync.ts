@@ -150,6 +150,10 @@ export function useMobileSync(): MobileSyncHandle {
   }, [connect]);
 
   const pairByCode = useCallback((code: string) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setCodeRejectedCount((c) => c + 1);
+      return;
+    }
     codeSubmittedRef.current = true;
     sendMsg({ type: 'pair-by-code', code });
   }, [sendMsg]);
