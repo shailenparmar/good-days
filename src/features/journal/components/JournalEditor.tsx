@@ -168,9 +168,11 @@ export function JournalEditor({
         });
       }
     }
-    // Only mark as loaded if we actually found the entry
-    // (entries might still be loading from IndexedDB on initial mount)
-    if (entry) loadedDateRef.current = selectedDate;
+    // Mark as loaded once entries has loaded at all — even if this date's
+    // entry doesn't exist yet (e.g., fresh today before ensureToday fires).
+    // Without this, a missing entry traps us in an infinite re-set loop:
+    // every render → effect re-runs → setValue('') → wipes typed text.
+    if (entry || entries.length > 0) loadedDateRef.current = selectedDate;
   }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
   // Handle scroll - persist position and sync overlay

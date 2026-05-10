@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { getItem, setItem } from '@shared/storage';
 
 /**
@@ -93,5 +93,7 @@ export function useKeyedPersisted<T>(
     }
   }, [prefix]);
 
-  return { get, set };
+  // Memoize so identity is stable across renders — otherwise consumers
+  // depending on this object in useEffect deps re-run on every render.
+  return useMemo(() => ({ get, set }), [get, set]);
 }
