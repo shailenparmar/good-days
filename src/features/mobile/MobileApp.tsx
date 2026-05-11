@@ -269,6 +269,19 @@ export default function MobileApp() {
     document.documentElement.style.setProperty('background-color', '#000000', 'important');
   }, []);
 
+  // Keep CSS variables in sync with the mobile color state so status-pulse-*
+  // keyframes interpolate to the actual mobile text color (not whatever the
+  // index.html IIFE read from the desktop's localStorage).
+  useEffect(() => {
+    const el = document.documentElement;
+    el.style.setProperty('--h', String(colors.hue));
+    el.style.setProperty('--s', colors.sat + '%');
+    el.style.setProperty('--l', colors.light + '%');
+    el.style.setProperty('--bh', String(colors.bgHue));
+    el.style.setProperty('--bs', colors.bgSat + '%');
+    el.style.setProperty('--bl', colors.bgLight + '%');
+  }, [colors.hue, colors.sat, colors.light, colors.bgHue, colors.bgSat, colors.bgLight]);
+
   // Lock to portrait
   useEffect(() => {
     const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
