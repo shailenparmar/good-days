@@ -124,7 +124,12 @@ The "ensure today" placeholder is **no longer persisted to IndexedDB**. It exist
 
 **Multi-tab editor sync:** `useJournalEntries` exposes an `externalContentVersion` counter that increments when another tab saves the currently viewed date. `JournalEditor` uses this to bypass its `loadedDateRef` guard and reload content from the updated entries. Scroll position is preserved (not reset) on external syncs.
 
-**loadedDateRef async load guard (v2.3.31+):** `JournalEditor` tracks which date's content has been loaded into the textarea via `loadedDateRef`. Previously, on page refresh, the effect ran with `entries = []` (IndexedDB still loading), found no entry, set `value = ''`, and marked the date as loaded. When entries actually loaded from IndexedDB, the effect saw `loadedDateRef === selectedDate` and returned early — the real content was never displayed. Clicking away and back would work because it reset `loadedDateRef`. **Fix:** `loadedDateRef` is only set when `entry` is actually found. If entries is empty (still loading), the ref stays `null`, so the effect re-runs when entries populate.
+**loadedDateRef async load guard (v2.3.31+, expanded v3.1.23):** `JournalEditor` tracks which date's content has been loaded into the textarea via `loadedDateRef`. Two variants of the same bug:
+
+1. **Pre-v2.3.31** — the effect ran with `entries = []` (IndexedDB still loading), found no entry, set `value = ''`, and marked the date as loaded. When entries loaded, the effect saw `loadedDateRef === selectedDate` and returned early.
+2. **Pre-v3.1.23** — Phase A returns an index-only stub for encrypted entries (entry exists but `content: ''`). The editor treated the stub as a real load and ignored Phase B's decrypted content. Clicking away cleared the ref; clicking back showed the real text.
+
+**Fix:** `useJournalEntries` exposes `decryptedDates: Set<string>` (React-state mirror of internal `loadedDatesRef`). `JournalEditor` only sets `loadedDateRef.current = selectedDate` when `decryptedDates.has(selectedDate)`. Until the date is decrypted, every `entries` change re-runs the load — so Phase A's stub paints empty, then Phase B / lazy / prefetch paint the real content. Once decrypted, the ref locks in and re-renders short-circuit as before.
 
 **Zombie entry prevention:** `deleteSingleEntry()` in `journalStorage.ts` now cancels any pending throttled save for the deleted date before performing the delete. Previously, a pending save could fire after the delete and re-write the entry.
 
