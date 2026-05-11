@@ -65,6 +65,7 @@ interface JournalEditorProps {
   onInput: (content: string) => void;
   editorRef: React.RefObject<HTMLTextAreaElement | null>;
   externalContentVersion?: number;
+  decryptedDates?: Set<string>;
   onClick?: () => void;
   hidePlaceholder?: boolean;
   scrambleSeed?: number;
@@ -78,6 +79,7 @@ export function JournalEditor({
   onInput,
   editorRef,
   externalContentVersion,
+  decryptedDates,
   onClick,
   hidePlaceholder,
   scrambleSeed,
@@ -147,7 +149,13 @@ export function JournalEditor({
     const isExternalUpdate = externalContentVersion !== prevVersionRef.current;
     prevVersionRef.current = externalContentVersion;
 
-    if (loadedDateRef.current === selectedDate && !isExternalUpdate) return;
+    const isDecrypted = decryptedDates?.has(selectedDate) ?? true;
+
+    // Re-run the load whenever the date hasn't been decrypted yet — Phase A
+    // emits a stub entry with empty content; the real content arrives later
+    // via Phase B / prefetch / lazy decrypt. Without re-running, the editor
+    // would lock onto the empty stub and ignore the decrypted content.
+    if (loadedDateRef.current === selectedDate && isDecrypted && !isExternalUpdate) return;
 
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
@@ -168,12 +176,12 @@ export function JournalEditor({
         });
       }
     }
-    // Mark as loaded once entries has loaded at all — even if this date's
-    // entry doesn't exist yet (e.g., fresh today before ensureToday fires).
-    // Without this, a missing entry traps us in an infinite re-set loop:
-    // every render → effect re-runs → setValue('') → wipes typed text.
-    if (entry || entries.length > 0) loadedDateRef.current = selectedDate;
-  }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
+    // Mark as loaded once entries has loaded at all AND this date is fully
+    // decrypted. If the entry is still an index-only stub (encrypted, content
+    // empty), leave loadedDateRef alone so the next entries update — when
+    // Phase B / lazy / prefetch fills in the real content — re-runs the load.
+    if (isDecrypted && (entry || entries.length > 0)) loadedDateRef.current = selectedDate;
+  }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion, decryptedDates]);
 
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {

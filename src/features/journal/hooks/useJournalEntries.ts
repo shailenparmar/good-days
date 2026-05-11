@@ -35,6 +35,23 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // them, and the selectedDate effect lazy-decrypts on demand.
   const loadedDatesRef = useRef<Set<string>>(new Set());
 
+  // React-visible mirror of loadedDatesRef so JournalEditor can distinguish
+  // an index-only stub (empty content placeholder) from a real decrypted
+  // entry. Without this, the editor marks an undecrypted entry as "loaded"
+  // against the empty stub, then ignores the later Phase B decrypt — the
+  // editor stays blank until the user navigates away and back.
+  const [decryptedDates, setDecryptedDates] = useState<Set<string>>(new Set());
+  const markDecrypted = useCallback((dates: string[]) => {
+    if (dates.length === 0) return;
+    for (const d of dates) loadedDatesRef.current.add(d);
+    setDecryptedDates(prev => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const d of dates) if (!next.has(d)) { next.add(d); changed = true; }
+      return changed ? next : prev;
+    });
+  }, []);
+
   // Background prefetch token — bumped to cancel any in-flight prefetch
   // (e.g. on unmount or when a new reloadEntries supersedes the old one).
   const prefetchTokenRef = useRef<number>(0);
@@ -75,7 +92,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         if (token !== prefetchTokenRef.current) return;
         const fresh = results.filter((e): e is JournalEntry => !!e);
         if (fresh.length > 0) {
-          for (const e of fresh) loadedDatesRef.current.add(e.date);
+          markDecrypted(fresh.map(e => e.date));
           decrypted += fresh.length;
           setEntries(prev => {
             const updated = [...prev];
@@ -118,9 +135,8 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       // Phase A — index only, no AES-GCM
       const { entries: indexEntries, encryptedDates } = await loadEntryIndex();
       if (!mounted) return;
-      for (const e of indexEntries) {
-        if (!encryptedDates.has(e.date)) loadedDatesRef.current.add(e.date);
-      }
+      const plaintextDates = indexEntries.filter(e => !encryptedDates.has(e.date)).map(e => e.date);
+      markDecrypted(plaintextDates);
       entriesRef.current = indexEntries;
       setEntries(indexEntries);
       setIsLoading(false);
@@ -141,11 +157,11 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       const fullEntries = await Promise.all(datesToDecrypt.map(d => loadSingleEntry(d)));
       if (!mounted) return;
 
+      markDecrypted(fullEntries.filter((e): e is JournalEntry => !!e).map(e => e.date));
       setEntries(prev => {
         const updated = [...prev];
         for (const entry of fullEntries) {
           if (!entry) continue;
-          loadedDatesRef.current.add(entry.date);
           const idx = updated.findIndex(e => e.date === entry.date);
           if (idx >= 0) updated[idx] = entry;
           else updated.push(entry);
@@ -195,7 +211,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       console.log(`[gdays] multi-tab: other tab saved ${date}, reloading`);
       logAction('journal.multitab.reload', { date });
 
-      loadedDatesRef.current.add(date);
+      markDecrypted([date]);
       setEntries(prev => {
         const index = prev.findIndex(e => e.date === date);
         const updated = [...prev];
@@ -243,7 +259,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       // The placeholder is brand new — it has no ciphertext to clobber, so
       // mark it as loaded immediately or saveEntry's guard would drop the
       // user's first keystroke on a fresh day.
-      loadedDatesRef.current.add(today);
+      markDecrypted([today]);
       entriesRef.current = newEntries;
       setEntries(newEntries);
       // Don't persist the empty placeholder to IndexedDB — it's only needed in memory
@@ -278,7 +294,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         const fullEntry = await loadSingleEntry(selectedDate);
         if (cancelled) return;
         if (fullEntry) {
-          loadedDatesRef.current.add(fullEntry.date);
+          markDecrypted([fullEntry.date]);
           setEntries(prev => {
             const idx = prev.findIndex(e => e.date === fullEntry.date);
             if (idx < 0) return prev;
@@ -458,7 +474,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
 
     // Save only the changed entry (safe for multi-tab)
     saveSingleEntry(updatedEntry);
-    loadedDatesRef.current.add(date);
+    markDecrypted([date]);
     // Update ref BEFORE React state so saveEntry() sees the title immediately
     entriesRef.current = newEntries;
     setEntries(newEntries);
@@ -469,11 +485,11 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   const reloadEntries = useCallback(async () => {
     prefetchTokenRef.current++;
     loadedDatesRef.current.clear();
+    setDecryptedDates(new Set());
 
     const { entries: indexEntries, encryptedDates } = await loadEntryIndex();
-    for (const e of indexEntries) {
-      if (!encryptedDates.has(e.date)) loadedDatesRef.current.add(e.date);
-    }
+    const plaintextDates = indexEntries.filter(e => !encryptedDates.has(e.date)).map(e => e.date);
+    markDecrypted(plaintextDates);
     entriesRef.current = indexEntries;
     setEntries(indexEntries);
 
@@ -482,11 +498,11 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const fullEntries = await Promise.all(datesToDecrypt.map(d => loadSingleEntry(d)));
 
     if (fullEntries.length > 0) {
+      markDecrypted(fullEntries.filter((e): e is JournalEntry => !!e).map(e => e.date));
       setEntries(prev => {
         const updated = [...prev];
         for (const entry of fullEntries) {
           if (!entry) continue;
-          loadedDatesRef.current.add(entry.date);
           const idx = updated.findIndex(e => e.date === entry.date);
           if (idx >= 0) updated[idx] = entry;
           else updated.push(entry);
@@ -503,7 +519,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     setCurrentContent(htmlToText(content));
     prefetchRemainingEntries(encryptedDates);
     return content;
-  }, [selectedDate, prefetchRemainingEntries]);
+  }, [selectedDate, prefetchRemainingEntries, markDecrypted]);
 
   return {
     entries,
@@ -518,5 +534,6 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     reloadEntries,
     lastTypedTime,
     externalContentVersion,
+    decryptedDates,
   };
 }

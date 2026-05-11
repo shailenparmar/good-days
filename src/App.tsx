@@ -669,6 +669,7 @@ function AppContent() {
           onInput={handleInput}
           editorRef={editorRef}
           externalContentVersion={journal.externalContentVersion}
+          decryptedDates={journal.decryptedDates}
           hidePlaceholder={titleEditing}
           scrambleSeed={scrambleSeed}
           onClick={() => {
