@@ -46,8 +46,6 @@ export function useMobileSync(): MobileSyncHandle {
   const codeSubmittedRef = useRef(false);
   // Code typed while WS is still CONNECTING — sent in onopen.
   const queuedCodeRef = useRef<string | null>(null);
-  // Watchdog for queued codes: if WS doesn't open in time, flash red.
-  const queuedCodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sendMsg = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -104,10 +102,6 @@ export function useMobileSync(): MobileSyncHandle {
         if (queuedCodeRef.current) {
           const code = queuedCodeRef.current;
           queuedCodeRef.current = null;
-          if (queuedCodeTimerRef.current) {
-            clearTimeout(queuedCodeTimerRef.current);
-            queuedCodeTimerRef.current = null;
-          }
           codeSubmittedRef.current = true;
           sendMsg({ type: 'pair-by-code', code });
         }
@@ -174,18 +168,11 @@ export function useMobileSync(): MobileSyncHandle {
     const ws = wsRef.current;
     // WS still mid-handshake — hold the code and send it on open. This is the
     // common case on cellular where the user types the code before the TLS +
-    // WebSocket upgrade has finished. Watchdog flashes red if WS doesn't open
-    // in 4s so the user isn't left staring at an unresponsive input.
+    // WebSocket upgrade has finished. Fly cold-start can take 10-15s, so we
+    // don't time out the queue — the 'verifying' indicator on MobileApp covers
+    // the wait. If the WS truly never opens, the user can hit skip.
     if (ws?.readyState === WebSocket.CONNECTING) {
       queuedCodeRef.current = code;
-      if (queuedCodeTimerRef.current) clearTimeout(queuedCodeTimerRef.current);
-      queuedCodeTimerRef.current = setTimeout(() => {
-        queuedCodeTimerRef.current = null;
-        if (queuedCodeRef.current === code) {
-          queuedCodeRef.current = null;
-          setCodeRejectedCount((c) => c + 1);
-        }
-      }, 4000);
       return;
     }
     // No socket at all (closed / errored) — flash red so the user knows.
