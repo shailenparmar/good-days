@@ -1013,7 +1013,7 @@ export default function MobileApp() {
           }}
         >
           <div style={{ position: 'relative' }}>
-            <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} homeDotColor={isCalibrating ? confirmColor : undefined} />
+            <TiltSquare size={252} showLabels={false} colors={colors} editing={editing} activeDot={activeDot} tiltX={tiltX} tiltY={tiltY} textColor={textColor} homeDotColor={isCalibrating ? confirmColor : undefined} homeDotClassName={isCalibrating ? 'status-pulse-green-bg' : undefined} />
             {showCalibHint && (
               <div style={{
                 position: 'absolute',
@@ -1047,7 +1047,7 @@ export default function MobileApp() {
         <div style={{ padding: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'monospace', fontWeight: 800, fontSize: 'min(17vw, 70px)', width: '9ch', alignSelf: 'center' }}>
           <div style={{ display: 'flex' }}>
               {copyConfirmed ? (
-                <div style={{ ...getButtonStyle(false, 'left', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                <div className="status-pulse-green" style={{ ...getButtonStyle(false, 'left', 'aux'), color: confirmColor, borderColor: confirmColor }}>
                   copied
                 </div>
               ) : (
@@ -1060,11 +1060,11 @@ export default function MobileApp() {
                 </MobileButton>
               )}
               {pasteInvalid ? (
-                <div style={{ ...getButtonStyle(false, 'center', 'aux'), color: errorColor, borderColor: errorColor }}>
+                <div className="status-pulse-red" style={{ ...getButtonStyle(false, 'center', 'aux'), color: errorColor, borderColor: errorColor }}>
                   fail
                 </div>
               ) : pasteConfirmed ? (
-                <div style={{ ...getButtonStyle(false, 'center', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                <div className="status-pulse-green" style={{ ...getButtonStyle(false, 'center', 'aux'), color: confirmColor, borderColor: confirmColor }}>
                   pasted
                 </div>
               ) : (
@@ -1092,7 +1092,7 @@ export default function MobileApp() {
               </MobileButton>
               {isLive && (
                 saveConfirmed ? (
-                  <div style={{ ...getButtonStyle(false, 'right', 'aux'), color: confirmColor, borderColor: confirmColor }}>
+                  <div className="status-pulse-green" style={{ ...getButtonStyle(false, 'right', 'aux'), color: confirmColor, borderColor: confirmColor }}>
                     saved
                   </div>
                 ) : (
@@ -1168,6 +1168,7 @@ export default function MobileApp() {
                 pattern="[0-9]*"
                 maxLength={3}
                 value={codeInput}
+                className={codeFlash === 'red' ? 'status-pulse-red' : undefined}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
                   setCodeInput(val);

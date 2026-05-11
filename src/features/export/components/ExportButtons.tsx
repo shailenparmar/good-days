@@ -501,6 +501,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
         onClick={handleImport}
         size="sm"
         overrideColor={importFeedback ? (importFeedback.type === 'success' ? confirmColor : errorColor) : undefined}
+        className={importFeedback ? (importFeedback.type === 'success' ? 'status-pulse-green' : 'status-pulse-red') : undefined}
         hoverChildren={stacked && !importFeedback ? <><Download className="w-3 h-3" /><span>{s('multiple files accepted')}</span></> : undefined}
       >
         {!importFeedback && <Download className="w-3 h-3" />}
@@ -520,7 +521,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
               type="password"
               value={v3PasswordInput}
               onChange={(e) => { setV3PasswordInput(e.target.value); }}
-              className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+              className={`w-full px-3 py-2 text-xs font-mono font-bold rounded${v3FlashState === 'red' ? ' status-pulse-red' : ''}`}
               style={{
                 backgroundColor: `hsl(var(--bh), var(--bs), var(--bl))`,
                 border: `3px solid ${v3FlashState === 'red' ? '#ef4444' : `hsla(var(--h), var(--s), var(--l), 0.6)`}`,

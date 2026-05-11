@@ -37,9 +37,9 @@ export function CornerBrackets({ size: _size, color, showLabels }: CornerBracket
 }
 
 // Dot marker helper - filled circle (LIVE, actively adjusting)
-export function DotMarker({ posX, posY, color, travel, size = 40 }: { posX: number; posY: number; color: string; travel: number; size?: number }) {
+export function DotMarker({ posX, posY, color, travel, size = 40, className }: { posX: number; posY: number; color: string; travel: number; size?: number; className?: string }) {
   return (
-    <div style={{
+    <div className={className} style={{
       position: 'absolute',
       width: `${size}px`,
       height: `${size}px`,
@@ -86,9 +86,10 @@ interface TiltSquareProps {
   tiltY: number;
   textColor: string;
   homeDotColor?: string;
+  homeDotClassName?: string;
 }
 
-export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX, tiltY, textColor, homeDotColor }: TiltSquareProps) {
+export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX, tiltY, textColor, homeDotColor, homeDotClassName }: TiltSquareProps) {
   const dotTravel = (size / 2) - 20;
 
   // Positions derived from color values (sat→X, light→Y inverted)
@@ -114,7 +115,7 @@ export function TiltSquare({ size, showLabels, colors, editing, activeDot, tiltX
       {isHome && (
         <>
           {/* Single filled dot - tilt feedback */}
-          <DotMarker posX={tiltX} posY={tiltY} color={homeDotColor ?? textColor} travel={dotTravel} />
+          <DotMarker posX={tiltX} posY={tiltY} color={homeDotColor ?? textColor} travel={dotTravel} className={homeDotClassName} />
         </>
       )}
 

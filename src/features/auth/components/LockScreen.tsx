@@ -268,7 +268,7 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
               onMouseDown={() => setIsPressed(true)}
               onMouseUp={() => setIsPressed(false)}
               disabled={isCoolingDown}
-              className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+              className={`w-full px-3 py-2 text-xs font-mono font-bold rounded${flashState === 'red' ? ' status-pulse-red' : ''}`}
               style={{
                 backgroundColor: getBackgroundColor(),
                 border: `3px solid ${getBorderColor()}`,

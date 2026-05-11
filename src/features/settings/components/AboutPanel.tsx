@@ -140,7 +140,7 @@ export function AboutPanel({ isOpen, stacked, superscramble, scrambleSeed }: Abo
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={-1}
-              className="inline-flex items-center gap-1.5 outline-none"
+              className={`inline-flex items-center gap-1.5 outline-none${linkHovered ? ' status-pulse-green' : ''}`}
               style={{ color: linkHovered ? confirmColor : getColor() }}
               onMouseEnter={() => setLinkHovered(true)}
               onMouseLeave={() => setLinkHovered(false)}

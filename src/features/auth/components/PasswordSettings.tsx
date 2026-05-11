@@ -499,7 +499,10 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
             onMouseDown={() => !isDisabled && setIsPressed(true)}
             onMouseUp={() => setIsPressed(false)}
             disabled={isDisabled}
-            className="w-full px-3 py-2 text-xs font-mono font-bold rounded"
+            className={`w-full px-3 py-2 text-xs font-mono font-bold rounded${
+              flashState === 'green' || isSaving ? ' status-pulse-green' :
+              flashState === 'red' ? ' status-pulse-red' : ''
+            }`}
             style={{
               backgroundColor: getBackgroundColor(),
               border: `3px solid ${getBorderColor()}`,
@@ -512,7 +515,7 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
           {/* Saved message (dismiss with keystroke only, not click) */}
           {isSaving && (
             <div className="absolute inset-0 flex items-center">
-              <span className="ml-3.5 text-xs font-mono select-none" style={{ color: confirmColor }}>
+              <span className="ml-3.5 text-xs font-mono select-none status-pulse-green" style={{ color: confirmColor }}>
                 {superscramble ? <span className="font-bold">{s(savedText)}</span> : renderAnimatedText(savedText, savedBoldCount, savedAnimPhase)}
               </span>
             </div>

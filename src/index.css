@@ -1,24 +1,12 @@
 @import "tailwindcss";
 /* Build: v1.0.9 */
 
-/* Status pulse — every element using the green-confirm or red-reject hex
-   pulses between that hex and the current theme text color over 1s.
-   Two-tier cascade by property:
-
-   Tier 1 (broad, declared first) — any inline style containing the hex
-   animates BOTH `color` and `border-color`. For elements without those
-   properties set (no border-width, default text), the animation runs
-   invisibly. Background is untouched here.
-
-   Tier 2 (specific, declared later) — inline styles where the status hex
-   is set as `background-color` animate `background-color` only. Same
-   specificity as Tier 1 but later source order → Tier 2 wins for those
-   elements (e.g. the home-screen calibration dot), so the dot pulses
-   its background instead of getting an unwanted text/border pulse on a
-   non-existent text/border.
-
-   Tradeoff: an element matching Tier 2 won't ALSO animate text/border
-   even if both are status-hex (no such case in our codebase). */
+/* Status pulse — applied via opt-in classes so only actual confirm/reject
+   feedback animates. Pulses status color <-> current theme text color
+   over 1s. Three classes:
+     .status-pulse-green     → animates color + border-color
+     .status-pulse-red       → animates color + border-color
+     .status-pulse-green-bg  → animates background-color (for the dot) */
 @keyframes status-pulse-green {
   0%, 100% {
     color: #1fff0f;
@@ -43,27 +31,14 @@
   0%, 100% { background-color: #1fff0f; }
   50% { background-color: hsl(var(--h), var(--s), var(--l)); }
 }
-@keyframes status-pulse-red-bg {
-  0%, 100% { background-color: #ff0f0f; }
-  50% { background-color: hsl(var(--h), var(--s), var(--l)); }
-}
-[style*="#1fff0f"],
-[style*="rgb(31, 255, 15)"] {
+.status-pulse-green {
   animation: status-pulse-green 1s ease-in-out infinite;
 }
-[style*="#ff0f0f"],
-[style*="rgb(255, 15, 15)"] {
+.status-pulse-red {
   animation: status-pulse-red 1s ease-in-out infinite;
 }
-[style*="background-color: #1fff0f"],
-[style*="background-color:#1fff0f"],
-[style*="background-color: rgb(31, 255, 15)"] {
+.status-pulse-green-bg {
   animation: status-pulse-green-bg 1s ease-in-out infinite;
-}
-[style*="background-color: #ff0f0f"],
-[style*="background-color:#ff0f0f"],
-[style*="background-color: rgb(255, 15, 15)"] {
-  animation: status-pulse-red-bg 1s ease-in-out infinite;
 }
 
 html, body {

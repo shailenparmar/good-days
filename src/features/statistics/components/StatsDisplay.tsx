@@ -538,7 +538,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
               >
                 {pasteInvalid ? (
                   <div
-                    className="flex-1 px-3 py-2 text-xs font-mono font-bold text-center rounded select-none"
+                    className="flex-1 px-3 py-2 text-xs font-mono font-bold text-center rounded select-none status-pulse-red"
                     style={{
                       color: errorColor,
                       border: `3px solid ${errorColor}`,

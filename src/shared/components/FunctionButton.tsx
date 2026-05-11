@@ -13,9 +13,10 @@ interface FunctionButtonProps {
   title?: string;
   overrideColor?: string;
   fullWidth?: boolean;
+  className?: string;
 }
 
-export function FunctionButton({ onClick, disabled, isActive, children, hoverChildren, dataAttribute, size = 'default', ariaLabel, title, overrideColor, fullWidth = true }: FunctionButtonProps) {
+export function FunctionButton({ onClick, disabled, isActive, children, hoverChildren, dataAttribute, size = 'default', ariaLabel, title, overrideColor, fullWidth = true, className: extraClassName }: FunctionButtonProps) {
   const { getColor } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -155,7 +156,7 @@ export function FunctionButton({ onClick, disabled, isActive, children, hoverChi
       aria-label={ariaLabel}
       aria-pressed={isActive}
       title={title}
-      className={`${fullWidth ? 'w-full' : ''} px-3 py-2 font-mono rounded flex items-center justify-center gap-2 outline-none focus:outline-none select-none ${size === 'sm' ? 'text-xs font-bold' : 'font-extrabold'} ${disabled && !overrideColor ? 'opacity-50' : ''}`}
+      className={`${fullWidth ? 'w-full' : ''} px-3 py-2 font-mono rounded flex items-center justify-center gap-2 outline-none focus:outline-none select-none ${size === 'sm' ? 'text-xs font-bold' : 'font-extrabold'} ${disabled && !overrideColor ? 'opacity-50' : ''}${extraClassName ? ' ' + extraClassName : ''}`}
       style={{
         fontSize: size === 'sm' ? undefined : '14px',
         color: textColor,
