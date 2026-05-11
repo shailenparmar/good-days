@@ -85,6 +85,13 @@ export default function MobileApp() {
   const [loadingBoldCount, setLoadingBoldCount] = useState(0);
   const [loadingBoldPhase, setLoadingBoldPhase] = useState<'bold' | 'unbold'>('bold');
 
+  // Bold sweep state for "verifying" copy shown below the typed code while
+  // waiting for the relay to confirm pair / reject. Covers the cold-start
+  // wait (Fly machine wake) so the user knows the submission is in flight.
+  const verifyingText = 'verifying';
+  const [verifyingBoldCount, setVerifyingBoldCount] = useState(0);
+  const [verifyingBoldPhase, setVerifyingBoldPhase] = useState<'bold' | 'unbold'>('bold');
+
   // Track code input focus via document-level events (iOS doesn't reliably blur on tap-away)
   useEffect(() => {
     const check = () => setCodeInputFocused(document.activeElement === codeInputRef.current);
@@ -177,6 +184,25 @@ export default function MobileApp() {
   useEffect(() => {
     if (showLoading) { setLoadingBoldCount(0); setLoadingBoldPhase('bold'); }
   }, [showLoading]);
+
+  // Verifying bold sweep — shown after the user types the 3rd digit, while we
+  // wait for the relay to confirm pair / reject. codeInput is cleared to '' on
+  // rejection (by the red flash effect) and the entire code-entry screen hides
+  // on pair, so this naturally turns off without explicit dismissal.
+  const showVerifying = sync.pairingState === 'enter-code' && codeInput.length === 3 && codeFlash === 'none';
+  useEffect(() => {
+    if (!showVerifying) return;
+    if (verifyingBoldCount >= verifyingText.length) {
+      setVerifyingBoldPhase(p => p === 'bold' ? 'unbold' : 'bold');
+      setVerifyingBoldCount(0);
+      return;
+    }
+    const timer = setTimeout(() => setVerifyingBoldCount(c => c + 1), 83);
+    return () => clearTimeout(timer);
+  }, [showVerifying, verifyingBoldCount, verifyingBoldPhase]);
+  useEffect(() => {
+    if (showVerifying) { setVerifyingBoldCount(0); setVerifyingBoldPhase('bold'); }
+  }, [showVerifying]);
 
   // Throttled WS color update (42ms = ~24fps)
   const sendColorThrottled = useCallback((next: ColorState) => {
@@ -1196,6 +1222,36 @@ export default function MobileApp() {
                     <>
                       <span style={{ fontWeight: 400 }}>{codePlaceholder.slice(0, codeBoldCount)}</span>
                       <span style={{ fontWeight: 900 }}>{codePlaceholder.slice(codeBoldCount)}</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {showVerifying && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'monospace',
+                  fontWeight: 800,
+                  fontSize: '16px',
+                  color: textColor,
+                  opacity: 0.85,
+                  whiteSpace: 'pre',
+                  pointerEvents: 'none',
+                }}>
+                  {verifyingBoldPhase === 'bold' ? (
+                    <>
+                      <span style={{ fontWeight: 900 }}>{verifyingText.slice(0, verifyingBoldCount)}</span>
+                      <span style={{ fontWeight: 400 }}>{verifyingText.slice(verifyingBoldCount)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontWeight: 400 }}>{verifyingText.slice(0, verifyingBoldCount)}</span>
+                      <span style={{ fontWeight: 900 }}>{verifyingText.slice(verifyingBoldCount)}</span>
                     </>
                   )}
                 </div>
