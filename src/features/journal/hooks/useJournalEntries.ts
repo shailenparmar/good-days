@@ -35,6 +35,68 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // them, and the selectedDate effect lazy-decrypts on demand.
   const loadedDatesRef = useRef<Set<string>>(new Set());
 
+  // Background prefetch token — bumped to cancel any in-flight prefetch
+  // (e.g. on unmount or when a new reloadEntries supersedes the old one).
+  const prefetchTokenRef = useRef<number>(0);
+
+  // Phase C — background prefetch the remaining encrypted entries in
+  // parallel batches so the sidebar populates titles without the user
+  // needing to click through each entry. Uses requestIdleCallback to
+  // avoid stealing main-thread time from typing/scrolling.
+  const prefetchRemainingEntries = useCallback((encryptedDates: Set<string>) => {
+    const BATCH_SIZE = 8;
+    const token = ++prefetchTokenRef.current;
+    const queue = Array.from(encryptedDates).filter(d => !loadedDatesRef.current.has(d));
+    if (queue.length === 0) return;
+
+    const startedAt = performance.now();
+    let decrypted = 0;
+    logAction('journal.prefetch.start', { count: queue.length, batchSize: BATCH_SIZE });
+
+    const idle = (cb: () => void) => {
+      const ric = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+      if (ric) ric(cb, { timeout: 1000 });
+      else setTimeout(cb, 0);
+    };
+
+    const runBatch = () => {
+      if (token !== prefetchTokenRef.current) return;
+      const batch: string[] = [];
+      while (batch.length < BATCH_SIZE && queue.length > 0) {
+        const d = queue.shift()!;
+        if (!loadedDatesRef.current.has(d)) batch.push(d);
+      }
+      if (batch.length === 0) {
+        logAction('journal.prefetch.complete', { decrypted, total: encryptedDates.size, durationMs: Math.round(performance.now() - startedAt) });
+        return;
+      }
+
+      Promise.all(batch.map(d => loadSingleEntry(d))).then(results => {
+        if (token !== prefetchTokenRef.current) return;
+        const fresh = results.filter((e): e is JournalEntry => !!e);
+        if (fresh.length > 0) {
+          for (const e of fresh) loadedDatesRef.current.add(e.date);
+          decrypted += fresh.length;
+          setEntries(prev => {
+            const updated = [...prev];
+            for (const entry of fresh) {
+              const idx = updated.findIndex(e => e.date === entry.date);
+              if (idx >= 0) updated[idx] = entry;
+              else updated.push(entry);
+            }
+            updated.sort((a, b) => b.date.localeCompare(a.date));
+            entriesRef.current = updated;
+            return updated;
+          });
+        }
+        if (queue.length > 0) idle(runBatch);
+        else logAction('journal.prefetch.complete', { decrypted, total: encryptedDates.size, durationMs: Math.round(performance.now() - startedAt) });
+      });
+    };
+
+    idle(runBatch);
+  }, []);
+
   // Keep entriesRef in sync
   useEffect(() => {
     entriesRef.current = entries;
@@ -72,6 +134,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         const entry = indexEntries.find(e => e.date === selectedDate);
         setCurrentContent(htmlToText(entry?.content || ''));
         logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+        prefetchRemainingEntries(encryptedDates);
         return;
       }
 
@@ -96,10 +159,12 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
       setCurrentContent(htmlToText(selectedFull?.content ?? selectedFromIndex?.content ?? ''));
       logAction('journal.loaded', { entryCount: indexEntries.length, durationMs: Math.round(performance.now() - startedAt) });
+      prefetchRemainingEntries(encryptedDates);
     })();
 
     return () => {
       mounted = false;
+      prefetchTokenRef.current++;
     };
   }, [encryptionKeyReady]); // Run when encryption key becomes ready
 
@@ -402,6 +467,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
   // Reload entries from storage (used after re-lock + unlock).
   // Mirrors the two-phase load: index first, then decrypt today + selectedDate.
   const reloadEntries = useCallback(async () => {
+    prefetchTokenRef.current++;
     loadedDatesRef.current.clear();
 
     const { entries: indexEntries, encryptedDates } = await loadEntryIndex();
@@ -435,8 +501,9 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const selectedFromIndex = indexEntries.find(e => e.date === selectedDate);
     const content = selectedFull?.content ?? selectedFromIndex?.content ?? '';
     setCurrentContent(htmlToText(content));
+    prefetchRemainingEntries(encryptedDates);
     return content;
-  }, [selectedDate]);
+  }, [selectedDate, prefetchRemainingEntries]);
 
   return {
     entries,
