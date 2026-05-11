@@ -36,7 +36,7 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 1. **Phase A — index** (`loadEntryIndex`): Sidebar metadata for all dates. No AES-GCM. Fast.
 2. **Phase B — eager decrypt**: Today + `selectedDate` only, so the editor is immediately writable.
-3. **Phase C — background prefetch (v3.1.7+ batched)**: Remaining encrypted dates decrypt in **parallel batches of 8** per `requestIdleCallback` slot (1000ms timeout, `setTimeout(0)` fallback). Each batch is `Promise.all`'d, then state updates once with all fresh entries from that batch. Skips any date already in `loadedDatesRef` (lazy-decrypt or multi-tab beat us). Sidebar titles populate ~8× faster than the original one-at-a-time loop, without a single big CPU spike. Batch size is the constant `BATCH_SIZE = 8` in `prefetchRemainingEntries`.
+3. **Phase C — background prefetch (v3.1.22+)**: Remaining encrypted dates decrypt in **parallel batches of 8** per `requestIdleCallback` slot (1000ms timeout, `setTimeout(0)` fallback). Each batch is `Promise.all`'d, then state updates once with all fresh entries from that batch. Skips any date already in `loadedDatesRef` (lazy-decrypt or multi-tab beat us). Without this, sidebar titles only appeared after the user clicked through each entry. Batch size is the constant `BATCH_SIZE = 8` in `prefetchRemainingEntries`.
 
 **Cancellation:** `prefetchTokenRef` (a counter, not a boolean — multiple prefetches can be queued cleanly). Bumped on unmount of the load effect, and at the start of every `prefetchRemainingEntries` call so a new prefetch supersedes any in-flight one. Each step checks `token !== prefetchTokenRef.current` before doing work.
 
