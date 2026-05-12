@@ -75,5 +75,6 @@ export function useStatistics(paused: boolean = false) {
     totalKeystrokes,
     totalSecondsOnApp,
     incrementKeystrokes,
+    keystrokesRef,
   };
 }

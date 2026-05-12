@@ -23,6 +23,7 @@ function hslToHex(h: number, s: number, l: number): string {
 interface StatsDisplayProps {
   entries: JournalEntry[];
   totalKeystrokes: number;
+  keystrokesRef?: React.MutableRefObject<number>;
   totalSecondsOnApp: number;
   horizontal?: boolean;
   stacked?: boolean;
@@ -99,7 +100,32 @@ function ColorButton({
   );
 }
 
-export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
+export function StatsDisplay({ entries, totalKeystrokes, keystrokesRef, totalSecondsOnApp, horizontal, stacked, superscramble, scrambleSeed }: StatsDisplayProps) {
+  // Live keystroke count — subscribes to the ref via rAF so the counter
+  // ticks at 60Hz while typing without re-rendering the rest of the app.
+  // Falls back to the 1s-synced prop if no ref is provided.
+  const [liveKeystrokes, setLiveKeystrokes] = useState(totalKeystrokes);
+  useEffect(() => {
+    if (!keystrokesRef) return;
+    let rafId = 0;
+    let last = keystrokesRef.current;
+    setLiveKeystrokes(last);
+    const tick = () => {
+      const cur = keystrokesRef.current;
+      if (cur !== last) {
+        last = cur;
+        setLiveKeystrokes(cur);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [keystrokesRef]);
+  // If no ref provided, keep state in sync with the (slower) prop
+  useEffect(() => {
+    if (!keystrokesRef) setLiveKeystrokes(totalKeystrokes);
+  }, [keystrokesRef, totalKeystrokes]);
+  const keystrokeCount = keystrokesRef ? liveKeystrokes : totalKeystrokes;
   const { getColor, uniqueColorways, hue, saturation, lightness, bgHue, bgSaturation, bgLightness, setHue, setSaturation, setLightness, setBgHue, setBgSaturation, setBgLightness, presets, customPresets, setCustomPresets, setSelectedPreset, setSelectedCustomPreset, setActivePresetIndex } = useTheme();
   const errorColor = STATUS_RED;
   const [liveStats, setLiveStats] = useState({ heapUsed: 0, domNodes: 0 });
@@ -421,7 +447,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           {s(`${entries.length} ${entries.length === 1 ? 'day' : 'days'} logged`)}
         </div>
         <div className="text-xs font-mono font-bold" style={{ color: getColor() }}>
-          {s(`${totalKeystrokes.toLocaleString()} keystrokes`)}
+          {s(`${keystrokeCount.toLocaleString()} keystrokes`)}
         </div>
         <div className="text-xs font-mono font-bold" style={{ color: getColor() }}>
           {s(`${totalWords.toLocaleString()} words`)}
@@ -446,7 +472,7 @@ export function StatsDisplay({ entries, totalKeystrokes, totalSecondsOnApp, hori
           {s(`${entries.length} ${entries.length === 1 ? 'day' : 'days'} logged`)}
         </div>
         <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
-          {s(`${totalKeystrokes.toLocaleString()} keystrokes`)}
+          {s(`${keystrokeCount.toLocaleString()} keystrokes`)}
         </div>
         <div className="text-xs font-mono font-bold text-center" style={{ color: getColor() }}>
           {s(`${totalWords.toLocaleString()} words total`)}

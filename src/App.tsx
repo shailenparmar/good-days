@@ -516,6 +516,7 @@ function AppContent() {
             <StatsDisplay
               entries={journal.entries}
               totalKeystrokes={stats.totalKeystrokes}
+              keystrokesRef={stats.keystrokesRef}
               totalSecondsOnApp={stats.totalSecondsOnApp}
               stacked={stacked}
               superscramble={layout.isSuperscramble}
