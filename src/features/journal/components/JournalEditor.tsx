@@ -65,7 +65,6 @@ interface JournalEditorProps {
   onInput: (content: string) => void;
   editorRef: React.RefObject<HTMLTextAreaElement | null>;
   externalContentVersion?: number;
-  decryptedDates?: Set<string>;
   onClick?: () => void;
   hidePlaceholder?: boolean;
   scrambleSeed?: number;
@@ -79,7 +78,6 @@ export function JournalEditor({
   onInput,
   editorRef,
   externalContentVersion,
-  decryptedDates,
   onClick,
   hidePlaceholder,
   scrambleSeed,
@@ -89,8 +87,10 @@ export function JournalEditor({
   // Track focus state for placeholder visibility
   const [isFocused, setIsFocused] = useState(false);
 
-  // Track which date we've loaded to prevent re-loading same content
-  const loadedDateRef = useRef<string | null>(null);
+  // Track the last-loaded (date, content) so we re-run setValue whenever
+  // either changes. Content-based — not just date — so stub→decrypted
+  // transitions (Phase A stub with '' → Phase B real content) always fire.
+  const lastLoadedRef = useRef<{ date: string; content: string } | null>(null);
 
   // Local state for textarea value (synced with entries)
   const [value, setValue] = useState('');
@@ -149,18 +149,20 @@ export function JournalEditor({
     const isExternalUpdate = externalContentVersion !== prevVersionRef.current;
     prevVersionRef.current = externalContentVersion;
 
-    const isDecrypted = decryptedDates?.has(selectedDate) ?? true;
-
-    // Re-run the load whenever the date hasn't been decrypted yet — Phase A
-    // emits a stub entry with empty content; the real content arrives later
-    // via Phase B / prefetch / lazy decrypt. Without re-running, the editor
-    // would lock onto the empty stub and ignore the decrypted content.
-    if (loadedDateRef.current === selectedDate && isDecrypted && !isExternalUpdate) return;
-
     const entry = entries.find(e => e.date === selectedDate);
     const content = entry?.content || '';
     // Strip HTML in case we're loading old contentEditable content
     const textContent = stripHtml(content);
+
+    // Skip if we've already loaded this exact content for this date.
+    // (Content-based guard so Phase A's stub → Phase B's decrypted content
+    // transition is always picked up, regardless of how React batched the
+    // setEntries / setDecryptedDates pair that produced it.)
+    const last = lastLoadedRef.current;
+    if (last && last.date === selectedDate && last.content === textContent && !isExternalUpdate) {
+      return;
+    }
+
     setValue(textContent);
 
     // Restore scroll position after content loads (only on date change, not external sync)
@@ -176,12 +178,15 @@ export function JournalEditor({
         });
       }
     }
-    // Mark as loaded once entries has loaded at all AND this date is fully
-    // decrypted. If the entry is still an index-only stub (encrypted, content
-    // empty), leave loadedDateRef alone so the next entries update — when
-    // Phase B / lazy / prefetch fills in the real content — re-runs the load.
-    if (isDecrypted && (entry || entries.length > 0)) loadedDateRef.current = selectedDate;
-  }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion, decryptedDates]);
+    // Record what we just loaded. Only when entries have populated — while
+    // entries is empty (still loading), leave lastLoadedRef null so the next
+    // entries update will re-run and paint the real content. Mirrors the
+    // pre-v3.1.23 guard that protected against wiping content during the
+    // initial IndexedDB load.
+    if (entry || entries.length > 0) {
+      lastLoadedRef.current = { date: selectedDate, content: textContent };
+    }
+  }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
 
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
