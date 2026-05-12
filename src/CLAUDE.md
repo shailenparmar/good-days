@@ -80,6 +80,18 @@ Usage: `hsl(var(--h), var(--s), var(--l))` — the `%` is baked into the variabl
 - `confirmColor.ts` — computational WCAG contrast, needs raw numbers
 - `StatsDisplay.tsx` color hex display — text output, not CSS styling
 
+## Hot-Path Counters: Ref + rAF Subscription (v3.1.24+)
+
+For counters incremented on every keystroke (or any high-frequency event), do **not** put the value in React state. Pattern:
+
+1. The producer (`useStatistics`) mutates `keystrokesRef.current += 1` per event. Zero React work.
+2. A slow `setInterval` (1s) still syncs ref → state for **persistence** (localStorage save effect listens to that state).
+3. Display components that want a live count subscribe to the ref via `requestAnimationFrame` with a bailout — only call `setState` when `ref.current !== last`.
+
+The result: 60Hz visual update with re-renders scoped to the one component that displays the count. The rest of the tree never re-renders during typing.
+
+Don't pass live counters through `App.tsx` props — that re-renders the world on every keystroke. Pass the ref + a fallback prop, and let the leaf subscribe.
+
 ## Screen Copy Approval Policy
 
 **All user-facing copy and screens must be approved by the user.** Do not add new text screens without approval. Currently approved:
