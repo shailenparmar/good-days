@@ -242,7 +242,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     const today = getTodayDate();
     const todayEntry = entries.find(e => e.date === today);
 
-    if (!todayEntry && entries.length > 0) {
+    if (!todayEntry) {
       // If today's entry failed to decrypt, do NOT create an empty placeholder —
       // that would overwrite the encrypted data in IndexedDB with empty content.
       if (hasDecryptionFailure(today)) {
