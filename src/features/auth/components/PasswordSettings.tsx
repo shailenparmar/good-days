@@ -134,19 +134,6 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
     }
   }, [hasPassword, isSaving]);
 
-  // Auto-focus the password input when the "set password" flow is active
-  // (v3.1.1+). Previously we did NOT auto-focus to keep editor primacy, but
-  // that meant typing went to the journal — including the password the user
-  // was trying to set — and Enter did nothing because the input was empty.
-  // If the user opens settings and there's no password yet, set-password is
-  // the only thing that input is for; focus it.
-  useEffect(() => {
-    if (!hasPassword && showInput && !isSaving && step === 'set') {
-      const id = requestAnimationFrame(() => inputRef.current?.focus());
-      return () => cancelAnimationFrame(id);
-    }
-  }, [hasPassword, showInput, isSaving, step]);
-
   // Window-level ESC handler to reset password flow (without requiring input focus)
   // Always attached to avoid race conditions, but checks state inside handler
   useEffect(() => {
