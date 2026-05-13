@@ -46,6 +46,10 @@ Entries can be named with an optional title. The `title` field on `JournalEntry`
 
 **Logged events:** `journal.prefetch.start` (count, batchSize), `journal.prefetch.complete` (decrypted, total, durationMs), `journal.entry.lazyLoaded` (date, durationMs — fires only when navigation beats the prefetch).
 
+### Fresh-User Placeholder (v3.1.26+)
+
+The "ensure today's entry exists" effect (line ~239) MUST run regardless of `entries.length`. Previously it was gated on `entries.length > 0`, which broke fresh users: with zero past entries, no placeholder was created, `loadedDatesRef` never had today marked, and the first keystroke was silently dropped by `saveEntry`'s `entryNotLoaded` guard — sidebar stayed empty forever. `isLoading` already prevents this effect from running before initial load; no other guard is needed.
+
 ## Editor Implementation
 
 ### Backup Branch
