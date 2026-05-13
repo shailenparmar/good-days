@@ -188,6 +188,35 @@ Journal entries in IndexedDB are encrypted with AES-256-GCM. Since v3.0.0, the a
 
 After DEK migration, all entries have `_enc: 'dek'`. Legacy entries with `_enc: 'app'` or `'password'` are supported (pre-migration). Entries with no `_enc` marker are treated as plaintext and pass through.
 
+### KNOWN CRITICAL BUG — `_enc` is written but never read (v3.1.28, unfixed)
+
+`decryptEntry()` (journalStorage.ts:229) **ignores the `_enc` field** and always uses the in-memory `currentKey`, regardless of which key the record was actually encrypted with. `encryptEntry()` writes `_enc: keyMode` (line 222) but no decrypt path ever reads it back. The field is vestigial.
+
+**Failure mode this enables — force-quit with mixed `_enc` state:**
+1. User had legacy state — entries written with `_enc: 'app'`.
+2. At some point a `wrappedDEK` got written to IDB (e.g., via `migrateToDEK` during a password set, or a partial migration).
+3. Some entries get re-encrypted to `_enc: 'dek'`, others stay `_enc: 'app'` — mixed state.
+4. Pre-force-quit: `sessionStorage` caches a JWK that happens to decrypt most records (e.g., the app key, or a DEK that matches the majority). User sees `decrypted: 63/64` in the prefetch log — the one outlier has a different `_enc`.
+5. Force-quit clears `sessionStorage`. On reopen, `initEncryptionKey()` finds the `wrappedDEK`, unwraps it with the app KEK, sets `currentKey = DEK`. But most/all records have `_enc: 'app'`, so the DEK can't decrypt them.
+6. Result: sidebar dates render (plaintext on the record), but every title/content fails to decrypt — `prefetch.complete decrypted: 0, total: 64`. Editor is empty for every date. User assumes they've lost everything.
+
+**The app key is deterministic** (derived from `APP_SECRET + ENCRYPT_SALT` with fixed PBKDF2 params), so `_enc: 'app'` records are recoverable AT ANY TIME — but only if `decryptEntry` actually tries the app key. It doesn't.
+
+**Second contributing mistake — `migrateToDEK` is not atomic.** `reEncryptAllEntries(dek, 'dek')` (one IDB txn on `ENTRIES_STORE`) and `setWrappedDEKInDB(...)` (separate IDB txn on `METADATA_STORE`) are not wrapped in a single transaction. If the second is interrupted (force-quit, crash, IDB quota, throw between awaits), entries are now `_enc: 'dek'` but no `wrappedDEK` exists. Next load goes to the legacy `setEncryptionKey(appKey, 'app')` branch in `initEncryptionKey()` — and decrypt fails on every entry because the DEK is gone forever. Inverse failure modes also exist depending on ordering.
+
+**Fixes (when revisiting):**
+1. **`decryptEntry` should select the key by `_enc`**, not blindly use `currentKey`:
+   - `_enc === 'app'` → `await getAppEncryptKey()` (always available, deterministic — self-heals any divergence on this branch)
+   - `_enc === 'dek'` → the unwrapped DEK in `currentKey`
+   - `_enc === 'password'` → password-derived KEK (requires unlock; only used if a record was directly password-encrypted pre-DEK)
+   - On AES-GCM decrypt failure, try the other reasonable keys before giving up.
+2. **Make `migrateToDEK` atomic** — write `wrappedDEK` and the re-encrypted entries in a single IDB transaction spanning both stores. Or write `wrappedDEK` *first*, then re-encrypt; if interrupted, the next load can detect `wrappedDEK` exists but entries still have old `_enc` and resume the migration (idempotent).
+3. **Audit `encryptEntry`** — it writes `_enc: keyMode`, but if `keyMode` drifts from what `currentKey` actually is (e.g., during the brief window inside `reEncryptAllEntries` between key swap and txn commit), a concurrent `saveSingleEntry` could write a record with a mismatched `_enc`/payload pair. Throttled saves and the 300ms write window make this real, not theoretical.
+
+**Detection / verification:** Open DevTools → Application → IndexedDB → `good-days` → `entries`. Inspect record `_enc` values. If they're mixed, or if `_enc === 'dek'` exists alongside missing `wrappedDEK` in `metadata`, the bug has fired. Once fix #1 ships, this state becomes recoverable for `_enc: 'app'` records without user action.
+
+**Stale doc warning:** Earlier sections of this doc reference `needsDEKMigration` and `runDEKMigration()` (lines 212-216, 262-264). These do **not** exist in the current code — the on-load migration was never wired up. Users who installed pre-v3.0.0 may still have `_enc: 'app'` records that no code path ever upgrades.
+
 **DEK/KEK lifecycle:**
 
 | Has Password? | Session Active? | Flow |
