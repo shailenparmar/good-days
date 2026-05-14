@@ -181,6 +181,10 @@ export function LockScreen({ passwordInput, onPasswordChange, onSubmit }: LockSc
     if (success) {
       // Lock screen is about to unmount — leave isSubmitting=true so any final
       // paint stays in the "checking" state instead of flashing back to "password".
+      // Blur input so document.activeElement falls cleanly to body before
+      // unmount; otherwise the first post-unlock ESC is swallowed by the
+      // App ESC handler's tagName === 'input' early-return.
+      inputRef.current?.blur();
       setFailedAttempts(0);
       setCooldownEnd(null);
       setCooldownRemaining(0);
