@@ -55,9 +55,9 @@ export function useLayoutState() {
     return panelsOpen;
   });
 
-  // Focus modes (persisted across refresh)
-  const [zenMode, setZenMode] = useState(() => getItem('zenMode') === 'true');
-  const [minizen, setMinizen] = useState(() => getItem('minizen') === 'true');
+  // Focus modes
+  const [zenMode, setZenMode] = useState(false);
+  const [minizen, setMinizen] = useState(false);
   const zenModeRef = useRef(zenMode);
   useEffect(() => { zenModeRef.current = zenMode; }, [zenMode]);
   const minizenRef = useRef(minizen);
@@ -70,7 +70,7 @@ export function useLayoutState() {
     showDebugMenu: boolean;
     showAboutPanel: boolean;
   } | null>('preFocusState', null);
-  const [zenFromMinizen, setZenFromMinizen] = useState(() => getItem('zenFromMinizen') === 'true');
+  const [zenFromMinizen, setZenFromMinizen] = useState(false);
   const [entryHeaderHeight, setEntryHeaderHeight] = useState(0);
   const [titleHovered, setTitleHovered] = useState(false);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -227,10 +227,12 @@ export function useLayoutState() {
     return () => window.removeEventListener('resize', handleResize);
   }, [isNarrow, closePanels, showDebugMenu, showAboutPanel, preNarrowState, preFocusState, zenMode]);
 
-  // Persist focus mode state across refresh
-  useEffect(() => { setItem('zenMode', String(zenMode)); }, [zenMode]);
-  useEffect(() => { setItem('minizen', String(minizen)); }, [minizen]);
-  useEffect(() => { setItem('zenFromMinizen', String(zenFromMinizen)); }, [zenFromMinizen]);
+  // Clean up stale focus mode keys
+  useEffect(() => {
+    removeItem('zenMode');
+    removeItem('minizen');
+    removeItem('zenFromMinizen');
+  }, []);
 
   // PWA resume handler
   useEffect(() => {
