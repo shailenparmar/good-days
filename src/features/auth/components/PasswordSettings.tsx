@@ -143,29 +143,34 @@ export function PasswordSettings({ hasPassword, verifyPassword, setPassword, cha
       // Don't handle if input not shown or saving (let App.tsx lock when saving)
       if (!showInput || isSaving) return;
 
-      // Check each case and only preventDefault when we actually handle it
+      // When we handle ESC, stop the event entirely so App.tsx's ESC handler
+      // doesn't also fire. stopImmediatePropagation is more reliable than
+      // preventDefault — browsers/extensions can flip defaultPrevented for ESC
+      // in some PWA contexts, which made App.tsx's old coordination fragile.
+      const consume = () => { e.stopImmediatePropagation(); e.preventDefault(); };
+
       if (step === 'set-confirm') {
-        e.preventDefault();
+        consume();
         setStep('set');
         setInput('');
         setNewPasswordTemp('');
       } else if (step === 'new' || step === 'confirm') {
-        e.preventDefault();
+        consume();
         setStep('old');
         setInput('');
         setNewPasswordTemp('');
       } else if (step === 'old' && hasPassword) {
-        e.preventDefault();
+        consume();
         setShowInput(false);
         setInput('');
       } else if (step === 'set' && !hasPassword) {
         if (input) {
           // Has content: clear it, keep focus
-          e.preventDefault();
+          consume();
           setInput('');
         } else if (document.activeElement === inputRef.current) {
           // Empty and focused: blur to defocus, next ESC will cycle
-          e.preventDefault();
+          consume();
           inputRef.current?.blur();
         }
         // Otherwise let ESC through to lock the app

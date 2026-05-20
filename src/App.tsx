@@ -194,51 +194,23 @@ function AppContent() {
     return () => window.removeEventListener('keyup', handleKeyUp);
   }, []);
 
-  // Diagnostic: log ESC at multiple phases to find who preventDefaults it.
-  useEffect(() => {
-    const captureLog = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      logAction('esc.capture.window', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
-    };
-    const captureDocLog = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      logAction('esc.capture.document', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
-    };
-    const bubbleDocLog = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      logAction('esc.bubble.document', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
-    };
-    window.addEventListener('keydown', captureLog, true);
-    document.addEventListener('keydown', captureDocLog, true);
-    document.addEventListener('keydown', bubbleDocLog, false);
-    return () => {
-      window.removeEventListener('keydown', captureLog, true);
-      document.removeEventListener('keydown', captureDocLog, true);
-      document.removeEventListener('keydown', bubbleDocLog, false);
-    };
-  }, []);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Diagnostic: log every ESC so we can see what's swallowing it.
-        const ae = document.activeElement;
-        logAction('esc.bubble.window', {
+        logAction('esc.keydown', {
           isLocked: auth.isLocked,
           defaultPrevented: e.defaultPrevented,
-          repeat: e.repeat,
           isScrambled: layout.isScrambled,
-          activeTag: ae?.tagName?.toLowerCase() ?? null,
-          activeId: (ae as HTMLElement)?.id || null,
-          activeClass: (ae as HTMLElement)?.className?.toString().slice(0, 60) || null,
           zenMode: layout.zenModeRef.current,
           minizen: layout.minizenRef.current,
-          isNarrow: layout.isNarrow,
-          showSidebarInNarrow: layout.showSidebarInNarrow,
         });
       }
       if (e.key === 'Escape' && !auth.isLocked) {
-        if (e.defaultPrevented) return;
+        // Note: do NOT check e.defaultPrevented here. Browsers/extensions can
+        // flip defaultPrevented for ESC in PWA/standalone contexts even when
+        // no app code calls preventDefault — that was silently swallowing
+        // post-unlock ESC. Coordination with PasswordSettings now happens via
+        // stopImmediatePropagation in its capture-phase handler.
         if (e.repeat) return;
 
         if (layout.isScrambled) {
