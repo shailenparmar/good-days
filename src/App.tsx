@@ -196,6 +196,23 @@ function AppContent() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Diagnostic: log every ESC so we can see what's swallowing it.
+        const ae = document.activeElement;
+        logAction('esc.keydown', {
+          isLocked: auth.isLocked,
+          defaultPrevented: e.defaultPrevented,
+          repeat: e.repeat,
+          isScrambled: layout.isScrambled,
+          activeTag: ae?.tagName?.toLowerCase() ?? null,
+          activeId: (ae as HTMLElement)?.id || null,
+          activeClass: (ae as HTMLElement)?.className?.toString().slice(0, 60) || null,
+          zenMode: layout.zenModeRef.current,
+          minizen: layout.minizenRef.current,
+          isNarrow: layout.isNarrow,
+          showSidebarInNarrow: layout.showSidebarInNarrow,
+        });
+      }
       if (e.key === 'Escape' && !auth.isLocked) {
         if (e.defaultPrevented) return;
         if (e.repeat) return;
