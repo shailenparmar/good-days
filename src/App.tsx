@@ -194,12 +194,36 @@ function AppContent() {
     return () => window.removeEventListener('keyup', handleKeyUp);
   }, []);
 
+  // Diagnostic: log ESC at multiple phases to find who preventDefaults it.
+  useEffect(() => {
+    const captureLog = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      logAction('esc.capture.window', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
+    };
+    const captureDocLog = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      logAction('esc.capture.document', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
+    };
+    const bubbleDocLog = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      logAction('esc.bubble.document', { defaultPrevented: e.defaultPrevented, eventPhase: e.eventPhase });
+    };
+    window.addEventListener('keydown', captureLog, true);
+    document.addEventListener('keydown', captureDocLog, true);
+    document.addEventListener('keydown', bubbleDocLog, false);
+    return () => {
+      window.removeEventListener('keydown', captureLog, true);
+      document.removeEventListener('keydown', captureDocLog, true);
+      document.removeEventListener('keydown', bubbleDocLog, false);
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Diagnostic: log every ESC so we can see what's swallowing it.
         const ae = document.activeElement;
-        logAction('esc.keydown', {
+        logAction('esc.bubble.window', {
           isLocked: auth.isLocked,
           defaultPrevented: e.defaultPrevented,
           repeat: e.repeat,
