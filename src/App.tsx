@@ -205,10 +205,6 @@ function AppContent() {
           return;
         }
 
-        const activeEl = document.activeElement;
-        const tagName = activeEl?.tagName?.toLowerCase();
-        if (tagName === 'input') return;
-
         // Snapshot full state before cycling (for hold-to-lock revert)
         escPreCycleRef.current = {
           zenMode: layout.zenModeRef.current,
