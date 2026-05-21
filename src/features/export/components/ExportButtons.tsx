@@ -530,6 +530,7 @@ export function ExportButtons({ entries, onImport, stacked, superscramble, scram
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
+                  e.stopPropagation();
                   setV3PasswordNeeded(false);
                   setV3PendingBackup(null);
                   setV3PasswordInput('');
