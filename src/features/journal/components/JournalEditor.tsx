@@ -57,6 +57,48 @@ function scrambleText(text: string): string {
   return scrambled;
 }
 
+// Measure the y-position (in pixels, relative to textarea content top) of the
+// caret in a textarea, accounting for soft-wrapping. Builds a mirror <div>
+// styled identically to the textarea, inserts the text up to the caret with
+// a marker span at the end, reads the marker's offsetTop, then removes the
+// mirror. Returns null if measurement fails.
+function measureCaretTop(textarea: HTMLTextAreaElement): number | null {
+  const cs = window.getComputedStyle(textarea);
+  const mirror = document.createElement('div');
+  // Replicate every layout-affecting property
+  const props = [
+    'boxSizing', 'width',
+    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+    'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+    'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
+    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant',
+    'lineHeight', 'letterSpacing', 'textTransform', 'textIndent',
+    'whiteSpace', 'wordWrap', 'overflowWrap', 'wordBreak', 'tabSize',
+  ] as const;
+  for (const p of props) {
+    mirror.style[p as never] = cs[p as never];
+  }
+  // Positioning: hidden, off-screen, can layout naturally
+  mirror.style.position = 'absolute';
+  mirror.style.visibility = 'hidden';
+  mirror.style.top = '0';
+  mirror.style.left = '-9999px';
+  mirror.style.height = 'auto';
+  mirror.style.overflow = 'hidden';
+
+  const beforeCaret = textarea.value.substring(0, textarea.selectionEnd);
+  const marker = document.createElement('span');
+  marker.textContent = '​'; // zero-width space — has y-position, no x impact
+  // Use a text node for the pre-caret content (preserves whitespace/newlines)
+  mirror.appendChild(document.createTextNode(beforeCaret));
+  mirror.appendChild(marker);
+
+  document.body.appendChild(mirror);
+  const top = marker.offsetTop;
+  document.body.removeChild(mirror);
+  return Number.isFinite(top) ? top : null;
+}
+
 interface JournalEditorProps {
   entries: JournalEntry[];
   selectedDate: string;
@@ -365,7 +407,33 @@ export function JournalEditor({
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     document.execCommand('insertText', false, text);
-  }, []);
+    // Scroll caret into view after paste. execCommand's native auto-scroll
+    // gets overridden by React's value-prop re-render. setSelectionRange to
+    // the same caret position is a no-op (no scroll), so we compute the
+    // caret's y-position using a mirror div that replicates the textarea's
+    // exact wrapping, then set scrollTop directly.
+    const ta = editorRef.current;
+    if (!ta) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = editorRef.current;
+        if (!el || document.activeElement !== el) return;
+        const caretTop = measureCaretTop(el);
+        if (caretTop === null) return;
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 24;
+        const visibleTop = el.scrollTop;
+        const visibleBottom = el.scrollTop + el.clientHeight;
+        const caretBottom = caretTop + lineHeight;
+        // One-line breathing room above/below so the caret doesn't sit at the
+        // very edge of the visible area.
+        if (caretBottom > visibleBottom) {
+          el.scrollTop = caretBottom - el.clientHeight + lineHeight;
+        } else if (caretTop < visibleTop) {
+          el.scrollTop = Math.max(0, caretTop - lineHeight);
+        }
+      });
+    });
+  }, [editorRef]);
 
   // Handle special keys
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
