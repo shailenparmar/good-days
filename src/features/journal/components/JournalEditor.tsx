@@ -98,6 +98,11 @@ export function JournalEditor({
   // Scroll position persistence
   const scrollPosition = useKeyedPersisted<number>('scrollPosition', 0);
   const scrollSaveTimeout = useRef<number | null>(null);
+  // Tracks which date we've already restored scroll for. Prevents the load
+  // effect from re-restoring scroll on every entries update (i.e., every
+  // keystroke), which was clobbering the textarea's native auto-scroll and
+  // making new lines invisible at the bottom of the editor.
+  const restoredForDateRef = useRef<string | null>(null);
 
   // Track scroll for scramble/cursor overlay sync — direct DOM refs for zero-lag
   const [scrollTop, setScrollTop] = useState(0);
@@ -165,8 +170,17 @@ export function JournalEditor({
 
     setValue(textContent);
 
-    // Restore scroll position after content loads (only on date change, not external sync)
-    if (!isExternalUpdate) {
+    // Restore scroll position on actual date change (not on every entries
+    // update — saveEntry calls setEntries per keystroke, which used to
+    // re-trigger this restore and clobber the textarea's native scroll-to-
+    // caret). Gate on textContent so Phase A's empty stub doesn't burn the
+    // restore slot before Phase B's decrypted content lands.
+    if (
+      !isExternalUpdate &&
+      restoredForDateRef.current !== selectedDate &&
+      textContent !== ''
+    ) {
+      restoredForDateRef.current = selectedDate;
       const savedScrollTop = scrollPosition.get(selectedDate);
       if (savedScrollTop > 0) {
         requestAnimationFrame(() => {
@@ -187,6 +201,21 @@ export function JournalEditor({
       lastLoadedRef.current = { date: selectedDate, content: textContent };
     }
   }, [entries, selectedDate, editorRef, scrollPosition, externalContentVersion]);
+
+  // Flush pending scroll-save on unmount (lock, date switch unmount, etc.).
+  // The 100ms debounce in handleScroll could otherwise drop the last position
+  // if the user scrolled then locked/navigated before the timer fired.
+  useEffect(() => {
+    return () => {
+      if (scrollSaveTimeout.current !== null) {
+        clearTimeout(scrollSaveTimeout.current);
+        scrollSaveTimeout.current = null;
+        if (editorRef.current) {
+          scrollPosition.set(selectedDate, editorRef.current.scrollTop);
+        }
+      }
+    };
+  }, [selectedDate, editorRef, scrollPosition]);
 
   // Handle scroll - persist position and sync overlay
   const handleScroll = useCallback(() => {
