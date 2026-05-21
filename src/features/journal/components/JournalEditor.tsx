@@ -424,12 +424,12 @@ export function JournalEditor({
         const visibleTop = el.scrollTop;
         const visibleBottom = el.scrollTop + el.clientHeight;
         const caretBottom = caretTop + lineHeight;
-        // One-line breathing room above/below so the caret doesn't sit at the
-        // very edge of the visible area.
+        // No breathing room — match the browser's native auto-scroll-to-caret
+        // used while typing (caret sits at the very bottom edge).
         if (caretBottom > visibleBottom) {
-          el.scrollTop = caretBottom - el.clientHeight + lineHeight;
+          el.scrollTop = caretBottom - el.clientHeight;
         } else if (caretTop < visibleTop) {
-          el.scrollTop = Math.max(0, caretTop - lineHeight);
+          el.scrollTop = caretTop;
         }
       });
     });
