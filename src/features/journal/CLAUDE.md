@@ -250,6 +250,20 @@ Extracted into `src/hooks/useMidnightTimer.ts`. Takes `editorRef` and `journalRe
 
 **Visibility resume (v2.5.61+):** `setTimeout` doesn't fire while a tab is suspended (sleep, background, etc.). A `visibilitychange` listener checks if the date has changed when the tab becomes visible again. If `selectedDate !== getTodayDate()`, it runs the same save/flush/switch logic and reschedules the midnight timeout. Logged as `app.midnight.visibility`.
 
+### Cross-Midnight Entry Loss (v3.1.39 fix) — CRITICAL
+
+**The bug:** Typing *through* midnight could wipe the entry you were writing. `rollToToday` saved the in-progress text, then called `setSelectedDate(today)` — a **batched** React state update, so the re-render didn't happen synchronously. For the rest of that tick:
+- The `<textarea>` was still rendered editable for *yesterday* (its `readOnly={!isToday}` came from the pre-midnight render, when yesterday *was* today).
+- `saveEntry`'s closure still captured `selectedDate = yesterday`.
+
+So any keystroke that landed in that window routed `onInput → saveEntry` to **yesterday**, overwriting the full entry with the post-midnight fragment. Worse: because `getTodayDate()` had already flipped, `isToday` was now `false` for yesterday, so an empty textarea hit the **delete-on-empty branch** (`deleteSingleEntry`) and erased the entry outright. Read-back reads from in-memory `entries`, which had been clobbered — hence "the text just disappeared."
+
+**The fix (two layers):**
+1. **`saveEntry(content, timestamp?, targetDate?)`** — an explicit `targetDate` param. Internally everything (load guard, `isToday`, the entry write, AND the delete-on-empty path) uses `date = targetDate ?? selectedDate`. A save can no longer be misrouted by a stale closure.
+2. **`rollToToday`** captures `fromDate = journalRef.current.selectedDate`, saves to it **explicitly** via `saveEntry(content, Date.now(), fromDate)`, then commits the day switch with **`flushSync(() => setSelectedDate(today))`**. flushSync forces React to render + run effects (so `journalRef` updates to today) before the next keystroke event is processed — closing the race window entirely.
+
+**Invariant to preserve:** the midnight save must be pinned to the day being left, and the day switch must be committed synchronously. Don't revert either to a plain `setSelectedDate` or drop the explicit `targetDate` — that reopens the loss window. `flushSync` is imported from `react-dom` (same pattern as `LockScreen.tsx`).
+
 ## Scramble Mode
 
 Scramble mode obfuscates entry text to prevent over-the-shoulder reading.
