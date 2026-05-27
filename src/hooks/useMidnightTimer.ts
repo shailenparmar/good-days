@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { flushPendingSaves } from '@shared/storage/journalStorage';
 import { getTodayDate } from '@shared/utils/date';
 import { logAction } from '@shared/logger';
@@ -9,20 +10,31 @@ import { logAction } from '@shared/logger';
  */
 export function useMidnightTimer(
   editorRef: React.RefObject<HTMLTextAreaElement | null>,
-  journalRef: React.MutableRefObject<{ saveEntry: (content: string, timestamp: number) => void; setSelectedDate: (date: string) => void; selectedDate: string }>,
+  journalRef: React.MutableRefObject<{ saveEntry: (content: string, timestamp: number, targetDate?: string) => void; setSelectedDate: (date: string) => void; selectedDate: string }>,
 ) {
   const midnightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const rollToToday = () => {
+      // The day we're rolling AWAY from. Capture it now so the save is pinned
+      // to it explicitly — setSelectedDate below is async, so saveEntry's own
+      // closure would still read this date for a tick after the switch, and
+      // any keystroke in that window would clobber (or, if empty, delete) it.
+      const fromDate = journalRef.current.selectedDate;
       if (editorRef.current) {
         const content = editorRef.current.value || '';
         if (content.trim()) {
-          journalRef.current.saveEntry(content, Date.now());
+          journalRef.current.saveEntry(content, Date.now(), fromDate);
         }
       }
       flushPendingSaves();
-      journalRef.current.setSelectedDate(getTodayDate());
+      // Commit the day switch synchronously. flushSync forces React to render +
+      // run effects (so journalRef updates to today) before the next keystroke
+      // event is processed — closing the window where typing across midnight
+      // would still be routed to yesterday's entry.
+      flushSync(() => {
+        journalRef.current.setSelectedDate(getTodayDate());
+      });
       if (editorRef.current) {
         editorRef.current.value = '';
       }

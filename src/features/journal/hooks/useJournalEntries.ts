@@ -326,15 +326,23 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     previousDate.current = selectedDate;
   }, [selectedDate, entries, isLoading]);
 
-  // Save content
-  const saveEntry = useCallback((content: string, timestamp?: number) => {
+  // Save content.
+  // `targetDate` lets callers write to an explicit day instead of the
+  // closure-captured `selectedDate`. The midnight rollover MUST use this:
+  // setSelectedDate(today) is async/batched, so for a tick after midnight the
+  // closure here still points at yesterday while the editor is mid-transition.
+  // Without an explicit target, a save fired in that window lands on (and, when
+  // the cleared textarea is empty, DELETES) yesterday's entry. See
+  // useMidnightTimer.rollToToday.
+  const saveEntry = useCallback((content: string, timestamp?: number, targetDate?: string) => {
+    const date = targetDate ?? selectedDate;
     // Refuse to overwrite an entry whose ciphertext we haven't decrypted yet.
     // The selectedDate effect lazy-decrypts on navigation, so this only fires
     // during a narrow window — but it's the difference between "user types
     // before decrypt finishes and silently nukes their old entry" and "save
     // is dropped for a few hundred ms until lazy load completes".
-    if (!loadedDatesRef.current.has(selectedDate)) {
-      logAction('journal.save.skipped', { reason: 'entryNotLoaded', date: selectedDate });
+    if (!loadedDatesRef.current.has(date)) {
+      logAction('journal.save.skipped', { reason: 'entryNotLoaded', date });
       return;
     }
     const now = Date.now();
@@ -347,11 +355,11 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     // Normalize content: if no actual text, save empty string (not <br> or other empty HTML)
     const normalizedContent = textContent.trim() === '' ? '' : content;
 
-    const isToday = selectedDate === getTodayDate();
+    const isToday = date === getTodayDate();
 
     // Build new entries using ref (synchronous, not affected by React batching)
     const currentEntries = entriesRef.current;
-    const existingIndex = currentEntries.findIndex(e => e.date === selectedDate);
+    const existingIndex = currentEntries.findIndex(e => e.date === date);
     let newEntries: JournalEntry[];
     let entryToSave: JournalEntry | null = null;
     let dateToDelete: string | null = null;
@@ -359,7 +367,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
     if (textContent.trim() === '') {
       if (isToday) {
         const entry: JournalEntry = {
-          date: selectedDate,
+          date,
           content: normalizedContent,
           title: existingIndex >= 0 ? currentEntries[existingIndex].title : undefined,
           startedAt: existingIndex >= 0 ? (currentEntries[existingIndex].startedAt || timestamp || now) : (timestamp || now),
@@ -374,13 +382,13 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
         }
       } else {
         // Delete entry for non-today with empty content
-        dateToDelete = selectedDate;
-        newEntries = currentEntries.filter(e => e.date !== selectedDate);
-        logAction('journal.entryDeleted', { date: selectedDate });
+        dateToDelete = date;
+        newEntries = currentEntries.filter(e => e.date !== date);
+        logAction('journal.entryDeleted', { date });
       }
     } else if (existingIndex >= 0) {
       const entry: JournalEntry = {
-        date: selectedDate,
+        date,
         content,
         title: currentEntries[existingIndex].title,
         startedAt: currentEntries[existingIndex].startedAt || timestamp || now,
@@ -391,7 +399,7 @@ export function useJournalEntries(encryptionKeyReady: boolean = false) {
       newEntries[existingIndex] = entry;
     } else {
       const entry: JournalEntry = {
-        date: selectedDate,
+        date,
         content,
         startedAt: timestamp || now,
         lastModified: now,
